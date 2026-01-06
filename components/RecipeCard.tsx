@@ -11,68 +11,67 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onAdd }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-[#1F2823] rounded-3xl overflow-hidden shadow-lg border border-[#2A362F] transition-all hover:border-[#3E4C43] flex flex-col h-full group">
-      <div className="relative h-48 bg-[#151C18] overflow-hidden">
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 transition-all hover:shadow-md flex flex-col h-full group">
+      <div className="relative h-48 bg-slate-50 overflow-hidden">
         <RecipeIllustration 
             name={meal.name} 
             ingredients={meal.ingredients} 
             type={meal.type}
-            className="w-full h-full opacity-90 group-hover:scale-105 transition-transform duration-700" 
+            className="w-full h-full transition-transform duration-700 group-hover:scale-105" 
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1F2823] to-transparent"></div>
-        <div className="absolute top-4 left-4 bg-[#1F2823]/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white border border-white/10">
+        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200/50 shadow-sm">
           {meal.type}
-        </div>
-        <div className="absolute bottom-4 left-4 text-white">
-            <p className="font-serif text-3xl leading-none">{meal.calories} <span className="text-sm font-sans font-medium text-[#9CA3AF]">kcal</span></p>
         </div>
       </div>
       
-      <div className="p-6 flex flex-col flex-1">
-        <div className="mb-4">
-          <h3 className="text-xl font-normal text-white leading-tight mb-2 font-serif">{meal.name}</h3>
-          <p className="text-[#9CA3AF] text-sm line-clamp-2 leading-relaxed">{meal.description}</p>
+      <div className="p-5 flex flex-col flex-1">
+        <div className="mb-3">
+          <div className="flex justify-between items-start">
+             <h3 className="text-lg font-medium text-slate-900 leading-tight mb-1 font-serif group-hover:text-emerald-700 transition-colors">{meal.name}</h3>
+             <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">{meal.calories} kcal</span>
+          </div>
+          <p className="text-slate-500 text-xs line-clamp-2 leading-relaxed mt-1">{meal.description}</p>
         </div>
         
-        <div className="flex gap-4 text-xs font-bold text-[#52525B] uppercase tracking-wide mb-6">
-          <span className="bg-[#2A362F] px-2 py-1 rounded text-[#9CA3AF]">P: {meal.protein || '-'}g</span>
-          <span className="bg-[#2A362F] px-2 py-1 rounded text-[#9CA3AF]">F: {meal.fat || '-'}g</span>
-          <span className="bg-[#2A362F] px-2 py-1 rounded text-[#9CA3AF]">C: {meal.carbs || '-'}g</span>
+        <div className="flex gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-5">
+          <span className="bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded">P: {meal.protein || '-'}g</span>
+          <span className="bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded">F: {meal.fat || '-'}g</span>
+          <span className="bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded">C: {meal.carbs || '-'}g</span>
         </div>
 
         {expanded && (
-            <div className="mt-2 mb-6 pt-4 border-t border-[#2A362F] text-sm space-y-5 animate-fade-in">
+            <div className="mt-2 mb-6 pt-4 border-t border-slate-100 text-sm space-y-4 animate-fade-in">
                 <div>
-                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#A3E635]"></span> Ingredients
+                    <h4 className="font-semibold text-slate-900 mb-2 flex items-center gap-2 text-xs uppercase tracking-wide">
+                        Ingredients
                     </h4>
-                    <ul className="pl-4 space-y-1.5 text-[#9CA3AF]">
-                        {meal.ingredients.map((ing, i) => <li key={i} className="leading-relaxed relative before:content-['•'] before:absolute before:-left-3 before:text-[#52525B]">{ing}</li>)}
+                    <ul className="pl-4 space-y-1 text-slate-600 text-xs">
+                        {meal.ingredients.map((ing, i) => <li key={i} className="list-disc pl-1">{ing}</li>)}
                     </ul>
                 </div>
                 <div>
-                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                         <span className="w-1.5 h-1.5 rounded-full bg-white"></span> Instructions
+                    <h4 className="font-semibold text-slate-900 mb-2 flex items-center gap-2 text-xs uppercase tracking-wide">
+                         Instructions
                     </h4>
-                    <ol className="list-decimal pl-4 space-y-2 text-[#9CA3AF] marker:text-[#52525B] marker:font-medium">
-                        {meal.instructions?.map((step, i) => <li key={i} className="leading-relaxed">{step}</li>)}
+                    <ol className="list-decimal pl-4 space-y-2 text-slate-600 text-xs">
+                        {meal.instructions?.map((step, i) => <li key={i}>{step}</li>)}
                     </ol>
                 </div>
             </div>
         )}
 
-        <div className="mt-auto flex gap-3">
+        <div className="mt-auto flex gap-2">
             <button 
                 onClick={() => setExpanded(!expanded)}
-                className="flex-1 py-3 text-sm font-semibold text-[#9CA3AF] hover:text-white bg-[#2A362F] hover:bg-[#323E37] rounded-xl transition-colors"
+                className="flex-1 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors"
             >
                 {expanded ? 'Hide' : 'Details'}
             </button>
             <button 
                 onClick={() => onAdd(meal)}
-                className="flex-1 py-3 text-sm font-bold text-[#1F2823] bg-[#A3E635] hover:bg-[#bef264] rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-emerald-600 rounded-xl transition-colors shadow-sm"
             >
-               <span>Log Meal</span>
+               Log Meal
             </button>
         </div>
       </div>

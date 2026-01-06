@@ -146,25 +146,15 @@ export const Planner: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <header className="flex justify-between items-center mb-6">
         <div>
-            <h2 className="text-4xl font-normal text-[#1F2823] tracking-tight font-serif">Weekly Planner</h2>
-            <p className="text-[#1F2823]/70 font-medium mt-1">Design your week.</p>
+            <h2 className="text-3xl font-normal text-slate-900 tracking-tight font-serif">Weekly Planner</h2>
+            <p className="text-slate-500 font-medium mt-1">Design your week.</p>
         </div>
         <button
             onClick={handleAutoPlan}
             disabled={isGenerating}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg ${isGenerating ? 'bg-[#1F2823]/50 text-white cursor-wait' : 'bg-[#1F2823] text-white hover:bg-[#1F2823]/90 hover:shadow-[#1F2823]/30'}`}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${isGenerating ? 'bg-slate-200 text-slate-500 cursor-wait' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
         >
-            {isGenerating ? (
-                <>
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Planning...
-                </>
-            ) : (
-                <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M2 12h20"/><path d="m4.93 4.93 14.14 14.14"/><path d="m19.07 4.93-14.14 14.14"/></svg>
-                    Auto-Plan
-                </>
-            )}
+            {isGenerating ? 'Planning...' : 'Auto-Plan'}
         </button>
       </header>
 
@@ -182,50 +172,50 @@ export const Planner: React.FC = () => {
                     <button
                     key={date}
                     onClick={() => setSelectedDate(date)}
-                    className={`flex-shrink-0 flex flex-col items-center justify-center w-20 h-24 rounded-2xl transition-all snap-center border-2 ${
+                    className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-xl transition-all snap-center border ${
                         isSelected 
-                        ? 'bg-[#1F2823] text-white border-[#1F2823] shadow-lg shadow-[#1F2823]/20' 
-                        : 'bg-[#D4E0D1] text-[#1F2823] border-[#1F2823]/10 hover:border-[#1F2823]/30'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-lg' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
                     }`}
                     >
-                    <span className={`text-xs font-bold uppercase tracking-wide ${isSelected ? 'text-[#9CA3AF]' : 'opacity-60'}`}>{dayName}</span>
-                    <span className={`text-2xl font-serif mt-1 ${isSelected ? 'text-white' : 'text-[#1F2823]'}`}>{dayNum}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wide ${isSelected ? 'opacity-80' : 'opacity-60'}`}>{dayName}</span>
+                    <span className="text-xl font-serif font-medium mt-0.5">{dayNum}</span>
                     </button>
                 );
                 })}
             </div>
           </div>
 
-          {/* Main Day View - Dark Card */}
+          {/* Main Day View - Light Card */}
           <div className="lg:col-span-8">
-            <div className="bg-[#1F2823] rounded-3xl border border-[#2A362F] shadow-xl shadow-[#1F2823]/10 overflow-hidden min-h-[500px] flex flex-col">
-                <div className="p-6 border-b border-[#2A362F] flex justify-between items-center bg-[#1F2823] sticky top-0 z-10">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                     <div>
-                         <h3 className="font-normal text-2xl text-white font-serif">
+                         <h3 className="font-normal text-2xl text-slate-900 font-serif">
                             {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}
                         </h3>
-                        <p className="text-[#9CA3AF] text-sm font-medium">{new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
+                        <p className="text-slate-400 text-sm font-medium">{new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
                     </div>
                     
-                    <div className={`text-sm font-bold px-4 py-1.5 rounded-full flex items-center gap-2 ${isOverLimit ? 'bg-red-400 text-[#1F2823]' : 'bg-[#A3E635] text-[#1F2823]'}`}>
+                    <div className={`text-sm font-bold px-4 py-1.5 rounded-full flex items-center gap-2 ${isOverLimit ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}`}>
                         {totalCalories} / {DAILY_CALORIE_LIMIT} kcal
                     </div>
                 </div>
 
-                <div className="p-6 space-y-4 flex-1">
+                <div className="p-6 space-y-4 flex-1 bg-slate-50/50">
                 {dayPlan?.meals.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center text-[#52525B] py-20 border border-dashed border-[#2A362F] rounded-2xl">
-                        <div className="w-16 h-16 bg-[#2A362F] rounded-full flex items-center justify-center mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#52525B]"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 py-20 border border-dashed border-slate-200 rounded-xl bg-white">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                         </div>
-                        <p className="font-medium">No meals planned.</p>
+                        <p className="font-medium text-slate-600">No meals planned.</p>
                         <p className="text-sm">Add a meal or use Auto-Plan.</p>
                     </div>
                 ) : (
                     dayPlan?.meals.map((meal, idx) => (
-                    <div key={`${meal.id}-${idx}`} className="flex items-center justify-between p-4 bg-[#2A362F] border border-[#3E4C43] rounded-2xl hover:border-[#A3E635]/50 transition-all group overflow-hidden">
+                    <div key={`${meal.id}-${idx}`} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-emerald-400 hover:shadow-sm transition-all group overflow-hidden">
                         <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#151C18] flex-shrink-0">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
                                 <RecipeIllustration 
                                     name={meal.name} 
                                     ingredients={meal.ingredients} 
@@ -234,18 +224,18 @@ export const Planner: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <p className="font-normal text-white text-lg font-serif">{meal.name}</p>
+                                <p className="font-medium text-slate-900 text-lg font-serif">{meal.name}</p>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-[10px] font-bold text-[#1F2823] bg-[#9CA3AF] px-2 py-0.5 rounded uppercase tracking-wide opacity-80">{meal.type}</span>
-                                    <span className="text-xs font-bold text-[#A3E635]">{meal.calories} kcal</span>
+                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wide">{meal.type}</span>
+                                    <span className="text-xs font-bold text-emerald-600">{meal.calories} kcal</span>
                                 </div>
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={() => openSwapModal(idx)} className="p-2.5 rounded-xl bg-[#1F2823] text-[#9CA3AF] hover:text-white hover:bg-[#323E37] transition-all" title="Swap Recipe">
+                            <button onClick={() => openSwapModal(idx)} className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Swap Recipe">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
                             </button>
-                            <button onClick={() => removeMeal(idx)} className="p-2.5 rounded-xl bg-[#1F2823] text-[#9CA3AF] hover:text-red-400 hover:bg-[#323E37] transition-all" title="Remove Meal">
+                            <button onClick={() => removeMeal(idx)} className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all" title="Remove Meal">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
@@ -255,7 +245,7 @@ export const Planner: React.FC = () => {
 
                 <button 
                     onClick={openAddModal}
-                    className="w-full py-4 mt-4 border border-dashed border-[#52525B] rounded-2xl text-[#9CA3AF] font-semibold hover:border-[#A3E635] hover:text-[#A3E635] hover:bg-[#A3E635]/5 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-4 mt-4 border border-dashed border-slate-300 rounded-xl text-slate-500 font-semibold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 bg-white"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Add Meal
@@ -266,29 +256,29 @@ export const Planner: React.FC = () => {
 
           {/* Daily Info Column */}
           <div className="lg:col-span-4 space-y-6">
-             {/* Nutrition Summary (Simulated for now) */}
-             <div className="bg-[#1F2823] p-6 rounded-3xl border border-[#2A362F] shadow-xl shadow-[#1F2823]/10">
-                 <h4 className="font-normal text-white mb-4 font-serif text-xl">Daily Targets</h4>
+             {/* Nutrition Summary */}
+             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                 <h4 className="font-medium text-slate-900 mb-4 font-serif text-xl">Daily Targets</h4>
                  <div className="space-y-4">
                      <div>
                          <div className="flex justify-between text-sm mb-2">
-                             <span className="font-medium text-[#9CA3AF]">Calories</span>
-                             <span className="font-bold text-white">{totalCalories} / {DAILY_CALORIE_LIMIT}</span>
+                             <span className="font-medium text-slate-500">Calories</span>
+                             <span className="font-bold text-slate-900">{totalCalories} / {DAILY_CALORIE_LIMIT}</span>
                          </div>
-                         <div className="h-1 bg-[#2A362F] rounded-full overflow-hidden">
-                             <div className="h-full bg-[#A3E635] rounded-full" style={{width: `${Math.min(100, (totalCalories/DAILY_CALORIE_LIMIT)*100)}%`}}></div>
+                         <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                             <div className={`h-full rounded-full ${isOverLimit ? 'bg-red-500' : 'bg-emerald-500'}`} style={{width: `${Math.min(100, (totalCalories/DAILY_CALORIE_LIMIT)*100)}%`}}></div>
                          </div>
                      </div>
                  </div>
              </div>
              
-             {/* Tip Card - Use Inverse Colors for contrast */}
-             <div className="bg-[#2A362F] p-6 rounded-3xl border border-[#3E4C43] shadow-lg">
+             {/* Tip Card */}
+             <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-lg text-white">
                  <div className="flex items-center gap-2 mb-3">
-                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#A3E635]"><path d="M2 12h20"></path><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"></path><path d="m4 8 16-4"></path><path d="m8.86 6.78-.45-1.81a2 2 0 0 1 1.45-2.43l1.94-.55a2 2 0 0 1 2.43 1.45l.45 1.81"></path></svg>
-                     <span className="font-bold uppercase tracking-wide text-xs text-[#A3E635]">Daily Insight</span>
+                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400"><path d="M2 12h20"></path><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"></path><path d="m4 8 16-4"></path><path d="m8.86 6.78-.45-1.81a2 2 0 0 1 1.45-2.43l1.94-.55a2 2 0 0 1 2.43 1.45l.45 1.81"></path></svg>
+                     <span className="font-bold uppercase tracking-wide text-xs text-emerald-400">Daily Insight</span>
                  </div>
-                 <p className="text-sm font-medium leading-relaxed text-[#D4E0D1]">
+                 <p className="text-sm font-medium leading-relaxed text-slate-300">
                      {dayPlan?.tips || "Consistency is key. Focus on nutrient-dense foods to stay full longer."}
                  </p>
              </div>
@@ -297,29 +287,29 @@ export const Planner: React.FC = () => {
 
       {/* Improved Add/Swap Meal Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F2823]/60 backdrop-blur-md p-4 animate-fade-in">
-           <div className="bg-[#D4E0D1] w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[85vh] border border-[#1F2823]/10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
               {/* Header */}
-              <div className="p-6 border-b border-[#1F2823]/10 flex justify-between items-center bg-[#D4E0D1] rounded-t-3xl">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-2xl">
                  <div>
-                    <h3 className="font-normal text-3xl text-[#1F2823] font-serif">{swapIndex !== null ? 'Swap Meal' : 'Add Meal'}</h3>
-                    <p className="text-sm text-[#1F2823]/60 font-medium mt-1">Select a recipe from your library</p>
+                    <h3 className="font-normal text-3xl text-slate-900 font-serif">{swapIndex !== null ? 'Swap Meal' : 'Add Meal'}</h3>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Select a recipe from your library</p>
                  </div>
-                 <button onClick={closeModal} className="p-2.5 bg-[#1F2823]/5 hover:bg-[#1F2823]/10 rounded-full transition-colors text-[#1F2823]">
+                 <button onClick={closeModal} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors text-slate-600">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                  </button>
               </div>
 
               {/* Search & Filter */}
-              <div className="p-6 space-y-4 border-b border-[#1F2823]/10 bg-[#D4E0D1]">
+              <div className="p-6 space-y-4 border-b border-slate-100 bg-slate-50">
                   <div className="relative">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-[#1F2823]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                       <input 
                         type="text" 
                         placeholder="Search recipes..." 
-                        className="w-full pl-11 pr-4 py-3 bg-[#1F2823]/5 border border-[#1F2823]/10 rounded-2xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#1F2823] placeholder-[#1F2823]/40 text-[#1F2823]"
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-400 text-slate-900"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
@@ -329,10 +319,10 @@ export const Planner: React.FC = () => {
                           <button
                              key={type}
                              onClick={() => setActiveFilter(type as any)}
-                             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase whitespace-nowrap transition-all border ${
+                             className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border ${
                                  activeFilter === type 
-                                 ? 'bg-[#1F2823] text-white border-[#1F2823]' 
-                                 : 'bg-transparent text-[#1F2823] border-[#1F2823]/20 hover:border-[#1F2823]'
+                                 ? 'bg-slate-900 text-white border-slate-900' 
+                                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                              }`}
                           >
                              {type}
@@ -342,21 +332,20 @@ export const Planner: React.FC = () => {
               </div>
 
               {/* List */}
-              <div className="overflow-y-auto p-4 flex-1 bg-[#D4E0D1]">
+              <div className="overflow-y-auto p-4 flex-1 bg-slate-50">
                  <div className="grid gap-3">
                      {filteredRecipes.length === 0 ? (
-                        <div className="text-center py-16 text-[#1F2823]/50">
+                        <div className="text-center py-16 text-slate-400">
                             <p className="font-medium">No matching recipes found.</p>
-                            <p className="text-xs mt-1">Try adjusting your search or filters.</p>
                         </div>
                      ) : (
                          filteredRecipes.map(recipe => (
                              <button 
                                 key={recipe.id}
                                 onClick={() => handleRecipeSelect(recipe)}
-                                className="flex items-center gap-5 p-3 rounded-2xl bg-white border border-[#1F2823]/10 hover:border-[#1F2823] hover:shadow-lg transition-all text-left group w-full overflow-hidden"
+                                className="flex items-center gap-5 p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all text-left group w-full overflow-hidden"
                              >
-                                <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#1F2823]/10 flex-shrink-0 relative">
+                                <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0 relative">
                                     <RecipeIllustration 
                                         name={recipe.name} 
                                         ingredients={recipe.ingredients} 
@@ -365,20 +354,16 @@ export const Planner: React.FC = () => {
                                     />
                                 </div>
                                 <div className="flex-1 min-w-0 py-1">
-                                    <h4 className="font-bold text-lg text-[#1F2823] truncate font-serif">{recipe.name}</h4>
-                                    <p className="text-xs text-[#1F2823]/60 line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
+                                    <h4 className="font-bold text-lg text-slate-900 truncate font-serif">{recipe.name}</h4>
+                                    <p className="text-xs text-slate-500 line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold text-[#1F2823]/70 bg-[#1F2823]/5 px-2 py-0.5 rounded uppercase tracking-wide">{recipe.type}</span>
-                                        <span className="text-xs font-bold text-[#1F2823]">{recipe.calories} kcal</span>
+                                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wide">{recipe.type}</span>
+                                        <span className="text-xs font-bold text-emerald-600">{recipe.calories} kcal</span>
                                     </div>
                                 </div>
                                 <div className="pr-2">
-                                    <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${swapIndex !== null ? 'bg-[#1F2823] text-white border-[#1F2823]' : 'bg-[#1F2823] text-white border-[#1F2823]'}`}>
-                                        {swapIndex !== null ? (
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
-                                        ) : (
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                        )}
+                                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${swapIndex !== null ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-300 text-slate-300 group-hover:border-emerald-500 group-hover:text-emerald-500'}`}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </div>
                                 </div>
                              </button>
