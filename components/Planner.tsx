@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan } from '../services/storageService';
 import { planWeekWithExistingRecipes } from '../services/geminiService';
 import { Recipe, DayPlan } from '../types';
-import { DAILY_CALORIE_LIMIT, PLACEHOLDER_IMAGE } from '../constants';
+import { DAILY_CALORIE_LIMIT } from '../constants';
+import { RecipeIllustration } from './RecipeIllustration';
 
 export const Planner: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -222,13 +223,16 @@ export const Planner: React.FC = () => {
                     </div>
                 ) : (
                     dayPlan?.meals.map((meal, idx) => (
-                    <div key={`${meal.id}-${idx}`} className="flex items-center justify-between p-4 bg-[#2A362F] border border-[#3E4C43] rounded-2xl hover:border-[#A3E635]/50 transition-all group">
+                    <div key={`${meal.id}-${idx}`} className="flex items-center justify-between p-4 bg-[#2A362F] border border-[#3E4C43] rounded-2xl hover:border-[#A3E635]/50 transition-all group overflow-hidden">
                         <div className="flex items-center gap-4">
-                            <img 
-                                src={`${PLACEHOLDER_IMAGE}?random=${meal.id}`} 
-                                className="w-16 h-16 rounded-xl object-cover bg-[#151C18]"
-                                alt={meal.name}
-                            />
+                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#151C18] flex-shrink-0">
+                                <RecipeIllustration 
+                                    name={meal.name} 
+                                    ingredients={meal.ingredients} 
+                                    type={meal.type} 
+                                    className="w-full h-full"
+                                />
+                            </div>
                             <div>
                                 <p className="font-normal text-white text-lg font-serif">{meal.name}</p>
                                 <div className="flex items-center gap-2 mt-1">
@@ -350,13 +354,16 @@ export const Planner: React.FC = () => {
                              <button 
                                 key={recipe.id}
                                 onClick={() => handleRecipeSelect(recipe)}
-                                className="flex items-center gap-5 p-3 rounded-2xl bg-white border border-[#1F2823]/10 hover:border-[#1F2823] hover:shadow-lg transition-all text-left group w-full"
+                                className="flex items-center gap-5 p-3 rounded-2xl bg-white border border-[#1F2823]/10 hover:border-[#1F2823] hover:shadow-lg transition-all text-left group w-full overflow-hidden"
                              >
-                                <img 
-                                    src={`${PLACEHOLDER_IMAGE}?random=${recipe.id}`} 
-                                    className="w-20 h-20 rounded-xl object-cover bg-[#1F2823]/10 flex-shrink-0 shadow-sm"
-                                    alt={recipe.name}
-                                />
+                                <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#1F2823]/10 flex-shrink-0 relative">
+                                    <RecipeIllustration 
+                                        name={recipe.name} 
+                                        ingredients={recipe.ingredients} 
+                                        type={recipe.type}
+                                        className="w-full h-full"
+                                    />
+                                </div>
                                 <div className="flex-1 min-w-0 py-1">
                                     <h4 className="font-bold text-lg text-[#1F2823] truncate font-serif">{recipe.name}</h4>
                                     <p className="text-xs text-[#1F2823]/60 line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>

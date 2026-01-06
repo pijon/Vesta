@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Meal } from '../types';
-import { PLACEHOLDER_IMAGE } from '../constants';
+import { RecipeIllustration } from './RecipeIllustration';
 
 interface RecipeCardProps {
   meal: Meal;
@@ -12,12 +12,12 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onAdd }) => {
 
   return (
     <div className="bg-[#1F2823] rounded-3xl overflow-hidden shadow-lg border border-[#2A362F] transition-all hover:border-[#3E4C43] flex flex-col h-full group">
-      <div className="relative h-48 bg-[#151C18]">
-        <img 
-          src={`${PLACEHOLDER_IMAGE}?random=${meal.id}`} 
-          alt={meal.name}
-          className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-          loading="lazy"
+      <div className="relative h-48 bg-[#151C18] overflow-hidden">
+        <RecipeIllustration 
+            name={meal.name} 
+            ingredients={meal.ingredients} 
+            type={meal.type}
+            className="w-full h-full opacity-90 group-hover:scale-105 transition-transform duration-700" 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#1F2823] to-transparent"></div>
         <div className="absolute top-4 left-4 bg-[#1F2823]/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white border border-white/10">

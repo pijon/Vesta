@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Recipe } from '../types';
 import { getRecipes, saveRecipe, deleteRecipe } from '../services/storageService';
 import { parseRecipeText } from '../services/geminiService';
-import { PLACEHOLDER_IMAGE } from '../constants';
+import { RecipeIllustration } from './RecipeIllustration';
 
 export const RecipeLibrary: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -10,6 +10,7 @@ export const RecipeLibrary: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState<string>('name');
   
   // Selection and Editing State
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -105,11 +106,25 @@ export const RecipeLibrary: React.FC = () => {
     }
   };
 
-  const filteredRecipes = recipes.filter(recipe => 
-    recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    recipe.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredRecipes = recipes
+    .filter(recipe => 
+      recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      recipe.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+    .sort((a, b) => {
+        switch (sortOption) {
+            case 'caloriesLow':
+                return a.calories - b.calories;
+            case 'caloriesHigh':
+                return b.calories - a.calories;
+            case 'protein':
+                return (b.protein || 0) - (a.protein || 0);
+            case 'name':
+            default:
+                return a.name.localeCompare(b.name);
+        }
+    });
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -156,20 +171,38 @@ export const RecipeLibrary: React.FC = () => {
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#1F2823]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+      {/* Search & Sort Bar */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#1F2823]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <input
+                type="text"
+                className="block w-full pl-11 pr-4 py-3.5 border border-[#1F2823]/10 rounded-2xl leading-5 bg-white placeholder-[#1F2823]/40 focus:outline-none focus:ring-1 focus:ring-[#1F2823] transition-all shadow-sm text-[#1F2823]"
+                placeholder="Search by name, type, or ingredient..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+            />
         </div>
-        <input
-            type="text"
-            className="block w-full pl-11 pr-4 py-3.5 border border-[#1F2823]/10 rounded-2xl leading-5 bg-white placeholder-[#1F2823]/40 focus:outline-none focus:ring-1 focus:ring-[#1F2823] transition-all shadow-sm text-[#1F2823]"
-            placeholder="Search by name, type, or ingredient..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        
+        <div className="relative min-w-[180px]">
+            <select 
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                className="appearance-none w-full bg-white border border-[#1F2823]/10 text-[#1F2823] py-3.5 pl-4 pr-10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-[#1F2823] cursor-pointer font-medium shadow-sm"
+            >
+                <option value="name">Name (A-Z)</option>
+                <option value="caloriesLow">Calories (Low)</option>
+                <option value="caloriesHigh">Calories (High)</option>
+                <option value="protein">Highest Protein</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#1F2823]/60">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -183,13 +216,16 @@ export const RecipeLibrary: React.FC = () => {
             <div 
                 key={recipe.id} 
                 onClick={() => openRecipe(recipe)}
-                className="bg-[#1F2823] p-5 rounded-3xl shadow-lg border border-[#2A362F] flex gap-5 cursor-pointer hover:border-[#A3E635]/50 transition-all group"
+                className="bg-[#1F2823] p-5 rounded-3xl shadow-lg border border-[#2A362F] flex gap-5 cursor-pointer hover:border-[#A3E635]/50 transition-all group overflow-hidden"
             >
-               <img 
-                 src={`${PLACEHOLDER_IMAGE}?random=${recipe.id}`} 
-                 className="w-24 h-24 rounded-2xl object-cover bg-[#2A362F] flex-shrink-0 opacity-90 group-hover:opacity-100 transition-opacity"
-                 alt={recipe.name}
-               />
+               <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-[#2A362F] relative">
+                    <RecipeIllustration 
+                        name={recipe.name} 
+                        ingredients={recipe.ingredients} 
+                        type={recipe.type} 
+                        className="w-full h-full transform group-hover:scale-110 transition-transform duration-500"
+                    />
+               </div>
                <div className="flex-1 min-w-0 flex flex-col justify-center">
                  <div className="flex justify-between items-start mb-1">
                     <h3 className="font-normal text-white text-xl truncate font-serif">{recipe.name}</h3>
@@ -215,11 +251,12 @@ export const RecipeLibrary: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1F2823]/70 backdrop-blur-md animate-fade-in" onClick={closeRecipe}>
             <div className="bg-[#D4E0D1] w-full max-w-3xl rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col border border-[#1F2823]/10" onClick={e => e.stopPropagation()}>
                 {/* Image Header */}
-                <div className="relative h-48 md:h-64 flex-shrink-0 bg-[#2A362F]">
-                    <img 
-                        src={`${PLACEHOLDER_IMAGE}?random=${selectedRecipe.id}`} 
-                        className="w-full h-full object-cover"
-                        alt={selectedRecipe.name}
+                <div className="relative h-48 md:h-64 flex-shrink-0 bg-[#2A362F] overflow-hidden">
+                    <RecipeIllustration 
+                        name={selectedRecipe.name} 
+                        ingredients={selectedRecipe.ingredients} 
+                        type={selectedRecipe.type} 
+                        className="w-full h-full"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1F2823]/90 to-transparent"></div>
                     <button 
@@ -308,7 +345,7 @@ export const RecipeLibrary: React.FC = () => {
                                         <label className="block text-xs font-semibold text-[#1F2823]/60 mb-1">Carbs (g)</label>
                                         <input type="number" min="0" value={editForm.carbs || 0} onChange={e => setEditForm({...editForm, carbs: parseInt(e.target.value) || 0})} className="w-full p-2 border border-[#1F2823]/10 rounded-lg text-sm text-center font-bold bg-[#F6F8FA]" />
                                     </div>
-                                 </div>
+                                </div>
                              </div>
 
                              <div>
