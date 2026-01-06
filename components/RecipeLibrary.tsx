@@ -11,6 +11,7 @@ export const RecipeLibrary: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<string>('name');
+  const [activeFilter, setActiveFilter] = useState<string>('all');
   
   // Selection and Editing State
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -107,11 +108,16 @@ export const RecipeLibrary: React.FC = () => {
   };
 
   const filteredRecipes = recipes
-    .filter(recipe => 
-      recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      recipe.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
+    .filter(recipe => {
+      const matchesSearch = 
+        recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        recipe.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesFilter = activeFilter === 'all' || recipe.type === activeFilter;
+
+      return matchesSearch && matchesFilter;
+    })
     .sort((a, b) => {
         switch (sortOption) {
             case 'caloriesLow':
@@ -171,37 +177,56 @@ export const RecipeLibrary: React.FC = () => {
         </div>
       )}
 
-      {/* Search & Sort Bar */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#1F2823]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+      {/* Search, Sort & Filters */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#1F2823]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input
+                    type="text"
+                    className="block w-full pl-11 pr-4 py-3.5 border border-[#1F2823]/10 rounded-2xl leading-5 bg-white placeholder-[#1F2823]/40 focus:outline-none focus:ring-1 focus:ring-[#1F2823] transition-all shadow-sm text-[#1F2823]"
+                    placeholder="Search by name, type, or ingredient..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
             </div>
-            <input
-                type="text"
-                className="block w-full pl-11 pr-4 py-3.5 border border-[#1F2823]/10 rounded-2xl leading-5 bg-white placeholder-[#1F2823]/40 focus:outline-none focus:ring-1 focus:ring-[#1F2823] transition-all shadow-sm text-[#1F2823]"
-                placeholder="Search by name, type, or ingredient..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            
+            <div className="relative min-w-[180px]">
+                <select 
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="appearance-none w-full bg-white border border-[#1F2823]/10 text-[#1F2823] py-3.5 pl-4 pr-10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-[#1F2823] cursor-pointer font-medium shadow-sm"
+                >
+                    <option value="name">Name (A-Z)</option>
+                    <option value="caloriesLow">Calories (Low)</option>
+                    <option value="caloriesHigh">Calories (High)</option>
+                    <option value="protein">Highest Protein</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#1F2823]/60">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+            </div>
         </div>
-        
-        <div className="relative min-w-[180px]">
-            <select 
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                className="appearance-none w-full bg-white border border-[#1F2823]/10 text-[#1F2823] py-3.5 pl-4 pr-10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-[#1F2823] cursor-pointer font-medium shadow-sm"
-            >
-                <option value="name">Name (A-Z)</option>
-                <option value="caloriesLow">Calories (Low)</option>
-                <option value="caloriesHigh">Calories (High)</option>
-                <option value="protein">Highest Protein</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#1F2823]/60">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-            </div>
+
+        {/* Filter Chips */}
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {['all', 'breakfast', 'lunch', 'dinner', 'snack', 'light meal'].map(type => (
+                <button
+                    key={type}
+                    onClick={() => setActiveFilter(type)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase whitespace-nowrap transition-all border ${
+                        activeFilter === type 
+                        ? 'bg-[#1F2823] text-white border-[#1F2823] shadow-md' 
+                        : 'bg-transparent text-[#1F2823] border-[#1F2823]/20 hover:border-[#1F2823] hover:bg-white'
+                    }`}
+                >
+                    {type}
+                </button>
+            ))}
         </div>
       </div>
 
@@ -312,6 +337,7 @@ export const RecipeLibrary: React.FC = () => {
                                         <option value="lunch">Lunch</option>
                                         <option value="dinner">Dinner</option>
                                         <option value="snack">Snack</option>
+                                        <option value="light meal">Light Meal</option>
                                      </select>
                                 </div>
                                 <div>

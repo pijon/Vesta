@@ -16,7 +16,7 @@ export const Planner: React.FC = () => {
 
   // Modal UI State
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'snack'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'light meal'>('all');
 
   useEffect(() => {
     // Generate next 7 days
@@ -325,7 +325,7 @@ export const Planner: React.FC = () => {
                       />
                   </div>
                   <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                      {['all', 'breakfast', 'lunch', 'dinner', 'snack'].map(type => (
+                      {['all', 'breakfast', 'lunch', 'dinner', 'snack', 'light meal'].map(type => (
                           <button
                              key={type}
                              onClick={() => setActiveFilter(type as any)}

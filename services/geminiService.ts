@@ -22,7 +22,7 @@ const recipeSchema: Schema = {
       type: Type.ARRAY,
       items: { type: Type.STRING }
     },
-    type: { type: Type.STRING, enum: ['breakfast', 'lunch', 'dinner', 'snack'] }
+    type: { type: Type.STRING, enum: ['breakfast', 'lunch', 'dinner', 'snack', 'light meal'] }
   },
   required: ['name', 'calories', 'ingredients']
 };
@@ -33,7 +33,7 @@ export const parseRecipeText = async (text: string): Promise<Partial<Recipe>> =>
   const prompt = `
     Extract recipe details from the following text. 
     Estimate calories per serving if not explicitly stated.
-    Identify if it's best for breakfast, lunch, or dinner.
+    Identify if it's best for breakfast, lunch, dinner, snack, or a light meal.
     Identify the number of servings (default to 1).
     Format ingredients into a clean list.
     

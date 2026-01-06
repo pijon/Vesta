@@ -67,6 +67,7 @@ export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ name, in
           case 'breakfast': return '#FEF3C7'; // Warm Yellow
           case 'dinner': return '#E0E7FF'; // Cool Indigo
           case 'snack': return '#FCE7F3'; // Soft Pink
+          case 'light meal': return '#CFFFA4'; // Pale Lime
           default: return '#D4E0D1'; // Sage Green (Lunch)
       }
   };
