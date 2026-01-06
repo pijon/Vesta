@@ -172,3 +172,67 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
         throw error;
     }
 };
+
+const weeklyPlanSchema: Schema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      date: { type: Type.STRING, description: "YYYY-MM-DD format" },
+      mealIds: { 
+        type: Type.ARRAY, 
+        items: { type: Type.STRING },
+        description: "IDs of the selected recipes" 
+      },
+      dailyTip: { type: Type.STRING }
+    },
+    required: ["date", "mealIds"]
+  }
+};
+
+export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: string): Promise<{date: string, mealIds: string[], dailyTip?: string}[]> => {
+  if (!apiKey) throw new Error("API Key not found");
+
+  // Simplify recipes to reduce token usage and focus AI on nutrition/type
+  const simplifiedRecipes = recipes.map(r => ({
+    id: r.id,
+    name: r.name,
+    calories: r.calories,
+    type: r.type
+  }));
+
+  const prompt = `
+    You are an expert meal planner for the Fast 800 diet.
+    
+    Task: Create a 7-day meal plan starting from ${startDate}.
+    
+    Rules:
+    1. Target approximately 800 calories per day (range 750-900 is acceptable).
+    2. Use ONLY the recipes provided in the JSON list below. Do not invent recipes.
+    3. Return the exact ID of the recipe used.
+    4. Try to vary the meals day-to-day if possible, but repeating favorites is okay if the user has few recipes.
+    5. Ensure a mix of breakfast/lunch/dinner types if the recipe metadata allows.
+    
+    Available Recipes:
+    ${JSON.stringify(simplifiedRecipes)}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: weeklyPlanSchema
+      }
+    });
+
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
+
+    return JSON.parse(output);
+  } catch (error) {
+    console.error("Error generating weekly plan:", error);
+    throw error;
+  }
+};

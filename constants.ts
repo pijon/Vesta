@@ -11,5 +11,6 @@ export const DEFAULT_USER_STATS = {
   startWeight: 90,
   currentWeight: 90,
   goalWeight: 80,
-  dailyCalorieGoal: 800
+  dailyCalorieGoal: 800,
+  weightHistory: []
 };

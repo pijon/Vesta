@@ -11,64 +11,66 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onAdd }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 transition-all hover:shadow-md">
-      <div className="relative h-48 bg-slate-200">
+    <div className="bg-[#1F2823] rounded-3xl overflow-hidden shadow-lg border border-[#2A362F] transition-all hover:border-[#3E4C43] flex flex-col h-full group">
+      <div className="relative h-48 bg-[#151C18]">
         <img 
           src={`${PLACEHOLDER_IMAGE}?random=${meal.id}`} 
           alt={meal.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
           loading="lazy"
         />
-        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide text-slate-700 shadow-sm">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1F2823] to-transparent"></div>
+        <div className="absolute top-4 left-4 bg-[#1F2823]/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white border border-white/10">
           {meal.type}
         </div>
-        <div className="absolute top-3 right-3 bg-slate-800/80 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm">
-          Serves {meal.servings || 1}
-        </div>
-        <div className="absolute bottom-3 right-3 bg-emerald-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-          {meal.calories} kcal
+        <div className="absolute bottom-4 left-4 text-white">
+            <p className="font-serif text-3xl leading-none">{meal.calories} <span className="text-sm font-sans font-medium text-[#9CA3AF]">kcal</span></p>
         </div>
       </div>
       
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-bold text-slate-800 leading-tight">{meal.name}</h3>
+      <div className="p-6 flex flex-col flex-1">
+        <div className="mb-4">
+          <h3 className="text-xl font-normal text-white leading-tight mb-2 font-serif">{meal.name}</h3>
+          <p className="text-[#9CA3AF] text-sm line-clamp-2 leading-relaxed">{meal.description}</p>
         </div>
-        <p className="text-slate-500 text-sm mb-4 line-clamp-2">{meal.description}</p>
         
-        <div className="flex gap-4 text-xs font-medium text-slate-400 mb-4">
-          <span>PRO: {meal.protein}g</span>
-          <span>FAT: {meal.fat}g</span>
-          <span>CARB: {meal.carbs}g</span>
+        <div className="flex gap-4 text-xs font-bold text-[#52525B] uppercase tracking-wide mb-6">
+          <span className="bg-[#2A362F] px-2 py-1 rounded text-[#9CA3AF]">P: {meal.protein || '-'}g</span>
+          <span className="bg-[#2A362F] px-2 py-1 rounded text-[#9CA3AF]">F: {meal.fat || '-'}g</span>
+          <span className="bg-[#2A362F] px-2 py-1 rounded text-[#9CA3AF]">C: {meal.carbs || '-'}g</span>
         </div>
 
         {expanded && (
-            <div className="mt-4 pt-4 border-t border-slate-100 text-sm space-y-4 animate-fade-in">
+            <div className="mt-2 mb-6 pt-4 border-t border-[#2A362F] text-sm space-y-5 animate-fade-in">
                 <div>
-                    <h4 className="font-semibold text-slate-700 mb-2">Ingredients</h4>
-                    <ul className="list-disc pl-4 space-y-1 text-slate-600">
-                        {meal.ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
+                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#A3E635]"></span> Ingredients
+                    </h4>
+                    <ul className="pl-4 space-y-1.5 text-[#9CA3AF]">
+                        {meal.ingredients.map((ing, i) => <li key={i} className="leading-relaxed relative before:content-['•'] before:absolute before:-left-3 before:text-[#52525B]">{ing}</li>)}
                     </ul>
                 </div>
                 <div>
-                    <h4 className="font-semibold text-slate-700 mb-2">Instructions</h4>
-                    <ol className="list-decimal pl-4 space-y-1 text-slate-600">
-                        {meal.instructions?.map((step, i) => <li key={i}>{step}</li>)}
+                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                         <span className="w-1.5 h-1.5 rounded-full bg-white"></span> Instructions
+                    </h4>
+                    <ol className="list-decimal pl-4 space-y-2 text-[#9CA3AF] marker:text-[#52525B] marker:font-medium">
+                        {meal.instructions?.map((step, i) => <li key={i} className="leading-relaxed">{step}</li>)}
                     </ol>
                 </div>
             </div>
         )}
 
-        <div className="flex gap-2 mt-2">
+        <div className="mt-auto flex gap-3">
             <button 
                 onClick={() => setExpanded(!expanded)}
-                className="flex-1 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                className="flex-1 py-3 text-sm font-semibold text-[#9CA3AF] hover:text-white bg-[#2A362F] hover:bg-[#323E37] rounded-xl transition-colors"
             >
-                {expanded ? 'Hide Recipe' : 'View Recipe'}
+                {expanded ? 'Hide' : 'Details'}
             </button>
             <button 
                 onClick={() => onAdd(meal)}
-                className="flex-1 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 text-sm font-bold text-[#1F2823] bg-[#A3E635] hover:bg-[#bef264] rounded-xl transition-colors flex items-center justify-center gap-2"
             >
                <span>Log Meal</span>
             </button>
