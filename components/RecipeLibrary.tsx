@@ -229,7 +229,11 @@ export const RecipeLibrary: React.FC = () => {
            </div>
         ) : (
           filteredRecipes.map(recipe => (
-             <RecipeCard key={recipe.id} meal={recipe} onAdd={() => openRecipe(recipe)} />
+             <RecipeCard 
+                key={recipe.id} 
+                meal={recipe} 
+                onClick={() => openRecipe(recipe)}
+             />
           ))
         )}
       </div>

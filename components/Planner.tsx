@@ -15,8 +15,14 @@ export const Planner: React.FC = () => {
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
 
   // Modal UI State
+  const [modalTab, setModalTab] = useState<'library' | 'custom'>('library');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'light meal'>('all');
+
+  // Custom Meal Form State
+  const [customName, setCustomName] = useState('');
+  const [customCalories, setCustomCalories] = useState('');
+  const [customType, setCustomType] = useState<any>('dinner');
 
   useEffect(() => {
     // Generate next 7 days
@@ -58,6 +64,23 @@ export const Planner: React.FC = () => {
     closeModal();
   };
 
+  const handleCustomAdd = () => {
+      if (!customName.trim() || !customCalories) return;
+      
+      const newMeal: Recipe = {
+          id: crypto.randomUUID(),
+          name: customName,
+          calories: parseInt(customCalories) || 0,
+          ingredients: [],
+          instructions: [],
+          type: customType,
+          servings: 1,
+          description: 'Eat Out / Custom Meal'
+      };
+      
+      handleRecipeSelect(newMeal);
+  };
+
   const removeMeal = (index: number) => {
     if (!dayPlan) return;
     const newMeals = [...dayPlan.meals];
@@ -72,16 +95,23 @@ export const Planner: React.FC = () => {
 
   const openAddModal = () => {
       setSwapIndex(null);
-      setSearchTerm('');
-      setActiveFilter('all');
+      resetModalState();
       setShowAddModal(true);
   };
 
   const openSwapModal = (index: number) => {
       setSwapIndex(index);
+      resetModalState();
+      setShowAddModal(true);
+  };
+
+  const resetModalState = () => {
+      setModalTab('library');
       setSearchTerm('');
       setActiveFilter('all');
-      setShowAddModal(true);
+      setCustomName('');
+      setCustomCalories('');
+      setCustomType('dinner');
   };
 
   const closeModal = () => {
@@ -293,84 +323,154 @@ export const Planner: React.FC = () => {
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-2xl">
                  <div>
                     <h3 className="font-normal text-3xl text-slate-900 font-serif">{swapIndex !== null ? 'Swap Meal' : 'Add Meal'}</h3>
-                    <p className="text-sm text-slate-500 font-medium mt-1">Select a recipe from your library</p>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Select from library or add a quick entry</p>
                  </div>
                  <button onClick={closeModal} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors text-slate-600">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                  </button>
               </div>
 
-              {/* Search & Filter */}
-              <div className="p-6 space-y-4 border-b border-slate-100 bg-slate-50">
-                  <div className="relative">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      <input 
-                        type="text" 
-                        placeholder="Search recipes..." 
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-400 text-slate-900"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                      {['all', 'breakfast', 'lunch', 'dinner', 'snack', 'light meal'].map(type => (
-                          <button
-                             key={type}
-                             onClick={() => setActiveFilter(type as any)}
-                             className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border ${
-                                 activeFilter === type 
-                                 ? 'bg-slate-900 text-white border-slate-900' 
-                                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                             }`}
-                          >
-                             {type}
-                          </button>
-                      ))}
-                  </div>
+              {/* Tabs */}
+              <div className="px-6 pt-4 flex gap-4 border-b border-slate-100">
+                  <button 
+                    onClick={() => setModalTab('library')}
+                    className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'library' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                  >
+                    From Library
+                  </button>
+                  <button 
+                    onClick={() => setModalTab('custom')}
+                    className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'custom' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Eat Out / Quick Add
+                  </button>
               </div>
 
-              {/* List */}
-              <div className="overflow-y-auto p-4 flex-1 bg-slate-50">
-                 <div className="grid gap-3">
-                     {filteredRecipes.length === 0 ? (
-                        <div className="text-center py-16 text-slate-400">
-                            <p className="font-medium">No matching recipes found.</p>
+              {modalTab === 'library' ? (
+                <>
+                    {/* Search & Filter */}
+                    <div className="p-6 space-y-4 border-b border-slate-100 bg-slate-50">
+                        <div className="relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input 
+                                type="text" 
+                                placeholder="Search recipes..." 
+                                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-400 text-slate-900"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
-                     ) : (
-                         filteredRecipes.map(recipe => (
-                             <button 
-                                key={recipe.id}
-                                onClick={() => handleRecipeSelect(recipe)}
-                                className="flex items-center gap-5 p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all text-left group w-full overflow-hidden"
-                             >
-                                <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0 relative">
-                                    <RecipeIllustration 
-                                        name={recipe.name} 
-                                        ingredients={recipe.ingredients} 
-                                        type={recipe.type}
-                                        className="w-full h-full"
-                                    />
+                        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                            {['all', 'breakfast', 'lunch', 'dinner', 'snack', 'light meal'].map(type => (
+                                <button
+                                    key={type}
+                                    onClick={() => setActiveFilter(type as any)}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border ${
+                                        activeFilter === type 
+                                        ? 'bg-slate-900 text-white border-slate-900' 
+                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                                    }`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* List */}
+                    <div className="overflow-y-auto p-4 flex-1 bg-slate-50">
+                        <div className="grid gap-3">
+                            {filteredRecipes.length === 0 ? (
+                                <div className="text-center py-16 text-slate-400">
+                                    <p className="font-medium">No matching recipes found.</p>
+                                    <p className="text-xs mt-2">Try the "Eat Out / Quick Add" tab for manual entries.</p>
                                 </div>
-                                <div className="flex-1 min-w-0 py-1">
-                                    <h4 className="font-bold text-lg text-slate-900 truncate font-serif">{recipe.name}</h4>
-                                    <p className="text-xs text-slate-500 line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wide">{recipe.type}</span>
-                                        <span className="text-xs font-bold text-emerald-600">{recipe.calories} kcal</span>
-                                    </div>
-                                </div>
-                                <div className="pr-2">
-                                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${swapIndex !== null ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-300 text-slate-300 group-hover:border-emerald-500 group-hover:text-emerald-500'}`}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                    </div>
-                                </div>
-                             </button>
-                         ))
-                     )}
-                 </div>
-              </div>
+                            ) : (
+                                filteredRecipes.map(recipe => (
+                                    <button 
+                                        key={recipe.id}
+                                        onClick={() => handleRecipeSelect(recipe)}
+                                        className="flex items-center gap-5 p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all text-left group w-full overflow-hidden"
+                                    >
+                                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0 relative">
+                                            <RecipeIllustration 
+                                                name={recipe.name} 
+                                                ingredients={recipe.ingredients} 
+                                                type={recipe.type}
+                                                className="w-full h-full"
+                                            />
+                                        </div>
+                                        <div className="flex-1 min-w-0 py-1">
+                                            <h4 className="font-bold text-lg text-slate-900 truncate font-serif">{recipe.name}</h4>
+                                            <p className="text-xs text-slate-500 line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wide">{recipe.type}</span>
+                                                <span className="text-xs font-bold text-emerald-600">{recipe.calories} kcal</span>
+                                            </div>
+                                        </div>
+                                        <div className="pr-2">
+                                            <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${swapIndex !== null ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-300 text-slate-300 group-hover:border-emerald-500 group-hover:text-emerald-500'}`}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </>
+              ) : (
+                <div className="p-8 flex flex-col gap-6 bg-slate-50 flex-1 overflow-y-auto">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Meal Name / Restaurant</label>
+                        <input 
+                            type="text" 
+                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-slate-900 placeholder-slate-400"
+                            placeholder="e.g. Pizza Express, Caesar Salad..."
+                            value={customName}
+                            onChange={e => setCustomName(e.target.value)}
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Estimated Calories</label>
+                            <input 
+                                type="number" 
+                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-slate-900"
+                                placeholder="0"
+                                value={customCalories}
+                                onChange={e => setCustomCalories(e.target.value)}
+                            />
+                        </div>
+                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Meal Type</label>
+                            <select 
+                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-slate-900"
+                                value={customType}
+                                onChange={e => setCustomType(e.target.value)}
+                            >
+                                <option value="breakfast">Breakfast</option>
+                                <option value="lunch">Lunch</option>
+                                <option value="dinner">Dinner</option>
+                                <option value="snack">Snack</option>
+                                <option value="light meal">Light Meal</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={handleCustomAdd}
+                        disabled={!customName.trim() || !customCalories}
+                        className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-auto"
+                    >
+                        Add to Plan
+                    </button>
+                    <p className="text-center text-xs text-slate-400">Custom meals are added to this day's plan but not saved to your library.</p>
+                </div>
+              )}
            </div>
         </div>
       )}

@@ -10,6 +10,7 @@ import { APP_NAME, DEFAULT_USER_STATS } from './constants';
 
 export const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.DASHBOARD);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [tomorrowDate] = useState(() => {
     const d = new Date();
@@ -82,6 +83,75 @@ export const App: React.FC = () => {
       </button>
   );
 
+  const SettingsModal = () => {
+    const [formStats, setFormStats] = useState(userStats);
+
+    const handleSave = () => {
+        handleUpdateStats(formStats);
+        setIsSettingsOpen(false);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h3 className="font-normal text-2xl text-slate-900 font-serif">Settings</h3>
+                     <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div className="p-6 space-y-5">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Starting Weight (kg)</label>
+                        <input 
+                            type="number" 
+                            step="0.1"
+                            value={formStats.startWeight}
+                            onChange={(e) => setFormStats({...formStats, startWeight: parseFloat(e.target.value) || 0})}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                        />
+                         <p className="text-xs text-slate-400 mt-1">Your weight when you began the diet.</p>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Current Weight (kg)</label>
+                        <input 
+                            type="number" 
+                            step="0.1"
+                            value={formStats.currentWeight}
+                            onChange={(e) => setFormStats({...formStats, currentWeight: parseFloat(e.target.value) || 0})}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                        />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Goal Weight (kg)</label>
+                        <input 
+                            type="number" 
+                            step="0.1"
+                            value={formStats.goalWeight}
+                            onChange={(e) => setFormStats({...formStats, goalWeight: parseFloat(e.target.value) || 0})}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Daily Calorie Target</label>
+                        <input 
+                            type="number" 
+                            value={formStats.dailyCalorieGoal}
+                            onChange={(e) => setFormStats({...formStats, dailyCalorieGoal: parseInt(e.target.value) || 0})}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                        />
+                    </div>
+                </div>
+                <div className="p-6 pt-0">
+                    <button onClick={handleSave} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/10">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+  };
+
   return (
     <div className="min-h-screen pb-24 md:pb-10 font-sans">
       
@@ -103,10 +173,14 @@ export const App: React.FC = () => {
                 <NavLink targetView={AppView.JOURNAL} label="Journal" />
             </div>
 
-            <div className="hidden md:block">
-                <div className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 text-xs font-bold">
-                    ME
-                </div>
+            <div>
+                <button 
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="h-9 w-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors hover:text-emerald-700 hover:border-emerald-200"
+                    title="Settings"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
             </div>
         </div>
       </nav>
@@ -155,6 +229,7 @@ export const App: React.FC = () => {
         </button>
       </div>
 
+      {isSettingsOpen && <SettingsModal />}
     </div>
   );
 };

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { DayPlan, UserStats } from '../types';
+import { DayPlan, UserStats, Recipe } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
 import { saveDayPlan } from '../services/storageService';
+import { RecipeIllustration } from './RecipeIllustration';
 
 interface DashboardProps {
   todayPlan: DayPlan;
@@ -15,11 +16,15 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, stats, onUpdateStats, refreshData }) => {
   const [weightInput, setWeightInput] = useState(stats.currentWeight.toString());
   const [goalInput, setGoalInput] = useState(stats.goalWeight.toString());
+  const [startInput, setStartInput] = useState(stats.startWeight.toString());
   const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [isEditingStart, setIsEditingStart] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   useEffect(() => {
     setWeightInput(stats.currentWeight.toString());
     setGoalInput(stats.goalWeight.toString());
+    setStartInput(stats.startWeight.toString());
   }, [stats]);
 
   const toggleMeal = (mealIndex: number) => {
@@ -58,6 +63,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
       if (g > 0) {
           onUpdateStats({ ...stats, goalWeight: g });
           setIsEditingGoal(false);
+      }
+  };
+
+  const handleSaveStart = () => {
+      const s = parseFloat(startInput);
+      if (s > 0) {
+          onUpdateStats({ ...stats, startWeight: s });
+          setIsEditingStart(false);
       }
   };
 
@@ -158,10 +171,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
               </div>
 
               <div>
-                  <div className="flex justify-between items-center text-xs font-medium text-slate-400 mb-2">
-                       <span>{startWeight} kg</span>
-                       <span className="text-emerald-600">{Math.abs(startWeight - currentWeight).toFixed(1)} kg lost</span>
-                       <span>{goalWeight} kg</span>
+                  <div className="flex justify-between items-end text-xs font-medium text-slate-400 mb-2">
+                       <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-300">Start</span>
+                            {isEditingStart ? (
+                                <input 
+                                    type="number"
+                                    value={startInput}
+                                    onChange={(e) => setStartInput(e.target.value)}
+                                    onBlur={handleSaveStart}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveStart()}
+                                    className="w-16 p-0.5 bg-slate-50 border border-emerald-500 rounded text-xs font-bold text-slate-900 outline-none"
+                                    autoFocus
+                                />
+                            ) : (
+                                <span 
+                                    onClick={() => setIsEditingStart(true)} 
+                                    className="cursor-pointer hover:text-emerald-600 border-b border-dashed border-slate-200 hover:border-emerald-300 transition-colors"
+                                    title="Click to edit start weight"
+                                >
+                                    {startWeight} kg
+                                </span>
+                            )}
+                       </div>
+                       
+                       <span className="text-emerald-600 mb-0.5 font-bold">
+                            {Math.abs(startWeight - currentWeight).toFixed(1)} kg {startWeight >= currentWeight ? 'lost' : 'gained'}
+                       </span>
+                       
+                       <div className="flex flex-col items-end gap-1">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-300">Goal</span>
+                            <span>{goalWeight} kg</span>
+                       </div>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative">
                         <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out" style={{width: `${progressPercent}%`}}></div>
@@ -233,7 +274,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                     </div>
                  ) : (
                     tomorrowPlan.meals.map((meal, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div 
+                            key={index} 
+                            onClick={() => setSelectedRecipe(meal)}
+                            className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-slate-100 hover:border-emerald-300 transition-colors"
+                        >
                              <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-[10px] uppercase shadow-sm">
                                 {meal.type.charAt(0)}
                              </div>
@@ -264,7 +309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                         return (
                             <div 
                                 key={index} 
-                                onClick={() => toggleMeal(index)}
+                                onClick={() => setSelectedRecipe(meal)}
                                 className={`p-4 flex items-center justify-between rounded-xl border transition-all cursor-pointer group ${
                                     isCompleted 
                                     ? 'bg-slate-50 border-slate-200 opacity-60' 
@@ -272,10 +317,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                                 }`}
                             >
                                  <div className="flex items-center gap-4 min-w-0">
-                                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 ${
+                                    <div 
+                                        onClick={(e) => { e.stopPropagation(); toggleMeal(index); }}
+                                        className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${
                                         isCompleted 
                                         ? 'bg-emerald-500 border-emerald-500 text-white' 
-                                        : 'border-slate-300 group-hover:border-emerald-500'
+                                        : 'border-slate-300 hover:border-emerald-500'
                                     }`}>
                                         {isCompleted && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                                     </div>
@@ -294,6 +341,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
             </div>
           </div>
       </div>
+
+      {/* View Recipe Modal */}
+      {selectedRecipe && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedRecipe(null)}>
+            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
+                {/* Image Header */}
+                <div className="relative h-48 md:h-64 flex-shrink-0 bg-slate-100 overflow-hidden">
+                    <RecipeIllustration 
+                        name={selectedRecipe.name} 
+                        ingredients={selectedRecipe.ingredients} 
+                        type={selectedRecipe.type} 
+                        className="w-full h-full"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    <button 
+                        onClick={() => setSelectedRecipe(null)}
+                        className="absolute top-6 right-6 bg-white/20 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/40 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
+                        <div>
+                            <h2 className="text-3xl font-normal text-white mb-2 font-serif">{selectedRecipe.name}</h2>
+                            <div className="flex gap-2">
+                                <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs font-bold uppercase tracking-wider text-white border border-white/20">{selectedRecipe.type}</span>
+                                <span className="px-3 py-1 bg-emerald-500 rounded-lg text-xs font-bold text-white">{selectedRecipe.calories} kcal</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Content */}
+                <div className="p-8 space-y-8">
+                    <div className="flex justify-start items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div className="flex gap-6 text-sm w-full justify-around md:justify-start md:gap-12">
+                                <div className="text-center"><p className="text-slate-400 text-xs uppercase font-bold">Protein</p><p className="font-bold text-slate-900 text-lg">{selectedRecipe.protein || '-'}<span className="text-xs font-normal text-slate-400">g</span></p></div>
+                                <div className="w-px h-auto bg-slate-200"></div>
+                                <div className="text-center"><p className="text-slate-400 text-xs uppercase font-bold">Fat</p><p className="font-bold text-slate-900 text-lg">{selectedRecipe.fat || '-'}<span className="text-xs font-normal text-slate-400">g</span></p></div>
+                                <div className="w-px h-auto bg-slate-200"></div>
+                                <div className="text-center"><p className="text-slate-400 text-xs uppercase font-bold">Carbs</p><p className="font-bold text-slate-900 text-lg">{selectedRecipe.carbs || '-'}<span className="text-xs font-normal text-slate-400">g</span></p></div>
+                            </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-10">
+                        <div>
+                            <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2 text-xl font-serif">
+                                Ingredients
+                            </h3>
+                            {selectedRecipe.ingredients && selectedRecipe.ingredients.length > 0 ? (
+                                <ul className="space-y-3">
+                                    {selectedRecipe.ingredients.map((ing, i) => (
+                                        <li key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm text-slate-700 font-medium">
+                                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                                            <span className="leading-relaxed">{ing}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="p-4 bg-slate-50 rounded-xl text-slate-500 text-sm italic text-center border border-slate-100">
+                                    No ingredients recorded (Eat Out / Custom Meal)
+                                </div>
+                            )}
+                        </div>
+                            <div>
+                            <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2 text-xl font-serif">
+                                Instructions
+                            </h3>
+                            {selectedRecipe.instructions && selectedRecipe.instructions.length > 0 ? (
+                                <div className="space-y-4">
+                                    {selectedRecipe.instructions.map((step, i) => (
+                                        <div key={i} className="flex gap-4">
+                                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center mt-0.5">{i+1}</span>
+                                            <p className="text-slate-600 text-sm leading-relaxed">{step}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-slate-50 rounded-xl text-slate-500 text-sm italic text-center border border-slate-100">
+                                    No instructions provided.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

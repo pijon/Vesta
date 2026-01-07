@@ -79,7 +79,12 @@ export const MealPlanner: React.FC<MealPlannerProps> = ({ onAddMeal }) => {
 
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {plan.meals.map((meal) => (
-                <RecipeCard key={meal.id} meal={meal} onAdd={onAddMeal} />
+                <RecipeCard 
+                    key={meal.id} 
+                    meal={meal} 
+                    actionLabel="Log Meal"
+                    onAction={() => onAddMeal(meal)} 
+                />
               ))}
            </div>
         </div>
