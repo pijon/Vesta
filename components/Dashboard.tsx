@@ -286,8 +286,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                             onClick={() => setSelectedRecipe(meal)}
                             className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-slate-100 hover:border-emerald-300 transition-colors"
                         >
-                             <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-[10px] uppercase shadow-sm">
-                                {meal.type.charAt(0)}
+                             <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-[10px] uppercase shadow-sm overflow-hidden">
+                                {meal.image ? (
+                                    <img src={meal.image} alt={meal.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    meal.type.charAt(0)
+                                )}
                              </div>
                              <div className="min-w-0">
                                  <p className="font-medium text-slate-900 text-sm truncate">{meal.name}</p>
@@ -355,12 +359,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
             <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Image Header */}
                 <div className="relative h-48 md:h-64 flex-shrink-0 bg-slate-100 overflow-hidden">
-                    <RecipeIllustration 
-                        name={selectedRecipe.name} 
-                        ingredients={selectedRecipe.ingredients} 
-                        type={selectedRecipe.type} 
-                        className="w-full h-full"
-                    />
+                    {selectedRecipe.image ? (
+                        <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <RecipeIllustration 
+                            name={selectedRecipe.name} 
+                            ingredients={selectedRecipe.ingredients} 
+                            type={selectedRecipe.type} 
+                            className="w-full h-full"
+                        />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                     <button 
                         onClick={() => setSelectedRecipe(null)}
@@ -406,7 +414,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                                 ))}
                             </ul>
                         </div>
-                        <div>
+                            <div>
                             <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2 text-xl font-serif">
                                 Instructions
                             </h3>
