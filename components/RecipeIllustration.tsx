@@ -7,7 +7,7 @@ interface RecipeIllustrationProps {
   className?: string;
 }
 
-export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ name, type = 'lunch', className = '' }) => {
+export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ name, type = 'main meal', className = '' }) => {
   // Deterministic seed
   const seed = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const random = (offset: number) => {
@@ -16,15 +16,15 @@ export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ name, ty
   };
 
   const getTheme = () => {
-      const t = (type || 'lunch').toLowerCase();
+      const t = (type || 'main meal').toLowerCase();
       if (t.includes('breakfast')) {
           // Warm/Sunrise
           return { bg: '#FFF7ED', primary: '#FDBA74', secondary: '#FED7AA', accent: '#F97316' }; 
       } else if (t.includes('snack')) {
           // Pink/Playful
           return { bg: '#FDF2F8', primary: '#F472B6', secondary: '#FBCFE8', accent: '#DB2777' };
-      } else if (t.includes('dinner')) {
-          // Indigo/Calm
+      } else if (t.includes('main') || t.includes('dinner') || t.includes('lunch')) {
+          // Indigo/Calm (used for Main Meal)
           return { bg: '#EEF2FF', primary: '#818CF8', secondary: '#C7D2FE', accent: '#4F46E5' };
       } else if (t.includes('light')) {
            // Teal/Fresh

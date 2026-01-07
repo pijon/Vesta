@@ -8,7 +8,7 @@ export interface Recipe {
   carbs?: number;
   ingredients: string[];
   instructions?: string[];
-  type: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'light meal' | 'any';
+  type: 'breakfast' | 'main meal' | 'snack' | 'light meal' | 'any';
   servings: number;
 }
 

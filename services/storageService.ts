@@ -10,7 +10,25 @@ const LOGS_KEY = "fast800_logs";
 // --- Recipes ---
 export const getRecipes = (): Recipe[] => {
   const stored = localStorage.getItem(RECIPES_KEY);
-  return stored ? JSON.parse(stored) : [];
+  if (!stored) return [];
+  
+  let recipes = JSON.parse(stored);
+  let hasChanges = false;
+
+  // Migration: Convert lunch/dinner to main meal
+  const migratedRecipes = recipes.map((r: any) => {
+      if (r.type === 'lunch' || r.type === 'dinner') {
+          hasChanges = true;
+          return { ...r, type: 'main meal' };
+      }
+      return r;
+  });
+
+  if (hasChanges) {
+      localStorage.setItem(RECIPES_KEY, JSON.stringify(migratedRecipes));
+  }
+  
+  return migratedRecipes;
 };
 
 export const saveRecipe = (recipe: Recipe) => {
@@ -32,7 +50,30 @@ export const deleteRecipe = (id: string) => {
 // --- Planning ---
 export const getWeeklyPlan = (): Record<string, DayPlan> => {
   const stored = localStorage.getItem(PLAN_KEY);
-  return stored ? JSON.parse(stored) : {};
+  if (!stored) return {};
+  
+  let plan = JSON.parse(stored);
+  let hasChanges = false;
+
+  // Migration: Convert lunch/dinner to main meal in existing plans
+  Object.keys(plan).forEach(date => {
+      const day = plan[date];
+      if (day.meals) {
+          day.meals = day.meals.map((m: any) => {
+              if (m.type === 'lunch' || m.type === 'dinner') {
+                  hasChanges = true;
+                  return { ...m, type: 'main meal' };
+              }
+              return m;
+          });
+      }
+  });
+
+  if (hasChanges) {
+      localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
+  }
+
+  return plan;
 };
 
 export const getDayPlan = (date: string): DayPlan => {

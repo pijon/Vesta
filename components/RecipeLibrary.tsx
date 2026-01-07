@@ -84,7 +84,7 @@ export const RecipeLibrary: React.FC = () => {
           carbs: partialRecipe.carbs || 0,
           ingredients: partialRecipe.ingredients || [],
           instructions: partialRecipe.instructions || [],
-          type: (partialRecipe.type as any) || 'lunch',
+          type: (partialRecipe.type as any) || 'main meal',
           servings: partialRecipe.servings || 1
         };
         saveRecipe(newRecipe);
@@ -221,14 +221,14 @@ export const RecipeLibrary: React.FC = () => {
                     <option value="protein">Highest Protein</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </div>
             </div>
         </div>
 
         {/* Filter Chips */}
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {['all', 'breakfast', 'lunch', 'dinner', 'snack', 'light meal'].map(type => (
+            {['all', 'breakfast', 'main meal', 'snack', 'light meal'].map(type => (
                 <button
                     key={type}
                     onClick={() => setActiveFilter(type)}
@@ -324,8 +324,7 @@ export const RecipeLibrary: React.FC = () => {
                                         className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50 font-medium text-slate-900"
                                      >
                                         <option value="breakfast">Breakfast</option>
-                                        <option value="lunch">Lunch</option>
-                                        <option value="dinner">Dinner</option>
+                                        <option value="main meal">Main Meal</option>
                                         <option value="snack">Snack</option>
                                         <option value="light meal">Light Meal</option>
                                      </select>

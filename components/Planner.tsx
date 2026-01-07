@@ -17,12 +17,12 @@ export const Planner: React.FC = () => {
   // Modal UI State
   const [modalTab, setModalTab] = useState<'library' | 'custom'>('library');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'light meal'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'breakfast' | 'main meal' | 'snack' | 'light meal'>('all');
 
   // Custom Meal Form State
   const [customName, setCustomName] = useState('');
   const [customCalories, setCustomCalories] = useState('');
-  const [customType, setCustomType] = useState<any>('dinner');
+  const [customType, setCustomType] = useState<any>('main meal');
 
   useEffect(() => {
     // Generate next 7 days
@@ -111,7 +111,7 @@ export const Planner: React.FC = () => {
       setActiveFilter('all');
       setCustomName('');
       setCustomCalories('');
-      setCustomType('dinner');
+      setCustomType('main meal');
   };
 
   const closeModal = () => {
@@ -363,7 +363,7 @@ export const Planner: React.FC = () => {
                             />
                         </div>
                         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                            {['all', 'breakfast', 'lunch', 'dinner', 'snack', 'light meal'].map(type => (
+                            {['all', 'breakfast', 'main meal', 'snack', 'light meal'].map(type => (
                                 <button
                                     key={type}
                                     onClick={() => setActiveFilter(type as any)}
@@ -453,8 +453,7 @@ export const Planner: React.FC = () => {
                                 onChange={e => setCustomType(e.target.value)}
                             >
                                 <option value="breakfast">Breakfast</option>
-                                <option value="lunch">Lunch</option>
-                                <option value="dinner">Dinner</option>
+                                <option value="main meal">Main Meal</option>
                                 <option value="snack">Snack</option>
                                 <option value="light meal">Light Meal</option>
                             </select>

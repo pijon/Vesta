@@ -22,7 +22,7 @@ const recipeSchema: Schema = {
       type: Type.ARRAY,
       items: { type: Type.STRING }
     },
-    type: { type: Type.STRING, enum: ['breakfast', 'lunch', 'dinner', 'snack', 'light meal'] }
+    type: { type: Type.STRING, enum: ['breakfast', 'main meal', 'snack', 'light meal'] }
   },
   required: ['name', 'calories', 'ingredients']
 };
@@ -33,7 +33,7 @@ export const parseRecipeText = async (text: string): Promise<Partial<Recipe>> =>
   const prompt = `
     Extract recipe details from the following text. 
     Estimate calories per serving if not explicitly stated.
-    Identify if it's best for breakfast, lunch, dinner, snack, or a light meal.
+    Identify if it's best for breakfast, main meal, snack, or a light meal.
     Identify the number of servings (default to 1).
     Format ingredients into a clean list.
     
@@ -82,10 +82,11 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
     if (!apiKey) throw new Error("API Key not found");
 
     const prompt = `
-        Generate a one-day meal plan (breakfast, lunch, dinner) that totals approximately 800 calories.
+        Generate a one-day meal plan (breakfast, main meal, main meal or light meal) that totals approximately 800 calories.
         Follow these dietary preferences: "${preferences}".
         Include a tip for following the Fast 800 diet.
         Ensure each meal has a sensible serving size (usually 1).
+        Note: Use 'main meal' for lunch and dinner type meals.
     `;
 
     try {
@@ -211,7 +212,7 @@ export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: 
     2. Use ONLY the recipes provided in the JSON list below. Do not invent recipes.
     3. Return the exact ID of the recipe used.
     4. Try to vary the meals day-to-day if possible, but repeating favorites is okay if the user has few recipes.
-    5. Ensure a mix of breakfast/lunch/dinner types if the recipe metadata allows.
+    5. Ensure a mix of breakfast/main meal/light meal types if the recipe metadata allows.
     
     Available Recipes:
     ${JSON.stringify(simplifiedRecipes)}
