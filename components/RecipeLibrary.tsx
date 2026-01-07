@@ -287,6 +287,7 @@ export const RecipeLibrary: React.FC = () => {
                                 <div className="flex gap-2">
                                     <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs font-bold uppercase tracking-wider text-white border border-white/20">{selectedRecipe.type}</span>
                                     <span className="px-3 py-1 bg-emerald-500 rounded-lg text-xs font-bold text-white">{selectedRecipe.calories} kcal</span>
+                                    <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs font-bold uppercase tracking-wider text-white border border-white/20">Serves {selectedRecipe.servings || 1}</span>
                                 </div>
                             </div>
                         </div>

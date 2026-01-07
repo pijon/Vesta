@@ -22,8 +22,15 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
             type={meal.type}
             className="w-full h-full transition-transform duration-700 group-hover:scale-105" 
         />
-        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200/50 shadow-sm">
-          {meal.type}
+        <div className="absolute top-3 left-3 flex gap-2 flex-wrap max-w-[90%]">
+            <div className="bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200/50 shadow-sm">
+            {meal.type}
+            </div>
+            {meal.servings > 1 && (
+                <div className="bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200/50 shadow-sm">
+                    Serves {meal.servings}
+                </div>
+            )}
         </div>
       </div>
       
