@@ -108,6 +108,19 @@ export const RecipeLibrary: React.FC = () => {
     }
   };
 
+  const handleExport = () => {
+      const allRecipes = getRecipes();
+      const blob = new Blob([JSON.stringify(allRecipes, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `fast800_recipes_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+  };
+
   const filteredRecipes = recipes
     .filter(recipe => {
       const matchesSearch = 
@@ -140,12 +153,22 @@ export const RecipeLibrary: React.FC = () => {
            <h2 className="text-3xl font-normal text-slate-900 tracking-tight font-serif">Recipe Library</h2>
            <p className="text-slate-500 font-medium mt-1">Manage your collection.</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(!isAdding)}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${isAdding ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
-        >
-          {isAdding ? 'Cancel' : '+ New Recipe'}
-        </button>
+        <div className="flex gap-2">
+            <button 
+              onClick={handleExport}
+              className="px-4 py-2 rounded-xl text-sm font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
+              title="Export Recipes to JSON"
+            >
+               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+               <span className="hidden sm:inline">Export</span>
+            </button>
+            <button 
+              onClick={() => setIsAdding(!isAdding)}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${isAdding ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+            >
+              {isAdding ? 'Cancel' : '+ New Recipe'}
+            </button>
+        </div>
       </header>
 
       {isAdding && (
@@ -272,7 +295,7 @@ export const RecipeLibrary: React.FC = () => {
                 
                 {isEditing && editForm ? (
                     // --- Edit Mode ---
-                    <div className="p-8 space-y-6">
+                    <div className="p-6 space-y-6">
                          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
                             <h2 className="text-2xl font-normal text-slate-900 font-serif">Edit Recipe</h2>
                             <div className="flex gap-2">
@@ -364,7 +387,7 @@ export const RecipeLibrary: React.FC = () => {
                     </div>
                 ) : (
                     // --- View Mode ---
-                    <div className="p-8 space-y-8">
+                    <div className="p-6 space-y-6">
                         <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
                              <div className="flex gap-6 text-sm">
                                  <div className="text-center"><p className="text-slate-400 text-xs uppercase font-bold">Protein</p><p className="font-bold text-slate-900 text-lg">{selectedRecipe.protein || 0}<span className="text-xs font-normal text-slate-400">g</span></p></div>

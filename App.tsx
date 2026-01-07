@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem } from './types';
+import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, Recipe } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog } from './services/storageService';
 import { Dashboard } from './components/Dashboard';
 import { Planner } from './components/Planner';
@@ -64,6 +64,32 @@ export const App: React.FC = () => {
     };
     setDailyLog(updatedLog);
     saveDailyLog(updatedLog);
+  };
+
+  const handleLogMeal = (meal: Recipe, isAdding: boolean) => {
+    const currentLog = getDailyLog(todayDate);
+    let newItems = [...currentLog.items];
+    
+    if (isAdding) {
+        newItems.push({
+            id: crypto.randomUUID(),
+            name: meal.name,
+            calories: meal.calories,
+            timestamp: Date.now()
+        });
+    } else {
+        // Find the last item that matches (assuming most recent action)
+        for (let i = newItems.length - 1; i >= 0; i--) {
+            if (newItems[i].name === meal.name && newItems[i].calories === meal.calories) {
+                newItems.splice(i, 1);
+                break;
+            }
+        }
+    }
+    
+    const updatedLog = { ...currentLog, items: newItems };
+    saveDailyLog(updatedLog);
+    // State will be updated by refreshData called in Dashboard
   };
 
   const handleUpdateWeight = (weight: number) => {
@@ -194,6 +220,7 @@ export const App: React.FC = () => {
                 stats={userStats}
                 onUpdateStats={handleUpdateStats}
                 refreshData={refreshData}
+                onLogMeal={handleLogMeal}
             />
         )}
         {view === AppView.PLANNER && <Planner />}

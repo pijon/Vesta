@@ -10,10 +10,11 @@ interface DashboardProps {
   tomorrowPlan: DayPlan;
   stats: UserStats;
   onUpdateStats: (stats: UserStats) => void;
+  onLogMeal: (meal: Recipe, isAdding: boolean) => void;
   refreshData: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, stats, onUpdateStats, refreshData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, stats, onUpdateStats, onLogMeal, refreshData }) => {
   const [weightInput, setWeightInput] = useState(stats.currentWeight.toString());
   const [goalInput, setGoalInput] = useState(stats.goalWeight.toString());
   const [startInput, setStartInput] = useState(stats.startWeight.toString());
@@ -33,15 +34,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
 
     let newCompleted = [...todayPlan.completedMealIds];
     const uniqueId = meal.id; 
+    let isAdding = false;
     
     if (newCompleted.includes(uniqueId)) {
         newCompleted = newCompleted.filter(id => id !== uniqueId);
+        isAdding = false;
     } else {
         newCompleted.push(uniqueId);
+        isAdding = true;
     }
     
     const updatedPlan = { ...todayPlan, completedMealIds: newCompleted };
     saveDayPlan(updatedPlan);
+    
+    // Sync with Journal
+    onLogMeal(meal, isAdding);
+    
     refreshData();
   };
 
@@ -373,7 +381,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                 </div>
                 
                 {/* Content */}
-                <div className="p-8 space-y-8">
+                <div className="p-6 space-y-6">
                     <div className="flex justify-start items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
                             <div className="flex gap-6 text-sm w-full justify-around md:justify-start md:gap-12">
                                 <div className="text-center"><p className="text-slate-400 text-xs uppercase font-bold">Protein</p><p className="font-bold text-slate-900 text-lg">{selectedRecipe.protein || '-'}<span className="text-xs font-normal text-slate-400">g</span></p></div>
