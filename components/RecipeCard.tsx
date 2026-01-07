@@ -1,6 +1,6 @@
 import React from 'react';
 import { Meal } from '../types';
-import { RecipeIllustration } from './RecipeIllustration';
+import { getCategoryColor } from '../utils';
 
 interface RecipeCardProps {
   meal: Meal;
@@ -15,19 +15,14 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
         onClick={onClick}
         className={`bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 transition-all duration-300 flex flex-col h-full group ${onClick ? 'cursor-pointer hover:shadow-md hover:border-emerald-200' : ''}`}
     >
-      <div className="relative h-48 bg-slate-50 overflow-hidden">
-        {meal.image ? (
-            <img src={meal.image} alt={meal.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-        ) : (
-            <RecipeIllustration 
-                name={meal.name} 
-                ingredients={meal.ingredients} 
-                type={meal.type}
-                className="w-full h-full transition-transform duration-700 group-hover:scale-105" 
-            />
-        )}
+      <div className={`relative h-48 overflow-hidden transition-transform duration-700 group-hover:scale-[1.02] ${getCategoryColor(meal.type).bg}`}>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className={`text-9xl font-bold uppercase opacity-10 ${getCategoryColor(meal.type).text}`}>
+            {meal.type.charAt(0)}
+          </div>
+        </div>
         <div className="absolute top-3 left-3 flex gap-2 flex-wrap max-w-[90%]">
-            <div className="bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200/50 shadow-sm">
+            <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border shadow-sm ${getCategoryColor(meal.type).bg} ${getCategoryColor(meal.type).text}`}>
             {meal.type}
             </div>
             {meal.servings > 1 && (

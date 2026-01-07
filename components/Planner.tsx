@@ -3,7 +3,7 @@ import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan } from '../services/
 import { planWeekWithExistingRecipes } from '../services/geminiService';
 import { Recipe, DayPlan } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
-import { RecipeIllustration } from './RecipeIllustration';
+import { getCategoryColor } from '../utils';
 
 export const Planner: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -245,17 +245,10 @@ export const Planner: React.FC = () => {
                     dayPlan?.meals.map((meal, idx) => (
                     <div key={`${meal.id}-${idx}`} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-emerald-400 hover:shadow-sm transition-all group overflow-hidden">
                         <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
-                                {meal.image ? (
-                                    <img src={meal.image} alt={meal.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <RecipeIllustration 
-                                        name={meal.name} 
-                                        ingredients={meal.ingredients} 
-                                        type={meal.type} 
-                                        className="w-full h-full"
-                                    />
-                                )}
+                            <div className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center ${getCategoryColor(meal.type).bg}`}>
+                                <div className={`text-3xl font-bold uppercase opacity-50 ${getCategoryColor(meal.type).text}`}>
+                                    {meal.type.charAt(0)}
+                                </div>
                             </div>
                             <div>
                                 <p className="font-medium text-slate-900 text-lg font-serif">{meal.name}</p>
@@ -393,22 +386,15 @@ export const Planner: React.FC = () => {
                                 </div>
                             ) : (
                                 filteredRecipes.map(recipe => (
-                                    <button 
+                                    <button
                                         key={recipe.id}
                                         onClick={() => handleRecipeSelect(recipe)}
                                         className="flex items-center gap-5 p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all text-left group w-full overflow-hidden"
                                     >
-                                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0 relative">
-                                            {recipe.image ? (
-                                                <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <RecipeIllustration 
-                                                    name={recipe.name} 
-                                                    ingredients={recipe.ingredients} 
-                                                    type={recipe.type}
-                                                    className="w-full h-full"
-                                                />
-                                            )}
+                                        <div className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 relative flex items-center justify-center ${getCategoryColor(recipe.type).bg}`}>
+                                            <div className={`text-3xl font-bold uppercase opacity-50 ${getCategoryColor(recipe.type).text}`}>
+                                                {recipe.type.charAt(0)}
+                                            </div>
                                         </div>
                                         <div className="flex-1 min-w-0 py-1">
                                             <h4 className="font-bold text-lg text-slate-900 truncate font-serif">{recipe.name}</h4>

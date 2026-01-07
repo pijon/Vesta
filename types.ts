@@ -3,14 +3,13 @@ export interface Recipe {
   name: string;
   description?: string;
   calories: number;
-  protein?: number; 
+  protein?: number;
   fat?: number;
   carbs?: number;
   ingredients: string[];
   instructions?: string[];
   type: 'breakfast' | 'main meal' | 'snack' | 'light meal' | 'any';
   servings: number;
-  image?: string;
 }
 
 export type Meal = Recipe;

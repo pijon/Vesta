@@ -3,7 +3,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { DayPlan, UserStats, Recipe } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
 import { saveDayPlan } from '../services/storageService';
-import { RecipeIllustration } from './RecipeIllustration';
+import { getCategoryColor } from '../utils';
 
 interface DashboardProps {
   todayPlan: DayPlan;
@@ -286,12 +286,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                             onClick={() => setSelectedRecipe(meal)}
                             className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-slate-100 hover:border-emerald-300 transition-colors"
                         >
-                             <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-[10px] uppercase shadow-sm overflow-hidden">
-                                {meal.image ? (
-                                    <img src={meal.image} alt={meal.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    meal.type.charAt(0)
-                                )}
+                             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px] uppercase shadow-sm ${getCategoryColor(meal.type).bg} ${getCategoryColor(meal.type).text}`}>
+                                {meal.type.charAt(0)}
                              </div>
                              <div className="min-w-0">
                                  <p className="font-medium text-slate-900 text-sm truncate">{meal.name}</p>
@@ -357,18 +353,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
       {selectedRecipe && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 pb-4 animate-fade-in" onClick={() => setSelectedRecipe(null)}>
             <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[80vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
-                {/* Image Header */}
-                <div className="relative h-48 md:h-64 flex-shrink-0 bg-slate-100 overflow-hidden">
-                    {selectedRecipe.image ? (
-                        <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-full object-cover" />
-                    ) : (
-                        <RecipeIllustration 
-                            name={selectedRecipe.name} 
-                            ingredients={selectedRecipe.ingredients} 
-                            type={selectedRecipe.type} 
-                            className="w-full h-full"
-                        />
-                    )}
+                {/* Category Header */}
+                <div className={`relative h-48 md:h-64 flex-shrink-0 overflow-hidden ${getCategoryColor(selectedRecipe.type).bg}`}>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className={`text-9xl font-bold uppercase opacity-20 ${getCategoryColor(selectedRecipe.type).text}`}>
+                            {selectedRecipe.type.charAt(0)}
+                        </div>
+                    </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                     <button 
                         onClick={() => setSelectedRecipe(null)}

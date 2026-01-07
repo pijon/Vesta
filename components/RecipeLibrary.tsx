@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Recipe } from '../types';
 import { getRecipes, saveRecipe, deleteRecipe } from '../services/storageService';
 import { parseRecipeText } from '../services/geminiService';
-import { RecipeIllustration } from './RecipeIllustration';
 import { RecipeCard } from './RecipeCard';
+import { getCategoryColor } from '../utils';
 
 export const RecipeLibrary: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -68,49 +68,6 @@ export const RecipeLibrary: React.FC = () => {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                // Resize image to max 800x800 to save storage
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                const MAX_WIDTH = 800;
-                const MAX_HEIGHT = 800;
-
-                if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
-                
-                // Compress to JPEG 0.7
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                setEditForm(prev => prev ? ({ ...prev, image: dataUrl }) : null);
-            };
-            img.src = event.target?.result as string;
-        };
-        reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveImage = () => {
-      setEditForm(prev => prev ? ({ ...prev, image: undefined }) : null);
-  };
 
   const handleAIAdd = async () => {
     if (!inputText.trim()) return;
@@ -309,19 +266,13 @@ export const RecipeLibrary: React.FC = () => {
       {selectedRecipe && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 pb-4 animate-fade-in" onClick={closeRecipe}>
             <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[80vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
-                {/* Image Header */}
-                <div className="relative h-48 md:h-64 flex-shrink-0 bg-slate-100 overflow-hidden">
-                    {/* Conditionally render Image or Illustration */}
-                    {!isEditing && selectedRecipe.image ? (
-                         <img src={selectedRecipe.image} alt={selectedRecipe.name} className="w-full h-full object-cover" />
-                    ) : (
-                        <RecipeIllustration 
-                            name={selectedRecipe.name} 
-                            ingredients={selectedRecipe.ingredients} 
-                            type={selectedRecipe.type} 
-                            className="w-full h-full"
-                        />
-                    )}
+                {/* Category Header */}
+                <div className={`relative h-48 md:h-64 flex-shrink-0 overflow-hidden ${getCategoryColor(selectedRecipe.type).bg}`}>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className={`text-9xl font-bold uppercase opacity-20 ${getCategoryColor(selectedRecipe.type).text}`}>
+                            {selectedRecipe.type.charAt(0)}
+                        </div>
+                    </div>
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                     <button 
@@ -356,37 +307,6 @@ export const RecipeLibrary: React.FC = () => {
                         </div>
 
                         <div className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1.5">Recipe Image</label>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
-                                        {editForm.image ? (
-                                            <img src={editForm.image} alt="Preview" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                        <input 
-                                            type="file" 
-                                            accept="image/*"
-                                            onChange={handleImageUpload}
-                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 mb-2"
-                                        />
-                                        {editForm.image && (
-                                            <button 
-                                                onClick={handleRemoveImage}
-                                                className="text-xs text-red-500 hover:text-red-700 font-bold"
-                                            >
-                                                Remove Image
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Recipe Name</label>
                                 <input 
