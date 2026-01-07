@@ -5,15 +5,29 @@ import { analyzeFoodLog } from '../services/geminiService';
 interface FoodLoggerProps {
   currentLog: DailyLog;
   onAddItems: (items: FoodLogItem[]) => void;
+  onUpdateItem: (item: FoodLogItem) => void;
+  onDeleteItem: (id: string) => void;
   onUpdateWeight: (weight: number) => void;
   userStats: UserStats;
 }
 
-export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, onUpdateWeight, userStats }) => {
+export const FoodLogger: React.FC<FoodLoggerProps> = ({ 
+    currentLog, 
+    onAddItems, 
+    onUpdateItem, 
+    onDeleteItem, 
+    onUpdateWeight, 
+    userStats 
+}) => {
   const [input, setInput] = useState('');
   const [weightInput, setWeightInput] = useState(userStats.currentWeight.toString());
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCalories, setEditCalories] = useState('');
+
   const handleAnalyze = async () => {
     if (!input.trim()) return;
     setIsAnalyzing(true);
@@ -34,6 +48,26 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
       if(!isNaN(w) && w > 0) {
           onUpdateWeight(w);
       }
+  };
+
+  const startEditing = (item: FoodLogItem) => {
+      setEditingId(item.id);
+      setEditName(item.name);
+      setEditCalories(item.calories.toString());
+  };
+
+  const cancelEditing = () => {
+      setEditingId(null);
+  };
+
+  const saveEdit = (item: FoodLogItem) => {
+      const updatedItem: FoodLogItem = {
+          ...item,
+          name: editName,
+          calories: parseInt(editCalories) || 0
+      };
+      onUpdateItem(updatedItem);
+      setEditingId(null);
   };
 
   const sortedItems = [...currentLog.items].sort((a, b) => b.timestamp - a.timestamp);
@@ -108,12 +142,63 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
         ) : (
             <ul className="divide-y divide-slate-100">
                 {sortedItems.map((item) => (
-                    <li key={item.id} className="p-5 flex justify-between items-center hover:bg-slate-50 transition-colors">
-                        <div>
-                            <p className="font-medium text-slate-900 text-lg font-serif">{item.name}</p>
-                            <p className="text-xs text-slate-400 font-medium">{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                        </div>
-                        <span className="font-bold text-slate-900 text-lg">{item.calories} <span className="text-xs font-normal text-slate-400">kcal</span></span>
+                    <li key={item.id} className="p-5 hover:bg-slate-50 transition-colors group">
+                        {editingId === item.id ? (
+                            <div className="space-y-4 animate-fade-in">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <input 
+                                        type="text"
+                                        className="flex-1 p-2 bg-white border border-slate-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <input 
+                                        type="number"
+                                        className="w-24 p-2 bg-white border border-slate-300 rounded-lg text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        value={editCalories}
+                                        onChange={(e) => setEditCalories(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <button 
+                                        onClick={() => onDeleteItem(item.id)}
+                                        className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        Delete
+                                    </button>
+                                    <button 
+                                        onClick={cancelEditing}
+                                        className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-200 rounded-lg transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={() => saveEdit(item)}
+                                        className="px-4 py-1.5 text-xs font-bold bg-slate-900 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-4 flex-1">
+                                    <div>
+                                        <p className="font-medium text-slate-900 text-lg font-serif">{item.name}</p>
+                                        <p className="text-xs text-slate-400 font-medium">{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => startEditing(item)}
+                                        className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-emerald-600 transition-all"
+                                        title="Edit entry"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                    </button>
+                                </div>
+                                <span className="font-bold text-slate-900 text-lg">{item.calories} <span className="text-xs font-normal text-slate-400">kcal</span></span>
+                            </div>
+                        )}
                     </li>
                 ))}
             </ul>

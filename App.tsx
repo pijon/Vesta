@@ -66,6 +66,22 @@ export const App: React.FC = () => {
     saveDailyLog(updatedLog);
   };
 
+  const handleUpdateFoodLogItem = (updatedItem: FoodLogItem) => {
+    const currentLog = getDailyLog(todayDate);
+    const updatedItems = currentLog.items.map(item => item.id === updatedItem.id ? updatedItem : item);
+    const updatedLog = { ...currentLog, items: updatedItems };
+    setDailyLog(updatedLog);
+    saveDailyLog(updatedLog);
+  };
+
+  const handleDeleteFoodLogItem = (id: string) => {
+    const currentLog = getDailyLog(todayDate);
+    const updatedItems = currentLog.items.filter(item => item.id !== id);
+    const updatedLog = { ...currentLog, items: updatedItems };
+    setDailyLog(updatedLog);
+    saveDailyLog(updatedLog);
+  };
+
   const handleLogMeal = (meal: Recipe, isAdding: boolean) => {
     const currentLog = getDailyLog(todayDate);
     let newItems = [...currentLog.items];
@@ -230,6 +246,8 @@ export const App: React.FC = () => {
             <FoodLogger 
                 currentLog={dailyLog}
                 onAddItems={handleAddFoodLogItems}
+                onUpdateItem={handleUpdateFoodLogItem}
+                onDeleteItem={handleDeleteFoodLogItem}
                 onUpdateWeight={handleUpdateWeight}
                 userStats={userStats}
             />
