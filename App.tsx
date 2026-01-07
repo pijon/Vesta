@@ -233,6 +233,7 @@ export const App: React.FC = () => {
             <Dashboard 
                 todayPlan={todayPlan} 
                 tomorrowPlan={tomorrowPlan}
+                dailyLog={dailyLog}
                 stats={userStats}
                 onUpdateStats={handleUpdateStats}
                 refreshData={refreshData}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { DayPlan, UserStats, Recipe } from '../types';
+import { DayPlan, UserStats, Recipe, DailyLog } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
 import { saveDayPlan } from '../services/storageService';
 import { RecipeIllustration } from './RecipeIllustration';
@@ -8,13 +8,22 @@ import { RecipeIllustration } from './RecipeIllustration';
 interface DashboardProps {
   todayPlan: DayPlan;
   tomorrowPlan: DayPlan;
+  dailyLog: DailyLog;
   stats: UserStats;
   onUpdateStats: (stats: UserStats) => void;
   onLogMeal: (meal: Recipe, isAdding: boolean) => void;
   refreshData: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, stats, onUpdateStats, onLogMeal, refreshData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  todayPlan, 
+  tomorrowPlan, 
+  dailyLog,
+  stats, 
+  onUpdateStats, 
+  onLogMeal, 
+  refreshData 
+}) => {
   const [weightInput, setWeightInput] = useState(stats.currentWeight.toString());
   const [goalInput, setGoalInput] = useState(stats.goalWeight.toString());
   const [startInput, setStartInput] = useState(stats.startWeight.toString());
@@ -53,9 +62,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
     refreshData();
   };
 
-  const consumed = todayPlan.meals
-    .filter(m => todayPlan.completedMealIds.includes(m.id))
-    .reduce((sum, m) => sum + m.calories, 0);
+  // Source total consumed calories from the daily log (Journal)
+  const consumed = dailyLog.items.reduce((sum, item) => sum + item.calories, 0);
   
   const percentage = Math.min(100, (consumed / DAILY_CALORIE_LIMIT) * 100);
 
