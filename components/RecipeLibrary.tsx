@@ -307,8 +307,8 @@ export const RecipeLibrary: React.FC = () => {
 
       {/* Recipe Detail / Edit Modal */}
       {selectedRecipe && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={closeRecipe}>
-            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 pb-4 animate-fade-in" onClick={closeRecipe}>
+            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[80vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Image Header */}
                 <div className="relative h-48 md:h-64 flex-shrink-0 bg-slate-100 overflow-hidden">
                     {/* Conditionally render Image or Illustration */}
