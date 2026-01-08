@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <img id="logo" src="logo_temp.png" style="display:none;" onload="extractColors()">
+    <canvas id="canvas"></canvas>
+    <script>
+        function extractColors() {
+            const img = document.getElementById('logo');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const colors = {};
+            const pixelStep = 10; // Sample every 10th pixel to speed up
+
+            for (let i = 0; i < imageData.length; i += 4 * pixelStep) {
+                const r = imageData[i];
+                const g = imageData[i + 1];
+                const b = imageData[i + 2];
+                const a = imageData[i + 3];
+
+                if (a < 200) continue; // Skip transparent/semi-transparent pixels
+
+                // Simple quantization to group similar colors
+                const key = `${Math.round(r / 10) * 10},${Math.round(g / 10) * 10},${Math.round(b / 10) * 10}`;
+                colors[key] = (colors[key] || 0) + 1;
+            }
+
+            // Sort by frequency
+            const sortedColors = Object.entries(colors).sort((a, b) => b[1] - a[1]);
+
+            // Top 5 colors
+            const topColors = sortedColors.slice(0, 5).map(entry => {
+                const [r, g, b] = entry[0].split(',');
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+
+            // Also try to find the "green" and "blue" specifically if possible, essentially the extremes of the gradient
+            // We can infer this by looking at the sorted list and picking distinct hues.
+
+            document.body.innerHTML = `<h1>Extracted Colors</h1><ul id="results">${topColors.map(c => `<li>${c}</li>`).join('')}</ul>`;
+            console.log("Top Colors:", topColors);
+        }
+    </script>
+</body>
+
+</html>

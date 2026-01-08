@@ -1,251 +1,577 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { getWeeklyPlan, getShoppingState, saveShoppingState } from '../services/storageService';
-import { ShoppingState } from '../types';
+import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  getWeeklyPlan,
+  getPantryInventory,
+  addToPantry,
+  removeFromPantry,
+  getEnhancedShoppingState,
+  saveEnhancedShoppingState,
+  migrateShoppingState
+} from '../services/storageService';
+import { parseIngredients, convertToPurchasableQuantities } from '../services/geminiService';
+import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../types';
+import { IngredientReviewCard } from './IngredientReviewCard';
 
-interface ShoppingItem {
-  name: string;
-  recipes: string[];
-}
+type Phase = 'requirements' | 'shopping';
 
 export const ShoppingList: React.FC = () => {
-  const [allItems, setAllItems] = useState<ShoppingItem[]>([]);
-  const [state, setState] = useState<ShoppingState>({ checked: [], removed: [] });
-  const [viewMode, setViewMode] = useState<'unified' | 'recipe'>('unified');
+  const [phase, setPhase] = useState<Phase>('requirements');
+  const [parsedIngredients, setParsedIngredients] = useState<ParsedIngredient[]>([]);
+  const [aggregatedIngredients, setAggregatedIngredients] = useState<AggregatedIngredient[]>([]);
+  const [purchasableItems, setPurchasableItems] = useState<PurchasableItem[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
+  // Initialize component
   useEffect(() => {
-    setState(getShoppingState());
-    const plan = getWeeklyPlan();
-    
-    const itemMap = new Map<string, Set<string>>();
-
-    Object.values(plan).forEach(day => {
-        if (new Date(day.date) >= new Date(new Date().setHours(0,0,0,0))) {
-            day.meals.forEach(meal => {
-                meal.ingredients.forEach(ing => {
-                    const cleanIng = ing.trim();
-                    if (!itemMap.has(cleanIng)) {
-                        itemMap.set(cleanIng, new Set());
-                    }
-                    itemMap.get(cleanIng)?.add(meal.name);
-                });
-            });
-        }
-    });
-
-    const items: ShoppingItem[] = Array.from(itemMap.entries()).map(([name, recipeSet]) => ({
-        name,
-        recipes: Array.from(recipeSet).sort()
-    })).sort((a, b) => a.name.localeCompare(b.name));
-
-    setAllItems(items);
+    initializeShoppingList();
   }, []);
 
-  const toggleItem = (itemName: string) => {
-    const isChecked = state.checked.includes(itemName);
-    let newChecked;
-    
-    if (isChecked) {
-        newChecked = state.checked.filter(i => i !== itemName);
-    } else {
-        newChecked = [...state.checked, itemName];
+  const initializeShoppingList = async () => {
+    try {
+      setIsProcessing(true);
+      setLoadingMessage('Loading meal plan...');
+      setError(null);
+
+      // Migrate old shopping state if needed
+      migrateShoppingState();
+
+      // Extract ingredients from weekly plan
+      const plan = getWeeklyPlan();
+      const rawIngredients = extractIngredientsFromPlan(plan);
+
+      if (rawIngredients.length === 0) {
+        setIsProcessing(false);
+        return;
+      }
+
+      // Check if we have cached data
+      const enhancedState = getEnhancedShoppingState();
+      const today = new Date().toISOString().split('T')[0];
+
+      if (enhancedState.lastGeneratedDate === today && enhancedState.cachedPurchasableItems.length > 0) {
+        // Load from cache
+        setLoadingMessage('Loading cached data...');
+        // We still need to parse and aggregate to show Phase 1
+        await processIngredients(rawIngredients);
+        setPurchasableItems(enhancedState.cachedPurchasableItems);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Parse ingredients with AI
+      await processIngredients(rawIngredients);
+      setIsProcessing(false);
+
+    } catch (err) {
+      console.error('Error initializing shopping list:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load shopping list');
+      setIsProcessing(false);
     }
-    
-    const newState = { ...state, checked: newChecked };
-    setState(newState);
-    saveShoppingState(newState);
   };
 
-  const removeItem = (itemName: string) => {
-    const newState = {
-        checked: state.checked.filter(i => i !== itemName),
-        removed: [...state.removed, itemName]
-    };
-    setState(newState);
-    saveShoppingState(newState);
-  };
+  const extractIngredientsFromPlan = (plan: Record<string, any>): Array<{text: string, recipeId: string, recipeName: string}> => {
+    const ingredients: Array<{text: string, recipeId: string, recipeName: string}> = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const resetList = () => {
-    if(confirm("This will uncheck all items and restore removed ones. Continue?")) {
-        const newState = { checked: [], removed: [] };
-        setState(newState);
-        saveShoppingState(newState);
-    }
-  };
-
-  // Derived data for Recipe View
-  const recipesData = useMemo(() => {
-    const map: Record<string, ShoppingItem[]> = {};
-    const visible = allItems.filter(i => !state.removed.includes(i.name));
-    
-    visible.forEach(item => {
-        item.recipes.forEach(recipeName => {
-            if (!map[recipeName]) {
-                map[recipeName] = [];
-            }
-            map[recipeName].push(item);
+    Object.values(plan).forEach(day => {
+      if (new Date(day.date) >= today) {
+        day.meals.forEach((meal: any) => {
+          meal.ingredients.forEach((ing: string) => {
+            ingredients.push({
+              text: ing.trim(),
+              recipeId: meal.id,
+              recipeName: meal.name
+            });
+          });
         });
+      }
     });
-    
-    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [allItems, state.removed]);
 
-  const visibleItems = allItems.filter(i => !state.removed.includes(i.name));
-  const toBuy = visibleItems.filter(i => !state.checked.includes(i.name));
-  const purchased = visibleItems.filter(i => state.checked.includes(i.name));
+    return ingredients;
+  };
 
-  return (
-    <div className="space-y-6 pb-20 animate-fade-in">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-                <h2 className="text-4xl font-normal text-[#1F2823] tracking-tight font-serif">Grocery List</h2>
-                <p className="text-[#1F2823]/70 font-medium mt-1">Ingredients for your planned upcoming meals.</p>
-            </div>
-            {allItems.length > 0 && (
-                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <div className="flex bg-[#1F2823]/5 p-1 rounded-xl">
-                        <button 
-                            onClick={() => setViewMode('unified')} 
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'unified' ? 'bg-[#1F2823] text-white shadow-sm' : 'text-[#1F2823]/60 hover:text-[#1F2823]'}`}
-                        >
-                            Unified
-                        </button>
-                        <button 
-                            onClick={() => setViewMode('recipe')}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'recipe' ? 'bg-[#1F2823] text-white shadow-sm' : 'text-[#1F2823]/60 hover:text-[#1F2823]'}`}
-                        >
-                            By Recipe
-                        </button>
-                    </div>
-                    <button onClick={resetList} className="text-xs font-semibold text-[#1F2823] bg-white border border-[#1F2823]/10 px-3 py-2 rounded-xl hover:bg-[#1F2823] hover:text-white transition-colors">
-                        Reset List
-                    </button>
-                </div>
-            )}
+  const processIngredients = async (rawIngredients: Array<{text: string, recipeId: string, recipeName: string}>) => {
+    setLoadingMessage('Analyzing ingredients with AI...');
+
+    // Parse ingredients
+    const texts = rawIngredients.map(r => r.text);
+    const parsed = await parseIngredients(texts);
+
+    // Safety check: ensure arrays match in length
+    if (parsed.length !== rawIngredients.length) {
+      console.warn(`Array length mismatch: ${parsed.length} parsed vs ${rawIngredients.length} raw ingredients`);
+      // Use the shorter length to avoid index errors
+      const safeLength = Math.min(parsed.length, rawIngredients.length);
+      parsed.splice(safeLength);
+    }
+
+    // Map parsed results back to include recipe info
+    const parsedWithRecipeInfo: ParsedIngredient[] = parsed.map((p, index) => ({
+      id: crypto.randomUUID(),
+      originalText: rawIngredients[index].text,
+      name: p.name,
+      quantity: p.quantity,
+      unit: p.unit,
+      recipeId: rawIngredients[index].recipeId,
+      recipeName: rawIngredients[index].recipeName
+    }));
+
+    setParsedIngredients(parsedWithRecipeInfo);
+
+    // Aggregate by ingredient name
+    const aggregated = aggregateIngredients(parsedWithRecipeInfo);
+    setAggregatedIngredients(aggregated);
+  };
+
+  const aggregateIngredients = (parsed: ParsedIngredient[]): AggregatedIngredient[] => {
+    const map = new Map<string, AggregatedIngredient>();
+
+    parsed.forEach(ing => {
+      const existing = map.get(ing.name);
+
+      if (existing) {
+        // Check if same unit before aggregating
+        if (existing.unit === ing.unit) {
+          existing.totalQuantity += ing.quantity;
+        } else {
+          // Different units - keep separate with unit in name
+          const uniqueName = `${ing.name} (${ing.unit})`;
+          if (!map.has(uniqueName)) {
+            map.set(uniqueName, {
+              name: uniqueName,
+              totalQuantity: ing.quantity,
+              unit: ing.unit,
+              recipes: [{ id: ing.recipeId, name: ing.recipeName, quantity: ing.quantity }],
+              originalIngredients: [ing]
+            });
+          } else {
+            const existing = map.get(uniqueName)!;
+            existing.totalQuantity += ing.quantity;
+            const recipeRef = existing.recipes.find(r => r.id === ing.recipeId);
+            if (recipeRef) {
+              recipeRef.quantity += ing.quantity;
+            } else {
+              existing.recipes.push({ id: ing.recipeId, name: ing.recipeName, quantity: ing.quantity });
+            }
+            existing.originalIngredients.push(ing);
+          }
+          return;
+        }
+
+        // Add recipe reference
+        const recipeRef = existing.recipes.find(r => r.id === ing.recipeId);
+        if (recipeRef) {
+          recipeRef.quantity += ing.quantity;
+        } else {
+          existing.recipes.push({ id: ing.recipeId, name: ing.recipeName, quantity: ing.quantity });
+        }
+
+        existing.originalIngredients.push(ing);
+      } else {
+        map.set(ing.name, {
+          name: ing.name,
+          totalQuantity: ing.quantity,
+          unit: ing.unit,
+          recipes: [{ id: ing.recipeId, name: ing.recipeName, quantity: ing.quantity }],
+          originalIngredients: [ing]
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  const handleTogglePantry = (ingredientName: string, inPantry: boolean) => {
+    if (inPantry) {
+      addToPantry(ingredientName, true);
+    } else {
+      removeFromPantry(ingredientName);
+    }
+
+    // Force re-render by updating a state variable
+    setAggregatedIngredients([...aggregatedIngredients]);
+  };
+
+  const isInPantry = (ingredientName: string): boolean => {
+    const inventory = getPantryInventory();
+    return inventory.items.some(item => item.name === ingredientName);
+  };
+
+  const handleGenerateShoppingList = async () => {
+    try {
+      setIsProcessing(true);
+      setLoadingMessage('Converting to purchasable quantities...');
+      setError(null);
+
+      // Filter out pantry items
+      const pantry = getPantryInventory();
+      const pantryNames = new Set(pantry.items.map(item => item.name));
+      const toBuy = aggregatedIngredients.filter(ing => !pantryNames.has(ing.name));
+
+      if (toBuy.length === 0) {
+        setPhase('shopping');
+        setPurchasableItems([]);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Convert to purchasable quantities
+      const simplified = toBuy.map(ing => ({
+        name: ing.name,
+        quantity: ing.totalQuantity,
+        unit: ing.unit
+      }));
+
+      const purchasable = await convertToPurchasableQuantities(simplified);
+      setPurchasableItems(purchasable);
+
+      // Cache results
+      const today = new Date().toISOString().split('T')[0];
+      saveEnhancedShoppingState({
+        ...getEnhancedShoppingState(),
+        lastGeneratedDate: today,
+        cachedPurchasableItems: purchasable
+      });
+
+      setPhase('shopping');
+      setIsProcessing(false);
+
+    } catch (err) {
+      console.error('Error generating shopping list:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate shopping list');
+      setIsProcessing(false);
+    }
+  };
+
+  const handleTogglePurchased = (ingredientName: string) => {
+    const state = getEnhancedShoppingState();
+    const isPurchased = state.purchased.includes(ingredientName);
+
+    const newPurchased = isPurchased
+      ? state.purchased.filter(name => name !== ingredientName)
+      : [...state.purchased, ingredientName];
+
+    saveEnhancedShoppingState({
+      ...state,
+      purchased: newPurchased
+    });
+
+    // Force re-render
+    setPurchasableItems([...purchasableItems]);
+  };
+
+  const handleRemoveItem = (ingredientName: string) => {
+    const state = getEnhancedShoppingState();
+    saveEnhancedShoppingState({
+      ...state,
+      removed: [...state.removed, ingredientName],
+      purchased: state.purchased.filter(name => name !== ingredientName)
+    });
+
+    // Update UI
+    setPurchasableItems(purchasableItems.filter(item => item.ingredientName !== ingredientName));
+  };
+
+  const handleResetList = () => {
+    if (confirm('This will clear all shopping list data and start fresh. Continue?')) {
+      saveEnhancedShoppingState({
+        pantryChecks: {},
+        purchased: [],
+        removed: [],
+        lastGeneratedDate: '',
+        cachedPurchasableItems: []
+      });
+      setPhase('requirements');
+      setPurchasableItems([]);
+      initializeShoppingList();
+    }
+  };
+
+  const isPurchased = (ingredientName: string): boolean => {
+    const state = getEnhancedShoppingState();
+    return state.purchased.includes(ingredientName);
+  };
+
+  // Calculate pantry counts
+  const inPantryItems = aggregatedIngredients.filter(ing => isInPantry(ing.name));
+  const needToBuyItems = aggregatedIngredients.filter(ing => !isInPantry(ing.name));
+
+  // Calculate purchased counts
+  const purchasedItems = purchasableItems.filter(item => isPurchased(item.ingredientName));
+  const unpurchasedItems = purchasableItems.filter(item => !isPurchased(item.ingredientName));
+
+  // Empty state - no meals planned
+  if (!isProcessing && aggregatedIngredients.length === 0) {
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header>
+          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
+          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
         </header>
 
-        {allItems.length === 0 ? (
-             <div className="p-10 text-center text-[#1F2823]/40 bg-white rounded-2xl border border-dashed border-[#1F2823]/10">
-                <p>No meals planned.</p>
-                <p className="text-sm">Go to the Planner to add meals and generate your list.</p>
+        <div className="p-12 text-center text-slate-600 bg-white rounded-3xl border border-dashed border-slate-200">
+          <div className="text-4xl mb-4">🍽️</div>
+          <p className="text-lg font-medium text-slate-900 mb-2">No meals planned yet</p>
+          <p className="text-sm">Go to the Planner to add meals and generate your shopping list.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isProcessing) {
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header>
+          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
+          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
+        </header>
+
+        <div className="p-12 text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-emerald-600 mb-4"></div>
+          <p className="text-slate-600 font-medium">{loadingMessage}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header>
+          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
+          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
+        </header>
+
+        <div className="p-8 text-center text-red-600 bg-red-50 rounded-3xl border border-red-200">
+          <div className="text-3xl mb-2">⚠️</div>
+          <p className="font-medium mb-2">Error</p>
+          <p className="text-sm">{error}</p>
+          <button
+            onClick={() => initializeShoppingList()}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Phase 1: Requirements Review
+  if (phase === 'requirements') {
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Review Requirements</h2>
+            <p className="text-slate-600 font-medium mt-1">Mark what you already have in your pantry</p>
+          </div>
+          <button
+            onClick={handleResetList}
+            className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors self-start md:self-auto"
+          >
+            Reset All
+          </button>
+        </header>
+
+        {/* Summary */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+            <div className="text-emerald-600 text-sm font-medium mb-1">In Pantry</div>
+            <div className="text-3xl font-bold text-emerald-900">{inPantryItems.length}</div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <div className="text-amber-600 text-sm font-medium mb-1">Need to Buy</div>
+            <div className="text-3xl font-bold text-amber-900">{needToBuyItems.length}</div>
+          </div>
+        </div>
+
+        {/* Ingredients Grid */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {aggregatedIngredients.map(ingredient => (
+            <IngredientReviewCard
+              key={ingredient.name}
+              ingredient={ingredient}
+              inPantry={isInPantry(ingredient.name)}
+              onTogglePantry={handleTogglePantry}
+            />
+          ))}
+        </div>
+
+        {/* Generate Button */}
+        <div className="flex justify-center pt-4">
+          {needToBuyItems.length === 0 ? (
+            <div className="text-center">
+              <div className="text-4xl mb-2">🎉</div>
+              <p className="text-lg font-medium text-slate-900 mb-2">You have everything!</p>
+              <p className="text-sm text-slate-600">All ingredients are in your pantry.</p>
             </div>
-        ) : (
-            <>
-                {viewMode === 'unified' ? (
-                    <div className="space-y-6">
-                        {/* To Buy Section - Dark Card */}
-                        <div className="bg-[#1F2823] rounded-3xl shadow-xl shadow-[#1F2823]/10 border border-[#2A362F] overflow-hidden">
-                            <div className="p-5 bg-[#1F2823] border-b border-[#2A362F] flex justify-between items-center">
-                                <h3 className="font-normal text-white font-serif text-lg">To Buy ({toBuy.length})</h3>
-                            </div>
-                            {toBuy.length === 0 && purchased.length === 0 ? (
-                                <div className="p-8 text-center text-[#9CA3AF]">
-                                    <p>List is empty.</p>
-                                </div>
-                            ) : toBuy.length === 0 && purchased.length > 0 ? (
-                                <div className="p-8 text-center text-[#A3E635]">
-                                    <p>🎉 All done! You've bought everything.</p>
-                                </div>
-                            ) : (
-                                <ul className="divide-y divide-[#2A362F]">
-                                    {toBuy.map((item, i) => (
-                                        <li key={`buy-${i}`} className="flex items-center justify-between p-4 hover:bg-[#2A362F]/50 group transition-colors">
-                                            <div className="flex items-center flex-1 cursor-pointer min-w-0" onClick={() => toggleItem(item.name)}>
-                                                <div className="w-5 h-5 rounded border border-[#52525B] mr-4 flex-shrink-0 flex items-center justify-center text-white transition-colors group-hover:border-[#A3E635]">
-                                                    {/* Unchecked state */}
-                                                </div>
-                                                <div className="flex flex-col min-w-0 pr-4">
-                                                    <span className="text-white font-medium break-words">{item.name}</span>
-                                                    <span className="text-[#52525B] text-xs mt-0.5 truncate group-hover:text-[#A3E635]/70 transition-colors">
-                                                        {item.recipes.join(', ')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <button 
-                                                onClick={() => removeItem(item.name)}
-                                                className="text-[#52525B] hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                                                title="Remove from list"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
+          ) : (
+            <button
+              onClick={handleGenerateShoppingList}
+              className="px-8 py-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all text-lg font-semibold shadow-lg hover:shadow-xl"
+            >
+              Generate Shopping List ({needToBuyItems.length} items)
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Phase 2: Shopping List
+  return (
+    <div className="space-y-6 pb-20 animate-fade-in">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
+          <p className="text-slate-600 font-medium mt-1">Purchase these items at the store</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setPhase('requirements')}
+            className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            ← Back to Review
+          </button>
+          <button
+            onClick={handleResetList}
+            className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+      </header>
+
+      {purchasableItems.length === 0 ? (
+        <div className="p-12 text-center">
+          <div className="text-4xl mb-4">✨</div>
+          <p className="text-lg font-medium text-slate-900 mb-2">Perfect!</p>
+          <p className="text-sm text-slate-600">You already have everything you need.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* To Buy Section */}
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div className="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="font-normal text-slate-900 font-serif text-lg">To Purchase ({unpurchasedItems.length})</h3>
+            </div>
+            {unpurchasedItems.length === 0 ? (
+              <div className="p-8 text-center text-emerald-600">
+                <p>🎉 All items purchased!</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-200">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {unpurchasedItems.map(item => {
+                    // Find the corresponding aggregated ingredient to get recipe info
+                    const aggIng = aggregatedIngredients.find(ing => ing.name === item.ingredientName);
+
+                    return (
+                      <motion.li
+                        layout
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        key={item.ingredientName}
+                        className="flex items-start justify-between p-4 hover:bg-slate-50 group transition-colors"
+                      >
+                        <div
+                          className="flex items-start flex-1 cursor-pointer gap-3"
+                          onClick={() => handleTogglePurchased(item.ingredientName)}
+                        >
+                          <div className="w-5 h-5 rounded border-2 border-slate-300 mt-0.5 flex-shrink-0 flex items-center justify-center transition-colors group-hover:border-emerald-600" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-slate-900 capitalize mb-1">{item.ingredientName}</div>
+                            <div className="text-lg font-bold text-emerald-700 mb-1">{item.purchasableQuantity}</div>
+                            <div className="text-xs text-slate-500">Recipe needs: {item.requiredQuantity}</div>
+                            {aggIng && aggIng.recipes.length > 0 && (
+                              <div className="text-xs text-slate-400 mt-1">
+                                For: {aggIng.recipes.map(r => r.name).join(', ')}
+                              </div>
                             )}
+                            {item.rationale && (
+                              <div className="text-xs text-slate-400 mt-1 italic">{item.rationale}</div>
+                            )}
+                          </div>
                         </div>
+                        <button
+                          onClick={() => handleRemoveItem(item.ingredientName)}
+                          className="text-slate-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                          title="Remove from list"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                      </motion.li>
+                    );
+                  })}
+                </AnimatePresence>
+              </ul>
+            )}
+          </div>
 
-                        {/* Purchased Section */}
-                        {purchased.length > 0 && (
-                            <div className="bg-[#1F2823]/5 rounded-3xl border border-[#1F2823]/5 overflow-hidden">
-                                <div className="p-4 border-b border-[#1F2823]/5 flex justify-between items-center">
-                                    <h3 className="font-semibold text-[#1F2823]/40 text-sm uppercase tracking-wide">Purchased ({purchased.length})</h3>
-                                </div>
-                                <ul className="divide-y divide-[#1F2823]/5">
-                                    {purchased.map((item, i) => (
-                                        <li key={`done-${i}`} className="flex items-center justify-between p-4 hover:bg-[#1F2823]/5 group">
-                                            <div className="flex items-center flex-1 cursor-pointer min-w-0" onClick={() => toggleItem(item.name)}>
-                                                <div className="w-5 h-5 rounded bg-[#1F2823] border border-[#1F2823] mr-4 flex-shrink-0 flex items-center justify-center text-[#A3E635]">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                </div>
-                                                <div className="flex flex-col min-w-0 pr-4">
-                                                    <span className="text-[#1F2823]/50 line-through decoration-[#1F2823]/20 break-words">{item.name}</span>
-                                                    <span className="text-[#1F2823]/30 text-xs mt-0.5 truncate">
-                                                        {item.recipes.join(', ')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <button 
-                                                onClick={() => removeItem(item.name)}
-                                                className="text-[#1F2823]/20 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                                                title="Remove from list"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="grid gap-6 md:grid-cols-2">
-                        {recipesData.map(([recipeName, items]) => {
-                             const sortedItems = [...items].sort((a, b) => {
-                                const aChecked = state.checked.includes(a.name);
-                                const bChecked = state.checked.includes(b.name);
-                                if (aChecked === bChecked) return a.name.localeCompare(b.name);
-                                return aChecked ? 1 : -1;
-                            });
-                            
-                            const allChecked = items.length > 0 && items.every(i => state.checked.includes(i.name));
+          {/* Purchased Section */}
+          {purchasedItems.length > 0 && (
+            <div className="bg-slate-50 rounded-3xl border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 className="font-semibold text-slate-500 text-sm uppercase tracking-wide">Purchased ({purchasedItems.length})</h3>
+              </div>
+              <ul className="divide-y divide-slate-200">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {purchasedItems.map(item => {
+                    // Find the corresponding aggregated ingredient to get recipe info
+                    const aggIng = aggregatedIngredients.find(ing => ing.name === item.ingredientName);
 
-                            return (
-                                <div key={recipeName} className={`rounded-3xl border overflow-hidden transition-all ${allChecked ? 'bg-slate-50 border-slate-200 opacity-60' : 'bg-white border-slate-200 shadow-sm hover:border-[#1F2823]/20'}`}>
-                                    <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
-                                        <h3 className={`font-serif font-medium truncate pr-4 text-lg ${allChecked ? 'text-slate-500 line-through' : 'text-[#1F2823]'}`} title={recipeName}>{recipeName}</h3>
-                                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md border ${allChecked ? 'text-slate-400 border-transparent' : 'text-emerald-700 bg-emerald-50 border-emerald-100'}`}>
-                                            {items.filter(i => !state.checked.includes(i.name)).length} left
-                                        </span>
-                                    </div>
-                                    <ul className="divide-y divide-slate-100">
-                                        {sortedItems.map(item => {
-                                            const isChecked = state.checked.includes(item.name);
-                                            return (
-                                                <li key={`${recipeName}-${item.name}`} onClick={() => toggleItem(item.name)} className="p-3 flex items-start gap-3 hover:bg-slate-50 cursor-pointer group">
-                                                    <div className={`mt-0.5 w-5 h-5 rounded-md border flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-[#1F2823] border-[#1F2823] text-white' : 'border-slate-300 group-hover:border-[#1F2823]'}`}>
-                                                        {isChecked && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                                                    </div>
-                                                    <span className={`text-sm font-medium ${isChecked ? 'text-slate-400 line-through' : 'text-[#1F2823]'}`}>{item.name}</span>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </>
-        )}
+                    return (
+                      <motion.li
+                        layout
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        key={item.ingredientName}
+                        className="flex items-start justify-between p-4 hover:bg-white group"
+                      >
+                        <div
+                          className="flex items-start flex-1 cursor-pointer gap-3"
+                          onClick={() => handleTogglePurchased(item.ingredientName)}
+                        >
+                          <div className="w-5 h-5 rounded bg-emerald-600 border-2 border-emerald-600 flex-shrink-0 flex items-center justify-center text-white mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-slate-500 line-through capitalize">{item.ingredientName}</div>
+                            <div className="text-sm text-slate-400">{item.purchasableQuantity}</div>
+                            {aggIng && aggIng.recipes.length > 0 && (
+                              <div className="text-xs text-slate-400 mt-0.5">
+                                For: {aggIng.recipes.map(r => r.name).join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveItem(item.ingredientName)}
+                          className="text-slate-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                          title="Remove from list"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                      </motion.li>
+                    );
+                  })}
+                </AnimatePresence>
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GEMINI_TEXT_MODEL } from "../constants";
-import { Recipe, DayPlan, FoodLogItem } from "../types";
+import { Recipe, DayPlan, FoodLogItem, PurchasableItem } from "../types";
 
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey });
@@ -234,6 +234,169 @@ export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: 
     return JSON.parse(output);
   } catch (error) {
     console.error("Error generating weekly plan:", error);
+    throw error;
+  }
+};
+
+const ingredientParseSchema: Schema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      name: { type: Type.STRING, description: "Normalized ingredient name (lowercase)" },
+      quantity: { type: Type.NUMBER, description: "Numeric quantity, default to 1 if unspecified" },
+      unit: { type: Type.STRING, description: "Unit of measurement (tbsp, g, ml, cup, etc), 'item' if none" }
+    },
+    required: ['name', 'quantity', 'unit']
+  }
+};
+
+export const parseIngredients = async (ingredientTexts: string[]): Promise<Array<{name: string, quantity: number, unit: string}>> => {
+  if (!apiKey) throw new Error("API Key not found");
+
+  const prompt = `
+    Parse the following ingredient strings into structured data.
+    Extract the ingredient name (normalized, lowercase), quantity (as number), and unit.
+    If no quantity is specified, use 1. If no unit, use "item".
+    Handle vague quantities intelligently:
+    - "to taste" → quantity: 1, unit: "pinch"
+    - "a pinch" → quantity: 1, unit: "pinch"
+    - "a dash" → quantity: 1, unit: "dash"
+
+    Examples:
+    "2 tbsp olive oil" → {name: "olive oil", quantity: 2, unit: "tbsp"}
+    "500g chicken breast" → {name: "chicken breast", quantity: 500, unit: "g"}
+    "1 onion, diced" → {name: "onion", quantity: 1, unit: "item"}
+    "Salt and pepper to taste" → {name: "salt and pepper", quantity: 1, unit: "pinch"}
+    "Fresh basil leaves" → {name: "basil leaves", quantity: 1, unit: "handful"}
+    "2 eggs" → {name: "eggs", quantity: 2, unit: "item"}
+    "1 egg, beaten" → {name: "eggs", quantity: 1, unit: "item"}
+    "Large egg" → {name: "eggs", quantity: 1, unit: "item"}
+
+    CRITICAL NORMALIZATION RULES:
+    - Return EXACTLY one result per input ingredient (maintain 1:1 correspondence)
+    - Use PLURAL form for countable items: "egg" → "eggs", "tomato" → "tomatoes", "onion" → "onions"
+    - Use SINGULAR form for uncountable items: "rice", "flour", "water", "salt"
+    - Remove ALL modifiers: "fresh", "extra virgin", "organic", "free-range", "large", "small"
+    - Remove preparation instructions: "diced", "chopped", "beaten", "minced"
+    - Be consistent with the SAME canonical name:
+      * "egg", "eggs", "large egg" → ALL become "eggs"
+      * "onion", "onions", "red onion" → ALL become "onions"
+      * "olive oil", "extra virgin olive oil", "EVOO" → ALL become "olive oil"
+      * "tomato", "tomatoes", "cherry tomatoes" → ALL become "tomatoes"
+    - For compound ingredients like "salt and pepper", keep as ONE item
+    - The output array MUST have the same length as the input array
+
+    Ingredient strings:
+    ${JSON.stringify(ingredientTexts)}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: ingredientParseSchema
+      }
+    });
+
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
+
+    return JSON.parse(output);
+  } catch (error) {
+    console.error("Error parsing ingredients:", error);
+    throw error;
+  }
+};
+
+const purchasableItemSchema: Schema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      ingredientName: { type: Type.STRING },
+      requiredQuantity: { type: Type.STRING, description: "What recipe needs" },
+      purchasableQuantity: { type: Type.STRING, description: "What to buy at store" },
+      purchasableSize: { type: Type.STRING, description: "Common store package size" },
+      rationale: { type: Type.STRING, description: "Brief explanation of conversion" }
+    },
+    required: ['ingredientName', 'requiredQuantity', 'purchasableQuantity', 'purchasableSize']
+  }
+};
+
+export const convertToPurchasableQuantities = async (
+  aggregatedIngredients: Array<{name: string, quantity: number, unit: string}>
+): Promise<PurchasableItem[]> => {
+  if (!apiKey) throw new Error("API Key not found");
+
+  const prompt = `
+    You are a grocery shopping assistant. Convert recipe ingredient quantities to realistic store-buyable amounts.
+
+    Consider:
+    - Common package sizes in supermarkets (e.g., olive oil comes in 250ml, 500ml, 1L bottles)
+    - Buy the smallest package that covers the need (but realistic - don't suggest buying a single egg)
+    - Fresh produce often sold by weight or count (e.g., "3 tomatoes" or "500g tomatoes")
+    - Dry goods come in standard packages (flour in 1kg bags, rice in 1kg/2kg bags)
+    - Spices and seasonings come in small jars (50g-100g typical)
+    - Dairy products have standard sizes (milk in 1L/2L, cheese in 200g-500g blocks)
+    - Meat and fish sold by weight or pre-packaged (chicken breast in 500g-1kg packs)
+
+    Format:
+    - requiredQuantity: Show what the recipe needs with unit conversion if helpful (e.g., "1.5 tbsp (≈22ml)")
+    - purchasableQuantity: Suggest the smallest realistic package that covers the need
+    - purchasableSize: The numeric size for comparison
+    - rationale: Brief explanation (max 10 words)
+
+    Examples:
+    Input: {name: "olive oil", quantity: 1.5, unit: "tbsp"}
+    Output: {
+      ingredientName: "olive oil",
+      requiredQuantity: "1.5 tbsp (≈22ml)",
+      purchasableQuantity: "250ml bottle",
+      purchasableSize: "250ml",
+      rationale: "Smallest bottle size, provides many servings"
+    }
+
+    Input: {name: "chicken breast", quantity: 750, unit: "g"}
+    Output: {
+      ingredientName: "chicken breast",
+      requiredQuantity: "750g",
+      purchasableQuantity: "750g pack",
+      purchasableSize: "750g",
+      rationale: "Standard supermarket pack size"
+    }
+
+    Input: {name: "cumin", quantity: 1, unit: "pinch"}
+    Output: {
+      ingredientName: "cumin",
+      requiredQuantity: "1 pinch",
+      purchasableQuantity: "50g jar",
+      purchasableSize: "50g",
+      rationale: "Standard spice jar size"
+    }
+
+    Ingredients to convert:
+    ${JSON.stringify(aggregatedIngredients)}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: purchasableItemSchema
+      }
+    });
+
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
+
+    return JSON.parse(output);
+  } catch (error) {
+    console.error("Error converting to purchasable quantities:", error);
     throw error;
   }
 };

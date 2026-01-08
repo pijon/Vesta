@@ -1,38 +1,43 @@
 import React from 'react';
 
 interface RecipeIllustrationProps {
-  name: string;
-  ingredients?: string[]; 
-  type?: string;
   className?: string;
+  theme?: { bg: string; text: string; accent: string };
 }
 
-export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ className = '' }) => {
+export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ className = '', theme }) => {
+  // Default values if no theme is provided
+  const mainColor = theme?.text.replace('text-', '') || 'emerald-600';
+  const secondaryColor = theme?.accent || '#B0D478';
+
   return (
-    <div className={`flex items-center justify-center bg-emerald-50/40 ${className}`}>
-      <svg 
-        viewBox="0 0 512 512" 
-        className="w-4/5 h-4/5 drop-shadow-sm" 
+    <div className={`flex items-center justify-center ${theme?.bg || 'bg-emerald-50'} ${className}`}>
+      <svg
+        viewBox="0 0 512 512"
+        className="w-4/5 h-4/5 drop-shadow-sm transition-all duration-500"
         xmlns="http://www.w3.org/2000/svg"
         version="1.1"
       >
-        <g>
-          <path 
-            fill="#B0D478" 
+        <g className="animate-fade-in">
+          {/* Plate/Bowl Base */}
+          <path
+            className="fill-current text-white/40"
             d="M249.14,147.801v347.709C225.549,506.083,199.433,512,171.897,512
             c-10.888,0-21.382-1.579-31.481-4.577C92.92,493.458,54.18,449.195,29.563,396.57c-5.444-11.519-10.178-23.433-14.123-35.583
             C4.079,326.744-1.365,291.082,0.292,259.364C5.894,150.483,47.158,90.757,163.771,116.635
             c27.694,6.154,50.495,16.017,71.009,25.012C239.672,143.777,244.485,145.828,249.14,147.801z"
           />
-          <path 
-            fill="#4FA661" 
+          <path
+            className="fill-current text-white/20"
             d="M249.14,147.838v347.656c23.588,10.613,49.732,16.502,77.25,16.502
             c104.605,0,177.012-147.644,171.607-252.618c-5.604-108.858-46.89-168.649-163.483-142.74
             C300.263,124.249,273.478,137.565,249.14,147.838z"
           />
-          <g>
-            <path 
-              fill="#734B5A" 
+
+          {/* Main Food Items - Dynamic styling based on parent class text color is hard in SVG, so using currentColor with wrapper classes */}
+          <g className={`text-${mainColor}`}>
+            <path
+              fill="currentColor"
               d="M171.722,18.069l4.368-16.417c0.232-0.878,1.284-1.429,2.825-1.598
               c1.535-0.153,3.584-0.006,5.658,0.761c0,0,0.609,0.237,1.751,0.682c0.569,0.225,1.27,0.503,2.096,0.828
               c0.81,0.363,1.742,0.78,2.785,1.247c4.171,1.848,10.021,4.792,16.506,9.123c6.503,4.289,13.592,10.034,20.172,17.11
@@ -47,8 +52,10 @@ export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ classNam
               C171.983,19.951,171.489,18.947,171.722,18.069z"
             />
           </g>
-          <path 
-            fill="#53734E" 
+
+          {/* Garnish / Greenery */}
+          <path
+            fill={secondaryColor}
             d="M412.54,10.28c-0.079,4.497-0.552,8.837-1.341,12.86c-14.202,77.873-136.417,79.137-136.417,79.137
             c-0.079-0.079-0.079-0.316,0.079-0.711c1.184-8.442,23.512-86.316,94.442-94.442c8.048-0.947,16.727-0.947,26.037,0.158
             C400.863,7.834,406.544,8.859,412.54,10.28z"
