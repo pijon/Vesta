@@ -52,9 +52,17 @@ export interface FoodLogItem {
   timestamp: number;
 }
 
+export interface WorkoutItem {
+  id: string;
+  type: string;
+  caloriesBurned: number;
+  timestamp: number;
+}
+
 export interface DailyLog {
   date: string;
   items: FoodLogItem[];
+  workouts: WorkoutItem[];
 }
 
 export enum AppView {

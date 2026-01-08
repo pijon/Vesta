@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, Recipe } from './types';
+import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog } from './services/storageService';
 import { Dashboard } from './components/Dashboard';
 import { Planner } from './components/Planner';
@@ -61,6 +61,33 @@ export const App: React.FC = () => {
     const updatedLog: DailyLog = {
         ...dailyLog,
         items: [...dailyLog.items, ...items]
+    };
+    setDailyLog(updatedLog);
+    saveDailyLog(updatedLog);
+  };
+
+  const handleAddWorkout = (workout: WorkoutItem) => {
+    const updatedLog: DailyLog = {
+        ...dailyLog,
+        workouts: [...(dailyLog.workouts || []), workout]
+    };
+    setDailyLog(updatedLog);
+    saveDailyLog(updatedLog);
+  };
+
+  const handleUpdateWorkout = (updatedWorkout: WorkoutItem) => {
+    const updatedLog: DailyLog = {
+        ...dailyLog,
+        workouts: (dailyLog.workouts || []).map(w => w.id === updatedWorkout.id ? updatedWorkout : w)
+    };
+    setDailyLog(updatedLog);
+    saveDailyLog(updatedLog);
+  };
+
+  const handleDeleteWorkout = (workoutId: string) => {
+    const updatedLog: DailyLog = {
+        ...dailyLog,
+        workouts: (dailyLog.workouts || []).filter(w => w.id !== workoutId)
     };
     setDailyLog(updatedLog);
     saveDailyLog(updatedLog);
@@ -184,11 +211,9 @@ export const App: React.FC = () => {
       {/* Top Navigation / Header */}
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView(AppView.DASHBOARD)}>
-                 <div className="bg-emerald-600 text-white p-1.5 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L1 21h22L12 2zm0 3.5L18.5 19h-13L12 5.5z"/></svg>
-                 </div>
-                 <h1 className="text-xl font-medium tracking-tight text-slate-900 font-serif">{APP_NAME}</h1>
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView(AppView.DASHBOARD)}>
+                 <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-6 w-auto" />
+                 <h1 className="text-xl font-medium tracking-tight text-slate-900 font-serif leading-none">{APP_NAME}</h1>
             </div>
             
             <div className="hidden md:flex items-center gap-2">
@@ -214,10 +239,11 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="max-w-5xl mx-auto p-4 md:p-8">
         {view === AppView.DASHBOARD && (
-            <Dashboard 
-                todayPlan={todayPlan} 
+            <Dashboard
+                todayPlan={todayPlan}
                 tomorrowPlan={tomorrowPlan}
                 stats={userStats}
+                dailyLog={dailyLog}
                 onUpdateStats={handleUpdateStats}
                 refreshData={refreshData}
                 onLogMeal={handleLogMeal}
@@ -227,9 +253,12 @@ export const App: React.FC = () => {
         {view === AppView.RECIPES && <RecipeLibrary />}
         {view === AppView.SHOPPING && <ShoppingList />}
         {view === AppView.JOURNAL && (
-            <FoodLogger 
+            <FoodLogger
                 currentLog={dailyLog}
                 onAddItems={handleAddFoodLogItems}
+                onAddWorkout={handleAddWorkout}
+                onUpdateWorkout={handleUpdateWorkout}
+                onDeleteWorkout={handleDeleteWorkout}
                 onUpdateWeight={handleUpdateWeight}
                 userStats={userStats}
             />

@@ -4,6 +4,7 @@ import { planWeekWithExistingRecipes } from '../services/geminiService';
 import { Recipe, DayPlan } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
 import { getCategoryColor } from '../utils';
+import { Portal } from './Portal';
 
 export const Planner: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -314,8 +315,9 @@ export const Planner: React.FC = () => {
 
       {/* Improved Add/Swap Meal Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
-           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+        <Portal>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-4 animate-fade-in">
+           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
               {/* Header */}
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-2xl">
                  <div>
@@ -465,7 +467,8 @@ export const Planner: React.FC = () => {
                 </div>
               )}
            </div>
-        </div>
+          </div>
+        </Portal>
       )}
     </div>
   );

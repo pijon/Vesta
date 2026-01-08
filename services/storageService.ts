@@ -111,7 +111,14 @@ export const saveShoppingState = (state: ShoppingState) => {
 export const getDailyLog = (date: string): DailyLog => {
   const stored = localStorage.getItem(LOGS_KEY);
   const logs = stored ? JSON.parse(stored) : {};
-  return logs[date] || { date, items: [] };
+  const log = logs[date] || { date, items: [], workouts: [] };
+
+  // Migration: Ensure workouts array exists
+  if (!log.workouts) {
+    log.workouts = [];
+  }
+
+  return log;
 };
 
 export const saveDailyLog = (log: DailyLog) => {
@@ -119,4 +126,38 @@ export const saveDailyLog = (log: DailyLog) => {
   const logs = stored ? JSON.parse(stored) : {};
   logs[log.date] = log;
   localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+};
+
+// --- Daily Summaries ---
+export interface DailySummary {
+  date: string;
+  caloriesConsumed: number;
+  caloriesBurned: number;
+  netCalories: number;
+  workoutCount: number;
+}
+
+export const getAllDailySummaries = (): DailySummary[] => {
+  const stored = localStorage.getItem(LOGS_KEY);
+  if (!stored) return [];
+
+  const logs = JSON.parse(stored);
+  const summaries: DailySummary[] = [];
+
+  Object.keys(logs).forEach(date => {
+    const log = logs[date];
+    const caloriesConsumed = (log.items || []).reduce((sum: number, item: any) => sum + item.calories, 0);
+    const caloriesBurned = (log.workouts || []).reduce((sum: number, w: any) => sum + w.caloriesBurned, 0);
+
+    summaries.push({
+      date,
+      caloriesConsumed,
+      caloriesBurned,
+      netCalories: caloriesConsumed - caloriesBurned,
+      workoutCount: (log.workouts || []).length
+    });
+  });
+
+  // Sort by date
+  return summaries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };

@@ -58,13 +58,36 @@ This is the most complex interaction:
 
 **Important**: The Dashboard and Journal (FoodLogger) share calorie data but operate on different data structures:
 - Dashboard uses `DayPlan` with `completedMealIds` tracking
-- Journal uses `DailyLog` with timestamped `FoodLogItem[]`
+- Journal uses `DailyLog` with timestamped `FoodLogItem[]` and `WorkoutItem[]`
+
+### Workout Tracking & Net Calorie Calculation
+
+Workouts allow users to burn calories, which increases their daily calorie budget:
+
+- **Base target**: 800 kcal/day (DAILY_CALORIE_LIMIT constant)
+- **With workouts**: If user burns 200 kcal, they can eat 1000 kcal (800 + 200) to maintain net 800 kcal
+- **Calculation**: `netCalories = caloriesConsumed - caloriesBurned`
+- **Dashboard display**: Shows net calories against base target, with adjusted target displayed when workouts exist
+- **FoodLogger**: Separate workout log with purple theme to distinguish from food entries
+- **Edit/Delete**: Workouts can be edited or deleted via hover actions (edit/delete buttons appear on hover)
+
+### Trend Charts & Historical Data
+
+Dashboard displays three trend charts using Recharts library:
+
+1. **Weight Trend** (Area Chart): Shows weight over time from UserStats.weightHistory
+2. **Daily Calories** (Line Chart): Shows calories consumed (solid green line) and net calories (dashed gray line) over time
+3. **Workout Activity** (Bar Chart): Shows calories burned per workout day (purple bars)
+
+All historical calorie and workout data is calculated from DailyLog entries via `getAllDailySummaries()`. No separate summary storage needed - data is aggregated on-the-fly from existing logs.
 
 ### Core Types (types.ts)
 
 - **Recipe**: Meal definition with nutritional info, ingredients, instructions
 - **DayPlan**: Date-specific meal list with completion tracking
-- **DailyLog**: Free-form food log entries with timestamps
+- **DailyLog**: Free-form food log entries and workout tracking with timestamps
+- **FoodLogItem**: Individual food entry with calories consumed
+- **WorkoutItem**: Exercise entry with calories burned
 - **UserStats**: Weight tracking (current, start, goal) with history array
 - **AppView**: Enum for view navigation
 
@@ -73,6 +96,7 @@ This is the most complex interaction:
 **storageService.ts**: LocalStorage wrapper with migration logic
 - Handles type migrations (e.g., 'lunch'/'dinner' → 'main meal')
 - Provides getters/setters for Recipes, Plans, Stats, Shopping State, Daily Logs
+- `getAllDailySummaries()`: Aggregates all daily logs into summary objects with calories consumed/burned, net calories, and workout counts
 - All functions are synchronous (localStorage is sync)
 
 **geminiService.ts**: Google Gemini AI integration
@@ -85,8 +109,8 @@ This is the most complex interaction:
 ### Component Organization
 
 Components are in `/components`:
-- **Dashboard**: Main view with calorie tracking, weight chart, meal checklist
-- **FoodLogger**: Journal view for free-form food logging with AI parsing
+- **Dashboard**: Main view with calorie tracking, weight chart, calorie consumption trend, workout activity chart, meal checklist
+- **FoodLogger**: Journal view for free-form food logging with AI parsing, workout tracking with edit/delete
 - **Planner**: Meal planning interface for scheduling recipes
 - **RecipeLibrary**: Browse/add/edit recipes
 - **RecipeCard**: Recipe display component

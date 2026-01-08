@@ -4,6 +4,7 @@ import { getRecipes, saveRecipe, deleteRecipe } from '../services/storageService
 import { parseRecipeText } from '../services/geminiService';
 import { RecipeCard } from './RecipeCard';
 import { getCategoryColor } from '../utils';
+import { Portal } from './Portal';
 
 export const RecipeLibrary: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -264,8 +265,9 @@ export const RecipeLibrary: React.FC = () => {
 
       {/* Recipe Detail / Edit Modal */}
       {selectedRecipe && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 pb-4 animate-fade-in" onClick={closeRecipe}>
-            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[80vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
+        <Portal>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-slate-900/50 backdrop-blur-sm" onClick={closeRecipe}>
+            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Category Header */}
                 <div className={`relative h-48 md:h-64 flex-shrink-0 overflow-hidden ${getCategoryColor(selectedRecipe.type).bg}`}>
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -450,7 +452,8 @@ export const RecipeLibrary: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+          </div>
+        </Portal>
       )}
     </div>
   );

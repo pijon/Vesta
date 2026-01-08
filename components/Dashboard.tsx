@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { DayPlan, UserStats, Recipe } from '../types';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, BarChart, Bar } from 'recharts';
+import { DayPlan, UserStats, Recipe, DailyLog } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
-import { saveDayPlan } from '../services/storageService';
+import { saveDayPlan, getAllDailySummaries } from '../services/storageService';
 import { getCategoryColor } from '../utils';
+import { Portal } from './Portal';
 
 interface DashboardProps {
   todayPlan: DayPlan;
   tomorrowPlan: DayPlan;
   stats: UserStats;
+  dailyLog: DailyLog;
   onUpdateStats: (stats: UserStats) => void;
   onLogMeal: (meal: Recipe, isAdding: boolean) => void;
   refreshData: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, stats, onUpdateStats, onLogMeal, refreshData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, stats, dailyLog, onUpdateStats, onLogMeal, refreshData }) => {
   const [weightInput, setWeightInput] = useState(stats.currentWeight.toString());
   const [goalInput, setGoalInput] = useState(stats.goalWeight.toString());
   const [startInput, setStartInput] = useState(stats.startWeight.toString());
@@ -56,8 +58,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
   const consumed = todayPlan.meals
     .filter(m => todayPlan.completedMealIds.includes(m.id))
     .reduce((sum, m) => sum + m.calories, 0);
-  
-  const percentage = Math.min(100, (consumed / DAILY_CALORIE_LIMIT) * 100);
+
+  const caloriesBurned = (dailyLog.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
+  const netCalories = consumed - caloriesBurned;
+  const adjustedTarget = DAILY_CALORIE_LIMIT + caloriesBurned;
+
+  const percentage = Math.min(100, (netCalories / DAILY_CALORIE_LIMIT) * 100);
 
   const handleSaveWeight = () => {
       const w = parseFloat(weightInput);
@@ -98,11 +104,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
   if (chartData.length === 0) {
       chartData.push({ date: new Date().toISOString().split('T')[0], weight: startWeight });
   }
-  
+
   const formattedChartData = chartData.map(entry => ({
       ...entry,
       displayDate: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }));
+
+  // Get daily summaries for calorie and workout charts
+  const dailySummaries = getAllDailySummaries();
+  const formattedCalorieData = dailySummaries.map(entry => ({
+      ...entry,
+      displayDate: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }));
+
+  const formattedWorkoutData = dailySummaries
+    .filter(entry => entry.workoutCount > 0)
+    .map(entry => ({
+      ...entry,
+      displayDate: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }));
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -116,13 +136,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
           
           {/* Calorie Card */}
           <div className="md:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-full">
-             <div className="flex justify-between items-start mb-6">
+             <div className="flex justify-between items-start mb-4">
                  <div>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Calories Consumed</p>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Net Calories</p>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-medium text-slate-900 font-serif">{consumed}</span>
+                        <span className="text-4xl font-medium text-slate-900 font-serif">{netCalories}</span>
                         <span className="text-slate-400 font-medium">/ {DAILY_CALORIE_LIMIT}</span>
                     </div>
+                    {caloriesBurned > 0 && (
+                        <p className="text-xs text-purple-600 font-medium mt-1 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z"/></svg>
+                            {caloriesBurned} kcal burned • Can eat {adjustedTarget} kcal today
+                        </p>
+                    )}
                  </div>
                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 12h2a2 2 0 1 0 0-4h-2v4Z"/><path d="m16.7 13.4-.9-1.8c.8-1.1 1.2-2.5 1.2-4a7 7 0 0 0-7-7 7 7 0 0 0-7 7c0 1.5.4 2.9 1.2 4l-.9 1.8a2 2 0 0 0 2.6 2.6l1.8-.9c1.1.8 2.5 1.2 4 1.2s2.9-.4 4-1.2l1.8.9a2 2 0 0 0 2.6-2.6Z"/></svg>
@@ -130,10 +156,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
              </div>
              <div>
                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-1000 ease-out ${consumed > DAILY_CALORIE_LIMIT ? 'bg-red-400' : 'bg-emerald-500'}`} style={{width: `${percentage}%`}}></div>
+                    <div className={`h-full rounded-full transition-all duration-1000 ease-out ${netCalories > DAILY_CALORIE_LIMIT ? 'bg-red-400' : 'bg-emerald-500'}`} style={{width: `${percentage}%`}}></div>
                  </div>
                  <p className="text-xs text-slate-500 mt-3 font-medium flex gap-2 items-center">
-                    {DAILY_CALORIE_LIMIT - consumed > 0 ? `${DAILY_CALORIE_LIMIT - consumed} kcal remaining` : 'Limit reached'}
+                    {DAILY_CALORIE_LIMIT - netCalories > 0 ? `${DAILY_CALORIE_LIMIT - netCalories} net kcal remaining` : 'Limit reached'}
                  </p>
              </div>
           </div>
@@ -217,8 +243,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
               </div>
           </div>
 
-          {/* Chart Section */}
-          <div className="md:col-span-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
+          {/* Weight Trend Chart */}
+          <div className="md:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
               <h3 className="font-medium text-slate-900 mb-6 flex items-center gap-3 font-serif text-lg">
                  Weight Trend
               </h3>
@@ -232,33 +258,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                            </linearGradient>
                        </defs>
                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                       <XAxis 
-                           dataKey="displayDate" 
-                           axisLine={false} 
-                           tickLine={false} 
+                       <XAxis
+                           dataKey="displayDate"
+                           axisLine={false}
+                           tickLine={false}
                            tick={{fill: '#94A3B8', fontSize: 12, fontWeight: 500}}
                            dy={10}
                            minTickGap={30}
                        />
-                       <YAxis 
-                           domain={['auto', 'auto']} 
-                           axisLine={false} 
-                           tickLine={false} 
+                       <YAxis
+                           domain={['auto', 'auto']}
+                           axisLine={false}
+                           tickLine={false}
                            tick={{fill: '#94A3B8', fontSize: 12, fontWeight: 500}}
                            padding={{ top: 20, bottom: 20 }}
                        />
-                       <Tooltip 
+                       <Tooltip
                             contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#0F172A', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
                             itemStyle={{ color: '#059669' }}
                             labelStyle={{ color: '#64748B', fontSize: '12px', marginBottom: '4px' }}
                        />
-                       <Area 
-                           type="monotone" 
-                           dataKey="weight" 
-                           stroke="#10B981" 
+                       <Area
+                           type="monotone"
+                           dataKey="weight"
+                           stroke="#10B981"
                            strokeWidth={2}
-                           fillOpacity={1} 
-                           fill="url(#colorWeight)" 
+                           fillOpacity={1}
+                           fill="url(#colorWeight)"
                            activeDot={{ r: 4, fill: '#10B981', stroke: '#fff', strokeWidth: 2 }}
                        />
                    </AreaChart>
@@ -266,8 +292,111 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
               </div>
           </div>
 
+          {/* Calorie Consumption Trend Chart */}
+          <div className="md:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
+              <h3 className="font-medium text-slate-900 mb-6 flex items-center gap-3 font-serif text-lg">
+                 Daily Calories
+              </h3>
+              {formattedCalorieData.length === 0 ? (
+                <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
+                  No calorie data yet. Start logging food!
+                </div>
+              ) : (
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={formattedCalorieData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                          <XAxis
+                              dataKey="displayDate"
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{fill: '#94A3B8', fontSize: 12, fontWeight: 500}}
+                              dy={10}
+                              minTickGap={30}
+                          />
+                          <YAxis
+                              domain={[0, 'auto']}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{fill: '#94A3B8', fontSize: 12, fontWeight: 500}}
+                              padding={{ top: 20, bottom: 20 }}
+                          />
+                          <Tooltip
+                              contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#0F172A', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
+                              labelStyle={{ color: '#64748B', fontSize: '12px', marginBottom: '4px' }}
+                          />
+                          <Line
+                              type="monotone"
+                              dataKey="caloriesConsumed"
+                              stroke="#10B981"
+                              strokeWidth={2}
+                              dot={{ r: 3, fill: '#10B981', strokeWidth: 2 }}
+                              activeDot={{ r: 5, fill: '#10B981', stroke: '#fff', strokeWidth: 2 }}
+                              name="Consumed"
+                          />
+                          <Line
+                              type="monotone"
+                              dataKey="netCalories"
+                              stroke="#64748B"
+                              strokeWidth={2}
+                              strokeDasharray="5 5"
+                              dot={{ r: 3, fill: '#64748B', strokeWidth: 2 }}
+                              activeDot={{ r: 5, fill: '#64748B', stroke: '#fff', strokeWidth: 2 }}
+                              name="Net"
+                          />
+                      </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+          </div>
+
+          {/* Workout Trend Chart */}
+          <div className="md:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
+              <h3 className="font-medium text-slate-900 mb-6 flex items-center gap-3 font-serif text-lg">
+                 Workout Activity
+              </h3>
+              {formattedWorkoutData.length === 0 ? (
+                <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
+                  No workout data yet. Start exercising!
+                </div>
+              ) : (
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={formattedWorkoutData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                          <XAxis
+                              dataKey="displayDate"
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{fill: '#94A3B8', fontSize: 12, fontWeight: 500}}
+                              dy={10}
+                              minTickGap={30}
+                          />
+                          <YAxis
+                              domain={[0, 'auto']}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{fill: '#94A3B8', fontSize: 12, fontWeight: 500}}
+                              padding={{ top: 20, bottom: 20 }}
+                          />
+                          <Tooltip
+                              contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#0F172A', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
+                              labelStyle={{ color: '#64748B', fontSize: '12px', marginBottom: '4px' }}
+                          />
+                          <Bar
+                              dataKey="caloriesBurned"
+                              fill="#9333EA"
+                              radius={[8, 8, 0, 0]}
+                              name="Calories Burned"
+                          />
+                      </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+          </div>
+
           {/* Tomorrow's Preview */}
-          <div className="md:col-span-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-80">
+          <div className="md:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-80">
               <div className="flex justify-between items-center mb-4">
                  <h3 className="font-medium text-slate-900 font-serif text-lg">Tomorrow</h3>
                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
@@ -351,8 +480,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
 
       {/* View Recipe Modal */}
       {selectedRecipe && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 pb-4 animate-fade-in" onClick={() => setSelectedRecipe(null)}>
-            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[80vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
+        <Portal>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-slate-900/50 backdrop-blur-sm" onClick={() => setSelectedRecipe(null)}>
+            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Category Header */}
                 <div className={`relative h-48 md:h-64 flex-shrink-0 overflow-hidden ${getCategoryColor(selectedRecipe.type).bg}`}>
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -425,7 +555,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ todayPlan, tomorrowPlan, s
                     </div>
                 </div>
             </div>
-        </div>
+          </div>
+        </Portal>
       )}
     </div>
   );
