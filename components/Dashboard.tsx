@@ -95,9 +95,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         refreshData();
     };
 
-    const consumed = todayPlan.meals
-        .filter(m => todayPlan.completedMealIds.includes(m.id))
-        .reduce((sum, m) => sum + m.calories, 0);
+    const consumed = (dailyLog.items || []).reduce((sum, item) => sum + item.calories, 0);
 
     const caloriesBurned = (dailyLog.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
     const netCalories = consumed - caloriesBurned;

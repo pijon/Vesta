@@ -174,6 +174,51 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
     }
 };
 
+export const analyzeFoodImage = async (imageBase64: string, mimeType: string): Promise<FoodLogItem[]> => {
+    if (!apiKey) throw new Error("API Key not found");
+
+    const prompt = `
+        Analyze the food items in this image and estimate their calories.
+        List each distinct food item you can identify with its estimated calorie content.
+        Be specific about portion sizes when visible (e.g., "1 slice of bread", "half cup of rice").
+        Be conservative in estimates to help users stay within their 800 kcal daily limit.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: GEMINI_TEXT_MODEL,
+            contents: [
+                { type: 'text', text: prompt },
+                {
+                    type: 'image',
+                    data: imageBase64,
+                    mime_type: mimeType,
+                    resolution: 'medium'
+                }
+            ],
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: foodItemsSchema
+            }
+        });
+
+        const output = response.text;
+        if (!output) throw new Error("No response from AI");
+
+        const items = JSON.parse(output);
+        return items.map((item: any) => ({
+            id: crypto.randomUUID(),
+            name: item.name,
+            calories: item.calories,
+            timestamp: Date.now()
+        }));
+
+    } catch (error) {
+        console.error("Error analyzing food image:", error);
+        throw error;
+    }
+};
+
 const weeklyPlanSchema: Schema = {
   type: Type.ARRAY,
   items: {

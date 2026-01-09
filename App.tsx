@@ -481,6 +481,22 @@ const TrackerApp: React.FC = () => {
                             <FoodLogger
                                 currentLog={dailyLog}
                                 onAddItems={handleAddFoodLogItems}
+                                onUpdateFoodItem={async (item) => {
+                                    const updatedLog = {
+                                        ...dailyLog,
+                                        items: dailyLog.items.map(i => i.id === item.id ? item : i)
+                                    };
+                                    setDailyLog(updatedLog);
+                                    await saveDailyLog(updatedLog);
+                                }}
+                                onDeleteFoodItem={async (itemId) => {
+                                    const updatedLog = {
+                                        ...dailyLog,
+                                        items: dailyLog.items.filter(i => i.id !== itemId)
+                                    };
+                                    setDailyLog(updatedLog);
+                                    await saveDailyLog(updatedLog);
+                                }}
                                 onAddWorkout={handleAddWorkout}
                                 onUpdateWorkout={handleUpdateWorkout}
                                 onDeleteWorkout={handleDeleteWorkout}
