@@ -9,6 +9,7 @@ import { Portal } from './Portal';
 import { HydrationWidget } from './HydrationWidget';
 import { FastingWidget } from './FastingWidget';
 import { AnalyticsSummary } from './AnalyticsSummary';
+import { WeeklySummary } from './WeeklySummary';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { analyzeWeightTrends, analyzeStreaks, getWeeklySummary } from '../utils/analytics';
 
@@ -100,9 +101,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     const caloriesBurned = (dailyLog.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
     const netCalories = consumed - caloriesBurned;
-    const adjustedTarget = DAILY_CALORIE_LIMIT + caloriesBurned;
+    const adjustedTarget = stats.dailyCalorieGoal + caloriesBurned;
 
-    const percentage = Math.min(100, (netCalories / DAILY_CALORIE_LIMIT) * 100);
+    const percentage = Math.min(100, (netCalories / stats.dailyCalorieGoal) * 100);
 
     const handleSaveWeight = () => {
         const w = parseFloat(weightInput);
@@ -180,7 +181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <p className="text-muted text-xs font-bold uppercase tracking-widest mb-1">Net Calories</p>
                             <div className="flex items-baseline gap-2">
                                 <span className="text-4xl font-medium text-main font-serif">{netCalories}</span>
-                                <span className="text-muted font-medium">/ {DAILY_CALORIE_LIMIT}</span>
+                                <span className="text-muted font-medium">/ {stats.dailyCalorieGoal}</span>
                             </div>
                             {caloriesBurned > 0 && (
                                 <p className="text-xs text-purple-600 font-medium mt-1 flex items-center gap-1">
@@ -196,14 +197,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div>
                         <div className="w-full bg-background h-2 rounded-full overflow-hidden">
                             <motion.div
-                                className={`h-full rounded-full ${netCalories > DAILY_CALORIE_LIMIT ? 'bg-red-400' : 'bg-primary'}`}
+                                className={`h-full rounded-full ${netCalories > stats.dailyCalorieGoal ? 'bg-red-400' : 'bg-primary'}`}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${percentage}%` }}
                                 transition={{ duration: 1, ease: "easeOut" }}
                             />
                         </div>
                         <p className="text-xs text-muted mt-3 font-medium flex gap-2 items-center">
-                            {DAILY_CALORIE_LIMIT - netCalories > 0 ? `${DAILY_CALORIE_LIMIT - netCalories} net kcal remaining` : 'Limit reached'}
+                            {stats.dailyCalorieGoal - netCalories > 0 ? `${stats.dailyCalorieGoal - netCalories} net kcal remaining` : 'Limit reached'}
                         </p>
                     </div>
                 </div>
@@ -289,6 +290,53 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 transition={{ duration: 1, ease: "easeOut" }}
                             />
                         </div>
+                    </div>
+                </div>
+
+                {/* Today's Plan Checklist */}
+                <div className="md:col-span-12 bg-surface rounded-2xl shadow-sm border border-border overflow-hidden">
+                    <div className="p-6 border-b border-border flex justify-between items-center bg-background/50">
+                        <h3 className="font-medium text-main text-lg font-serif">Today's Meals</h3>
+                        <span className="text-sm font-medium text-muted">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                    </div>
+                    <div className="p-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {todayPlan.meals.length === 0 ? (
+                            <div className="col-span-full p-12 text-center text-muted border border-dashed border-border rounded-xl">
+                                <p className="mb-2">Nothing planned for today.</p>
+                            </div>
+                        ) : (
+                            todayPlan.meals.map((meal, index) => {
+                                const isCompleted = todayPlan.completedMealIds.includes(meal.id);
+                                return (
+                                    <div
+                                        key={index}
+                                        onClick={() => setSelectedRecipe(meal)}
+                                        className={`p-4 flex items-center justify-between rounded-xl border transition-all cursor-pointer group ${isCompleted
+                                            ? 'bg-background border-border opacity-60'
+                                            : 'bg-surface border-border hover:border-primary/50 hover:shadow-sm'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div
+                                                onClick={(e) => { e.stopPropagation(); toggleMeal(index); }}
+                                                className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${isCompleted
+                                                    ? 'bg-primary border-primary text-primary-foreground'
+                                                    : 'border-border hover:border-primary'
+                                                    }`}>
+                                                {isCompleted && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className={`font-medium truncate ${isCompleted ? 'text-muted line-through' : 'text-main'}`}>{meal.name}</p>
+                                                <div className="flex gap-2 items-center mt-1">
+                                                    <span className="text-[10px] font-bold text-muted bg-background px-1.5 py-0.5 rounded uppercase tracking-wide">{meal.type}</span>
+                                                    <span className="text-xs text-muted">{meal.calories} kcal</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
@@ -467,9 +515,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="md:col-span-12">
                     <AnalyticsSummary
                         weightAnalysis={analyzeWeightTrends(stats)}
-                        streakAnalysis={analyzeStreaks()}
-                        weeklySummary={getWeeklySummary()}
+                        streakAnalysis={analyzeStreaks(stats.dailyCalorieGoal)}
+                        weeklySummary={getWeeklySummary(stats.dailyCalorieGoal)}
                     />
+                </div>
+
+                {/* Weekly Summary Dashboard */}
+                <div className="md:col-span-12">
+                    <WeeklySummary />
                 </div>
 
                 {/* Tomorrow's Preview */}
@@ -506,52 +559,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                 </div>
 
-                {/* Today's Plan Checklist */}
-                <div className="md:col-span-12 bg-surface rounded-2xl shadow-sm border border-border overflow-hidden">
-                    <div className="p-6 border-b border-border flex justify-between items-center bg-background/50">
-                        <h3 className="font-medium text-main text-lg font-serif">Today's Meals</h3>
-                        <span className="text-sm font-medium text-muted">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</span>
-                    </div>
-                    <div className="p-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {todayPlan.meals.length === 0 ? (
-                            <div className="col-span-full p-12 text-center text-muted border border-dashed border-border rounded-xl">
-                                <p className="mb-2">Nothing planned for today.</p>
-                            </div>
-                        ) : (
-                            todayPlan.meals.map((meal, index) => {
-                                const isCompleted = todayPlan.completedMealIds.includes(meal.id);
-                                return (
-                                    <div
-                                        key={index}
-                                        onClick={() => setSelectedRecipe(meal)}
-                                        className={`p-4 flex items-center justify-between rounded-xl border transition-all cursor-pointer group ${isCompleted
-                                            ? 'bg-background border-border opacity-60'
-                                            : 'bg-surface border-border hover:border-primary/50 hover:shadow-sm'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-4 min-w-0">
-                                            <div
-                                                onClick={(e) => { e.stopPropagation(); toggleMeal(index); }}
-                                                className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${isCompleted
-                                                    ? 'bg-primary border-primary text-primary-foreground'
-                                                    : 'border-border hover:border-primary'
-                                                    }`}>
-                                                {isCompleted && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className={`font-medium truncate ${isCompleted ? 'text-muted line-through' : 'text-main'}`}>{meal.name}</p>
-                                                <div className="flex gap-2 items-center mt-1">
-                                                    <span className="text-[10px] font-bold text-muted bg-background px-1.5 py-0.5 rounded uppercase tracking-wide">{meal.type}</span>
-                                                    <span className="text-xs text-muted">{meal.calories} kcal</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
+
             </div>
 
             {/* View Recipe Modal */}

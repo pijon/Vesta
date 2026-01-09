@@ -113,7 +113,7 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
 /**
  * Calculate calorie streak and compliance
  */
-export function analyzeStreaks(): StreakAnalysis {
+export function analyzeStreaks(dailyGoal: number = DAILY_CALORIE_LIMIT): StreakAnalysis {
   const summaries = getAllDailySummaries();
 
   if (summaries.length === 0) {
@@ -146,7 +146,7 @@ export function analyzeStreaks(): StreakAnalysis {
     const summaryDate = new Date(summary.date);
     summaryDate.setHours(0, 0, 0, 0);
 
-    const isCompliant = summary.netCalories <= DAILY_CALORIE_LIMIT;
+    const isCompliant = summary.netCalories <= dailyGoal;
 
     if (isCompliant) {
       totalCompliantDays++;
@@ -226,7 +226,7 @@ export function analyzeMacros(days: number = 7): MacroAverages {
 /**
  * Generate weekly summary report
  */
-export function getWeeklySummary(): PeriodSummary {
+export function getWeeklySummary(dailyGoal?: number): PeriodSummary {
   const summaries = getAllDailySummaries();
 
   // Get last 7 days
@@ -257,7 +257,7 @@ export function getWeeklySummary(): PeriodSummary {
   const totalNetCalories = weekData.reduce((sum, s) => sum + s.netCalories, 0);
   const totalWorkouts = weekData.reduce((sum, s) => sum + s.workoutCount, 0);
   const totalBurned = weekData.reduce((sum, s) => sum + s.caloriesBurned, 0);
-  const compliantDays = weekData.filter(s => s.netCalories <= DAILY_CALORIE_LIMIT).length;
+  const compliantDays = weekData.filter(s => s.netCalories <= (dailyGoal || DAILY_CALORIE_LIMIT)).length;
 
   return {
     period: 'week',
@@ -276,7 +276,7 @@ export function getWeeklySummary(): PeriodSummary {
 /**
  * Generate monthly summary report
  */
-export function getMonthlySummary(): PeriodSummary {
+export function getMonthlySummary(dailyGoal?: number): PeriodSummary {
   const summaries = getAllDailySummaries();
 
   // Get last 30 days
@@ -307,7 +307,7 @@ export function getMonthlySummary(): PeriodSummary {
   const totalNetCalories = monthData.reduce((sum, s) => sum + s.netCalories, 0);
   const totalWorkouts = monthData.reduce((sum, s) => sum + s.workoutCount, 0);
   const totalBurned = monthData.reduce((sum, s) => sum + s.caloriesBurned, 0);
-  const compliantDays = monthData.filter(s => s.netCalories <= DAILY_CALORIE_LIMIT).length;
+  const compliantDays = monthData.filter(s => s.netCalories <= (dailyGoal || DAILY_CALORIE_LIMIT)).length;
 
   return {
     period: 'month',

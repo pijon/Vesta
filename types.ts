@@ -123,7 +123,7 @@ export enum AppView {
 }
 
 // --- Fasting ---
-export type FastingProtocol = '16:8' | '14:10' | '18:6' | '20:4' | 'custom';
+export type FastingProtocol = '12:12' | '16:8' | '14:10' | '18:6' | '20:4' | 'custom';
 
 export interface FastingConfig {
   protocol: FastingProtocol;

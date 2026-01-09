@@ -52,7 +52,7 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
         return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
-    const protocols: FastingProtocol[] = ['16:8', '14:10', '18:6', '20:4'];
+    const protocols: FastingProtocol[] = ['12:12', '16:8', '14:10', '18:6', '20:4'];
 
     return (
         <div className="bg-orange-50/50 dark:bg-orange-900/10 rounded-3xl border border-orange-100 dark:border-orange-800/30 overflow-hidden relative">
@@ -90,8 +90,8 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                                             setIsSettingsOpen(false);
                                         }}
                                         className={`w-full p-3 rounded-xl border flex justify-between items-center transition-all text-sm ${isSelected
-                                                ? 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400'
-                                                : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-300 dark:bg-slate-800/50 dark:border-slate-800 dark:text-slate-400'
+                                            ? 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400'
+                                            : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-300 dark:bg-slate-800/50 dark:border-slate-800 dark:text-slate-400'
                                             }`}
                                     >
                                         <span className="font-bold">{p}</span>
