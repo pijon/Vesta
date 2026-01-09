@@ -196,9 +196,9 @@ const TrackerApp: React.FC = () => {
     const NavLink = ({ targetView, label }: { targetView: AppView, label: string }) => (
         <button
             onClick={() => setView(targetView)}
-            className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg ${view === targetView
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted hover:text-main hover:bg-background'
+            className={`px-4 py-2 text-sm font-medium transition-all duration-300 rounded-full ${view === targetView
+                ? 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20'
+                : 'text-muted hover:text-main hover:bg-surface-glass'
                 }`}
         >
             {label}
@@ -235,57 +235,57 @@ const TrackerApp: React.FC = () => {
 
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
-                <div className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-border" onClick={e => e.stopPropagation()}>
+                <div className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden premium-shadow border border-border" onClick={e => e.stopPropagation()}>
                     <div className="p-6 border-b border-border flex justify-between items-center bg-background/50">
-                        <h3 className="font-normal text-2xl text-main font-serif">Settings</h3>
-                        <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-surface border border-border rounded-full text-muted hover:text-main transition-colors">
+                        <h3 className="font-medium text-2xl text-main font-serif tracking-tight">Settings</h3>
+                        <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-transparent hover:bg-muted/10 rounded-full text-muted hover:text-main transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                     </div>
                     <div className="p-6 space-y-5">
                         <div>
-                            <label className="block text-sm font-bold text-main/80 mb-2">Starting Weight (kg)</label>
+                            <label className="block text-sm font-bold text-main mb-2">Starting Weight (kg)</label>
                             <input
                                 type="number"
                                 step="0.1"
                                 value={formStats.startWeight}
                                 onChange={(e) => setFormStats({ ...formStats, startWeight: parseFloat(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
                             />
                             <p className="text-xs text-muted mt-1">Your weight when you began the diet.</p>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-main/80 mb-2">Current Weight (kg)</label>
+                            <label className="block text-sm font-bold text-main mb-2">Current Weight (kg)</label>
                             <input
                                 type="number"
                                 step="0.1"
                                 value={formStats.currentWeight}
                                 onChange={(e) => setFormStats({ ...formStats, currentWeight: parseFloat(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-main/80 mb-2">Goal Weight (kg)</label>
+                            <label className="block text-sm font-bold text-main mb-2">Goal Weight (kg)</label>
                             <input
                                 type="number"
                                 step="0.1"
                                 value={formStats.goalWeight}
                                 onChange={(e) => setFormStats({ ...formStats, goalWeight: parseFloat(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-main/80 mb-2">Daily Calorie Target</label>
+                            <label className="block text-sm font-bold text-main mb-2">Daily Calorie Target</label>
                             <input
                                 type="number"
                                 value={formStats.dailyCalorieGoal}
                                 onChange={(e) => setFormStats({ ...formStats, dailyCalorieGoal: parseInt(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
                             />
                         </div>
                     </div>
                     <div className="p-6 pt-0 space-y-4">
-                        <button onClick={handleSave} className="w-full py-3 bg-main text-surface font-bold rounded-xl hover:bg-primary transition-colors shadow-lg shadow-primary/20">
+                        <button onClick={handleSave} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg active:scale-95">
                             Save Settings
                         </button>
 
@@ -303,7 +303,7 @@ const TrackerApp: React.FC = () => {
                                         a.click();
                                         URL.revokeObjectURL(url);
                                     }}
-                                    className="flex-1 py-2.5 bg-surface border border-border text-main text-sm font-bold rounded-xl hover:bg-background transition-colors flex items-center justify-center gap-2"
+                                    className="flex-1 py-2.5 bg-surface border border-border text-main text-sm font-bold rounded-xl hover:bg-background transition-colors flex items-center justify-center gap-2 shadow-sm"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                     Export
@@ -383,14 +383,14 @@ const TrackerApp: React.FC = () => {
         <div className="min-h-screen pb-24 md:pb-10 font-sans">
 
             {/* Top Navigation / Header */}
-            <nav className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-border">
-                <div className="max-w-5xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView(AppView.DASHBOARD)}>
-                        <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-6 w-auto" />
-                        <h1 className="text-xl font-medium tracking-tight text-main font-serif leading-none">{APP_NAME}</h1>
+            <nav className="sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
+                <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.DASHBOARD)}>
+                        <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-transform group-hover:scale-105" />
+                        <h1 className="text-xl font-medium tracking-tight text-main leading-none">Fast<span className="font-bold text-primary">800</span></h1>
                     </div>
 
-                    <div className="hidden md:flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-1">
                         <NavLink targetView={AppView.DASHBOARD} label="Dashboard" />
                         <NavLink targetView={AppView.PLANNER} label="Planner" />
                         <NavLink targetView={AppView.RECIPES} label="Recipes" />
@@ -402,17 +402,17 @@ const TrackerApp: React.FC = () => {
                     <div>
                         <button
                             onClick={() => setIsSettingsOpen(true)}
-                            className="h-9 w-9 rounded-full bg-background border border-border flex items-center justify-center text-muted text-xs font-bold hover:bg-background/80 transition-colors hover:text-primary hover:border-primary/30"
+                            className="h-10 w-10 rounded-full bg-surface border border-border flex items-center justify-center text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
                             title="Settings"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                         </button>
                     </div>
                 </div>
             </nav>
 
             {/* Main Content Area */}
-            <main className="max-w-5xl mx-auto p-4 md:p-8">
+            <main className="max-w-6xl mx-auto p-4 md:p-8">
                 <AnimatePresence mode="wait">
                     {view === AppView.DASHBOARD && (
                         <motion.div
@@ -519,28 +519,25 @@ const TrackerApp: React.FC = () => {
                 </AnimatePresence>
             </main>
 
-            {/* Mobile Bottom Navigation */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border px-6 py-3 flex justify-between z-50">
-                <button onClick={() => setView(AppView.DASHBOARD)} className={`flex flex-col items-center gap-1 ${view === AppView.DASHBOARD ? 'text-primary' : 'text-muted'}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
-                    <span className="text-[10px] font-medium">Home</span>
-                </button>
-                <button onClick={() => setView(AppView.PLANNER)} className={`flex flex-col items-center gap-1 ${view === AppView.PLANNER ? 'text-primary' : 'text-muted'}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    <span className="text-[10px] font-medium">Plan</span>
-                </button>
-                <button onClick={() => setView(AppView.RECIPES)} className={`flex flex-col items-center gap-1 ${view === AppView.RECIPES ? 'text-primary' : 'text-muted'}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    <span className="text-[10px] font-medium">Recipes</span>
-                </button>
-                <button onClick={() => setView(AppView.SHOPPING)} className={`flex flex-col items-center gap-1 ${view === AppView.SHOPPING ? 'text-primary' : 'text-muted'}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                    <span className="text-[10px] font-medium">Shop</span>
-                </button>
-                <button onClick={() => setView(AppView.ANALYTICS)} className={`flex flex-col items-center gap-1 ${view === AppView.ANALYTICS ? 'text-primary' : 'text-muted'}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-                    <span className="text-[10px] font-medium">Stats</span>
-                </button>
+            {/* Mobile Bottom Navigation - Floating Glass */}
+            <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
+                <div className="glass-panel rounded-full px-6 py-3 flex justify-between items-center shadow-xl border-border/50 bg-suface/80">
+                    <button onClick={() => setView(AppView.DASHBOARD)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.DASHBOARD ? 'text-primary' : 'text-muted hover:text-main'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                    </button>
+                    <button onClick={() => setView(AppView.PLANNER)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.PLANNER ? 'text-primary' : 'text-muted hover:text-main'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    </button>
+                    <button onClick={() => setView(AppView.RECIPES)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.RECIPES ? 'text-primary' : 'text-muted hover:text-main'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    </button>
+                    <button onClick={() => setView(AppView.SHOPPING)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.SHOPPING ? 'text-primary' : 'text-muted hover:text-main'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                    </button>
+                    <button onClick={() => setView(AppView.ANALYTICS)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.ANALYTICS ? 'text-primary' : 'text-muted hover:text-main'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    </button>
+                </div>
             </div>
 
             {isSettingsOpen && <SettingsModal />}

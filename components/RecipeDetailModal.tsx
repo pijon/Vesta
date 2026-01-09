@@ -40,16 +40,24 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                 <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
 
                     {/* Header Image Area */}
-                    <div className={`relative h-56 md:h-64 flex-shrink-0 overflow-hidden ${getCategoryColor(recipe.type).bg}`}>
+                    <div className={`relative h-56 md:h-64 flex-shrink-0 overflow-hidden ${!recipe.image ? getCategoryColor(recipe.type).bg : 'bg-slate-900'}`}>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <RecipeIllustration
-                                className="w-full h-full"
-                                theme={{
-                                    bg: getCategoryColor(recipe.type).bg,
-                                    text: getCategoryColor(recipe.type).text,
-                                    accent: recipe.type === 'breakfast' ? '#F59E0B' : undefined
-                                }}
-                            />
+                            {recipe.image ? (
+                                <img
+                                    src={recipe.image}
+                                    alt={recipe.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <RecipeIllustration
+                                    className="w-full h-full"
+                                    theme={{
+                                        bg: getCategoryColor(recipe.type).bg,
+                                        text: getCategoryColor(recipe.type).text,
+                                        accent: recipe.type === 'breakfast' ? '#F59E0B' : undefined
+                                    }}
+                                />
+                            )}
                         </div>
 
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-slate-900/30"></div>

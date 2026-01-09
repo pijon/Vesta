@@ -55,8 +55,9 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
     const protocols: FastingProtocol[] = ['12:12', '16:8', '14:10', '18:6', '20:4'];
 
     return (
-        <div className="bg-orange-50/50 dark:bg-orange-900/10 rounded-3xl border border-orange-100 dark:border-orange-800/30 overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-900/10 pointer-events-none" />
+        <div className="glass-panel p-0 rounded-3xl overflow-hidden relative group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-orange-500/20"></div>
+            <div className="absolute inset-0 bg-orange-500/5 pointer-events-none" />
 
             {/* Settings Modal */}
             <AnimatePresence>
@@ -106,49 +107,52 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                 )}
             </AnimatePresence>
 
-            <div className="p-6 relative z-10 flex justify-between items-center gap-6">
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className={`p-2 rounded-lg ${fastingState.isFasting ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <div className="p-6 relative z-10 flex justify-between items-center gap-6 h-52">
+                <div className="flex-1 flex flex-col justify-between h-full">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className={`p-2 rounded-lg ${fastingState.isFasting ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-serif text-slate-800 dark:text-slate-100 font-medium leading-none">
+                                    {fastingState.isFasting ? 'Fasting' : 'Eating'}
+                                </h3>
+                                <button
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    className="text-xs text-slate-400 font-medium hover:text-orange-500 flex items-center gap-1 transition-colors mt-0.5"
+                                    title="Change protocol"
+                                >
+                                    {fastingState.config.protocol} <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-xl font-serif text-slate-800 dark:text-slate-100 font-medium">
-                                {fastingState.isFasting ? 'Fasting' : 'Eating'}
-                            </h3>
-                            <button
-                                onClick={() => setIsSettingsOpen(true)}
-                                className="text-xs text-slate-400 font-medium hover:text-orange-500 flex items-center gap-1 transition-colors"
-                            >
-                                {fastingState.config.protocol} <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                            </button>
+
+                        <div className="mt-2">
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">
+                                    {formatTime(elapsed).replace(/:/g, ':')}
+                                </span>
+                                <span className="text-sm text-slate-400 font-medium">hrs</span>
+                            </div>
+                            <p className="text-xs text-orange-400/80 font-medium mt-1 uppercase tracking-wide">
+                                {fastingState.isFasting ? 'Elapsed' : 'Since fast'}
+                            </p>
                         </div>
                     </div>
 
-                    <div className="mt-4">
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">
-                                {formatTime(elapsed).split(':')[0]}:{formatTime(elapsed).split(':')[1]}
-                            </span>
-                            <span className="text-sm text-slate-400 font-medium">hrs</span>
-                        </div>
-                        <p className="text-xs text-orange-400/80 font-medium mt-1 uppercase tracking-wide">
-                            {fastingState.isFasting ? 'Elapsed' : 'Since fast'}
-                        </p>
-                    </div>
-
-                    <div className="mt-4">
+                    <div>
                         {fastingState.isFasting ? (
                             <button
                                 onClick={onEndFast}
-                                className="px-4 py-2 bg-white dark:bg-slate-800 rounded-xl border border-orange-100 dark:border-orange-800/30 shadow-sm text-orange-600 dark:text-orange-400 text-sm font-bold hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95 transition-all"
+                                className="px-4 py-2 bg-white dark:bg-slate-800 rounded-xl border border-orange-100 dark:border-orange-800/30 shadow-sm text-orange-600 dark:text-orange-400 text-sm font-bold hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95 transition-all w-full md:w-auto"
                             >
                                 End Fast
                             </button>
                         ) : (
                             <button
                                 onClick={onStartFast}
-                                className="px-4 py-2 bg-orange-500 rounded-xl shadow-lg border border-orange-400 shadow-orange-500/20 text-white text-sm font-bold hover:bg-orange-600 active:scale-95 transition-all"
+                                className="px-4 py-2 bg-orange-500 rounded-xl shadow-lg border border-orange-400 shadow-orange-500/20 text-white text-sm font-bold hover:bg-orange-600 active:scale-95 transition-all w-full md:w-auto"
                             >
                                 Start Fast
                             </button>
@@ -157,7 +161,7 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                 </div>
 
                 {/* Visual Tracker (Right Side) */}
-                <div className="w-32 h-32 relative flex items-center justify-center">
+                <div className="w-40 h-40 relative flex items-center justify-center flex-shrink-0">
                     {fastingState.isFasting ? (
                         <React.Fragment>
                             <svg className="w-full h-full transform -rotate-90">

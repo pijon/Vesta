@@ -13,10 +13,11 @@ import { parseIngredients, convertToPurchasableQuantities } from '../services/ge
 import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../types';
 import { IngredientReviewCard } from './IngredientReviewCard';
 
-type Phase = 'requirements' | 'shopping';
+type Phase = 'raw' | 'requirements' | 'shopping';
 
 export const ShoppingList: React.FC = () => {
-  const [phase, setPhase] = useState<Phase>('requirements');
+  const [phase, setPhase] = useState<Phase>('raw');
+  const [rawIngredients, setRawIngredients] = useState<Array<{ text: string, recipeId: string, recipeName: string }>>([]);
   const [parsedIngredients, setParsedIngredients] = useState<ParsedIngredient[]>([]);
   const [aggregatedIngredients, setAggregatedIngredients] = useState<AggregatedIngredient[]>([]);
   const [purchasableItems, setPurchasableItems] = useState<PurchasableItem[]>([]);
@@ -26,17 +27,33 @@ export const ShoppingList: React.FC = () => {
 
   // Persistence State
   const [inventory, setInventory] = useState<{ items: Array<{ name: string }> }>({ items: [] });
-  const [shoppingState, setShoppingState] = useState<{ purchased: string[], removed: string[], lastGeneratedDate: string, cachedPurchasableItems: PurchasableItem[] }>({
+  const [shoppingState, setShoppingState] = useState<{
+    purchased: string[],
+    removed: string[],
+    lastGeneratedDate: string,
+    cachedPurchasableItems: PurchasableItem[],
+    cachedParsedIngredients: ParsedIngredient[],
+    cachedAggregatedIngredients: AggregatedIngredient[],
+    ingredientsHash: string
+  }>({
     purchased: [],
     removed: [],
     lastGeneratedDate: '',
-    cachedPurchasableItems: []
+    cachedPurchasableItems: [],
+    cachedParsedIngredients: [],
+    cachedAggregatedIngredients: [],
+    ingredientsHash: ''
   });
 
   // Initialize component
   useEffect(() => {
     initializeShoppingList();
   }, []);
+
+  // Simple hash function for ingredients
+  const hashIngredients = (ingredients: Array<{ text: string, recipeId: string, recipeName: string }>): string => {
+    return ingredients.map(i => `${i.text}|${i.recipeId}`).join('::');
+  };
 
   const initializeShoppingList = async () => {
     try {
@@ -49,12 +66,15 @@ export const ShoppingList: React.FC = () => {
 
       // Extract ingredients from weekly plan
       const plan = await getWeeklyPlan();
-      const rawIngredients = extractIngredientsFromPlan(plan);
+      const extractedIngredients = extractIngredientsFromPlan(plan);
 
-      if (rawIngredients.length === 0) {
+      if (extractedIngredients.length === 0) {
         setIsProcessing(false);
+        setPhase('raw');
         return;
       }
+
+      setRawIngredients(extractedIngredients);
 
       // Load persistence data
       const [enhancedState, pantryInventory] = await Promise.all([
@@ -65,20 +85,28 @@ export const ShoppingList: React.FC = () => {
       setShoppingState(enhancedState);
       setInventory(pantryInventory);
 
-      const today = new Date().toISOString().split('T')[0];
+      // Check if we have cached analysis for these ingredients
+      const currentHash = hashIngredients(extractedIngredients);
 
-      if (enhancedState.lastGeneratedDate === today && enhancedState.cachedPurchasableItems.length > 0) {
+      if (enhancedState.ingredientsHash === currentHash &&
+          enhancedState.cachedParsedIngredients.length > 0 &&
+          enhancedState.cachedAggregatedIngredients.length > 0) {
         // Load from cache
-        setLoadingMessage('Loading cached data...');
-        // We still need to parse and aggregate to show Phase 1
-        await processIngredients(rawIngredients);
-        setPurchasableItems(enhancedState.cachedPurchasableItems);
-        setIsProcessing(false);
-        return;
+        setLoadingMessage('Loading cached analysis...');
+        setParsedIngredients(enhancedState.cachedParsedIngredients);
+        setAggregatedIngredients(enhancedState.cachedAggregatedIngredients);
+
+        if (enhancedState.cachedPurchasableItems.length > 0) {
+          setPurchasableItems(enhancedState.cachedPurchasableItems);
+          setPhase('shopping');
+        } else {
+          setPhase('requirements');
+        }
+      } else {
+        // Ingredients changed, stay on raw phase
+        setPhase('raw');
       }
 
-      // Parse ingredients with AI
-      await processIngredients(rawIngredients);
       setIsProcessing(false);
 
     } catch (err) {
@@ -110,30 +138,45 @@ export const ShoppingList: React.FC = () => {
     return ingredients;
   };
 
-  const processIngredients = async (rawIngredients: Array<{ text: string, recipeId: string, recipeName: string }>) => {
-    setLoadingMessage('Analyzing ingredients with AI...');
+  const handleAnalyzeIngredients = async () => {
+    try {
+      setIsProcessing(true);
+      setLoadingMessage('Analyzing ingredients with AI...');
+      setError(null);
 
+      await processIngredients(rawIngredients);
+
+      setPhase('requirements');
+      setIsProcessing(false);
+    } catch (err) {
+      console.error('Error analyzing ingredients:', err);
+      setError(err instanceof Error ? err.message : 'Failed to analyze ingredients');
+      setIsProcessing(false);
+    }
+  };
+
+  const processIngredients = async (ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string }>) => {
     // Parse ingredients
-    const texts = rawIngredients.map(r => r.text);
+    const texts = ingredientsToProcess.map(r => r.text);
     const parsed = await parseIngredients(texts);
 
     // Safety check: ensure arrays match in length
-    if (parsed.length !== rawIngredients.length) {
-      console.warn(`Array length mismatch: ${parsed.length} parsed vs ${rawIngredients.length} raw ingredients`);
+    if (parsed.length !== ingredientsToProcess.length) {
+      console.warn(`Array length mismatch: ${parsed.length} parsed vs ${ingredientsToProcess.length} raw ingredients`);
       // Use the shorter length to avoid index errors
-      const safeLength = Math.min(parsed.length, rawIngredients.length);
+      const safeLength = Math.min(parsed.length, ingredientsToProcess.length);
       parsed.splice(safeLength);
     }
 
     // Map parsed results back to include recipe info
     const parsedWithRecipeInfo: ParsedIngredient[] = parsed.map((p, index) => ({
       id: crypto.randomUUID(),
-      originalText: rawIngredients[index].text,
+      originalText: ingredientsToProcess[index].text,
       name: p.name,
       quantity: p.quantity,
       unit: p.unit,
-      recipeId: rawIngredients[index].recipeId,
-      recipeName: rawIngredients[index].recipeName
+      recipeId: ingredientsToProcess[index].recipeId,
+      recipeName: ingredientsToProcess[index].recipeName
     }));
 
     setParsedIngredients(parsedWithRecipeInfo);
@@ -141,6 +184,18 @@ export const ShoppingList: React.FC = () => {
     // Aggregate by ingredient name
     const aggregated = aggregateIngredients(parsedWithRecipeInfo);
     setAggregatedIngredients(aggregated);
+
+    // Cache the results
+    const currentHash = hashIngredients(ingredientsToProcess);
+    const newState = {
+      ...shoppingState,
+      cachedParsedIngredients: parsedWithRecipeInfo,
+      cachedAggregatedIngredients: aggregated,
+      ingredientsHash: currentHash
+    };
+
+    await saveEnhancedShoppingState(newState);
+    setShoppingState(newState);
   };
 
   const aggregateIngredients = (parsed: ParsedIngredient[]): AggregatedIngredient[] => {
@@ -368,20 +423,106 @@ export const ShoppingList: React.FC = () => {
   if (error) {
     return (
       <div className="space-y-6 pb-20 animate-fade-in">
-        <header>
-          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
-          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
+        <header className="section-header">
+          <h2 className="section-title">Shopping List</h2>
+          <p className="section-description">Your smart grocery assistant</p>
         </header>
 
-        <div className="p-8 text-center text-red-600 bg-red-50 rounded-3xl border border-red-200">
+        <div className="p-8 text-center text-red-600 bg-red-50 rounded-2xl border border-red-200">
           <div className="text-3xl mb-2">⚠️</div>
           <p className="font-medium mb-2">Error</p>
           <p className="text-sm">{error}</p>
           <button
             onClick={() => initializeShoppingList()}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-sm font-medium"
+            className="btn-primary mt-4"
           >
             Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Phase 0: Raw Ingredients (pre-analysis)
+  if (phase === 'raw') {
+    // Group ingredients by recipe
+    const recipeGroups = new Map<string, { recipeName: string, ingredients: string[] }>();
+    rawIngredients.forEach(ing => {
+      if (!recipeGroups.has(ing.recipeId)) {
+        recipeGroups.set(ing.recipeId, { recipeName: ing.recipeName, ingredients: [] });
+      }
+      recipeGroups.get(ing.recipeId)!.ingredients.push(ing.text);
+    });
+
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="heading-1">Shopping List</h2>
+            <p className="text-muted font-medium mt-2">Your weekly meal plan needs {rawIngredients.length} ingredients</p>
+          </div>
+          <button
+            onClick={handleResetList}
+            className="btn-secondary btn-sm self-start md:self-auto"
+          >
+            Reset All
+          </button>
+        </header>
+
+        {/* Info Card */}
+        <div className="card card-padding bg-sky-50/50 border-sky-200">
+          <div className="flex gap-3 items-start">
+            <div className="text-2xl">📝</div>
+            <div>
+              <h3 className="heading-4 mb-1">Ready to Analyze</h3>
+              <p className="text-muted text-sm">
+                Click "Analyze Ingredients" to let AI parse and organize your grocery list.
+                This uses smart categorization and won't run again unless your meal plan changes.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recipe Groups */}
+        <div className="space-y-4">
+          {Array.from(recipeGroups.values()).map((group, index) => (
+            <div key={index} className="card card-padding-sm">
+              <h3 className="heading-4 mb-3">{group.recipeName}</h3>
+              <ul className="space-y-1.5">
+                {group.ingredients.map((ing, ingIndex) => (
+                  <li key={ingIndex} className="text-sm text-muted flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{ing}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        {/* Analyze Button */}
+        <div className="flex justify-center pt-4">
+          <button
+            onClick={handleAnalyzeIngredients}
+            disabled={isProcessing}
+            className={isProcessing ? 'btn-primary btn-lg flex items-center gap-3 opacity-50' : 'btn-primary btn-lg flex items-center gap-3'}
+          >
+            {isProcessing ? (
+              <>
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Analyzing...</span>
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <span>Analyze Ingredients</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -394,12 +535,12 @@ export const ShoppingList: React.FC = () => {
       <div className="space-y-6 pb-20 animate-fade-in">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Review Requirements</h2>
-            <p className="text-slate-600 font-medium mt-1">Mark what you already have in your pantry</p>
+            <h2 className="text-4xl font-medium text-main tracking-tight font-serif">Review Requirements</h2>
+            <p className="text-muted font-medium mt-1">Mark what you already have in your pantry</p>
           </div>
           <button
             onClick={handleResetList}
-            className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors self-start md:self-auto"
+            className="text-sm font-semibold text-main bg-surface border border-border px-4 py-2 rounded-xl hover:bg-background transition-colors self-start md:self-auto shadow-sm"
           >
             Reset All
           </button>
@@ -407,11 +548,11 @@ export const ShoppingList: React.FC = () => {
 
         {/* Summary */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-            <div className="text-emerald-600 text-sm font-medium mb-1">In Pantry</div>
+          <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4">
+            <div className="text-primary text-sm font-medium mb-1">In Pantry</div>
             <div className="text-3xl font-bold text-emerald-900">{inPantryItems.length}</div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4">
             <div className="text-amber-600 text-sm font-medium mb-1">Need to Buy</div>
             <div className="text-3xl font-bold text-amber-900">{needToBuyItems.length}</div>
           </div>
@@ -434,13 +575,13 @@ export const ShoppingList: React.FC = () => {
           {needToBuyItems.length === 0 ? (
             <div className="text-center">
               <div className="text-4xl mb-2">🎉</div>
-              <p className="text-lg font-medium text-slate-900 mb-2">You have everything!</p>
-              <p className="text-sm text-slate-600">All ingredients are in your pantry.</p>
+              <p className="text-lg font-medium text-main mb-2">You have everything!</p>
+              <p className="text-sm text-muted">All ingredients are in your pantry.</p>
             </div>
           ) : (
             <button
               onClick={handleGenerateShoppingList}
-              className="px-8 py-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all text-lg font-semibold shadow-lg hover:shadow-xl"
+              className="px-8 py-4 bg-primary text-primary-foreground rounded-2xl hover:bg-emerald-700 transition-all text-lg font-semibold shadow-lg hover:shadow-xl active:scale-95"
             >
               Generate Shopping List ({needToBuyItems.length} items)
             </button>
@@ -455,19 +596,19 @@ export const ShoppingList: React.FC = () => {
     <div className="space-y-6 pb-20 animate-fade-in">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
-          <p className="text-slate-600 font-medium mt-1">Purchase these items at the store</p>
+          <h2 className="text-4xl font-medium text-main tracking-tight font-serif">Shopping List</h2>
+          <p className="text-muted font-medium mt-1">Purchase these items at the store</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setPhase('requirements')}
-            className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+            className="text-sm font-semibold text-main bg-surface border border-border px-4 py-2 rounded-xl hover:bg-background transition-colors"
           >
             ← Back to Review
           </button>
           <button
             onClick={handleResetList}
-            className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+            className="text-sm font-semibold text-main bg-surface border border-border px-4 py-2 rounded-xl hover:bg-background transition-colors"
           >
             Reset
           </button>
@@ -475,24 +616,24 @@ export const ShoppingList: React.FC = () => {
       </header>
 
       {purchasableItems.length === 0 ? (
-        <div className="p-12 text-center">
+        <div className="p-12 text-center text-muted border-2 border-dashed border-border rounded-xl">
           <div className="text-4xl mb-4">✨</div>
-          <p className="text-lg font-medium text-slate-900 mb-2">Perfect!</p>
-          <p className="text-sm text-slate-600">You already have everything you need.</p>
+          <p className="text-lg font-medium text-main mb-2">Perfect!</p>
+          <p className="text-sm">You already have everything you need.</p>
         </div>
       ) : (
         <div className="space-y-6">
           {/* To Buy Section */}
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-            <div className="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="font-normal text-slate-900 font-serif text-lg">To Purchase ({unpurchasedItems.length})</h3>
+          <div className="bg-surface rounded-3xl premium-shadow border border-border overflow-hidden">
+            <div className="p-5 bg-background border-b border-border flex justify-between items-center">
+              <h3 className="font-normal text-main font-serif text-lg">To Purchase ({unpurchasedItems.length})</h3>
             </div>
             {unpurchasedItems.length === 0 ? (
-              <div className="p-8 text-center text-emerald-600">
+              <div className="p-8 text-center text-primary">
                 <p>🎉 All items purchased!</p>
               </div>
             ) : (
-              <ul className="divide-y divide-slate-200">
+              <ul className="divide-y divide-border">
                 <AnimatePresence initial={false} mode="popLayout">
                   {unpurchasedItems.map(item => {
                     // Find the corresponding aggregated ingredient to get recipe info
@@ -506,30 +647,30 @@ export const ShoppingList: React.FC = () => {
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
                         key={item.ingredientName}
-                        className="flex items-start justify-between p-4 hover:bg-slate-50 group transition-colors"
+                        className="flex items-start justify-between p-4 hover:bg-background group transition-colors"
                       >
                         <div
                           className="flex items-start flex-1 cursor-pointer gap-3"
                           onClick={() => handleTogglePurchased(item.ingredientName)}
                         >
-                          <div className="w-5 h-5 rounded border-2 border-slate-300 mt-0.5 flex-shrink-0 flex items-center justify-center transition-colors group-hover:border-emerald-600" />
+                          <div className="w-5 h-5 rounded border-2 border-muted mt-0.5 flex-shrink-0 flex items-center justify-center transition-colors group-hover:border-primary" />
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-slate-900 capitalize mb-1">{item.ingredientName}</div>
-                            <div className="text-lg font-bold text-emerald-700 mb-1">{item.purchasableQuantity}</div>
-                            <div className="text-xs text-slate-500">Recipe needs: {item.requiredQuantity}</div>
+                            <div className="font-medium text-main capitalize mb-1">{item.ingredientName}</div>
+                            <div className="text-lg font-bold text-primary mb-1">{item.purchasableQuantity}</div>
+                            <div className="text-xs text-muted">Recipe needs: {item.requiredQuantity}</div>
                             {aggIng && aggIng.recipes.length > 0 && (
-                              <div className="text-xs text-slate-400 mt-1">
+                              <div className="text-xs text-muted mt-1">
                                 For: {aggIng.recipes.map(r => r.name).join(', ')}
                               </div>
                             )}
                             {item.rationale && (
-                              <div className="text-xs text-slate-400 mt-1 italic">{item.rationale}</div>
+                              <div className="text-xs text-muted mt-1 italic">{item.rationale}</div>
                             )}
                           </div>
                         </div>
                         <button
                           onClick={() => handleRemoveItem(item.ingredientName)}
-                          className="text-slate-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                          className="text-muted hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                           title="Remove from list"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -544,14 +685,13 @@ export const ShoppingList: React.FC = () => {
 
           {/* Purchased Section */}
           {purchasedItems.length > 0 && (
-            <div className="bg-slate-50 rounded-3xl border border-slate-200 overflow-hidden">
-              <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-                <h3 className="font-semibold text-slate-500 text-sm uppercase tracking-wide">Purchased ({purchasedItems.length})</h3>
+            <div className="bg-background/50 rounded-3xl border border-border overflow-hidden opacity-80">
+              <div className="p-4 border-b border-border flex justify-between items-center">
+                <h3 className="font-semibold text-muted text-sm uppercase tracking-wide">Purchased ({purchasedItems.length})</h3>
               </div>
-              <ul className="divide-y divide-slate-200">
+              <ul className="divide-y divide-border">
                 <AnimatePresence initial={false} mode="popLayout">
                   {purchasedItems.map(item => {
-                    // Find the corresponding aggregated ingredient to get recipe info
                     const aggIng = aggregatedIngredients.find(ing => ing.name === item.ingredientName);
 
                     return (
@@ -562,20 +702,20 @@ export const ShoppingList: React.FC = () => {
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
                         key={item.ingredientName}
-                        className="flex items-start justify-between p-4 hover:bg-white group"
+                        className="flex items-start justify-between p-4 bg-background group"
                       >
                         <div
                           className="flex items-start flex-1 cursor-pointer gap-3"
                           onClick={() => handleTogglePurchased(item.ingredientName)}
                         >
-                          <div className="w-5 h-5 rounded bg-emerald-600 border-2 border-emerald-600 flex-shrink-0 flex items-center justify-center text-white mt-0.5">
+                          <div className="w-5 h-5 rounded bg-primary border-2 border-primary flex-shrink-0 flex items-center justify-center text-primary-foreground mt-0.5">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-slate-500 line-through capitalize">{item.ingredientName}</div>
-                            <div className="text-sm text-slate-400">{item.purchasableQuantity}</div>
+                            <div className="text-muted line-through capitalize">{item.ingredientName}</div>
+                            <div className="text-sm text-muted/80">{item.purchasableQuantity}</div>
                             {aggIng && aggIng.recipes.length > 0 && (
-                              <div className="text-xs text-slate-400 mt-0.5">
+                              <div className="text-xs text-muted/60 mt-0.5">
                                 For: {aggIng.recipes.map(r => r.name).join(', ')}
                               </div>
                             )}
@@ -583,7 +723,7 @@ export const ShoppingList: React.FC = () => {
                         </div>
                         <button
                           onClick={() => handleRemoveItem(item.ingredientName)}
-                          className="text-slate-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                          className="text-muted/60 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                           title="Remove from list"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>

@@ -16,22 +16,30 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 transition-all duration-300 flex flex-col h-full group ${onClick ? 'cursor-pointer hover:shadow-xl hover:shadow-emerald-900/5 hover:-translate-y-1' : ''}`}
+      className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 flex flex-col h-full group ${onClick ? 'cursor-pointer hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1' : ''}`}
     >
       {/* Card Header / Illustration */}
-      <div className={`relative h-48 overflow-hidden ${categoryColors.bg} transition-colors duration-300`}>
-        <RecipeIllustration
-          className="w-full h-full transform transition-transform duration-700 group-hover:scale-110"
-          theme={{
-            bg: categoryColors.bg,
-            text: categoryColors.text,
-            accent: categoryColors.bg === 'bg-slate-100' ? '#94a3b8' : undefined // Default accent backup
-          }}
-        />
+      <div className={`relative h-48 overflow-hidden ${!meal.image ? categoryColors.bg : 'bg-slate-900'} transition-colors duration-300`}>
+        {meal.image ? (
+          <img
+            src={meal.image}
+            alt={meal.name}
+            className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-110"
+          />
+        ) : (
+          <RecipeIllustration
+            className="w-full h-full transform transition-transform duration-700 group-hover:scale-110"
+            theme={{
+              bg: categoryColors.bg,
+              text: categoryColors.text,
+              accent: categoryColors.bg === 'bg-slate-100' ? '#94a3b8' : undefined // Default accent backup
+            }}
+          />
+        )}
 
         {/* Badges */}
         <div className="absolute top-4 left-4 flex gap-2 flex-wrap max-w-[90%]">
-          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-white/90 ${categoryColors.text}`}>
+          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-surface/90 ${categoryColors.text}`}>
             {meal.type}
           </span>
           {meal.servings > 1 && (

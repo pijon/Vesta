@@ -73,14 +73,14 @@ export const Analytics: React.FC<AnalyticsProps> = ({ userStats }) => {
     return (
         <div className="pb-24 space-y-6 animate-fade-in">
             <header className="mb-6">
-                <h2 className="text-3xl font-serif text-main mb-1">Deep Insights</h2>
-                <p className="text-muted">Analyze your progress and fasting correlations.</p>
+                <h2 className="text-3xl font-medium font-serif text-main mb-1">Deep Insights</h2>
+                <p className="text-muted font-medium">Analyze your progress and fasting correlations.</p>
             </header>
 
             {/* Top Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Projection Card */}
-                <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
+                <div className="bg-surface rounded-2xl p-6 premium-shadow border border-border">
                     <div className="flex justify-between items-start mb-4">
                         <h4 className="text-sm font-bold text-muted uppercase tracking-wider">Goal Projection</h4>
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -100,10 +100,10 @@ export const Analytics: React.FC<AnalyticsProps> = ({ userStats }) => {
                 </div>
 
                 {/* Consistency Card */}
-                <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
+                <div className="bg-surface rounded-2xl p-6 premium-shadow border border-border">
                     <div className="flex justify-between items-start mb-4">
                         <h4 className="text-sm font-bold text-muted uppercase tracking-wider">Diet Consistency</h4>
-                        <div className={`p-2 rounded-lg ${consistency.consistencyScore >= 80 ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                        <div className={`p-2 rounded-lg ${consistency.consistencyScore >= 80 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                         </div>
                     </div>
@@ -114,10 +114,10 @@ export const Analytics: React.FC<AnalyticsProps> = ({ userStats }) => {
                 </div>
 
                 {/* Current Deficit Card - Simple Logic based on latest entry */}
-                <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
+                <div className="bg-surface rounded-2xl p-6 premium-shadow border border-border">
                     <div className="flex justify-between items-start mb-4">
                         <h4 className="text-sm font-bold text-muted uppercase tracking-wider">Latest Net Calories</h4>
-                        <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                        <div className="p-2 bg-chart-5/10 text-chart-5 rounded-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
                         </div>
                     </div>
@@ -133,7 +133,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ userStats }) => {
             </div>
 
             {/* Main Chart: Weight vs Fasting */}
-            <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
+            <div className="bg-surface rounded-2xl p-6 premium-shadow border border-border">
                 <h3 className="text-lg font-bold text-main mb-6">Weight vs Fasting Hours</h3>
                 <div className="h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -203,7 +203,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ userStats }) => {
             </div>
 
             {/* Calorie Consistency Heatmap (Last 14 days detail) */}
-            <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
+            <div className="bg-surface rounded-2xl p-6 premium-shadow border border-border">
                 <h3 className="text-lg font-bold text-main mb-6">Calorie Consistency (Last 14 Days)</h3>
                 <div className="h-[250px] w-full">
                     <ResponsiveContainer width="100%" height="100%">

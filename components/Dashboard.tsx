@@ -178,24 +178,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
                 {/* Calorie Card */}
-                <div className="md:col-span-5 bg-surface p-6 rounded-2xl shadow-sm border border-border flex flex-col justify-between h-full">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
+                <div className="md:col-span-5 bg-surface p-6 rounded-2xl premium-shadow border border-border flex flex-col justify-between h-56 hover:border-primary/20 transition-colors">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex justify-between items-start">
                             <p className="text-muted text-xs font-bold uppercase tracking-widest mb-1">Net Calories</p>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-4xl font-medium text-main font-serif">{netCalories}</span>
-                                <span className="text-muted font-medium">/ {stats.dailyCalorieGoal}</span>
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary -mt-1 -mr-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 12h2a2 2 0 1 0 0-4h-2v4Z" /><path d="m16.7 13.4-.9-1.8c.8-1.1 1.2-2.5 1.2-4a7 7 0 0 0-7-7 7 7 0 0 0-7 7c0 1.5.4 2.9 1.2 4l-.9 1.8a2 2 0 0 0 2.6 2.6l1.8-.9c1.1.8 2.5 1.2 4 1.2s2.9-.4 4-1.2l1.8.9a2 2 0 0 0 2.6-2.6Z" /></svg>
                             </div>
-                            {caloriesBurned > 0 && (
-                                <p className="text-xs text-purple-600 font-medium mt-1 flex items-center gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" /></svg>
-                                    {caloriesBurned} kcal burned • Can eat {adjustedTarget} kcal today
-                                </p>
-                            )}
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 12h2a2 2 0 1 0 0-4h-2v4Z" /><path d="m16.7 13.4-.9-1.8c.8-1.1 1.2-2.5 1.2-4a7 7 0 0 0-7-7 7 7 0 0 0-7 7c0 1.5.4 2.9 1.2 4l-.9 1.8a2 2 0 0 0 2.6 2.6l1.8-.9c1.1.8 2.5 1.2 4 1.2s2.9-.4 4-1.2l1.8.9a2 2 0 0 0 2.6-2.6Z" /></svg>
+                        <div className="flex items-baseline gap-2 mt-2">
+                            <span className="text-4xl font-medium text-main font-serif">{netCalories}</span>
+                            <span className="text-muted font-medium">/ {stats.dailyCalorieGoal}</span>
                         </div>
+                        {caloriesBurned > 0 ? (
+                            <p className="text-xs text-purple-600 font-medium mt-1 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" /></svg>
+                                {caloriesBurned} kcal burned
+                            </p>
+                        ) : (
+                            <p className="text-xs text-muted font-medium mt-1">No activity logged yet</p>
+                        )}
                     </div>
                     <div>
                         <div className="w-full bg-background h-2 rounded-full overflow-hidden">
@@ -206,54 +208,67 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 transition={{ duration: 1, ease: "easeOut" }}
                             />
                         </div>
-                        <p className="text-xs text-muted mt-3 font-medium flex gap-2 items-center">
-                            {stats.dailyCalorieGoal - netCalories > 0 ? `${stats.dailyCalorieGoal - netCalories} net kcal remaining` : 'Limit reached'}
-                        </p>
+                        <div className="flex justify-between items-center mt-3">
+                            <p className="text-xs text-muted font-medium">
+                                {stats.dailyCalorieGoal - netCalories > 0 ? `${stats.dailyCalorieGoal - netCalories} net kcal remaining` : 'Limit reached'}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Weight Card */}
-                <div className="md:col-span-7 bg-surface p-6 rounded-2xl shadow-sm border border-border flex flex-col justify-between h-full">
-                    <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
+                <div className="md:col-span-7 bg-surface p-6 rounded-2xl premium-shadow border border-border flex flex-col justify-between h-56 hover:border-primary/20 transition-colors">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex justify-between items-start">
                             <p className="text-muted text-xs font-bold uppercase tracking-widest mb-1">Current Weight</p>
+                            <button onClick={() => setIsEditingGoal(!isEditingGoal)} className="text-border hover:text-primary p-2 -mt-2 -mr-2 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            </button>
+                        </div>
 
-                            {isEditingGoal ? (
-                                <div className="mt-1 flex items-center gap-3 animate-fade-in">
-                                    <span className="text-sm text-muted">Goal:</span>
+                        {isEditingGoal ? (
+                            <div className="mt-2 flex items-center gap-3 animate-fade-in">
+                                <span className="text-sm text-muted">Goal:</span>
+                                <input
+                                    type="number"
+                                    value={goalInput}
+                                    onChange={(e) => setGoalInput(e.target.value)}
+                                    className="w-24 px-3 py-1 bg-background border border-border rounded-lg text-main font-bold focus:ring-1 focus:ring-primary outline-none"
+                                />
+                                <button onClick={handleSaveGoal} className="bg-primary text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-emerald-700">Save</button>
+                            </div>
+                        ) : (
+                            <div className="flex items-baseline gap-2 mt-2">
+                                <div className="relative group cursor-pointer">
                                     <input
                                         type="number"
-                                        value={goalInput}
-                                        onChange={(e) => setGoalInput(e.target.value)}
-                                        className="w-24 px-3 py-1 bg-background border border-border rounded-lg text-main font-bold focus:ring-1 focus:ring-primary outline-none"
+                                        className="w-24 text-4xl font-medium text-main bg-transparent outline-none border-b border-transparent hover:border-border focus:border-primary p-0 transition-colors font-serif"
+                                        value={weightInput}
+                                        onChange={(e) => setWeightInput(e.target.value)}
+                                        onBlur={handleSaveWeight}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSaveWeight()}
                                     />
-                                    <button onClick={handleSaveGoal} className="bg-primary text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-emerald-700">Save</button>
+                                    <span className="absolute -top-4 left-0 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-bold">Edit</span>
                                 </div>
-                            ) : (
-                                <div className="flex items-baseline gap-3">
-                                    <div className="relative group cursor-pointer">
-                                        <input
-                                            type="number"
-                                            className="w-28 text-4xl font-medium text-main bg-transparent outline-none border-b border-transparent hover:border-border focus:border-primary p-0 transition-colors font-serif"
-                                            value={weightInput}
-                                            onChange={(e) => setWeightInput(e.target.value)}
-                                            onBlur={handleSaveWeight}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleSaveWeight()}
-                                        />
-                                        <span className="absolute -top-4 left-0 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-bold">Edit</span>
-                                    </div>
-                                    <span className="text-muted font-medium text-lg">/ {goalWeight} kg goal</span>
-                                </div>
-                            )}
-                        </div>
-                        <button onClick={() => setIsEditingGoal(!isEditingGoal)} className="text-border hover:text-primary p-2 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                        </button>
+                                <span className="text-muted font-medium">/ {goalWeight} kg goal</span>
+                            </div>
+                        )}
+                        <p className="text-xs text-muted font-medium mt-1">
+                            {Math.abs(startWeight - currentWeight).toFixed(1)} kg {startWeight >= currentWeight ? 'lost' : 'gained'} so far
+                        </p>
                     </div>
 
                     <div>
-                        <div className="flex justify-between items-end text-xs font-medium text-slate-400 mb-2">
-                            <div className="flex flex-col gap-1">
+                        <div className="w-full bg-background h-2 rounded-full overflow-hidden relative">
+                            <motion.div
+                                className="bg-primary h-full rounded-full"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progressPercent}%` }}
+                                transition={{ duration: 1, ease: "easeOut" }}
+                            />
+                        </div>
+                        <div className="flex justify-between items-end text-xs font-medium text-slate-400 mt-3">
+                            <div className="flex items-center gap-2">
                                 <span className="text-[10px] uppercase tracking-wider font-bold text-slate-300">Start</span>
                                 {isEditingStart ? (
                                     <input
@@ -276,28 +291,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 )}
                             </div>
 
-                            <span className="text-emerald-600 mb-0.5 font-bold">
-                                {Math.abs(startWeight - currentWeight).toFixed(1)} kg {startWeight >= currentWeight ? 'lost' : 'gained'}
-                            </span>
-
-                            <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
                                 <span className="text-[10px] uppercase tracking-wider font-bold text-slate-300">Goal</span>
                                 <span>{goalWeight} kg</span>
                             </div>
-                        </div>
-                        <div className="w-full bg-background h-2 rounded-full overflow-hidden relative">
-                            <motion.div
-                                className="bg-primary h-full rounded-full"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progressPercent}%` }}
-                                transition={{ duration: 1, ease: "easeOut" }}
-                            />
                         </div>
                     </div>
                 </div>
 
                 {/* Today's Plan Checklist */}
-                <div className="md:col-span-12 bg-surface rounded-2xl shadow-sm border border-border overflow-hidden">
+                <div className="md:col-span-12 bg-surface rounded-2xl premium-shadow border border-border overflow-hidden">
                     <div className="p-6 border-b border-border flex justify-between items-center bg-background/50">
                         <h3 className="font-medium text-main text-lg font-serif">Today's Meals</h3>
                         <span className="text-sm font-medium text-muted">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</span>
@@ -344,7 +347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Weight Trend Chart */}
-                <div className="md:col-span-6 bg-surface p-6 rounded-2xl shadow-sm border border-border h-80">
+                <div className="md:col-span-6 bg-surface p-6 rounded-2xl premium-shadow border border-border h-80">
                     <h3 className="font-medium text-main mb-6 flex items-center gap-3 font-serif text-lg">
                         Weight Trend
                     </h3>
@@ -353,16 +356,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <AreaChart data={formattedChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.1} />
+                                        <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
                                 <XAxis
                                     dataKey="displayDate"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }}
+                                    tick={{ fill: 'var(--color-muted)', fontSize: 12, fontWeight: 500 }}
                                     dy={10}
                                     minTickGap={30}
                                 />
@@ -370,22 +373,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                     domain={['auto', 'auto']}
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }}
+                                    tick={{ fill: 'var(--color-muted)', fontSize: 12, fontWeight: 500 }}
                                     padding={{ top: 20, bottom: 20 }}
                                 />
                                 <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#0F172A', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
-                                    itemStyle={{ color: '#059669' }}
-                                    labelStyle={{ color: '#64748B', fontSize: '12px', marginBottom: '4px' }}
+                                    contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-main)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
+                                    itemStyle={{ color: 'var(--color-primary)' }}
+                                    labelStyle={{ color: 'var(--color-muted)', fontSize: '12px', marginBottom: '4px' }}
                                 />
                                 <Area
                                     type="monotone"
                                     dataKey="weight"
-                                    stroke="rgb(var(--primary))"
+                                    stroke="var(--color-primary)"
                                     strokeWidth={2}
                                     fillOpacity={1}
                                     fill="url(#colorWeight)"
-                                    activeDot={{ r: 4, fill: 'rgb(var(--primary))', stroke: '#fff', strokeWidth: 2 }}
+                                    activeDot={{ r: 4, fill: 'var(--color-primary)', stroke: 'var(--color-surface)', strokeWidth: 2 }}
                                 />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -393,7 +396,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Calorie Consumption Trend Chart */}
-                <div className="md:col-span-6 bg-surface p-6 rounded-2xl shadow-sm border border-border h-80">
+                <div className="md:col-span-6 bg-surface p-6 rounded-2xl premium-shadow border border-border h-80">
                     <h3 className="font-medium text-main mb-6 flex items-center gap-3 font-serif text-lg">
                         Daily Calories
                     </h3>
@@ -405,12 +408,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <div className="h-56 w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={formattedCalorieData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
                                     <XAxis
                                         dataKey="displayDate"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }}
+                                        tick={{ fill: 'var(--color-muted)', fontSize: 12, fontWeight: 500 }}
                                         dy={10}
                                         minTickGap={30}
                                     />
@@ -418,30 +421,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                         domain={[0, 'auto']}
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }}
+                                        tick={{ fill: 'var(--color-muted)', fontSize: 12, fontWeight: 500 }}
                                         padding={{ top: 20, bottom: 20 }}
                                     />
                                     <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#0F172A', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
-                                        labelStyle={{ color: '#64748B', fontSize: '12px', marginBottom: '4px' }}
+                                        contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-main)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
+                                        labelStyle={{ color: 'var(--color-muted)', fontSize: '12px', marginBottom: '4px' }}
                                     />
                                     <Line
                                         type="monotone"
                                         dataKey="caloriesConsumed"
-                                        stroke="#10B981"
+                                        stroke="var(--color-primary)"
                                         strokeWidth={2}
-                                        dot={{ r: 3, fill: '#10B981', strokeWidth: 2 }}
-                                        activeDot={{ r: 5, fill: '#10B981', stroke: '#fff', strokeWidth: 2 }}
+                                        dot={{ r: 3, fill: 'var(--color-primary)', strokeWidth: 2 }}
+                                        activeDot={{ r: 5, fill: 'var(--color-primary)', stroke: 'var(--color-surface)', strokeWidth: 2 }}
                                         name="Consumed"
                                     />
                                     <Line
                                         type="monotone"
                                         dataKey="netCalories"
-                                        stroke="#64748B"
+                                        stroke="var(--color-muted)"
                                         strokeWidth={2}
                                         strokeDasharray="5 5"
-                                        dot={{ r: 3, fill: '#64748B', strokeWidth: 2 }}
-                                        activeDot={{ r: 5, fill: '#64748B', stroke: '#fff', strokeWidth: 2 }}
+                                        dot={{ r: 3, fill: 'var(--color-muted)', strokeWidth: 2 }}
+                                        activeDot={{ r: 5, fill: 'var(--color-muted)', stroke: 'var(--color-surface)', strokeWidth: 2 }}
                                         name="Net"
                                     />
                                 </LineChart>
@@ -470,7 +473,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Workout Trend Chart */}
-                <div className="md:col-span-6 bg-surface p-6 rounded-2xl shadow-sm border border-border h-full min-h-[320px]">
+                <div className="md:col-span-6 bg-surface p-6 rounded-2xl premium-shadow border border-border h-full min-h-[320px]">
                     <h3 className="font-medium text-main mb-6 flex items-center gap-3 font-serif text-lg">
                         Workout Activity
                     </h3>
@@ -482,12 +485,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <div className="h-56 w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={formattedWorkoutData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
                                     <XAxis
                                         dataKey="displayDate"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }}
+                                        tick={{ fill: 'var(--color-muted)', fontSize: 12, fontWeight: 500 }}
                                         dy={10}
                                         minTickGap={30}
                                     />
@@ -495,16 +498,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                         domain={[0, 'auto']}
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }}
+                                        tick={{ fill: 'var(--color-muted)', fontSize: 12, fontWeight: 500 }}
                                         padding={{ top: 20, bottom: 20 }}
                                     />
                                     <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#0F172A', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
-                                        labelStyle={{ color: '#64748B', fontSize: '12px', marginBottom: '4px' }}
+                                        contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-main)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '8px' }}
+                                        labelStyle={{ color: 'var(--color-muted)', fontSize: '12px', marginBottom: '4px' }}
                                     />
                                     <Bar
                                         dataKey="caloriesBurned"
-                                        fill="#9333EA"
+                                        fill="var(--chart-5)"
                                         radius={[8, 8, 0, 0]}
                                         name="Calories Burned"
                                     />
@@ -529,14 +532,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Tomorrow's Preview */}
-                <div className="md:col-span-12 bg-surface p-6 rounded-2xl shadow-sm border border-border flex flex-col h-80">
+                <div className="md:col-span-12 glass-panel p-6 rounded-2xl flex flex-col h-auto">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-medium text-main font-serif text-lg">Tomorrow</h3>
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
                             {tomorrowPlan.meals.reduce((acc, m) => acc + m.calories, 0)} kcal
                         </span>
                     </div>
-                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Modified layout for full width */}
                         {tomorrowPlan.meals.length === 0 ? (
                             <div className="col-span-full h-full flex flex-col items-center justify-center text-muted text-sm border border-dashed border-border rounded-xl bg-background/50">

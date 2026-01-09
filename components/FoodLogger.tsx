@@ -166,18 +166,18 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
 
     return (
         <div className="space-y-6 pb-20 animate-fade-in">
-            <header>
-                <h2 className="text-3xl font-normal text-slate-900 tracking-tight font-serif mb-1">Daily Journal</h2>
-                <p className="text-slate-500 font-medium">Track what you eat to stay on target.</p>
+            <header className="section-header">
+                <h2 className="section-title">Daily Journal</h2>
+                <p className="section-description">Track what you eat to stay on target.</p>
             </header>
 
             {/* Quick Add Form */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <label className="block text-sm font-bold text-slate-700 mb-3">What did you eat?</label>
+            <div className="card card-padding">
+                <label className="block text-sm font-bold text-main mb-3">What did you eat?</label>
                 <div className="flex gap-3 mb-3">
                     <input
                         type="text"
-                        className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        className="flex-1 input"
                         placeholder="e.g. 1 apple and a handful of almonds"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -187,8 +187,7 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
                     <button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || isAnalyzingImage || !input.trim()}
-                        className={`px-6 rounded-xl font-bold text-white transition-all shadow-sm ${isAnalyzing || isAnalyzingImage || !input.trim() ? 'bg-slate-300' : 'bg-slate-900 hover:bg-emerald-600'
-                            }`}
+                        className={isAnalyzing || isAnalyzingImage || !input.trim() ? 'btn-base btn-disabled' : 'btn-primary'}
                     >
                         {isAnalyzing ? '...' : 'Add'}
                     </button>
@@ -196,9 +195,9 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
 
                 {/* OR Divider */}
                 <div className="flex items-center gap-3 mb-3">
-                    <div className="h-px flex-1 bg-slate-200"></div>
-                    <span className="text-xs text-slate-400 font-medium">OR</span>
-                    <div className="h-px flex-1 bg-slate-200"></div>
+                    <div className="h-px flex-1 bg-border"></div>
+                    <span className="text-xs text-muted font-medium">OR</span>
+                    <div className="h-px flex-1 bg-border"></div>
                 </div>
 
                 {/* Photo Input */}
@@ -210,7 +209,7 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
 
                 {/* Loading State */}
                 {isAnalyzingImage && (
-                    <div className="mt-3 p-3 bg-emerald-50 rounded-lg">
+                    <div className="mt-3 p-3 bg-emerald-50/50 border border-emerald-100 rounded-lg">
                         <p className="text-sm text-emerald-700 font-medium flex items-center gap-2">
                             <LoadingSpinner size="sm" className="text-emerald-600" />
                             Analyzing photo...
@@ -220,24 +219,24 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
 
                 {/* Error State */}
                 {imageError && (
-                    <div className="mt-3 p-3 bg-red-50 rounded-lg">
+                    <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg">
                         <p className="text-sm text-red-700">{imageError}</p>
                     </div>
                 )}
 
-                <p className="text-xs text-slate-400 mt-3 ml-1">AI will estimate calories from text or photo.</p>
+                <p className="text-xs text-muted mt-3 ml-1">AI will estimate calories from text or photo.</p>
             </div>
 
             {/* Workout Tracker */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600"><path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" /></svg>
+            <div className="card card-padding">
+                <h3 className="heading-4 mb-3 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-chart-5"><path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" /></svg>
                     Log Workout
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input
                         type="text"
-                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                        className="input"
                         placeholder="e.g. Running, Cycling..."
                         value={workoutType}
                         onChange={(e) => setWorkoutType(e.target.value)}
@@ -245,7 +244,7 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
                     />
                     <input
                         type="number"
-                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                        className="input"
                         placeholder="Calories burned"
                         value={caloriesBurned}
                         onChange={(e) => setCaloriesBurned(e.target.value)}
@@ -254,8 +253,7 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
                     <button
                         onClick={handleAddWorkout}
                         disabled={!workoutType.trim() || !caloriesBurned}
-                        className={`px-6 rounded-xl font-bold text-white transition-all shadow-sm ${!workoutType.trim() || !caloriesBurned ? 'bg-slate-300' : 'bg-purple-600 hover:bg-purple-700'
-                            }`}
+                        className={!workoutType.trim() || !caloriesBurned ? 'btn-base btn-disabled' : 'btn-base bg-chart-5 text-white hover:bg-violet-600 focus:ring-chart-5 shadow-sm'}
                     >
                         Add
                     </button>
@@ -263,10 +261,10 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
             </div>
 
             {/* Weight Update */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <div className="card card-padding flex items-center justify-between">
                 <div>
-                    <h3 className="font-semibold text-slate-900">Current Weight (kg)</h3>
-                    <p className="text-xs text-slate-500">Update daily for best results</p>
+                    <h3 className="font-bold text-main">Current Weight (kg)</h3>
+                    <p className="text-xs text-muted">Update daily for best results</p>
                 </div>
                 <div className="flex gap-2">
                     <input
@@ -274,11 +272,11 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
                         step="0.1"
                         value={weightInput}
                         onChange={(e) => setWeightInput(e.target.value)}
-                        className="w-24 p-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        className="w-24 p-2 bg-background border border-border rounded-lg text-center font-bold text-main focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all"
                     />
                     <button
                         onClick={handleWeightUpdate}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors text-sm"
+                        className="btn-secondary btn-sm"
                     >
                         Save
                     </button>
@@ -286,60 +284,60 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
             </div>
 
             {/* Summary Card */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 className="font-semibold text-slate-900 mb-4">Today's Summary</h3>
+            <div className="card card-padding">
+                <h3 className="heading-4 mb-4">Today's Summary</h3>
                 <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-emerald-50 rounded-xl">
+                    <div className="text-center p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
                         <p className="text-xs font-bold text-emerald-600 uppercase mb-1">Consumed</p>
                         <p className="text-2xl font-bold text-emerald-700">{totalCaloriesConsumed}</p>
                         <p className="text-xs text-emerald-600">kcal</p>
                     </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-xl">
-                        <p className="text-xs font-bold text-purple-600 uppercase mb-1">Burned</p>
-                        <p className="text-2xl font-bold text-purple-700">{totalCaloriesBurned}</p>
-                        <p className="text-xs text-purple-600">kcal</p>
+                    <div className="text-center p-4 bg-violet-50/50 border border-violet-100 rounded-xl">
+                        <p className="text-xs font-bold text-violet-600 uppercase mb-1">Burned</p>
+                        <p className="text-2xl font-bold text-violet-700">{totalCaloriesBurned}</p>
+                        <p className="text-xs text-violet-600">kcal</p>
                     </div>
-                    <div className="text-center p-4 bg-slate-100 rounded-xl">
-                        <p className="text-xs font-bold text-slate-600 uppercase mb-1">Net</p>
-                        <p className="text-2xl font-bold text-slate-900">{netCalories}</p>
-                        <p className="text-xs text-slate-600">kcal</p>
+                    <div className="text-center p-4 bg-background border border-border rounded-xl">
+                        <p className="text-xs font-bold text-muted uppercase mb-1">Net</p>
+                        <p className="text-2xl font-bold text-main">{netCalories}</p>
+                        <p className="text-xs text-muted">kcal</p>
                     </div>
                 </div>
             </div>
 
             {/* Food Log List */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-slate-700">Food Entries</h3>
-                    <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">
+            <div className="card overflow-hidden">
+                <div className="p-5 border-b border-border bg-background/50 flex justify-between items-center">
+                    <h3 className="heading-4">Food Entries</h3>
+                    <span className="badge-md badge-emerald">
                         {totalCaloriesConsumed} kcal
                     </span>
                 </div>
                 {sortedItems.length === 0 ? (
-                    <div className="p-10 text-center text-slate-400">
+                    <div className="p-10 text-center text-muted">
                         No food logged today yet.
                     </div>
                 ) : (
-                    <ul className="divide-y divide-slate-100">
+                    <ul className="divide-y divide-border">
                         {sortedItems.map((item) => (
-                            <li key={item.id} className="p-5 flex justify-between items-center hover:bg-slate-50 transition-colors group">
+                            <li key={item.id} className="p-5 flex justify-between items-center hover:bg-background transition-colors group">
                                 <div>
-                                    <p className="font-medium text-slate-900 text-lg font-serif">{item.name}</p>
-                                    <p className="text-xs text-slate-400 font-medium">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                    <p className="font-medium text-main text-lg font-serif">{item.name}</p>
+                                    <p className="text-xs text-muted font-medium">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="font-bold text-slate-900 text-lg">{item.calories} <span className="text-xs font-normal text-slate-400">kcal</span></span>
+                                    <span className="font-bold text-main text-lg">{item.calories} <span className="text-xs font-normal text-muted">kcal</span></span>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => handleStartEditFood(item)}
-                                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+                                            className="p-2 hover:bg-muted/10 rounded-lg text-muted hover:text-primary transition-colors"
                                             title="Edit entry"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                                         </button>
                                         <button
                                             onClick={() => handleDeleteFood(item.id)}
-                                            className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
+                                            className="p-2 hover:bg-red-50 rounded-lg text-muted hover:text-red-600 transition-colors"
                                             title="Delete entry"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -353,43 +351,43 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
             </div>
 
             {/* Workout Log List */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-5 border-b border-slate-100 bg-purple-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-purple-900">Workouts</h3>
-                    <span className="text-sm font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded-md">
+            <div className="card overflow-hidden">
+                <div className="p-5 border-b border-border bg-chart-5/5 flex justify-between items-center">
+                    <h3 className="heading-4 text-chart-5">Workouts</h3>
+                    <span className="badge-md text-chart-5 bg-chart-5/10">
                         {totalCaloriesBurned} kcal burned
                     </span>
                 </div>
                 {sortedWorkouts.length === 0 ? (
-                    <div className="p-10 text-center text-slate-400">
+                    <div className="p-10 text-center text-muted">
                         No workouts logged today yet.
                     </div>
                 ) : (
-                    <ul className="divide-y divide-slate-100">
+                    <ul className="divide-y divide-border">
                         {sortedWorkouts.map((workout) => (
-                            <li key={workout.id} className="p-5 flex justify-between items-center hover:bg-purple-50 transition-colors group">
+                            <li key={workout.id} className="p-5 flex justify-between items-center hover:bg-background transition-colors group">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600"><path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" /></svg>
+                                    <div className="w-10 h-10 bg-chart-5/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-chart-5"><path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" /></svg>
                                     </div>
                                     <div>
-                                        <p className="font-medium text-slate-900 text-lg font-serif">{workout.type}</p>
-                                        <p className="text-xs text-slate-400 font-medium">{new Date(workout.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        <p className="font-medium text-main text-lg font-serif">{workout.type}</p>
+                                        <p className="text-xs text-muted font-medium">{new Date(workout.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="font-bold text-purple-700 text-lg">-{workout.caloriesBurned} <span className="text-xs font-normal text-purple-500">kcal</span></span>
+                                    <span className="font-bold text-chart-5 text-lg">-{workout.caloriesBurned} <span className="text-xs font-normal text-chart-5/70">kcal</span></span>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => handleStartEditWorkout(workout)}
-                                            className="p-2 hover:bg-purple-100 rounded-lg text-purple-600 transition-colors"
+                                            className="p-2 hover:bg-chart-5/10 rounded-lg text-chart-5 transition-colors"
                                             title="Edit workout"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                                         </button>
                                         <button
                                             onClick={() => handleDeleteWorkout(workout.id)}
-                                            className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
+                                            className="p-2 hover:bg-red-50 rounded-lg text-muted hover:text-red-600 transition-colors"
                                             title="Delete workout"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -445,8 +443,8 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
                                     onClick={handleSaveEditWorkout}
                                     disabled={!editWorkoutType.trim() || !editCaloriesBurned}
                                     className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!editWorkoutType.trim() || !editCaloriesBurned
-                                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                            : 'bg-purple-600 text-white hover:bg-purple-700'
+                                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                        : 'bg-purple-600 text-white hover:bg-purple-700'
                                         }`}
                                 >
                                     Save Changes
@@ -500,8 +498,8 @@ export const FoodLogger: React.FC<FoodLoggerProps> = ({ currentLog, onAddItems, 
                                     onClick={handleSaveEditFood}
                                     disabled={!editFoodName.trim() || !editFoodCalories}
                                     className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!editFoodName.trim() || !editFoodCalories
-                                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
                                         }`}
                                 >
                                     Save Changes

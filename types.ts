@@ -10,6 +10,7 @@ export interface Recipe {
   instructions?: string[];
   type: 'breakfast' | 'main meal' | 'snack' | 'light meal' | 'any';
   servings: number;
+  image?: string; // base64 data URL or external URL
 }
 
 export type Meal = Recipe;

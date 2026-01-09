@@ -7,6 +7,7 @@ import { getCategoryColor } from '../utils';
 import { Portal } from './Portal';
 import { RecipeIllustration } from './RecipeIllustration';
 import { RecipeDetailModal } from './RecipeDetailModal';
+import { ImageInput } from './ImageInput';
 
 
 export const RecipeLibrary: React.FC = () => {
@@ -23,6 +24,10 @@ export const RecipeLibrary: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'ingredients' | 'instructions'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Recipe | null>(null);
+
+  // Image upload state
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   useEffect(() => {
     getRecipes().then(setRecipes);
@@ -44,6 +49,7 @@ export const RecipeLibrary: React.FC = () => {
   const startEditing = () => {
     if (selectedRecipe) {
       setEditForm({ ...selectedRecipe });
+      setUploadedImage(selectedRecipe.image || null);
       setIsEditing(true);
     }
   };
@@ -63,7 +69,8 @@ export const RecipeLibrary: React.FC = () => {
         carbs: Number(editForm.carbs) || 0,
         servings: Number(editForm.servings) || 1,
         ingredients: editForm.ingredients.filter(i => i.trim()),
-        instructions: (editForm.instructions || []).filter(i => i.trim())
+        instructions: (editForm.instructions || []).filter(i => i.trim()),
+        image: uploadedImage || editForm.image
       };
 
       await saveRecipe(updatedRecipe);
@@ -71,9 +78,21 @@ export const RecipeLibrary: React.FC = () => {
       setSelectedRecipe(updatedRecipe);
       setIsEditing(false);
       setEditForm(null);
+      setUploadedImage(null);
     }
   };
 
+
+  const handleImageSelect = (base64: string, mimeType: string) => {
+    setImageError(null);
+    // Store as data URL for display and storage
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    setUploadedImage(dataUrl);
+  };
+
+  const handleRemoveImage = () => {
+    setUploadedImage(null);
+  };
 
   const handleAIAdd = async () => {
     if (!inputText.trim()) return;
@@ -92,12 +111,15 @@ export const RecipeLibrary: React.FC = () => {
           ingredients: partialRecipe.ingredients || [],
           instructions: partialRecipe.instructions || [],
           type: (partialRecipe.type as any) || 'main meal',
-          servings: partialRecipe.servings || 1
+          servings: partialRecipe.servings || 1,
+          image: uploadedImage || undefined
         };
         await saveRecipe(newRecipe);
         setRecipes(await getRecipes());
         setIsAdding(false);
         setInputText('');
+        setUploadedImage(null);
+        setImageError(null);
       }
     } catch (e) {
       alert("Failed to parse recipe. Please try manual entry or simpler text.");
@@ -157,13 +179,13 @@ export const RecipeLibrary: React.FC = () => {
     <div className="space-y-8 animate-fade-in pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Recipe Library</h2>
-          <p className="text-slate-500 font-medium mt-2 text-lg">Manage your expanding collection of healthy meals.</p>
+          <h2 className="heading-1">Recipe Library</h2>
+          <p className="text-muted font-medium mt-2 text-lg">Manage your expanding collection of healthy meals.</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={handleExport}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
+            className="btn-secondary btn-sm flex items-center gap-2"
             title="Export Recipes to JSON"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
@@ -171,7 +193,7 @@ export const RecipeLibrary: React.FC = () => {
           </button>
           <button
             onClick={() => setIsAdding(!isAdding)}
-            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 ${isAdding ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-slate-900 text-white hover:bg-emerald-600'}`}
+            className={`btn-sm flex items-center gap-2 ${isAdding ? 'btn-secondary' : 'btn-primary'}`}
           >
             {isAdding ? (
               <>
@@ -189,27 +211,55 @@ export const RecipeLibrary: React.FC = () => {
       </header>
 
       {isAdding && (
-        <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 animate-slide-in-down ring-4 ring-slate-50 relative overflow-hidden">
+        <div className="card card-padding-lg animate-slide-in-down relative overflow-hidden">
           <div className="relative z-10">
-            <h3 className="text-xl font-bold text-slate-900 mb-2 font-serif flex items-center gap-2">
+            <h3 className="heading-3 mb-2 flex items-center gap-2">
               <span className="bg-emerald-100 text-emerald-700 p-1.5 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span>
               Import Recipe via AI
             </h3>
-            <p className="text-slate-500 mb-6 max-w-2xl">Paste a recipe URL, full text, or even a rough list of ingredients. Our smart AI will parse the nutrition, ingredients, and instructions for you.</p>
+            <p className="text-muted mb-6 max-w-2xl">Paste a recipe URL, full text, or even a rough list of ingredients. Our smart AI will parse the nutrition, ingredients, and instructions for you.</p>
+
+            {/* Image Upload */}
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-main mb-3">Recipe Photo (Optional)</label>
+              {uploadedImage ? (
+                <div className="relative rounded-2xl overflow-hidden border border-border">
+                  <img src={uploadedImage} alt="Recipe preview" className="w-full h-48 object-cover" />
+                  <button
+                    onClick={handleRemoveImage}
+                    className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all"
+                    title="Remove image"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </button>
+                </div>
+              ) : (
+                <ImageInput
+                  onImageSelect={handleImageSelect}
+                  onError={(err) => setImageError(err)}
+                  disabled={isProcessing}
+                  className="w-full"
+                />
+              )}
+              {imageError && (
+                <p className="text-red-600 text-sm mt-2">{imageError}</p>
+              )}
+            </div>
+
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base mb-4 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 focus:outline-none min-h-[160px] text-slate-900 placeholder-slate-400 transition-all font-medium"
+              className="w-full input min-h-[160px] mb-4"
               placeholder="Paste your recipe here... e.g. 'Chicken Stir Fry, serves 4. Ingredients: 500g chicken breast...'"
             />
             <button
               onClick={handleAIAdd}
               disabled={isProcessing}
-              className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100 flex justify-center items-center gap-3 text-lg"
+              className={isProcessing ? 'btn-primary w-full flex justify-center items-center gap-3 text-lg opacity-50' : 'btn-primary w-full flex justify-center items-center gap-3 text-lg'}
             >
               {isProcessing ? (
                 <>
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                   Processing Recipe...
                 </>
               ) : (
@@ -222,22 +272,22 @@ export const RecipeLibrary: React.FC = () => {
           </div>
 
           {/* Background Decoration */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-background rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none"></div>
         </div>
       )}
 
       {/* Search, Sort & Filters */}
-      <div className="space-y-4 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+      <div className="space-y-4 glass-panel p-4 rounded-2xl">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <input
               type="text"
-              className="block w-full pl-11 pr-4 py-3.5 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-900"
+              className="block w-full pl-11 input"
               placeholder="Search recipes, ingredients, tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -248,14 +298,14 @@ export const RecipeLibrary: React.FC = () => {
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value)}
-              className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 py-3.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer font-bold"
+              className="appearance-none w-full input cursor-pointer font-bold pr-10"
             >
               <option value="name">Sort: Name (A-Z)</option>
               <option value="caloriesLow">Sort: Calories (Low)</option>
               <option value="caloriesHigh">Sort: Calories (High)</option>
               <option value="protein">Sort: Highest Protein</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-muted">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             </div>
           </div>
@@ -267,9 +317,9 @@ export const RecipeLibrary: React.FC = () => {
             <button
               key={type}
               onClick={() => setActiveFilter(type)}
-              className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border ${activeFilter === type
-                ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              className={`badge-md whitespace-nowrap transition-all border ${activeFilter === type
+                ? 'bg-primary text-primary-foreground border-primary shadow-md transform scale-105'
+                : 'bg-surface text-muted border-transparent hover:border-primary/20 hover:bg-surface/80'
                 }`}
             >
               {type}
@@ -281,11 +331,11 @@ export const RecipeLibrary: React.FC = () => {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
         {filteredRecipes.length === 0 ? (
           <div className="md:col-span-full py-24 text-center">
-            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+            <div className="w-24 h-24 bg-background rounded-full flex items-center justify-center mx-auto mb-6 text-muted/30">
               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
             </div>
-            <p className="font-medium text-xl text-slate-900 mb-2">{recipes.length === 0 ? "Your library is empty." : "No recipes match your search."}</p>
-            <p className="text-slate-500">{recipes.length === 0 ? "Get started by adding your first recipe above." : "Try adjusting your filters or search terms."}</p>
+            <p className="font-medium text-xl text-main mb-2">{recipes.length === 0 ? "Your library is empty." : "No recipes match your search."}</p>
+            <p className="text-muted">{recipes.length === 0 ? "Get started by adding your first recipe above." : "Try adjusting your filters or search terms."}</p>
           </div>
         ) : (
           filteredRecipes.map(recipe => (
@@ -316,6 +366,32 @@ export const RecipeLibrary: React.FC = () => {
 
                   <div className="p-8 space-y-8 overflow-y-auto">
                     <div className="space-y-6">
+                      {/* Image Upload Section */}
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-3">Recipe Photo (Optional)</label>
+                        {uploadedImage ? (
+                          <div className="relative rounded-2xl overflow-hidden border border-slate-200">
+                            <img src={uploadedImage} alt="Recipe preview" className="w-full h-64 object-cover" />
+                            <button
+                              onClick={handleRemoveImage}
+                              className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all"
+                              title="Remove image"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <ImageInput
+                            onImageSelect={handleImageSelect}
+                            onError={(err) => setImageError(err)}
+                            className="w-full"
+                          />
+                        )}
+                        {imageError && (
+                          <p className="text-red-600 text-sm mt-2">{imageError}</p>
+                        )}
+                      </div>
+
                       <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">Recipe Name</label>
                         <input
