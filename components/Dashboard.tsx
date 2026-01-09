@@ -59,18 +59,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         setHydration(dailyLog.waterIntake || 0);
     }, [dailyLog]);
 
-    const handleAddWater = (amount: number) => {
+    const handleAddWater = async (amount: number) => {
         const newIntake = hydration + amount;
         setHydration(newIntake);
 
         const updatedLog = { ...dailyLog, waterIntake: newIntake };
-        saveDailyLog(updatedLog);
+        await saveDailyLog(updatedLog);
 
         // Optional: refreshData() if strictly needed, but local state handles UI
         refreshData();
     };
 
-    const toggleMeal = (mealIndex: number) => {
+    const toggleMeal = async (mealIndex: number) => {
         const meal = todayPlan.meals[mealIndex];
         if (!meal) return;
 
@@ -87,7 +87,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         }
 
         const updatedPlan = { ...todayPlan, completedMealIds: newCompleted };
-        saveDayPlan(updatedPlan);
+        await saveDayPlan(updatedPlan);
 
         // Sync with Journal
         onLogMeal(meal, isAdding);
@@ -151,7 +151,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }));
 
     // Get daily summaries for calorie and workout charts
-    const dailySummaries = getAllDailySummaries();
+    // Get daily summaries for calorie and workout charts
+    const [dailySummaries, setDailySummaries] = useState<any[]>([]);
+
+    useEffect(() => {
+        getAllDailySummaries().then(setDailySummaries);
+    }, [dailyLog]); // Refresh when daily log changes
     const formattedCalorieData = dailySummaries.map(entry => ({
         ...entry,
         displayDate: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -515,14 +520,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="md:col-span-12">
                     <AnalyticsSummary
                         weightAnalysis={analyzeWeightTrends(stats)}
-                        streakAnalysis={analyzeStreaks(stats.dailyCalorieGoal)}
-                        weeklySummary={getWeeklySummary(stats.dailyCalorieGoal)}
+                        streakAnalysis={analyzeStreaks(dailySummaries, stats.dailyCalorieGoal)}
+                        weeklySummary={getWeeklySummary(dailySummaries, stats.dailyCalorieGoal)}
                     />
                 </div>
 
                 {/* Weekly Summary Dashboard */}
                 <div className="md:col-span-12">
-                    <WeeklySummary />
+                    <WeeklySummary summaries={dailySummaries} />
                 </div>
 
                 {/* Tomorrow's Preview */}

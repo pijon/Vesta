@@ -38,14 +38,14 @@ export const Planner: React.FC = () => {
             dates.push(d.toISOString().split('T')[0]);
         }
         setWeekDates(dates);
-        setAvailableRecipes(getRecipes());
+        getRecipes().then(setAvailableRecipes);
     }, []);
 
     useEffect(() => {
-        setDayPlan(getDayPlan(selectedDate));
+        getDayPlan(selectedDate).then(setDayPlan);
     }, [selectedDate]);
 
-    const handleRecipeSelect = (recipe: Recipe) => {
+    const handleRecipeSelect = async (recipe: Recipe) => {
         if (!dayPlan) return;
 
         let newMeals = [...dayPlan.meals];
@@ -85,7 +85,7 @@ export const Planner: React.FC = () => {
         handleRecipeSelect(newMeal);
     };
 
-    const removeMeal = (index: number) => {
+    const removeMeal = async (index: number) => {
         if (!dayPlan) return;
         const newMeals = [...dayPlan.meals];
         newMeals.splice(index, 1);
@@ -124,7 +124,7 @@ export const Planner: React.FC = () => {
     };
 
     const handleAutoPlan = async () => {
-        const recipes = getRecipes();
+        const recipes = await getRecipes();
         if (recipes.length < 3) {
             alert("You need at least a few recipes in your library for the AI to create a plan. Go to the Recipes tab to add some!");
             return;
@@ -139,7 +139,7 @@ export const Planner: React.FC = () => {
             const weeklyPlan = await planWeekWithExistingRecipes(recipes, selectedDate);
 
             // Process and save
-            weeklyPlan.forEach(day => {
+            await Promise.all(weeklyPlan.map(async day => {
                 // Map IDs back to full recipe objects
                 const meals = day.mealIds.map(id => recipes.find(r => r.id === id)).filter(r => r !== undefined) as Recipe[];
 
@@ -153,11 +153,11 @@ export const Planner: React.FC = () => {
                     totalCalories: totalCals
                 };
 
-                saveDayPlan(planForDay);
-            });
+                await saveDayPlan(planForDay);
+            }));
 
             // Refresh current view
-            setDayPlan(getDayPlan(selectedDate));
+            setDayPlan(await getDayPlan(selectedDate));
 
         } catch (error) {
             console.error(error);

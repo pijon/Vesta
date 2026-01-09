@@ -20,8 +20,15 @@ interface AnalyticsProps {
 }
 
 export const Analytics: React.FC<AnalyticsProps> = ({ userStats }) => {
-    const data = useMemo(() => getAnalyticsData(), []);
-    const projection = useMemo(() => getGoalProjection(), [userStats]);
+    // const data = useMemo(() => getAnalyticsData(), []);
+    // const projection = useMemo(() => getGoalProjection(), [userStats]);
+    const [data, setData] = React.useState<any[]>([]);
+    const [projection, setProjection] = React.useState<{ daysRemaining: number, projectedDate: string } | null>(null);
+
+    React.useEffect(() => {
+        getAnalyticsData().then(setData);
+        getGoalProjection().then(setProjection);
+    }, [userStats]);
 
     // Format date for display
     const formattedData = data.map(d => ({

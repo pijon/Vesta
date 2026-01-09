@@ -24,6 +24,15 @@ export const ShoppingList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
 
+  // Persistence State
+  const [inventory, setInventory] = useState<{ items: Array<{ name: string }> }>({ items: [] });
+  const [shoppingState, setShoppingState] = useState<{ purchased: string[], removed: string[], lastGeneratedDate: string, cachedPurchasableItems: PurchasableItem[] }>({
+    purchased: [],
+    removed: [],
+    lastGeneratedDate: '',
+    cachedPurchasableItems: []
+  });
+
   // Initialize component
   useEffect(() => {
     initializeShoppingList();
@@ -39,7 +48,7 @@ export const ShoppingList: React.FC = () => {
       migrateShoppingState();
 
       // Extract ingredients from weekly plan
-      const plan = getWeeklyPlan();
+      const plan = await getWeeklyPlan();
       const rawIngredients = extractIngredientsFromPlan(plan);
 
       if (rawIngredients.length === 0) {
@@ -47,8 +56,15 @@ export const ShoppingList: React.FC = () => {
         return;
       }
 
-      // Check if we have cached data
-      const enhancedState = getEnhancedShoppingState();
+      // Load persistence data
+      const [enhancedState, pantryInventory] = await Promise.all([
+        getEnhancedShoppingState(),
+        getPantryInventory()
+      ]);
+
+      setShoppingState(enhancedState);
+      setInventory(pantryInventory);
+
       const today = new Date().toISOString().split('T')[0];
 
       if (enhancedState.lastGeneratedDate === today && enhancedState.cachedPurchasableItems.length > 0) {
@@ -72,8 +88,8 @@ export const ShoppingList: React.FC = () => {
     }
   };
 
-  const extractIngredientsFromPlan = (plan: Record<string, any>): Array<{text: string, recipeId: string, recipeName: string}> => {
-    const ingredients: Array<{text: string, recipeId: string, recipeName: string}> = [];
+  const extractIngredientsFromPlan = (plan: Record<string, any>): Array<{ text: string, recipeId: string, recipeName: string }> => {
+    const ingredients: Array<{ text: string, recipeId: string, recipeName: string }> = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -94,7 +110,7 @@ export const ShoppingList: React.FC = () => {
     return ingredients;
   };
 
-  const processIngredients = async (rawIngredients: Array<{text: string, recipeId: string, recipeName: string}>) => {
+  const processIngredients = async (rawIngredients: Array<{ text: string, recipeId: string, recipeName: string }>) => {
     setLoadingMessage('Analyzing ingredients with AI...');
 
     // Parse ingredients
@@ -185,19 +201,18 @@ export const ShoppingList: React.FC = () => {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   };
 
-  const handleTogglePantry = (ingredientName: string, inPantry: boolean) => {
+  const handleTogglePantry = async (ingredientName: string, inPantry: boolean) => {
     if (inPantry) {
-      addToPantry(ingredientName, true);
+      await addToPantry(ingredientName, true);
     } else {
-      removeFromPantry(ingredientName);
+      await removeFromPantry(ingredientName);
     }
 
-    // Force re-render by updating a state variable
-    setAggregatedIngredients([...aggregatedIngredients]);
+    // Refresh inventory
+    setInventory(await getPantryInventory());
   };
 
   const isInPantry = (ingredientName: string): boolean => {
-    const inventory = getPantryInventory();
     return inventory.items.some(item => item.name === ingredientName);
   };
 
@@ -207,9 +222,8 @@ export const ShoppingList: React.FC = () => {
       setLoadingMessage('Converting to purchasable quantities...');
       setError(null);
 
-      // Filter out pantry items
-      const pantry = getPantryInventory();
-      const pantryNames = new Set(pantry.items.map(item => item.name));
+      // Filter out pantry items using state
+      const pantryNames = new Set(inventory.items.map(item => item.name));
       const toBuy = aggregatedIngredients.filter(ing => !pantryNames.has(ing.name));
 
       if (toBuy.length === 0) {
@@ -231,11 +245,17 @@ export const ShoppingList: React.FC = () => {
 
       // Cache results
       const today = new Date().toISOString().split('T')[0];
-      saveEnhancedShoppingState({
-        ...getEnhancedShoppingState(),
+      const newState = {
+        ...shoppingState,
         lastGeneratedDate: today,
-        cachedPurchasableItems: purchasable
-      });
+        cachedPurchasableItems: purchasable,
+        // Ensure we keep existing purchased/removed if valid, but typically generation resets partial progress?
+        // Let's assume generation implies a fresh start for valid items, but maybe we keep purchased?
+        // For simplicity, let's just update cache and keep other state.
+      };
+
+      await saveEnhancedShoppingState(newState);
+      setShoppingState(newState);
 
       setPhase('shopping');
       setIsProcessing(false);
@@ -247,44 +267,50 @@ export const ShoppingList: React.FC = () => {
     }
   };
 
-  const handleTogglePurchased = (ingredientName: string) => {
-    const state = getEnhancedShoppingState();
-    const isPurchased = state.purchased.includes(ingredientName);
+  const handleTogglePurchased = async (ingredientName: string) => {
+    const isPurchasedItem = shoppingState.purchased.includes(ingredientName);
 
-    const newPurchased = isPurchased
-      ? state.purchased.filter(name => name !== ingredientName)
-      : [...state.purchased, ingredientName];
+    const newPurchased = isPurchasedItem
+      ? shoppingState.purchased.filter(name => name !== ingredientName)
+      : [...shoppingState.purchased, ingredientName];
 
-    saveEnhancedShoppingState({
-      ...state,
+    const newState = {
+      ...shoppingState,
       purchased: newPurchased
-    });
+    };
 
-    // Force re-render
-    setPurchasableItems([...purchasableItems]);
+    setShoppingState(newState);
+    await saveEnhancedShoppingState(newState);
+    // UI updates automatically via state
   };
 
-  const handleRemoveItem = (ingredientName: string) => {
-    const state = getEnhancedShoppingState();
-    saveEnhancedShoppingState({
-      ...state,
-      removed: [...state.removed, ingredientName],
-      purchased: state.purchased.filter(name => name !== ingredientName)
-    });
+  const handleRemoveItem = async (ingredientName: string) => {
+    const newState = {
+      ...shoppingState,
+      removed: [...shoppingState.removed, ingredientName],
+      purchased: shoppingState.purchased.filter(name => name !== ingredientName)
+    };
 
-    // Update UI
+    setShoppingState(newState);
+    await saveEnhancedShoppingState(newState);
+
+    // Update UI local state for immediate list removal
     setPurchasableItems(purchasableItems.filter(item => item.ingredientName !== ingredientName));
   };
 
-  const handleResetList = () => {
+  const handleResetList = async () => {
     if (confirm('This will clear all shopping list data and start fresh. Continue?')) {
-      saveEnhancedShoppingState({
+      const newState = {
         pantryChecks: {},
         purchased: [],
         removed: [],
         lastGeneratedDate: '',
         cachedPurchasableItems: []
-      });
+      };
+
+      await saveEnhancedShoppingState(newState);
+      setShoppingState(newState);
+
       setPhase('requirements');
       setPurchasableItems([]);
       initializeShoppingList();
@@ -292,8 +318,7 @@ export const ShoppingList: React.FC = () => {
   };
 
   const isPurchased = (ingredientName: string): boolean => {
-    const state = getEnhancedShoppingState();
-    return state.purchased.includes(ingredientName);
+    return shoppingState.purchased.includes(ingredientName);
   };
 
   // Calculate pantry counts

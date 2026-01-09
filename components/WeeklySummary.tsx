@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
-import { getAllDailySummaries } from '../services/storageService';
 import { DAILY_CALORIE_LIMIT } from '../constants';
 import { formatReadableDate } from '../utils/analytics';
+import { DailySummary } from '../types';
 
 interface DayData {
   date: string;
@@ -15,14 +15,17 @@ interface DayData {
   isLogged: boolean;
 }
 
-export const WeeklySummary: React.FC = () => {
+interface WeeklySummaryProps {
+  summaries: DailySummary[];
+}
+
+export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Get last 7 days of data
   const getLast7Days = (): DayData[] => {
     const days: DayData[] = [];
     const today = new Date();
-    const summaries = getAllDailySummaries();
 
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
@@ -66,11 +69,11 @@ export const WeeklySummary: React.FC = () => {
   // Find best and worst days
   const bestDay = loggedDays.reduce((best, day) =>
     day.netCalories < best.netCalories ? day : best
-  , loggedDays[0] || weekData[0]);
+    , loggedDays[0] || weekData[0]);
 
   const worstDay = loggedDays.reduce((worst, day) =>
     day.netCalories > worst.netCalories ? day : worst
-  , loggedDays[0] || weekData[0]);
+    , loggedDays[0] || weekData[0]);
 
   // Insights
   const getInsights = () => {
@@ -238,18 +241,16 @@ export const WeeklySummary: React.FC = () => {
               {weekData.map((day) => (
                 <div
                   key={day.date}
-                  className={`p-3 rounded-xl flex items-center justify-between ${
-                    !day.isLogged
-                      ? 'bg-slate-50 border border-slate-200'
-                      : day.isCompliant
+                  className={`p-3 rounded-xl flex items-center justify-between ${!day.isLogged
+                    ? 'bg-slate-50 border border-slate-200'
+                    : day.isCompliant
                       ? 'bg-emerald-50 border border-emerald-200'
                       : 'bg-red-50 border border-red-200'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      !day.isLogged ? 'bg-slate-300' : day.isCompliant ? 'bg-emerald-500' : 'bg-red-500'
-                    }`}></div>
+                    <div className={`w-2 h-2 rounded-full ${!day.isLogged ? 'bg-slate-300' : day.isCompliant ? 'bg-emerald-500' : 'bg-red-500'
+                      }`}></div>
                     <div>
                       <div className="font-medium text-slate-900">{day.dayName}</div>
                       <div className="text-xs text-slate-500">

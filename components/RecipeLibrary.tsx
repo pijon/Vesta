@@ -25,7 +25,7 @@ export const RecipeLibrary: React.FC = () => {
   const [editForm, setEditForm] = useState<Recipe | null>(null);
 
   useEffect(() => {
-    setRecipes(getRecipes());
+    getRecipes().then(setRecipes);
   }, []);
 
   const openRecipe = (recipe: Recipe) => {
@@ -53,7 +53,7 @@ export const RecipeLibrary: React.FC = () => {
     setEditForm(null);
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (editForm) {
       const updatedRecipe: Recipe = {
         ...editForm,
@@ -66,8 +66,8 @@ export const RecipeLibrary: React.FC = () => {
         instructions: (editForm.instructions || []).filter(i => i.trim())
       };
 
-      saveRecipe(updatedRecipe);
-      setRecipes(getRecipes());
+      await saveRecipe(updatedRecipe);
+      setRecipes(await getRecipes());
       setSelectedRecipe(updatedRecipe);
       setIsEditing(false);
       setEditForm(null);
@@ -94,8 +94,8 @@ export const RecipeLibrary: React.FC = () => {
           type: (partialRecipe.type as any) || 'main meal',
           servings: partialRecipe.servings || 1
         };
-        saveRecipe(newRecipe);
-        setRecipes(getRecipes());
+        await saveRecipe(newRecipe);
+        setRecipes(await getRecipes());
         setIsAdding(false);
         setInputText('');
       }
@@ -106,17 +106,17 @@ export const RecipeLibrary: React.FC = () => {
     }
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm('Delete this recipe?')) {
-      deleteRecipe(id);
-      setRecipes(getRecipes());
+      await deleteRecipe(id);
+      setRecipes(await getRecipes());
       if (selectedRecipe?.id === id) closeRecipe();
     }
   };
 
-  const handleExport = () => {
-    const allRecipes = getRecipes();
+  const handleExport = async () => {
+    const allRecipes = await getRecipes();
     const blob = new Blob([JSON.stringify(allRecipes, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

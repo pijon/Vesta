@@ -113,6 +113,14 @@ export interface DailyLog {
   waterIntake: number; // in ml
 }
 
+export interface DailySummary {
+  date: string;
+  caloriesConsumed: number;
+  caloriesBurned: number;
+  netCalories: number;
+  workoutCount: number;
+}
+
 export enum AppView {
   DASHBOARD = 'DASHBOARD',
   PLANNER = 'PLANNER',

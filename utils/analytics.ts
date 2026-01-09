@@ -1,5 +1,4 @@
-import { UserStats, WeightEntry, DailyLog } from '../types';
-import { getAllDailySummaries } from '../services/storageService';
+import { UserStats, WeightEntry, DailyLog, DailySummary } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
 
 export interface WeightAnalysis {
@@ -113,8 +112,7 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
 /**
  * Calculate calorie streak and compliance
  */
-export function analyzeStreaks(dailyGoal: number = DAILY_CALORIE_LIMIT): StreakAnalysis {
-  const summaries = getAllDailySummaries();
+export function analyzeStreaks(summaries: DailySummary[], dailyGoal: number = DAILY_CALORIE_LIMIT): StreakAnalysis {
 
   if (summaries.length === 0) {
     return {
@@ -193,8 +191,7 @@ export function analyzeStreaks(dailyGoal: number = DAILY_CALORIE_LIMIT): StreakA
 /**
  * Calculate macro averages for a time period
  */
-export function analyzeMacros(days: number = 7): MacroAverages {
-  const summaries = getAllDailySummaries();
+export function analyzeMacros(summaries: DailySummary[], days: number = 7): MacroAverages {
 
   if (summaries.length === 0) {
     return {
@@ -226,8 +223,7 @@ export function analyzeMacros(days: number = 7): MacroAverages {
 /**
  * Generate weekly summary report
  */
-export function getWeeklySummary(dailyGoal?: number): PeriodSummary {
-  const summaries = getAllDailySummaries();
+export function getWeeklySummary(summaries: DailySummary[], dailyGoal?: number): PeriodSummary {
 
   // Get last 7 days
   const today = new Date();
@@ -276,8 +272,7 @@ export function getWeeklySummary(dailyGoal?: number): PeriodSummary {
 /**
  * Generate monthly summary report
  */
-export function getMonthlySummary(dailyGoal?: number): PeriodSummary {
-  const summaries = getAllDailySummaries();
+export function getMonthlySummary(summaries: DailySummary[], dailyGoal?: number): PeriodSummary {
 
   // Get last 30 days
   const today = new Date();

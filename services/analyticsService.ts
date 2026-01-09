@@ -8,10 +8,12 @@ export interface AnalyticsDataPoint {
     caloriesBurned: number | null;
 }
 
-export const getAnalyticsData = (): AnalyticsDataPoint[] => {
-    const stats = getUserStats();
-    const fastingHistory = getFastingHistory();
-    const dailySummaries = getAllDailySummaries();
+export const getAnalyticsData = async (): Promise<AnalyticsDataPoint[]> => {
+    const [stats, fastingHistory, dailySummaries] = await Promise.all([
+        getUserStats(),
+        getFastingHistory(),
+        getAllDailySummaries()
+    ]);
 
     const dataMap = new Map<string, AnalyticsDataPoint>();
 
@@ -62,8 +64,8 @@ export const getAnalyticsData = (): AnalyticsDataPoint[] => {
     return Array.from(dataMap.values()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 
-export const getGoalProjection = (): { daysRemaining: number, projectedDate: string } | null => {
-    const stats = getUserStats();
+export const getGoalProjection = async (): Promise<{ daysRemaining: number, projectedDate: string } | null> => {
+    const stats = await getUserStats();
     const history = stats.weightHistory || [];
 
     if (history.length < 2) return null;

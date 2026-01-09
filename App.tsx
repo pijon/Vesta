@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
-import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry } from './services/storageService';
+import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
 import { Dashboard } from './components/Dashboard';
 import { Planner } from './components/Planner';
 import { RecipeLibrary } from './components/RecipeLibrary';
@@ -9,8 +9,10 @@ import { ShoppingList } from './components/ShoppingList';
 import { FoodLogger } from './components/FoodLogger';
 import { Analytics } from './components/Analytics';
 import { APP_NAME, DEFAULT_USER_STATS } from './constants';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LoginScreen } from './components/LoginScreen';
 
-export const App: React.FC = () => {
+const TrackerApp: React.FC = () => {
     const [view, setView] = useState<AppView>(AppView.DASHBOARD);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -23,29 +25,42 @@ export const App: React.FC = () => {
     const [todayPlan, setTodayPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
 
-    const [userStats, setUserStatsState] = useState<UserStats>(() => {
-        const stats = getUserStats();
-        return { ...DEFAULT_USER_STATS, ...stats, weightHistory: stats.weightHistory || [] };
-    });
+    const [userStats, setUserStatsState] = useState<UserStats>(DEFAULT_USER_STATS);
 
-    const [fastingState, setFastingState] = useState<FastingState>(() => getFastingState());
+    const [fastingState, setFastingState] = useState<FastingState>({
+        isFasting: false,
+        startTime: null,
+        endTime: null,
+        config: { protocol: '16:8', targetFastHours: 16 }
+    });
 
     const [dailyLog, setDailyLog] = useState<DailyLog>({ date: '', items: [] });
 
-    const refreshData = () => {
-        setTodayPlan(getDayPlan(todayDate));
-        setTomorrowPlan(getDayPlan(tomorrowDate));
-        const stats = getUserStats();
+    const refreshData = async () => {
+        const [today, tomorrow, stats, log, fasting] = await Promise.all([
+            getDayPlan(todayDate),
+            getDayPlan(tomorrowDate),
+            getUserStats(),
+            getDailyLog(todayDate),
+            getFastingState()
+        ]);
+
+        setTodayPlan(today);
+        setTomorrowPlan(tomorrow);
         setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: stats.weightHistory || [] });
-        setDailyLog(getDailyLog(todayDate));
-        setFastingState(getFastingState());
+        setDailyLog(log);
+        setFastingState(fasting);
     };
 
     useEffect(() => {
-        refreshData();
+        const init = async () => {
+            await migrateFromLocalStorage();
+            await refreshData();
+        };
+        init();
     }, [todayDate, tomorrowDate, view]);
 
-    const handleUpdateStats = (newStats: UserStats) => {
+    const handleUpdateStats = async (newStats: UserStats) => {
         const today = new Date().toISOString().split('T')[0];
         let history = [...(newStats.weightHistory || [])];
         const existingIndex = history.findIndex(h => h.date === today);
@@ -59,48 +74,55 @@ export const App: React.FC = () => {
 
         const finalStats = { ...newStats, weightHistory: history };
         setUserStatsState(finalStats);
-        saveUserStats(finalStats);
+        await saveUserStats(finalStats);
     };
 
-    const handleAddFoodLogItems = (items: FoodLogItem[]) => {
+    const handleAddFoodLogItems = async (items: FoodLogItem[]) => {
         const updatedLog: DailyLog = {
             ...dailyLog,
             items: [...dailyLog.items, ...items]
         };
         setDailyLog(updatedLog);
-        saveDailyLog(updatedLog);
+        await saveDailyLog(updatedLog);
     };
 
-    const handleAddWorkout = (workout: WorkoutItem) => {
+    const handleAddWorkout = async (workout: WorkoutItem) => {
         const updatedLog: DailyLog = {
             ...dailyLog,
             workouts: [...(dailyLog.workouts || []), workout]
         };
         setDailyLog(updatedLog);
-        saveDailyLog(updatedLog);
+        await saveDailyLog(updatedLog);
     };
 
-    const handleUpdateWorkout = (updatedWorkout: WorkoutItem) => {
+    const handleUpdateWorkout = async (updatedWorkout: WorkoutItem) => {
         const updatedLog: DailyLog = {
             ...dailyLog,
             workouts: (dailyLog.workouts || []).map(w => w.id === updatedWorkout.id ? updatedWorkout : w)
         };
         setDailyLog(updatedLog);
-        saveDailyLog(updatedLog);
+        await saveDailyLog(updatedLog);
     };
 
-    const handleDeleteWorkout = (workoutId: string) => {
+    const handleDeleteWorkout = async (workoutId: string) => {
         const updatedLog: DailyLog = {
             ...dailyLog,
             workouts: (dailyLog.workouts || []).filter(w => w.id !== workoutId)
         };
         setDailyLog(updatedLog);
-        saveDailyLog(updatedLog);
+        await saveDailyLog(updatedLog);
     };
 
-    const handleLogMeal = (meal: Recipe, isAdding: boolean) => {
-        const currentLog = getDailyLog(todayDate);
-        let newItems = [...currentLog.items];
+    const handleLogMeal = async (meal: Recipe, isAdding: boolean) => {
+        const currentLog = await getDailyLog(todayDate); // Fetch fresh? Or use state? 
+        // Using state is better for UI, but let's fetch for safety if we can.
+        // Actually, let's use the local 'dailyLog' state which might be slightly stale if handled externally,
+        // but 'getDailyLog' is safer for concurrency? No, firestore is async.
+        // Let's stick to state 'dailyLog' to avoid complexity, or just re-fetch.
+        // Original code re-fetched: const currentLog = getDailyLog(todayDate);
+        // We will keep that pattern.
+
+        let newItems = [...(currentLog.items || [])];
 
         if (isAdding) {
             newItems.push({
@@ -110,7 +132,6 @@ export const App: React.FC = () => {
                 timestamp: Date.now()
             });
         } else {
-            // Find the last item that matches (assuming most recent action)
             for (let i = newItems.length - 1; i >= 0; i--) {
                 if (newItems[i].name === meal.name && newItems[i].calories === meal.calories) {
                     newItems.splice(i, 1);
@@ -120,15 +141,15 @@ export const App: React.FC = () => {
         }
 
         const updatedLog = { ...currentLog, items: newItems };
-        saveDailyLog(updatedLog);
-        // State will be updated by refreshData called in Dashboard
+        await saveDailyLog(updatedLog);
+        refreshData(); // Re-fetch all
     };
 
     const handleUpdateWeight = (weight: number) => {
         handleUpdateStats({ ...userStats, currentWeight: weight });
     };
 
-    const handleStartFast = () => {
+    const handleStartFast = async () => {
         const newState: FastingState = {
             ...fastingState,
             isFasting: true,
@@ -136,16 +157,16 @@ export const App: React.FC = () => {
             endTime: null
         };
         setFastingState(newState);
-        saveFastingState(newState);
+        await saveFastingState(newState);
     };
 
-    const handleEndFast = () => {
+    const handleEndFast = async () => {
         if (fastingState.startTime) {
             const now = Date.now();
             const durationHours = (now - fastingState.startTime) / (1000 * 60 * 60);
 
             // Add to history
-            addFastingEntry({
+            await addFastingEntry({
                 id: crypto.randomUUID(),
                 startTime: fastingState.startTime,
                 endTime: now,
@@ -160,16 +181,16 @@ export const App: React.FC = () => {
             endTime: Date.now()
         };
         setFastingState(newState);
-        saveFastingState(newState);
+        await saveFastingState(newState);
     };
 
-    const handleUpdateFastingConfig = (config: FastingConfig) => {
+    const handleUpdateFastingConfig = async (config: FastingConfig) => {
         const newState: FastingState = {
             ...fastingState,
             config
         };
         setFastingState(newState);
-        saveFastingState(newState);
+        await saveFastingState(newState);
     };
 
     const NavLink = ({ targetView, label }: { targetView: AppView, label: string }) => (
@@ -186,6 +207,26 @@ export const App: React.FC = () => {
 
     const SettingsModal = () => {
         const [formStats, setFormStats] = useState(userStats);
+        const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
+        const [showDebug, setShowDebug] = useState(false);
+
+        useEffect(() => {
+            if (showDebug) {
+                setDebugInfo(getLocalStorageDebugInfo());
+            }
+        }, [showDebug]);
+
+        const handleForceSync = async () => {
+            if (confirm("This will attempt to upload data found on this device to the cloud. Continue?")) {
+                const result = await migrateFromLocalStorage(true);
+                if (result.success) {
+                    alert("Sync process finished successfully! Reloading...");
+                    window.location.reload();
+                } else {
+                    alert(`Sync failed: ${result.error}\n\nCheck console for details.`);
+                }
+            }
+        };
 
         const handleSave = () => {
             handleUpdateStats(formStats);
@@ -252,8 +293,8 @@ export const App: React.FC = () => {
                             <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Data Management</h4>
                             <div className="flex gap-3">
                                 <button
-                                    onClick={() => {
-                                        const json = exportAllData();
+                                    onClick={async () => {
+                                        const json = await exportAllData();
                                         const blob = new Blob([json], { type: 'application/json' });
                                         const url = URL.createObjectURL(blob);
                                         const a = document.createElement('a');
@@ -281,13 +322,14 @@ export const App: React.FC = () => {
                                             }
 
                                             const reader = new FileReader();
-                                            reader.onload = (event) => {
+                                            reader.onload = async (event) => {
                                                 const content = event.target?.result as string;
-                                                if (importAllData(content)) {
+                                                const result = await importAllData(content);
+                                                if (result.success) {
                                                     alert("Data imported successfully!");
                                                     window.location.reload();
                                                 } else {
-                                                    alert("Failed to import data. Invalid file format.");
+                                                    alert(`Failed to import data: ${result.error}`);
                                                 }
                                             };
                                             reader.readAsText(file);
@@ -300,6 +342,36 @@ export const App: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Data Recovery Section */}
+                        <div className="border-t border-border pt-4 mt-2">
+                            <button
+                                onClick={() => setShowDebug(!showDebug)}
+                                className="text-xs text-muted hover:text-main underline mb-2"
+                            >
+                                {showDebug ? "Hide Recovery Tools" : "Show Recovery Tools"}
+                            </button>
+
+                            {showDebug && (
+                                <div className="bg-slate-50 p-4 rounded-xl border border-border space-y-3">
+                                    <h4 className="text-sm font-bold text-main">Local Data Recovery</h4>
+                                    <div className="space-y-1">
+                                        {Object.entries(debugInfo).map(([key, value]) => (
+                                            <div key={key} className="flex justify-between text-xs">
+                                                <span className="text-slate-500 font-mono">{key.replace('fast800_', '')}</span>
+                                                <span className={(value as string).includes('Found') ? "text-emerald-600 font-bold" : "text-slate-400"}>{value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={handleForceSync}
+                                        className="w-full py-2 bg-emerald-100 text-emerald-700 border border-emerald-200 text-sm font-bold rounded-lg hover:bg-emerald-200 transition-colors"
+                                    >
+                                        Force Sync from Device
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -457,5 +529,33 @@ export const App: React.FC = () => {
 
             {isSettingsOpen && <SettingsModal />}
         </div>
+    );
+};
+
+const AuthGuard: React.FC = () => {
+    const { user, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="animate-pulse flex flex-col items-center gap-4">
+                    <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-12 w-auto opacity-50" />
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return <LoginScreen />;
+    }
+
+    return <TrackerApp />;
+};
+
+export const App: React.FC = () => {
+    return (
+        <AuthProvider>
+            <AuthGuard />
+        </AuthProvider>
     );
 };
