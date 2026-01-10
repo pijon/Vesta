@@ -123,12 +123,10 @@ export interface DailySummary {
 }
 
 export enum AppView {
-  DASHBOARD = 'DASHBOARD',
+  TRACK = 'TRACK',
   PLANNER = 'PLANNER',
   RECIPES = 'RECIPES',
-  SHOPPING = 'SHOPPING',
-  JOURNAL = 'JOURNAL',
-  ANALYTICS = 'ANALYTICS'
+  SHOPPING = 'SHOPPING'
 }
 
 // --- Fasting ---

@@ -2,18 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
-import { Dashboard } from './components/Dashboard';
+import { Track } from './components/Track';
 import { Planner } from './components/Planner';
 import { RecipeLibrary } from './components/RecipeLibrary';
 import { ShoppingList } from './components/ShoppingList';
-import { FoodLogger } from './components/FoodLogger';
-import { Analytics } from './components/Analytics';
 import { APP_NAME, DEFAULT_USER_STATS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 
 const TrackerApp: React.FC = () => {
-    const [view, setView] = useState<AppView>(AppView.DASHBOARD);
+    const [view, setView] = useState<AppView>(AppView.TRACK);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [tomorrowDate] = useState(() => {
@@ -385,18 +383,16 @@ const TrackerApp: React.FC = () => {
             {/* Top Navigation / Header */}
             <nav className="sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
                 <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.DASHBOARD)}>
+                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.TRACK)}>
                         <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-transform group-hover:scale-105" />
                         <h1 className="text-xl font-medium tracking-tight text-main leading-none">Fast<span className="font-bold text-primary">800</span></h1>
                     </div>
 
                     <div className="hidden md:flex items-center gap-1">
-                        <NavLink targetView={AppView.DASHBOARD} label="Dashboard" />
+                        <NavLink targetView={AppView.TRACK} label="Track" />
                         <NavLink targetView={AppView.PLANNER} label="Planner" />
                         <NavLink targetView={AppView.RECIPES} label="Recipes" />
                         <NavLink targetView={AppView.SHOPPING} label="Shopping" />
-                        <NavLink targetView={AppView.JOURNAL} label="Journal" />
-                        <NavLink targetView={AppView.ANALYTICS} label="Analytics" />
                     </div>
 
                     <div>
@@ -414,26 +410,46 @@ const TrackerApp: React.FC = () => {
             {/* Main Content Area */}
             <main className="max-w-6xl mx-auto p-4 md:p-8">
                 <AnimatePresence mode="wait">
-                    {view === AppView.DASHBOARD && (
+                    {view === AppView.TRACK && (
                         <motion.div
-                            key="dashboard"
+                            key="track"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
                         >
-                            <Dashboard
+                            <Track
                                 todayPlan={todayPlan}
                                 tomorrowPlan={tomorrowPlan}
                                 stats={userStats}
                                 dailyLog={dailyLog}
-                                onUpdateStats={handleUpdateStats}
-                                refreshData={refreshData}
-                                onLogMeal={handleLogMeal}
                                 fastingState={fastingState}
+                                onUpdateStats={handleUpdateStats}
+                                onLogMeal={handleLogMeal}
+                                onAddFoodLogItems={handleAddFoodLogItems}
+                                onUpdateFoodItem={async (item) => {
+                                    const updatedLog = {
+                                        ...dailyLog,
+                                        items: dailyLog.items.map(i => i.id === item.id ? item : i)
+                                    };
+                                    setDailyLog(updatedLog);
+                                    await saveDailyLog(updatedLog);
+                                }}
+                                onDeleteFoodItem={async (itemId) => {
+                                    const updatedLog = {
+                                        ...dailyLog,
+                                        items: dailyLog.items.filter(i => i.id !== itemId)
+                                    };
+                                    setDailyLog(updatedLog);
+                                    await saveDailyLog(updatedLog);
+                                }}
+                                onAddWorkout={handleAddWorkout}
+                                onUpdateWorkout={handleUpdateWorkout}
+                                onDeleteWorkout={handleDeleteWorkout}
                                 onStartFast={handleStartFast}
                                 onEndFast={handleEndFast}
                                 onUpdateFastingConfig={handleUpdateFastingConfig}
+                                refreshData={refreshData}
                             />
                         </motion.div>
                     )}
@@ -470,59 +486,13 @@ const TrackerApp: React.FC = () => {
                             <ShoppingList />
                         </motion.div>
                     )}
-                    {view === AppView.JOURNAL && (
-                        <motion.div
-                            key="journal"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <FoodLogger
-                                currentLog={dailyLog}
-                                onAddItems={handleAddFoodLogItems}
-                                onUpdateFoodItem={async (item) => {
-                                    const updatedLog = {
-                                        ...dailyLog,
-                                        items: dailyLog.items.map(i => i.id === item.id ? item : i)
-                                    };
-                                    setDailyLog(updatedLog);
-                                    await saveDailyLog(updatedLog);
-                                }}
-                                onDeleteFoodItem={async (itemId) => {
-                                    const updatedLog = {
-                                        ...dailyLog,
-                                        items: dailyLog.items.filter(i => i.id !== itemId)
-                                    };
-                                    setDailyLog(updatedLog);
-                                    await saveDailyLog(updatedLog);
-                                }}
-                                onAddWorkout={handleAddWorkout}
-                                onUpdateWorkout={handleUpdateWorkout}
-                                onDeleteWorkout={handleDeleteWorkout}
-                                onUpdateWeight={handleUpdateWeight}
-                                userStats={userStats}
-                            />
-                        </motion.div>
-                    )}
-                    {view === AppView.ANALYTICS && (
-                        <motion.div
-                            key="analytics"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <Analytics userStats={userStats} />
-                        </motion.div>
-                    )}
                 </AnimatePresence>
             </main>
 
             {/* Mobile Bottom Navigation - Floating Glass */}
             <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
                 <div className="glass-panel rounded-full px-6 py-3 flex justify-between items-center shadow-xl border-border/50 bg-suface/80">
-                    <button onClick={() => setView(AppView.DASHBOARD)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.DASHBOARD ? 'text-primary' : 'text-muted hover:text-main'}`}>
+                    <button onClick={() => setView(AppView.TRACK)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.TRACK ? 'text-primary' : 'text-muted hover:text-main'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
                     </button>
                     <button onClick={() => setView(AppView.PLANNER)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.PLANNER ? 'text-primary' : 'text-muted hover:text-main'}`}>
@@ -533,9 +503,6 @@ const TrackerApp: React.FC = () => {
                     </button>
                     <button onClick={() => setView(AppView.SHOPPING)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.SHOPPING ? 'text-primary' : 'text-muted hover:text-main'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                    </button>
-                    <button onClick={() => setView(AppView.ANALYTICS)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.ANALYTICS ? 'text-primary' : 'text-muted hover:text-main'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
                     </button>
                 </div>
             </div>
