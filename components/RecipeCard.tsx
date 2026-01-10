@@ -61,9 +61,6 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
               {meal.calories}
             </span>
           </div>
-          <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed h-10">
-            {meal.description || 'A healthy, delicious meal option providing balanced nutrition.'}
-          </p>
         </div>
 
         {/* Macros */}

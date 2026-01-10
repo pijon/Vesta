@@ -91,6 +91,9 @@ export interface EnhancedShoppingState {
   removed: string[];
   lastGeneratedDate: string;
   cachedPurchasableItems: PurchasableItem[];
+  cachedParsedIngredients: ParsedIngredient[];
+  cachedAggregatedIngredients: AggregatedIngredient[];
+  ingredientsHash: string;
 }
 
 export interface FoodLogItem {

@@ -24,6 +24,7 @@ export const ShoppingList: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [totalPlannedMeals, setTotalPlannedMeals] = useState(0);
 
   // Persistence State
   const [inventory, setInventory] = useState<{ items: Array<{ name: string }> }>({ items: [] });
@@ -66,11 +67,17 @@ export const ShoppingList: React.FC = () => {
 
       // Extract ingredients from weekly plan
       const plan = await getWeeklyPlan();
+
+      // Calculate meal count with robust date check
+      const mealCount = countMealsInPlan(plan);
+      setTotalPlannedMeals(mealCount);
+
       const extractedIngredients = extractIngredientsFromPlan(plan);
 
       if (extractedIngredients.length === 0) {
         setIsProcessing(false);
         setPhase('raw');
+        // If we have meals but no ingredients, we still return to let the render handle it
         return;
       }
 
@@ -89,8 +96,8 @@ export const ShoppingList: React.FC = () => {
       const currentHash = hashIngredients(extractedIngredients);
 
       if (enhancedState.ingredientsHash === currentHash &&
-          enhancedState.cachedParsedIngredients.length > 0 &&
-          enhancedState.cachedAggregatedIngredients.length > 0) {
+        enhancedState.cachedParsedIngredients.length > 0 &&
+        enhancedState.cachedAggregatedIngredients.length > 0) {
         // Load from cache
         setLoadingMessage('Loading cached analysis...');
         setParsedIngredients(enhancedState.cachedParsedIngredients);
@@ -116,21 +123,44 @@ export const ShoppingList: React.FC = () => {
     }
   };
 
+  const getLocalMidnight = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  const countMealsInPlan = (plan: Record<string, any>): number => {
+    let count = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    Object.values(plan).forEach(day => {
+      // Use robust local date comparison
+      if (getLocalMidnight(day.date) >= today) {
+        count += day.meals.length;
+      }
+    });
+    return count;
+  };
+
   const extractIngredientsFromPlan = (plan: Record<string, any>): Array<{ text: string, recipeId: string, recipeName: string }> => {
     const ingredients: Array<{ text: string, recipeId: string, recipeName: string }> = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     Object.values(plan).forEach(day => {
-      if (new Date(day.date) >= today) {
+      const dayDate = getLocalMidnight(day.date);
+      if (dayDate >= today) {
         day.meals.forEach((meal: any) => {
-          meal.ingredients.forEach((ing: string) => {
-            ingredients.push({
-              text: ing.trim(),
-              recipeId: meal.id,
-              recipeName: meal.name
+          const mealIngs = meal.ingredients;
+          if (Array.isArray(mealIngs) && mealIngs.length > 0) {
+            mealIngs.forEach((ing: string) => {
+              ingredients.push({
+                text: ing.trim(),
+                recipeId: meal.id,
+                recipeName: meal.name
+              });
             });
-          });
+          }
         });
       }
     });
@@ -360,7 +390,10 @@ export const ShoppingList: React.FC = () => {
         purchased: [],
         removed: [],
         lastGeneratedDate: '',
-        cachedPurchasableItems: []
+        cachedPurchasableItems: [],
+        cachedParsedIngredients: [],
+        cachedAggregatedIngredients: [],
+        ingredientsHash: ''
       };
 
       await saveEnhancedShoppingState(newState);
@@ -384,65 +417,6 @@ export const ShoppingList: React.FC = () => {
   const purchasedItems = purchasableItems.filter(item => isPurchased(item.ingredientName));
   const unpurchasedItems = purchasableItems.filter(item => !isPurchased(item.ingredientName));
 
-  // Empty state - no meals planned
-  if (!isProcessing && aggregatedIngredients.length === 0) {
-    return (
-      <div className="space-y-6 pb-20 animate-fade-in">
-        <header>
-          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
-          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
-        </header>
-
-        <div className="p-12 text-center text-slate-600 bg-white rounded-3xl border border-dashed border-slate-200">
-          <div className="text-4xl mb-4">🍽️</div>
-          <p className="text-lg font-medium text-slate-900 mb-2">No meals planned yet</p>
-          <p className="text-sm">Go to the Planner to add meals and generate your shopping list.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading state
-  if (isProcessing) {
-    return (
-      <div className="space-y-6 pb-20 animate-fade-in">
-        <header>
-          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
-          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
-        </header>
-
-        <div className="p-12 text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-emerald-600 mb-4"></div>
-          <p className="text-slate-600 font-medium">{loadingMessage}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="space-y-6 pb-20 animate-fade-in">
-        <header className="section-header">
-          <h2 className="section-title">Shopping List</h2>
-          <p className="section-description">Your smart grocery assistant</p>
-        </header>
-
-        <div className="p-8 text-center text-red-600 bg-red-50 rounded-2xl border border-red-200">
-          <div className="text-3xl mb-2">⚠️</div>
-          <p className="font-medium mb-2">Error</p>
-          <p className="text-sm">{error}</p>
-          <button
-            onClick={() => initializeShoppingList()}
-            className="btn-primary mt-4"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Phase 0: Raw Ingredients (pre-analysis)
   if (phase === 'raw') {
     // Group ingredients by recipe
@@ -459,7 +433,11 @@ export const ShoppingList: React.FC = () => {
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="heading-1">Shopping List</h2>
-            <p className="text-muted font-medium mt-2">Your weekly meal plan needs {rawIngredients.length} ingredients</p>
+            {rawIngredients.length === 0 ? (
+              <p className="text-muted font-medium mt-2">No ingredients to analyze</p>
+            ) : (
+              <p className="text-muted font-medium mt-2">Your weekly meal plan needs {rawIngredients.length} ingredients</p>
+            )}
           </div>
           <button
             onClick={handleResetList}
@@ -528,6 +506,166 @@ export const ShoppingList: React.FC = () => {
       </div>
     );
   }
+
+  // Loading state
+  if (isProcessing) {
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header>
+          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
+          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
+        </header>
+
+        <div className="p-12 text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-emerald-600 mb-4"></div>
+          <p className="text-slate-600 font-medium">{loadingMessage}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header className="section-header">
+          <h2 className="section-title">Shopping List</h2>
+          <p className="section-description">Your smart grocery assistant</p>
+        </header>
+
+        <div className="p-8 text-center text-red-600 bg-red-50 rounded-2xl border border-red-200">
+          <div className="text-3xl mb-2">⚠️</div>
+          <p className="font-medium mb-2">Error</p>
+          <p className="text-sm">{error}</p>
+          <button
+            onClick={() => initializeShoppingList()}
+            className="btn-primary mt-4"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Phase 0: Raw Ingredients (pre-analysis)
+  if (phase === 'raw') {
+    // Group ingredients by recipe
+    const recipeGroups = new Map<string, { recipeName: string, ingredients: string[] }>();
+    rawIngredients.forEach(ing => {
+      if (!recipeGroups.has(ing.recipeId)) {
+        recipeGroups.set(ing.recipeId, { recipeName: ing.recipeName, ingredients: [] });
+      }
+      recipeGroups.get(ing.recipeId)!.ingredients.push(ing.text);
+    });
+
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="heading-1">Shopping List</h2>
+            {rawIngredients.length === 0 ? (
+              <p className="text-muted font-medium mt-2">No ingredients to analyze</p>
+            ) : (
+              <p className="text-muted font-medium mt-2">Your weekly meal plan needs {rawIngredients.length} ingredients</p>
+            )}
+          </div>
+          <button
+            onClick={handleResetList}
+            className="btn-secondary btn-sm self-start md:self-auto"
+          >
+            Reset All
+          </button>
+        </header>
+
+        {/* Info Card */}
+        <div className="card card-padding bg-sky-50/50 border-sky-200">
+          <div className="flex gap-3 items-start">
+            <div className="text-2xl">📝</div>
+            <div>
+              <h3 className="heading-4 mb-1">Ready to Analyze</h3>
+              <p className="text-muted text-sm">
+                Click "Analyze Ingredients" to let AI parse and organize your grocery list.
+                This uses smart categorization and won't run again unless your meal plan changes.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recipe Groups */}
+        <div className="space-y-4">
+          {Array.from(recipeGroups.values()).map((group, index) => (
+            <div key={index} className="card card-padding-sm">
+              <h3 className="heading-4 mb-3">{group.recipeName}</h3>
+              <ul className="space-y-1.5">
+                {group.ingredients.map((ing, ingIndex) => (
+                  <li key={ingIndex} className="text-sm text-muted flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{ing}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        {/* Analyze Button */}
+        <div className="flex justify-center pt-4">
+          <button
+            onClick={handleAnalyzeIngredients}
+            disabled={isProcessing}
+            className={isProcessing ? 'btn-primary btn-lg flex items-center gap-3 opacity-50' : 'btn-primary btn-lg flex items-center gap-3'}
+          >
+            {isProcessing ? (
+              <>
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Analyzing...</span>
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <span>Analyze Ingredients</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state - no meals planned (MOVED BELOW RAW PHASE)
+  if (!isProcessing && aggregatedIngredients.length === 0 && phase !== 'raw') {
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <header>
+          <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
+          <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
+        </header>
+
+        <div className="p-12 text-center text-slate-600 bg-white rounded-3xl border border-dashed border-slate-200">
+          <div className="text-4xl mb-4">🍽️</div>
+          {totalPlannedMeals > 0 ? (
+            <>
+              <p className="text-lg font-medium text-slate-900 mb-2">No ingredients found</p>
+              <p className="text-sm">You have {totalPlannedMeals} meals planned, but they don't list any ingredients to shop for.</p>
+              <p className="text-sm mt-2 text-muted-foreground/60">(Custom meals or meals without ingredients won't appear here)</p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-medium text-slate-900 mb-2">No meals planned yet</p>
+              <p className="text-sm">Go to the Planner to add meals and generate your shopping list.</p>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
 
   // Phase 1: Requirements Review
   if (phase === 'requirements') {

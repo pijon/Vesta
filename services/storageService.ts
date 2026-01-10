@@ -166,7 +166,10 @@ export const getEnhancedShoppingState = async (): Promise<EnhancedShoppingState>
     purchased: [],
     removed: [],
     lastGeneratedDate: '',
-    cachedPurchasableItems: []
+    cachedPurchasableItems: [],
+    cachedParsedIngredients: [],
+    cachedAggregatedIngredients: [],
+    ingredientsHash: ''
   };
 };
 
