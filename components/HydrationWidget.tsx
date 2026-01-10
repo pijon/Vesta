@@ -5,18 +5,34 @@ interface HydrationWidgetProps {
     intake: number;
     goal: number;
     onAdd: (amount: number) => void;
+    onSet: (amount: number) => void;
 }
 
-export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, onAdd }) => {
+export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, onAdd, onSet }) => {
     const percentage = Math.min(100, (intake / goal) * 100);
-    const [isAddOpen, setIsAddOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValue, setEditValue] = useState(intake.toString());
+
+    useEffect(() => {
+        setEditValue(intake.toString());
+    }, [intake]);
+
+    const handleSave = () => {
+        const val = parseInt(editValue);
+        if (!isNaN(val) && val >= 0) {
+            onSet(val);
+        } else {
+            setEditValue(intake.toString());
+        }
+        setIsEditing(false);
+    };
 
     // Bubbles animation
     const bubbles = [1, 2, 3, 4, 5];
 
     return (
         <div className="glass-panel p-0 rounded-3xl overflow-hidden relative group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/20"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/20 pointer-events-none"></div>
             <div className="absolute inset-0 bg-blue-500/5 pointer-events-none" />
 
             <div className="p-6 relative z-10 flex justify-between items-center gap-6 h-52">
@@ -30,9 +46,36 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
                         </div>
 
                         <div className="mt-2">
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">{intake}</span>
-                                <span className="text-sm text-slate-400 font-medium">/ {goal} ml</span>
+                            <div className="flex items-center gap-2">
+                                {isEditing ? (
+                                    <input
+                                        type="number"
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        onBlur={handleSave}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                                        className="text-3xl font-bold text-blue-600 dark:text-blue-400 w-24 bg-white dark:bg-slate-800 border border-blue-200 rounded px-1 outline-none shadow-sm"
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <div
+                                        className="flex items-center gap-2 cursor-pointer group/edit"
+                                        onClick={() => setIsEditing(true)}
+                                    >
+                                        <span className="text-3xl font-bold text-blue-600 dark:text-blue-400 border-b border-transparent group-hover/edit:border-blue-300 transition-colors">
+                                            {intake}
+                                        </span>
+                                        <button
+                                            className="p-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100 group-hover/edit:opacity-100"
+                                            title="Edit manually"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                )}
+                                <span className="text-sm text-slate-400 font-medium self-end mb-1">/ {goal} ml</span>
                             </div>
                             <p className="text-xs text-blue-400/80 font-medium mt-1 uppercase tracking-wide">Daily Goal</p>
                         </div>

@@ -7,13 +7,15 @@ interface WorkoutEntryModalProps {
   onClose: () => void;
   onSave: (workout: WorkoutItem) => void;
   editingWorkout?: WorkoutItem | null;
+  recentWorkouts?: WorkoutItem[];
 }
 
 export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  editingWorkout = null
+  editingWorkout = null,
+  recentWorkouts = []
 }) => {
   const [workoutType, setWorkoutType] = useState('');
   const [caloriesBurned, setCaloriesBurned] = useState('');
@@ -33,16 +35,16 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
 
     const workout: WorkoutItem = editingWorkout
       ? {
-          ...editingWorkout,
-          type: workoutType,
-          caloriesBurned: parseInt(caloriesBurned) || 0
-        }
+        ...editingWorkout,
+        type: workoutType,
+        caloriesBurned: parseInt(caloriesBurned) || 0
+      }
       : {
-          id: crypto.randomUUID(),
-          type: workoutType,
-          caloriesBurned: parseInt(caloriesBurned) || 0,
-          timestamp: Date.now()
-        };
+        id: crypto.randomUUID(),
+        type: workoutType,
+        caloriesBurned: parseInt(caloriesBurned) || 0,
+        timestamp: Date.now()
+      };
 
     onSave(workout);
     handleClose();
@@ -69,8 +71,9 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
           {/* Header */}
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-purple-50">
             <h3 className="font-normal text-2xl text-slate-900 font-serif flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
-                <path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-purple-600">
+                <path d="M12.1 3A1.9 1.9 0 1 1 14 4.9 1.898 1.898 0 0 1 12.1 3zm2.568 4.893c.26-1.262-1.399-1.861-2.894-2.385L7.09 6.71l.577 4.154c0 .708 1.611.489 1.587-.049l-.39-2.71 2.628-.48-.998 4.92 3.602 4.179-1.469 4.463a.95.95 0 0 0 .39 1.294c.523.196 1.124-.207 1.486-.923.052-.104 1.904-5.127 1.904-5.127l-2.818-3.236 1.08-5.303zm-5.974 8.848l-3.234.528a1.033 1.033 0 0 0-.752 1.158c.035.539.737.88 1.315.802l3.36-.662 2.54-2.831-1.174-1.361zm8.605-7.74l-1.954.578-.374 1.837 2.865-.781a.881 0 0 0-.537-1.633z" />
+                <path fill="none" d="M0 0h24v24H0z" />
               </svg>
               {editingWorkout ? 'Edit Workout' : 'Log Workout'}
             </h3>
@@ -86,30 +89,54 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Workout Type</label>
-              <input
-                type="text"
-                value={workoutType}
-                onChange={(e) => setWorkoutType(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-medium"
-                placeholder="e.g. Running, Cycling, Swimming..."
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Calories Burned</label>
-              <input
-                type="number"
-                value={caloriesBurned}
-                onChange={(e) => setCaloriesBurned(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-medium"
-                placeholder="e.g. 200"
-              />
-              <p className="text-xs text-slate-500 mt-2 ml-1">Estimate based on duration and intensity</p>
+          {/* Content */}
+          <div className="p-6">
+            {recentWorkouts && recentWorkouts.length > 0 && !editingWorkout && (
+              <div className="mb-6">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Quick Add</label>
+                <div className="flex flex-wrap gap-2">
+                  {recentWorkouts.map((workout, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setWorkoutType(workout.type);
+                        setCaloriesBurned(workout.caloriesBurned.toString());
+                      }}
+                      className="px-3 py-2 bg-purple-50 text-purple-700 text-sm font-medium rounded-lg border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-colors flex items-center gap-2"
+                    >
+                      <span>{workout.type}</span>
+                      <span className="opacity-60 text-xs">({workout.caloriesBurned} kcal)</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Workout Type</label>
+                <input
+                  type="text"
+                  value={workoutType}
+                  onChange={(e) => setWorkoutType(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-medium"
+                  placeholder="e.g. Running, Cycling, Swimming..."
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Calories Burned</label>
+                <input
+                  type="number"
+                  value={caloriesBurned}
+                  onChange={(e) => setCaloriesBurned(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-medium"
+                  placeholder="e.g. 200"
+                />
+                <p className="text-xs text-slate-500 mt-2 ml-1">Estimate based on duration and intensity</p>
+              </div>
             </div>
           </div>
 
@@ -124,11 +151,10 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
             <button
               onClick={handleSave}
               disabled={!workoutType.trim() || !caloriesBurned}
-              className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${
-                !workoutType.trim() || !caloriesBurned
-                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                  : 'bg-purple-600 text-white hover:bg-purple-700'
-              }`}
+              className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!workoutType.trim() || !caloriesBurned
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
             >
               {editingWorkout ? 'Save Changes' : 'Add Workout'}
             </button>

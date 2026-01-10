@@ -14,7 +14,7 @@ const recipeSchema: Schema = {
     fat: { type: Type.NUMBER },
     carbs: { type: Type.NUMBER },
     servings: { type: Type.NUMBER },
-    ingredients: { 
+    ingredients: {
       type: Type.ARRAY,
       items: { type: Type.STRING }
     },
@@ -27,16 +27,19 @@ const recipeSchema: Schema = {
   required: ['name', 'calories', 'ingredients']
 };
 
-export const parseRecipeText = async (text: string): Promise<Partial<Recipe>> => {
+export const parseRecipeText = async (text: string, attempt = 1): Promise<Partial<Recipe>> => {
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    Extract recipe details from the following text. 
-    Estimate calories per serving if not explicitly stated.
-    Identify if it's best for breakfast, main meal, snack, or a light meal.
-    Identify the number of servings (default to 1).
-    Format ingredients into a clean list.
+    Extract recipe details from the text below.
     
+    CRITICAL INSTRUCTIONS:
+    1. FLATTEN all ingredient sections. If the recipe has "For the sauce", "For the marinade", etc., ignore these headers and just list all ingredients in one single list.
+    2. Estimate calories per serving if not provided.
+    3. Determine the meal type (breakfast, main meal, snack, light meal).
+    4. Default servings to 1 if not found.
+    5. Clean up ingredient strings (remove checkboxes or bullets).
+
     Recipe Text: "${text}"
   `;
 
@@ -52,7 +55,10 @@ export const parseRecipeText = async (text: string): Promise<Partial<Recipe>> =>
 
     const output = response.text;
     if (!output) throw new Error("No response from AI");
-    
+
+    // Debug logging
+    console.log(`[Recipe Parse] Attempt ${attempt} success. Output length: ${output.length}`);
+
     const data = JSON.parse(output);
     return {
       ...data,
@@ -60,28 +66,37 @@ export const parseRecipeText = async (text: string): Promise<Partial<Recipe>> =>
     };
 
   } catch (error) {
-    console.error("Error parsing recipe:", error);
+    console.warn(`[Recipe Parse] Attempt ${attempt} failed:`, error);
+
+    if (attempt < 3) {
+      console.log(`[Recipe Parse] Retrying (Attempt ${attempt + 1})...`);
+      // Simple backoff
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+      return parseRecipeText(text, attempt + 1);
+    }
+
+    console.error("Recipe parsing failed after 3 attempts.", error);
     throw error;
   }
 };
 
 const dayPlanSchema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-        tips: { type: Type.STRING },
-        totalCalories: { type: Type.NUMBER },
-        meals: {
-            type: Type.ARRAY,
-            items: recipeSchema
-        }
-    },
-    required: ['meals', 'totalCalories']
+  type: Type.OBJECT,
+  properties: {
+    tips: { type: Type.STRING },
+    totalCalories: { type: Type.NUMBER },
+    meals: {
+      type: Type.ARRAY,
+      items: recipeSchema
+    }
+  },
+  required: ['meals', 'totalCalories']
 };
 
 export const generateMealPlan = async (preferences: string): Promise<DayPlan> => {
-    if (!apiKey) throw new Error("API Key not found");
+  if (!apiKey) throw new Error("API Key not found");
 
-    const prompt = `
+  const prompt = `
         Generate a one-day meal plan (breakfast, main meal, main meal or light meal) that totals approximately 800 calories.
         Follow these dietary preferences: "${preferences}".
         Include a tip for following the Fast 800 diet.
@@ -89,134 +104,138 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
         Note: Use 'main meal' for lunch and dinner type meals.
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: GEMINI_TEXT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: dayPlanSchema
-            }
-        });
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: dayPlanSchema
+      }
+    });
 
-        const output = response.text;
-        if (!output) throw new Error("No response from AI");
-        
-        const data = JSON.parse(output);
-        
-        // Ensure meals have IDs and arrays
-        const mealsWithIds = data.meals.map((m: any) => ({
-            ...m,
-            id: crypto.randomUUID(),
-            ingredients: m.ingredients || [],
-            instructions: m.instructions || [],
-            servings: m.servings || 1
-        }));
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
 
-        return {
-            date: new Date().toISOString().split('T')[0],
-            meals: mealsWithIds,
-            completedMealIds: [],
-            tips: data.tips || "Stay hydrated!",
-            totalCalories: data.totalCalories
-        };
+    const data = JSON.parse(output);
 
-    } catch (error) {
-        console.error("Error generating meal plan:", error);
-        throw error;
-    }
+    // Ensure meals have IDs and arrays
+    const mealsWithIds = data.meals.map((m: any) => ({
+      ...m,
+      id: crypto.randomUUID(),
+      ingredients: m.ingredients || [],
+      instructions: m.instructions || [],
+      servings: m.servings || 1
+    }));
+
+    return {
+      date: new Date().toISOString().split('T')[0],
+      meals: mealsWithIds,
+      completedMealIds: [],
+      tips: data.tips || "Stay hydrated!",
+      totalCalories: data.totalCalories
+    };
+
+  } catch (error) {
+    console.error("Error generating meal plan:", error);
+    throw error;
+  }
 };
 
 const foodItemsSchema: Schema = {
-    type: Type.ARRAY,
-    items: {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            calories: { type: Type.NUMBER }
-        },
-        required: ['name', 'calories']
-    }
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      name: { type: Type.STRING },
+      calories: { type: Type.NUMBER }
+    },
+    required: ['name', 'calories']
+  }
 };
 
 export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
-    if (!apiKey) throw new Error("API Key not found");
+  if (!apiKey) throw new Error("API Key not found");
 
-    const prompt = `
+  const prompt = `
         Analyze the following text and identify food items and their estimated calories.
         Text: "${text}"
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: GEMINI_TEXT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: foodItemsSchema
-            }
-        });
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: foodItemsSchema
+      }
+    });
 
-        const output = response.text;
-        if (!output) throw new Error("No response from AI");
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
 
-        const items = JSON.parse(output);
-        return items.map((item: any) => ({
-            id: crypto.randomUUID(),
-            name: item.name,
-            calories: item.calories,
-            timestamp: Date.now()
-        }));
+    const items = JSON.parse(output);
+    return items.map((item: any) => ({
+      id: crypto.randomUUID(),
+      name: item.name,
+      calories: item.calories,
+      timestamp: Date.now()
+    }));
 
-    } catch (error) {
-        console.error("Error analyzing food log:", error);
-        throw error;
-    }
+  } catch (error) {
+    console.error("Error analyzing food log:", error);
+    throw error;
+  }
 };
 
 export const analyzeFoodImage = async (imageBase64: string, mimeType: string): Promise<FoodLogItem[]> => {
-    if (!apiKey) throw new Error("API Key not found");
+  if (!apiKey) throw new Error("API Key not found");
 
-    const prompt = `
+  const prompt = `
         Analyze the food items in this image and estimate their calories.
         List each distinct food item you can identify with its estimated calorie content.
         Be specific about portion sizes when visible (e.g., "1 slice of bread", "half cup of rice").
         Be conservative in estimates to help users stay within their 800 kcal daily limit.
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: GEMINI_TEXT_MODEL,
-            contents: [
-                { type: 'text', text: prompt },
-                {
-                    type: 'image',
-                    data: imageBase64,
-                    mime_type: mimeType,
-                    resolution: 'medium'
-                }
-            ],
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: foodItemsSchema
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: imageBase64,
+                mimeType: mimeType
+              }
             }
-        });
+          ]
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: foodItemsSchema
+      }
+    });
 
-        const output = response.text;
-        if (!output) throw new Error("No response from AI");
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
 
-        const items = JSON.parse(output);
-        return items.map((item: any) => ({
-            id: crypto.randomUUID(),
-            name: item.name,
-            calories: item.calories,
-            timestamp: Date.now()
-        }));
+    const items = JSON.parse(output);
+    return items.map((item: any) => ({
+      id: crypto.randomUUID(),
+      name: item.name,
+      calories: item.calories,
+      timestamp: Date.now()
+    }));
 
-    } catch (error) {
-        console.error("Error analyzing food image:", error);
-        throw error;
-    }
+  } catch (error) {
+    console.error("Error analyzing food image:", error);
+    throw error;
+  }
 };
 
 const weeklyPlanSchema: Schema = {
@@ -225,18 +244,19 @@ const weeklyPlanSchema: Schema = {
     type: Type.OBJECT,
     properties: {
       date: { type: Type.STRING, description: "YYYY-MM-DD format" },
-      mealIds: { 
-        type: Type.ARRAY, 
+      mealIds: {
+        type: Type.ARRAY,
         items: { type: Type.STRING },
-        description: "IDs of the selected recipes" 
+        description: "IDs of the selected recipes"
       },
-      dailyTip: { type: Type.STRING }
+      dailyTip: { type: Type.STRING },
+      type: { type: Type.STRING, enum: ['fast', 'non-fast'] }
     },
-    required: ["date", "mealIds"]
+    required: ["date", "mealIds", "type"]
   }
 };
 
-export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: string): Promise<{date: string, mealIds: string[], dailyTip?: string}[]> => {
+export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: string, dietMode: 'daily' | '5:2' = 'daily', nonFastCalories: number = 2000): Promise<{ date: string, mealIds: string[], dailyTip?: string, type?: 'fast' | 'non-fast' }[]> => {
   if (!apiKey) throw new Error("API Key not found");
 
   // Simplify recipes to reduce token usage and focus AI on nutrition/type
@@ -251,13 +271,14 @@ export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: 
     You are an expert meal planner for the Fast 800 diet.
     
     Task: Create a 7-day meal plan starting from ${startDate}.
+    Diet Mode: ${dietMode === 'daily' ? 'Strict 800 calories every day' : `5:2 Diet. 2 days should be "fast" days (800 kcal), and 5 days should be "non-fast" days (approx ${nonFastCalories} kcal)`}.
     
     Rules:
-    1. Target approximately 800 calories per day (range 750-900 is acceptable).
-    2. Use ONLY the recipes provided in the JSON list below. Do not invent recipes.
-    3. Return the exact ID of the recipe used.
-    4. Try to vary the meals day-to-day if possible, but repeating favorites is okay if the user has few recipes.
-    5. Ensure a mix of breakfast/main meal/light meal types if the recipe metadata allows.
+    1. If Diet Mode is "Strict 800", every day target ~800 calories.
+    2. If Diet Mode is "5:2", randomly select 2 days (e.g., Mon/Thu or random) to be FAST days (~800 kcal). The other 5 days should be NON-FAST days (~${nonFastCalories} kcal).
+    3. Use ONLY the recipes provided in the JSON list below. Do not invent recipes.
+    4. Return the exact ID of the recipe used.
+    5. IMPORTANT: For each day, specify "type": "fast" or "non-fast".
     
     Available Recipes:
     ${JSON.stringify(simplifiedRecipes)}
@@ -296,7 +317,7 @@ const ingredientParseSchema: Schema = {
   }
 };
 
-export const parseIngredients = async (ingredientTexts: string[]): Promise<Array<{name: string, quantity: number, unit: string}>> => {
+export const parseIngredients = async (ingredientTexts: string[]): Promise<Array<{ name: string, quantity: number, unit: string }>> => {
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
@@ -372,7 +393,7 @@ const purchasableItemSchema: Schema = {
 };
 
 export const convertToPurchasableQuantities = async (
-  aggregatedIngredients: Array<{name: string, quantity: number, unit: string}>
+  aggregatedIngredients: Array<{ name: string, quantity: number, unit: string }>
 ): Promise<PurchasableItem[]> => {
   if (!apiKey) throw new Error("API Key not found");
 

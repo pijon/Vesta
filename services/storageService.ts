@@ -1,4 +1,4 @@
-import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary } from "../types";
+import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem } from "../types";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc } from "firebase/firestore";
@@ -46,37 +46,103 @@ export const deleteRecipe = async (id: string) => {
 };
 
 // --- Planning ---
-// Saved as a SINGLE document 'data/plan' for simplicity, or collection 'days'. 
-// Current app loads ALL plans at once for Shopping List.
-// Let's use a single document for now to match 'localstorage' structure.
-const PLAN_DOC = 'plan';
+const PLAN_DOC = 'plan'; // Keeping reference for legacy migration and export
 
-export const getWeeklyPlan = async (): Promise<Record<string, DayPlan>> => {
-  try {
-    const d = await getDoc(getDocRef('data', PLAN_DOC));
-    if (d.exists()) {
-      return d.data() as Record<string, DayPlan>;
-    }
-  } catch (e) { console.error(e); }
-  return {};
-};
+// Refactored to use 'days' collection to avoid 1MB document limit.
+// Legacy 'data/plan' document is deprecated.
 
 export const getDayPlan = async (date: string): Promise<DayPlan> => {
-  // Optimization: If we really want single day, fetching the whole blob is bad.
-  // But for MVP migration, we stick to the Plan blob.
-  // TODO: Refactor to 'days' collection for scalability
-  const plan = await getWeeklyPlan();
-  return plan[date] || { date, meals: [], completedMealIds: [] };
+  try {
+    // 1. Try new collection
+    const start = performance.now();
+    const docRef = doc(db, 'users', getUserId(), 'days', date);
+    const dayDoc = await getDoc(docRef);
+
+    if (dayDoc.exists()) {
+      return dayDoc.data() as DayPlan;
+    }
+
+    // 2. Fallback to legacy (if not found in new, and legacy exists)
+    // We don't want to load the huge blob on every missing day, but for migration safety:
+    // Ideally we migrate once. For now, let's return empty and rely on a global migration.
+    return { date, meals: [], completedMealIds: [] };
+  } catch (e) {
+    console.error("Error getting day plan:", e);
+    return { date, meals: [], completedMealIds: [] };
+  }
 };
 
 export const saveDayPlan = async (dayPlan: DayPlan) => {
-  // This is risky with concurrent edits on a single doc, but okay for single user.
-  // We use setDoc with merge: true to just update that key?
-  // No, firestore keys with dots... date is "2023-01-01".
-  // We can use updateDoc({ [date]: dayPlan })
-  const ref = getDocRef('data', PLAN_DOC);
-  // Ensure doc exists first
-  await setDoc(ref, { [dayPlan.date]: dayPlan }, { merge: true });
+  const docRef = doc(db, 'users', getUserId(), 'days', dayPlan.date);
+  await setDoc(docRef, dayPlan);
+};
+
+// Migration Helper
+export const migrateLegacyPlanToCollection = async () => {
+  try {
+    const legacyRef = getDocRef('data', 'plan');
+    const legacyDoc = await getDoc(legacyRef);
+
+    if (legacyDoc.exists()) {
+      const data = legacyDoc.data();
+      console.log("Migrating legacy plan data...", Object.keys(data).length, "days found.");
+
+      const batchSize = 100; // Firestore batch limit is 500
+      const entries = Object.entries(data);
+
+      // Process in chunks to avoid blowing up memory/batch limits
+      for (let i = 0; i < entries.length; i += 50) {
+        // We can just use Promise.all for parallel writes, simplest for now
+        const chunk = entries.slice(i, i + 50);
+        await Promise.all(chunk.map(async ([date, plan]) => {
+          // Ensure it's a valid plan object
+          if (date && (plan as DayPlan).meals) {
+            const docRef = doc(db, 'users', getUserId(), 'days', date);
+            await setDoc(docRef, plan as DayPlan);
+          }
+        }));
+        console.log(`Migrated chunk ${i} - ${i + 50}`);
+      }
+
+      console.log("Migration finished. Deleting legacy doc.");
+      await deleteDoc(legacyRef);
+      return { success: true };
+    }
+    return { success: true, message: "No legacy data found" };
+  } catch (e: any) {
+    console.error("Migration failed:", e);
+    return { success: false, error: e.message };
+  }
+};
+
+// Helper to get plan for a range of dates (upcoming week)
+export const getUpcomingPlan = async (days: number = 7): Promise<Record<string, DayPlan>> => {
+  const plans: Record<string, DayPlan> = {};
+  const today = new Date();
+
+  const dates = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  // Fetch in parallel
+  await Promise.all(dates.map(async date => {
+    const p = await getDayPlan(date);
+    if (p.meals && p.meals.length > 0) {
+      plans[date] = p;
+    }
+  }));
+
+  return plans;
+};
+
+// Deprecated: Used only for explicit exports or legacy checks
+export const getWeeklyPlan = async (): Promise<Record<string, DayPlan>> => {
+  // Use collection fetch (careful with size)
+  // For export purposes, we might need a range.
+  return getUpcomingPlan(14); // Return 2 weeks just in case
 };
 
 // --- Stats (Weight) ---
@@ -220,6 +286,32 @@ export const getAllDailySummaries = async (): Promise<DailySummary[]> => {
   });
 
   return summaries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+};
+
+export const getRecentWorkouts = async (limit: number = 5): Promise<WorkoutItem[]> => {
+  const snapshot = await getDocs(getCollectionRef('logs'));
+  const allWorkouts: WorkoutItem[] = [];
+
+  snapshot.forEach(doc => {
+    const log = doc.data() as DailyLog;
+    if (log.workouts) {
+      allWorkouts.push(...log.workouts);
+    }
+  });
+
+  // Sort by timestamp descending
+  allWorkouts.sort((a, b) => b.timestamp - a.timestamp);
+
+  // Deduplicate by type (keeping most recent)
+  const uniqueWorkouts = new Map<string, WorkoutItem>();
+  allWorkouts.forEach(w => {
+    const key = w.type.toLowerCase().trim();
+    if (!uniqueWorkouts.has(key)) {
+      uniqueWorkouts.set(key, w);
+    }
+  });
+
+  return Array.from(uniqueWorkouts.values()).slice(0, limit);
 };
 
 // --- Fasting ---

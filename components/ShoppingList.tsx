@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  getWeeklyPlan,
+  getUpcomingPlan,
   getPantryInventory,
   addToPantry,
   removeFromPantry,
@@ -66,7 +66,7 @@ export const ShoppingList: React.FC = () => {
       migrateShoppingState();
 
       // Extract ingredients from weekly plan
-      const plan = await getWeeklyPlan();
+      const plan = await getUpcomingPlan(14); // Get next 2 weeks
 
       // Calculate meal count with robust date check
       const mealCount = countMealsInPlan(plan);

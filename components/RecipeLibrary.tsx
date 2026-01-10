@@ -18,6 +18,7 @@ export const RecipeLibrary: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<string>('name');
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Selection and Editing State
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -121,8 +122,10 @@ export const RecipeLibrary: React.FC = () => {
         setUploadedImage(null);
         setImageError(null);
       }
-    } catch (e) {
-      alert("Failed to parse recipe. Please try manual entry or simpler text.");
+    } catch (e: any) {
+      console.error("AI Import Failed:", e);
+      const errorMessage = e.message || "Unknown error occurred";
+      alert(`Failed to parse recipe via AI. \n\nError: ${errorMessage}\n\nPlease check the console for more details.`);
     } finally {
       setIsProcessing(false);
     }
@@ -135,6 +138,16 @@ export const RecipeLibrary: React.FC = () => {
       setRecipes(await getRecipes());
       if (selectedRecipe?.id === id) closeRecipe();
     }
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent, recipe: Recipe) => {
+    e.stopPropagation();
+    const updatedRecipe = { ...recipe, isFavorite: !recipe.isFavorite };
+
+    // Optimistic update
+    setRecipes(prev => prev.map(r => r.id === recipe.id ? updatedRecipe : r));
+
+    await saveRecipe(updatedRecipe);
   };
 
   const handleExport = async () => {
@@ -158,8 +171,9 @@ export const RecipeLibrary: React.FC = () => {
         recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesFilter = activeFilter === 'all' || recipe.type === activeFilter;
+      const matchesFavorite = !showFavoritesOnly || recipe.isFavorite;
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesFilter && matchesFavorite;
     })
     .sort((a, b) => {
       switch (sortOption) {
@@ -287,7 +301,7 @@ export const RecipeLibrary: React.FC = () => {
             </div>
             <input
               type="text"
-              className="block w-full pl-11 input"
+              className="block w-full !pl-12 input"
               placeholder="Search recipes, ingredients, tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -325,6 +339,17 @@ export const RecipeLibrary: React.FC = () => {
               {type}
             </button>
           ))}
+          <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            className={`badge-md whitespace-nowrap transition-all border flex items-center gap-1.5 ${showFavoritesOnly
+              ? 'bg-red-50 text-red-600 border-red-200 shadow-md transform scale-105'
+              : 'bg-surface text-muted border-transparent hover:border-red-100 hover:bg-red-50/50 hover:text-red-500'
+              }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={showFavoritesOnly ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>
+            Favourites
+          </button>
         </div>
       </div>
 
@@ -343,6 +368,8 @@ export const RecipeLibrary: React.FC = () => {
               key={recipe.id}
               meal={recipe}
               onClick={() => openRecipe(recipe)}
+              showMacros={false}
+              onToggleFavorite={(e) => toggleFavorite(e, recipe)}
             />
           ))
         )}

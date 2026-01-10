@@ -60,6 +60,18 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const [tomorrowExpanded, setTomorrowExpanded] = useState(false);
   const [quickWeightInput, setQuickWeightInput] = useState(stats.currentWeight.toString());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [recentWorkouts, setRecentWorkouts] = useState<WorkoutItem[]>([]);
+
+  useEffect(() => {
+    // Load recent workouts for suggestion
+    const loadRecents = async () => {
+      // Dynamic import to avoid cycles? or just standard import
+      const { getRecentWorkouts } = await import('../services/storageService');
+      const recents = await getRecentWorkouts(5);
+      setRecentWorkouts(recents);
+    };
+    loadRecents();
+  }, [dailyLog.workouts]); // Reload when workouts change
 
   // Hydration state
   const [hydration, setHydration] = useState(dailyLog.waterIntake || 0);
@@ -77,7 +89,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const consumed = (dailyLog.items || []).reduce((sum, item) => sum + item.calories, 0);
   const caloriesBurned = (dailyLog.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
   const netCalories = consumed - caloriesBurned;
-  const percentage = Math.min(100, (netCalories / stats.dailyCalorieGoal) * 100);
+
+  // Determine Daily Target based on Day Type
+  const isNonFastDay = todayPlan.type === 'non-fast';
+  const dailyTarget = isNonFastDay ? (stats.nonFastDayCalories || 2000) : stats.dailyCalorieGoal;
+
+  const percentage = Math.min(100, (netCalories / dailyTarget) * 100);
 
   const handleSaveWeight = () => {
     const w = parseFloat(weightInput);
@@ -98,6 +115,13 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     const newIntake = hydration + amount;
     setHydration(newIntake);
     const updatedLog = { ...dailyLog, waterIntake: newIntake };
+    await saveDailyLog(updatedLog);
+    refreshData();
+  };
+
+  const handleSetWater = async (amount: number) => {
+    setHydration(amount);
+    const updatedLog = { ...dailyLog, waterIntake: amount };
     await saveDailyLog(updatedLog);
     refreshData();
   };
@@ -157,7 +181,13 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           <div className="md:col-span-5 bg-surface p-5 rounded-2xl shadow-lg border border-border flex flex-col justify-between h-44">
             <div className="flex flex-col gap-1">
               <div className="flex justify-between items-start">
-                <p className="text-muted text-xs font-bold uppercase tracking-widest">Net Calories</p>
+                <div className="flex flex-col">
+                  <p className="text-muted text-xs font-bold uppercase tracking-widest">Net Calories</p>
+                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded w-fit mt-1 ${isNonFastDay ? 'bg-amber-100 text-amber-800' : 'bg-primary/20 text-primary'
+                    }`}>
+                    {isNonFastDay ? 'Non-Fasting Day' : 'Fasting Day'}
+                  </span>
+                </div>
                 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M11 12h2a2 2 0 1 0 0-4h-2v4Z" />
@@ -167,7 +197,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               </div>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-3xl font-medium text-main font-serif">{netCalories}</span>
-                <span className="text-muted font-medium text-sm">/ {stats.dailyCalorieGoal}</span>
+                <span className="text-muted font-medium text-sm">/ {dailyTarget}</span>
               </div>
               {caloriesBurned > 0 ? (
                 <p className="text-xs text-purple-600 font-medium flex items-center gap-1">
@@ -183,14 +213,14 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             <div>
               <div className="w-full bg-background h-1.5 rounded-full overflow-hidden">
                 <motion.div
-                  className={`h-full rounded-full ${netCalories > stats.dailyCalorieGoal ? 'bg-red-400' : 'bg-primary'}`}
+                  className={`h-full rounded-full ${netCalories > dailyTarget ? 'bg-red-400' : 'bg-primary'}`}
                   initial={{ width: 0 }}
                   animate={{ width: `${percentage}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
                 />
               </div>
               <p className="text-xs text-muted font-medium mt-2">
-                {stats.dailyCalorieGoal - netCalories > 0 ? `${stats.dailyCalorieGoal - netCalories} net kcal remaining` : 'Limit reached'}
+                {dailyTarget - netCalories > 0 ? `${dailyTarget - netCalories} net kcal remaining` : 'Limit reached'}
               </p>
             </div>
           </div>
@@ -246,14 +276,24 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             Log Food
           </button>
           <button
+            onClick={() => handleAddWater(250)}
+            className="flex-1 min-w-[140px] py-3 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-lg flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+            </svg>
+            Log Water (+250ml)
+          </button>
+          <button
             onClick={() => {
               setEditingWorkout(null);
               setIsWorkoutModalOpen(true);
             }}
             className="flex-1 min-w-[140px] py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors shadow-lg flex items-center justify-center gap-2"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.1 3A1.9 1.9 0 1 1 14 4.9 1.898 1.898 0 0 1 12.1 3zm2.568 4.893c.26-1.262-1.399-1.861-2.894-2.385L7.09 6.71l.577 4.154c0 .708 1.611.489 1.587-.049l-.39-2.71 2.628-.48-.998 4.92 3.602 4.179-1.469 4.463a.95.95 0 0 0 .39 1.294c.523.196 1.124-.207 1.486-.923.052-.104 1.904-5.127 1.904-5.127l-2.818-3.236 1.08-5.303zm-5.974 8.848l-3.234.528a1.033 1.033 0 0 0-.752 1.158c.035.539.737.88 1.315.802l3.36-.662 2.54-2.831-1.174-1.361zm8.605-7.74l-1.954.578-.374 1.837 2.865-.781a.881.881 0 0 0-.537-1.633z" />
+              <path fill="none" d="M0 0h24v24H0z" />
             </svg>
             Log Workout
           </button>
@@ -283,43 +323,23 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onNavigate={onNavigate}
       />
 
-      {/* Health Trackers - Collapsible */}
-      <div className="bg-surface rounded-2xl shadow-lg border border-border overflow-hidden">
-        <button
-          onClick={() => setHealthTrackersExpanded(!healthTrackersExpanded)}
-          className="w-full p-5 flex justify-between items-center hover:bg-background/50 transition-colors"
-        >
-          <h3 className="font-medium text-main text-lg font-serif">Health Tracking</h3>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`transition-transform ${healthTrackersExpanded ? 'rotate-180' : ''}`}
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-        {healthTrackersExpanded && (
-          <div className="p-5 pt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <HydrationWidget
-              intake={hydration}
-              goal={stats.dailyWaterGoal || 2000}
-              onAdd={handleAddWater}
-            />
-            <FastingWidget
-              fastingState={fastingState}
-              onStartFast={onStartFast}
-              onEndFast={onEndFast}
-              onUpdateConfig={onUpdateFastingConfig}
-            />
-          </div>
-        )}
+      {/* Trackers Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Hydration Widget */}
+        <HydrationWidget
+          intake={hydration}
+          goal={stats.dailyWaterGoal || 2000}
+          onAdd={handleAddWater}
+          onSet={handleSetWater}
+        />
+
+        {/* Fasting Widget */}
+        <FastingWidget
+          fastingState={fastingState}
+          onStartFast={onStartFast}
+          onEndFast={onEndFast}
+          onUpdateConfig={onUpdateFastingConfig}
+        />
       </div>
 
       {/* Tomorrow's Preview - Collapsible */}
@@ -389,6 +409,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         }}
         onSave={handleWorkoutSave}
         editingWorkout={editingWorkout}
+        recentWorkouts={recentWorkouts}
       />
 
       {selectedRecipe && (

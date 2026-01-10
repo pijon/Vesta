@@ -11,9 +11,11 @@ export interface Recipe {
   type: 'breakfast' | 'main meal' | 'snack' | 'light meal' | 'any';
   servings: number;
   image?: string; // base64 data URL or external URL
+  isFavorite?: boolean;
 }
 
 export type Meal = Recipe;
+
 
 export interface DayPlan {
   date: string; // YYYY-MM-DD
@@ -21,6 +23,7 @@ export interface DayPlan {
   completedMealIds: string[]; // IDs of meals marked as eaten
   tips?: string;
   totalCalories?: number;
+  type?: 'fast' | 'non-fast'; // For 5:2 diet
 }
 
 export interface WeightEntry {
@@ -32,9 +35,11 @@ export interface UserStats {
   startWeight: number;
   currentWeight: number;
   goalWeight: number;
-  dailyCalorieGoal: number;
+  dailyCalorieGoal: number; // Used for "fast" days in 5:2, or every day in daily mode
   dailyWaterGoal: number; // in ml
   weightHistory: WeightEntry[];
+  dietMode?: 'daily' | '5:2'; // Default 'daily'
+  nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
 }
 
 export interface GroceryItem {

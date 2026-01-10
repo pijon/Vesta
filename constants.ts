@@ -13,5 +13,7 @@ export const DEFAULT_USER_STATS = {
   goalWeight: 80,
   dailyCalorieGoal: 800,
   dailyWaterGoal: 2000,
-  weightHistory: []
+  weightHistory: [],
+  dietMode: 'daily' as const,
+  nonFastDayCalories: 2000
 };

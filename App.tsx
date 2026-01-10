@@ -262,6 +262,7 @@ const TrackerApp: React.FC = () => {
                                 className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
                             />
                         </div>
+
                         <div>
                             <label className="block text-sm font-bold text-main mb-2">Goal Weight (kg)</label>
                             <input
@@ -272,14 +273,28 @@ const TrackerApp: React.FC = () => {
                                 className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-main mb-2">Daily Calorie Target</label>
-                            <input
-                                type="number"
-                                value={formStats.dailyCalorieGoal}
-                                onChange={(e) => setFormStats({ ...formStats, dailyCalorieGoal: parseInt(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
-                            />
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-main mb-2">Fasting Day Target</label>
+                                <input
+                                    type="number"
+                                    value={formStats.dailyCalorieGoal}
+                                    onChange={(e) => setFormStats({ ...formStats, dailyCalorieGoal: parseInt(e.target.value) || 0 })}
+                                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
+                                />
+                                <p className="text-xs text-muted mt-1">Target for fasting days</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-main mb-2">Non-Fast Day Target</label>
+                                <input
+                                    type="number"
+                                    value={formStats.nonFastDayCalories || 2000}
+                                    onChange={(e) => setFormStats({ ...formStats, nonFastDayCalories: parseInt(e.target.value) || 0 })}
+                                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
+                                />
+                                <p className="text-xs text-muted mt-1">Target for normal days</p>
+                            </div>
                         </div>
                     </div>
                     <div className="p-6 pt-0 space-y-4">
@@ -463,7 +478,7 @@ const TrackerApp: React.FC = () => {
                             transition={{ duration: 0.2 }}
                             className="max-w-6xl mx-auto p-4 md:p-8"
                         >
-                            <Planner />
+                            <Planner stats={userStats} />
                         </motion.div>
                     )}
                     {view === AppView.RECIPES && (
