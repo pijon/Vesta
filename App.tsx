@@ -408,7 +408,7 @@ const TrackerApp: React.FC = () => {
             </nav>
 
             {/* Main Content Area */}
-            <main className="max-w-6xl mx-auto p-4 md:p-8">
+            <main>
                 <AnimatePresence mode="wait">
                     {view === AppView.TRACK && (
                         <motion.div
@@ -461,6 +461,7 @@ const TrackerApp: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
+                            className="max-w-6xl mx-auto p-4 md:p-8"
                         >
                             <Planner />
                         </motion.div>
@@ -472,6 +473,7 @@ const TrackerApp: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
+                            className="max-w-6xl mx-auto p-4 md:p-8"
                         >
                             <RecipeLibrary />
                         </motion.div>
@@ -483,6 +485,7 @@ const TrackerApp: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
+                            className="max-w-6xl mx-auto p-4 md:p-8"
                         >
                             <ShoppingList />
                         </motion.div>

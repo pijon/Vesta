@@ -31,9 +31,9 @@ export const Track: React.FC<TrackProps> = (props) => {
   const [activeTab, setActiveTab] = useState<TabType>('today');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen">
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <div className="bg-surface/95 backdrop-blur-sm border-b border-border sticky top-16 z-30 transition-all">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex space-x-1">
             <button

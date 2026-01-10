@@ -43,7 +43,10 @@ export const Planner: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        getDayPlan(selectedDate).then(setDayPlan);
+        getDayPlan(selectedDate).then(plan => {
+            console.log("Planner loaded plan for", selectedDate, plan);
+            setDayPlan(plan);
+        });
     }, [selectedDate]);
 
     const handleRecipeSelect = async (recipe: Recipe) => {
@@ -178,6 +181,21 @@ export const Planner: React.FC = () => {
         return matchesSearch && matchesFilter && matchesCalories;
     });
 
+    const toggleMealCompletion = async (mealId: string) => {
+        if (!dayPlan) return;
+
+        let newCompleted = [...dayPlan.completedMealIds];
+        if (newCompleted.includes(mealId)) {
+            newCompleted = newCompleted.filter(id => id !== mealId);
+        } else {
+            newCompleted.push(mealId);
+        }
+
+        const updatedPlan = { ...dayPlan, completedMealIds: newCompleted };
+        setDayPlan(updatedPlan);
+        await saveDayPlan(updatedPlan);
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <header className="flex justify-between items-center section-header">
@@ -263,8 +281,7 @@ export const Planner: React.FC = () => {
                                     </div>
                                 ) : (
                                     dayPlan?.meals.map((meal, index) => {
-                                        // const isCompleted = isMealCompleted(meal.id); // Assuming this function exists
-                                        const isCompleted = false; // Placeholder
+                                        const isCompleted = (dayPlan.completedMealIds || []).includes(meal.id);
                                         return (
                                             <div
                                                 key={index}
@@ -276,7 +293,7 @@ export const Planner: React.FC = () => {
                                             >
                                                 <div className="flex items-center gap-5">
                                                     <div
-                                                        onClick={(e) => { e.stopPropagation(); /* toggleMealCompletion(meal.id); */ }}
+                                                        onClick={(e) => { e.stopPropagation(); toggleMealCompletion(meal.id); }}
                                                         className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${isCompleted
                                                             ? 'bg-primary border-primary text-primary-foreground'
                                                             : 'border-border hover:border-primary text-transparent'

@@ -150,8 +150,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Hero Stats - Sticky on scroll */}
-      <div className="sticky top-16 z-10 bg-gradient-to-br from-slate-50 to-slate-100 pb-4 -mx-4 px-4">
+      {/* Hero Stats */}
+      <div className="pb-4">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Net Calories Card */}
           <div className="md:col-span-5 bg-surface p-5 rounded-2xl shadow-lg border border-border flex flex-col justify-between h-44">
@@ -232,8 +232,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         </div>
       </div>
 
-      {/* Quick Actions Bar - Sticky below hero stats */}
-      <div className="sticky top-60 z-10 bg-gradient-to-br from-slate-50 to-slate-100 pb-4 -mx-4 px-4">
+      {/* Quick Actions Bar */}
+      <div className="pb-4">
         <div className="flex gap-3 flex-wrap">
           <button
             onClick={() => setIsFoodModalOpen(true)}
