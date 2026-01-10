@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig } from '../types';
+import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView } from '../types';
 import { TrackToday } from './TrackToday';
 import { TrackTrends } from './TrackTrends';
 import { TrackWeek } from './TrackWeek';
@@ -22,6 +22,7 @@ interface TrackProps {
   onEndFast: () => void;
   onUpdateFastingConfig: (config: FastingConfig) => void;
   refreshData: () => void;
+  onNavigate: (view: AppView) => void;
 }
 
 type TabType = 'today' | 'trends' | 'week';
@@ -37,31 +38,28 @@ export const Track: React.FC<TrackProps> = (props) => {
           <div className="flex space-x-1">
             <button
               onClick={() => setActiveTab('today')}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'today'
-                  ? 'text-emerald-600 border-b-2 border-emerald-600'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-6 py-3 font-medium transition-colors ${activeTab === 'today'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Today
             </button>
             <button
               onClick={() => setActiveTab('trends')}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'trends'
-                  ? 'text-emerald-600 border-b-2 border-emerald-600'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-6 py-3 font-medium transition-colors ${activeTab === 'trends'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Trends
             </button>
             <button
               onClick={() => setActiveTab('week')}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'week'
-                  ? 'text-emerald-600 border-b-2 border-emerald-600'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-6 py-3 font-medium transition-colors ${activeTab === 'week'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Week
             </button>

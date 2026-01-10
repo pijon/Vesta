@@ -450,6 +450,7 @@ const TrackerApp: React.FC = () => {
                                 onEndFast={handleEndFast}
                                 onUpdateFastingConfig={handleUpdateFastingConfig}
                                 refreshData={refreshData}
+                                onNavigate={(view) => setView(view)}
                             />
                         </motion.div>
                     )}

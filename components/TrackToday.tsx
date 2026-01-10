@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig } from '../types';
+import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView } from '../types';
 import { saveDayPlan, saveDailyLog } from '../services/storageService';
 import { FoodEntryModal } from './FoodEntryModal';
+import { RecipeDetailModal } from './RecipeDetailModal';
 import { WorkoutEntryModal } from './WorkoutEntryModal';
 import { DualTrackSection } from './DualTrackSection';
 import { HydrationWidget } from './HydrationWidget';
@@ -27,6 +28,7 @@ interface TrackTodayProps {
   onEndFast: () => void;
   onUpdateFastingConfig: (config: FastingConfig) => void;
   refreshData: () => void;
+  onNavigate: (view: AppView) => void;
 }
 
 export const TrackToday: React.FC<TrackTodayProps> = ({
@@ -46,7 +48,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onStartFast,
   onEndFast,
   onUpdateFastingConfig,
-  refreshData
+  refreshData,
+  onNavigate
 }) => {
   const [weightInput, setWeightInput] = useState(stats.currentWeight.toString());
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
@@ -56,6 +59,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const [healthTrackersExpanded, setHealthTrackersExpanded] = useState(false);
   const [tomorrowExpanded, setTomorrowExpanded] = useState(false);
   const [quickWeightInput, setQuickWeightInput] = useState(stats.currentWeight.toString());
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   // Hydration state
   const [hydration, setHydration] = useState(dailyLog.waterIntake || 0);
@@ -271,10 +275,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         todayPlan={todayPlan}
         dailyLog={dailyLog}
         onToggleMeal={toggleMeal}
+        onViewRecipe={setSelectedRecipe}
         onEditWorkout={handleEditWorkout}
         onDeleteWorkout={onDeleteWorkout}
         onUpdateFoodItem={onUpdateFoodItem}
         onDeleteFoodItem={onDeleteFoodItem}
+        onNavigate={onNavigate}
       />
 
       {/* Health Trackers - Collapsible */}
@@ -385,6 +391,13 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         editingWorkout={editingWorkout}
       />
 
+      {selectedRecipe && (
+        <RecipeDetailModal
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+        />
+      )}
+
       {/* Weight Update Modal */}
       {isWeightModalOpen && (
         <Portal>
@@ -434,11 +447,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                 <button
                   onClick={handleQuickWeightSave}
                   disabled={!quickWeightInput || parseFloat(quickWeightInput) <= 0}
-                  className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${
-                    !quickWeightInput || parseFloat(quickWeightInput) <= 0
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                      : 'bg-slate-600 text-white hover:bg-slate-700'
-                  }`}
+                  className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!quickWeightInput || parseFloat(quickWeightInput) <= 0
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-600 text-white hover:bg-slate-700'
+                    }`}
                 >
                   Update Weight
                 </button>

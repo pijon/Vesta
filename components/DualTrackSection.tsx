@@ -1,25 +1,29 @@
 import React, { useState } from 'react';
-import { DayPlan, DailyLog, FoodLogItem, WorkoutItem } from '../types';
+import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
   dailyLog: DailyLog;
   onToggleMeal: (index: number) => void;
+  onViewRecipe: (recipe: any) => void;
   onEditWorkout: (workout: WorkoutItem) => void;
   onDeleteWorkout: (workoutId: string) => void;
   onUpdateFoodItem: (item: FoodLogItem) => void;
   onDeleteFoodItem: (itemId: string) => void;
+  onNavigate: (view: AppView) => void;
 }
 
 export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   todayPlan,
   dailyLog,
   onToggleMeal,
+  onViewRecipe,
   onEditWorkout,
   onDeleteWorkout,
   onUpdateFoodItem,
-  onDeleteFoodItem
+  onDeleteFoodItem,
+  onNavigate
 }) => {
   const [editingFoodItem, setEditingFoodItem] = useState<FoodLogItem | null>(null);
   const [editFoodName, setEditFoodName] = useState('');
@@ -89,9 +93,15 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
         </div>
         <div className="p-4 space-y-2 min-h-[200px]">
           {todayPlan.meals.length === 0 ? (
-            <div className="p-8 text-center text-muted">
-              <p>No meals planned for today</p>
-              <p className="text-xs mt-1">Visit Planner to add meals</p>
+            <div className="p-8 text-center text-muted flex flex-col items-center justify-center h-full">
+              <p className="font-medium mb-3">No meals planned for today</p>
+              <button
+                onClick={() => onNavigate(AppView.PLANNER)}
+                className="px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-md active:scale-95 flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Plan My Day
+              </button>
             </div>
           ) : (
             todayPlan.meals.map((meal, index) => {
@@ -99,19 +109,21 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               return (
                 <div
                   key={index}
-                  className={`p-4 flex items-center gap-4 rounded-xl border transition-all ${
-                    isCompleted
-                      ? 'bg-emerald-50/50 border-emerald-100 opacity-70'
-                      : 'bg-white border-emerald-200 hover:border-emerald-400 hover:shadow-sm'
-                  }`}
+                  onClick={() => onViewRecipe(meal)}
+                  className={`p-4 flex items-center gap-4 rounded-xl border transition-all cursor-pointer ${isCompleted
+                    ? 'bg-emerald-50/50 border-emerald-100 opacity-70'
+                    : 'bg-white border-emerald-200 hover:border-emerald-400 hover:shadow-sm'
+                    }`}
                 >
                   <div
-                    onClick={() => onToggleMeal(index)}
-                    className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${
-                      isCompleted
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50'
-                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleMeal(index);
+                    }}
+                    className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${isCompleted
+                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                      : 'border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50'
+                      }`}
                   >
                     {isCompleted && (
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -314,11 +326,10 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 <button
                   onClick={handleSaveEditFood}
                   disabled={!editFoodName.trim() || !editFoodCalories}
-                  className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${
-                    !editFoodName.trim() || !editFoodCalories
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  }`}
+                  className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!editFoodName.trim() || !editFoodCalories
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    }`}
                 >
                   Save Changes
                 </button>
