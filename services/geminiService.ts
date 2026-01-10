@@ -304,6 +304,66 @@ export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: 
   }
 };
 
+const singleDayPlanSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    mealIds: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "IDs of the selected recipes"
+    },
+    dailyTip: { type: Type.STRING }
+  },
+  required: ["mealIds"]
+};
+
+export const planDayWithExistingRecipes = async (recipes: Recipe[], date: string, targetCalories: number = 800): Promise<{ mealIds: string[], dailyTip?: string }> => {
+  if (!apiKey) throw new Error("API Key not found");
+
+  // Simplify recipes
+  const simplifiedRecipes = recipes.map(r => ({
+    id: r.id,
+    name: r.name,
+    calories: r.calories,
+    type: r.type
+  }));
+
+  const prompt = `
+    You are an expert meal planner for the Fast 800 diet.
+    
+    Task: Create a meal plan for a SINGLE DAY (${date}).
+    Target Calories: Approximately ${targetCalories} kcal.
+    
+    Rules:
+    1. Select a combination of meals that sum up to roughly ${targetCalories} calories.
+    2. Use ONLY the recipes provided in the JSON list below.
+    3. Return the exact IDs of the recipes used.
+    4. Provide a helpful daily tip.
+    
+    Available Recipes:
+    ${JSON.stringify(simplifiedRecipes)}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: singleDayPlanSchema
+      }
+    });
+
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
+
+    return JSON.parse(output);
+  } catch (error) {
+    console.error("Error generating day plan:", error);
+    throw error;
+  }
+};
+
 const ingredientParseSchema: Schema = {
   type: Type.ARRAY,
   items: {

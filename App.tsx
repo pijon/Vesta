@@ -56,7 +56,7 @@ const TrackerApp: React.FC = () => {
             await refreshData();
         };
         init();
-    }, [todayDate, tomorrowDate, view]);
+    }, [todayDate, tomorrowDate]);
 
     const handleUpdateStats = async (newStats: UserStats) => {
         const today = new Date().toISOString().split('T')[0];
@@ -112,15 +112,8 @@ const TrackerApp: React.FC = () => {
     };
 
     const handleLogMeal = async (meal: Recipe, isAdding: boolean) => {
-        const currentLog = await getDailyLog(todayDate); // Fetch fresh? Or use state? 
-        // Using state is better for UI, but let's fetch for safety if we can.
-        // Actually, let's use the local 'dailyLog' state which might be slightly stale if handled externally,
-        // but 'getDailyLog' is safer for concurrency? No, firestore is async.
-        // Let's stick to state 'dailyLog' to avoid complexity, or just re-fetch.
-        // Original code re-fetched: const currentLog = getDailyLog(todayDate);
-        // We will keep that pattern.
-
-        let newItems = [...(currentLog.items || [])];
+        // Use current state instead of fetching fresh to avoid extra DB read
+        let newItems = [...(dailyLog.items || [])];
 
         if (isAdding) {
             newItems.push({
@@ -138,9 +131,9 @@ const TrackerApp: React.FC = () => {
             }
         }
 
-        const updatedLog = { ...currentLog, items: newItems };
+        const updatedLog = { ...dailyLog, items: newItems };
+        setDailyLog(updatedLog);
         await saveDailyLog(updatedLog);
-        refreshData(); // Re-fetch all
     };
 
     const handleUpdateWeight = (weight: number) => {

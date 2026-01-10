@@ -71,8 +71,16 @@ export const RecipeLibrary: React.FC = () => {
         servings: Number(editForm.servings) || 1,
         ingredients: editForm.ingredients.filter(i => i.trim()),
         instructions: (editForm.instructions || []).filter(i => i.trim()),
-        image: uploadedImage || editForm.image
       };
+
+      // Safely handle image field
+      if (uploadedImage) {
+        updatedRecipe.image = uploadedImage;
+      } else if (editForm.image) {
+        updatedRecipe.image = editForm.image;
+      } else {
+        delete updatedRecipe.image; // Ensure it's not undefined
+      }
 
       await saveRecipe(updatedRecipe);
       setRecipes(await getRecipes());
@@ -113,14 +121,22 @@ export const RecipeLibrary: React.FC = () => {
           instructions: partialRecipe.instructions || [],
           type: (partialRecipe.type as any) || 'main meal',
           servings: partialRecipe.servings || 1,
-          image: uploadedImage || undefined
         };
+
+        if (uploadedImage) {
+          newRecipe.image = uploadedImage;
+        }
+
         await saveRecipe(newRecipe);
         setRecipes(await getRecipes());
         setIsAdding(false);
         setInputText('');
         setUploadedImage(null);
         setImageError(null);
+
+        // Open the newly created recipe
+        setSelectedRecipe(newRecipe);
+        setActiveTab('overview');
       }
     } catch (e: any) {
       console.error("AI Import Failed:", e);

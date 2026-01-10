@@ -71,7 +71,7 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
     const daysDiff = (new Date(lastEntry.date).getTime() - new Date(firstEntry.date).getTime()) / (1000 * 60 * 60 * 24);
     const weightDiff = firstEntry.weight - lastEntry.weight;
 
-    if (daysDiff >= 7) { // At least a week of data
+    if (daysDiff >= 3) { // At least 3 days of data
       avgWeeklyLoss = (weightDiff / daysDiff) * 7; // Convert to per week
 
       // Determine trend

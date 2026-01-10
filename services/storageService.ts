@@ -1,7 +1,7 @@
 import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem } from "../types";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy } from "firebase/firestore";
 
 // Helper to get current user ID or throw
 const getUserId = () => {
@@ -53,8 +53,6 @@ const PLAN_DOC = 'plan'; // Keeping reference for legacy migration and export
 
 export const getDayPlan = async (date: string): Promise<DayPlan> => {
   try {
-    // 1. Try new collection
-    const start = performance.now();
     const docRef = doc(db, 'users', getUserId(), 'days', date);
     const dayDoc = await getDoc(docRef);
 
@@ -267,8 +265,20 @@ export const saveDailyLog = async (log: DailyLog) => {
 
 // --- Daily Summaries ---
 
-export const getAllDailySummaries = async (): Promise<DailySummary[]> => {
-  const snapshot = await getDocs(getCollectionRef('logs'));
+export const getAllDailySummaries = async (daysBack: number = 90): Promise<DailySummary[]> => {
+  // Calculate cutoff date
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoffDateString = cutoffDate.toISOString().split('T')[0];
+
+  // Query logs with date filtering to avoid fetching all historical data
+  const logsQuery = query(
+    getCollectionRef('logs'),
+    where('date', '>=', cutoffDateString),
+    orderBy('date', 'asc')
+  );
+
+  const snapshot = await getDocs(logsQuery);
   const summaries: DailySummary[] = [];
 
   snapshot.forEach(doc => {
@@ -285,11 +295,22 @@ export const getAllDailySummaries = async (): Promise<DailySummary[]> => {
     });
   });
 
-  return summaries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return summaries; // Already sorted by orderBy in query
 };
 
-export const getRecentWorkouts = async (limit: number = 5): Promise<WorkoutItem[]> => {
-  const snapshot = await getDocs(getCollectionRef('logs'));
+export const getRecentWorkouts = async (limit: number = 5, daysBack: number = 30): Promise<WorkoutItem[]> => {
+  // Only fetch recent logs to avoid loading all historical data
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoffDateString = cutoffDate.toISOString().split('T')[0];
+
+  const logsQuery = query(
+    getCollectionRef('logs'),
+    where('date', '>=', cutoffDateString),
+    orderBy('date', 'desc')
+  );
+
+  const snapshot = await getDocs(logsQuery);
   const allWorkouts: WorkoutItem[] = [];
 
   snapshot.forEach(doc => {

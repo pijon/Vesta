@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan } from '../services/storageService';
-import { planWeekWithExistingRecipes } from '../services/geminiService';
+import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan, getUpcomingPlan } from '../services/storageService';
+import { planWeekWithExistingRecipes, planDayWithExistingRecipes } from '../services/geminiService';
 import { Recipe, DayPlan } from '../types';
 
 import { getCategoryColor } from '../utils';
@@ -13,6 +13,7 @@ import { UserStats } from '../types';
 export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [weekDates, setWeekDates] = useState<string[]>([]);
+    const [weekPlans, setWeekPlans] = useState<Record<string, DayPlan>>({});
     const [dayPlan, setDayPlan] = useState<DayPlan | null>(null);
     const [availableRecipes, setAvailableRecipes] = useState<Recipe[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -44,6 +45,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         }
         setWeekDates(dates);
         getRecipes().then(setAvailableRecipes);
+        getUpcomingPlan(7).then(setWeekPlans);
     }, []);
 
     useEffect(() => {
@@ -51,6 +53,8 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
             console.log("Planner loaded plan for", selectedDate, plan);
             setDayPlan(plan);
         });
+        // Refresh weekly plans too, as saving a day affects the view
+        getUpcomingPlan(7).then(setWeekPlans);
     }, [selectedDate]);
 
     const handleRecipeSelect = async (recipe: Recipe) => {
@@ -182,6 +186,46 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
 
 
+    const handleAutoPlanDay = async () => {
+        const recipes = availableRecipes;
+        if (recipes.length < 3) {
+            alert("You need at least a few recipes in your library for the AI to create a plan.");
+            return;
+        }
+
+        if (dayPlan && dayPlan.meals.length > 0) {
+            if (!confirm("This will replace your existing meals for this day. Continue?")) {
+                return;
+            }
+        }
+
+        setIsGenerating(true);
+        try {
+            // Defaulting to 800 (Fast Day) for the "Plan My Day" feature
+            const result = await planDayWithExistingRecipes(recipes, selectedDate, 800);
+
+            const meals = recipes.filter(r => result.mealIds.includes(r.id));
+            const totalCals = meals.reduce((acc, m) => acc + m.calories, 0);
+
+            const newPlan: DayPlan = {
+                date: selectedDate,
+                meals: meals,
+                completedMealIds: [],
+                tips: result.dailyTip || "Stay on track!",
+                totalCalories: totalCals,
+                type: 'fast' // Assuming fast day for this specific action
+            };
+
+            await saveDayPlan(newPlan);
+            setDayPlan(newPlan);
+        } catch (error) {
+            console.error("Auto plan day failed:", error);
+            alert("Failed to generate plan. Please try again.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const filteredRecipes = availableRecipes.filter(recipe => {
         const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesFilter = activeFilter === 'all' || recipe.type === activeFilter;
@@ -230,17 +274,35 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             const dayNum = d.getDate();
                             const isSelected = date === selectedDate;
 
+                            const plan = weekPlans[date];
+                            const isFastDay = plan?.type === 'fast';
+                            const isNonFastDay = plan?.type === 'non-fast';
+                            const hasMeals = plan?.meals && plan.meals.length > 0;
+
+                            let indicatorColor = 'bg-transparent';
+                            if (hasMeals) {
+                                if (isFastDay) indicatorColor = 'bg-emerald-500';
+                                else if (isNonFastDay) indicatorColor = 'bg-amber-500';
+                                else indicatorColor = 'bg-slate-300';
+                            }
+
                             return (
                                 <button
                                     key={date}
                                     onClick={() => setSelectedDate(date)}
-                                    className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl transition-all snap-center border-2 ${isSelected
-                                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 border-primary'
-                                        : 'bg-surface hover:bg-surface/80 text-muted border-transparent shadow-sm'
-                                        }`}
+                                    className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl transition-all snap-center border-2 
+                                        ${isSelected
+                                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 border-primary'
+                                            : 'bg-surface hover:bg-surface/80 text-muted border-transparent shadow-sm'
+                                        } relative overflow-hidden`}
                                 >
                                     <span className={`text-[10px] font-bold uppercase tracking-wide ${isSelected ? 'opacity-90' : 'opacity-60'}`}>{dayName}</span>
                                     <span className="text-xl font-serif font-medium mt-0.5">{dayNum}</span>
+
+                                    {/* Type Indicator Dot */}
+                                    {hasMeals && (
+                                        <div className={`absolute bottom-2 w-1.5 h-1.5 rounded-full ${indicatorColor} ${isSelected ? 'ring-2 ring-white/20' : ''}`} />
+                                    )}
                                 </button>
                             );
                         })}
@@ -261,6 +323,30 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                     <p className="text-muted font-medium mb-2">
                                         {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
                                     </p>
+
+                                    {/* Calories Left Display */}
+                                    {dayPlan && (
+                                        <div className="flex flex-col gap-1 mt-3 mb-2">
+                                            {(() => {
+                                                const target = dayPlan.type === 'fast' ? 800 : (stats.nonFastDayCalories || 2000);
+                                                const current = dayPlan.totalCalories || 0;
+                                                const remaining = target - current;
+                                                const isOver = remaining < 0;
+
+                                                return (
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 ${isOver ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                                                            <span className="text-xs font-bold uppercase tracking-wider opacity-70">Calories Left</span>
+                                                            <span className="text-lg font-bold font-serif">{remaining}</span>
+                                                        </div>
+                                                        <div className="text-xs text-muted font-medium">
+                                                            Target: {target}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
 
                                     {/* Day Type Toggles */}
                                     {dayPlan && (
@@ -292,13 +378,31 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         </div>
                                     )}
                                 </div>
-                                <button
-                                    onClick={openAddModal}
-                                    className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                    Add Meal
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleAutoPlanDay}
+                                        disabled={isGenerating}
+                                        className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95 text-xs"
+                                        title="Auto-Plan this day (800 kcal)"
+                                    >
+                                        {isGenerating ? (
+                                            <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                        )}
+                                        Auto-Plan Day
+                                    </button>
+                                    <button
+                                        onClick={openAddModal}
+                                        className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        Add Meal
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Meals List */}
