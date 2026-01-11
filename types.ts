@@ -131,10 +131,13 @@ export interface DailySummary {
 }
 
 export enum AppView {
-  TRACK = 'TRACK',
+  DASHBOARD = 'DASHBOARD',  // Replaces TRACK → Today tab
+  TRENDS = 'TRENDS',        // Was TRACK → Trends tab
+  WEEKLY = 'WEEKLY',        // Was TRACK → Week tab
   PLANNER = 'PLANNER',
   RECIPES = 'RECIPES',
-  SHOPPING = 'SHOPPING'
+  SHOPPING = 'SHOPPING',
+  TRACK = 'DASHBOARD'       // Temporary alias for backwards compatibility
 }
 
 // --- Fasting ---

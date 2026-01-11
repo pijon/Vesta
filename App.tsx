@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
-import { Track } from './components/Track';
+import { TrackToday } from './components/TrackToday';
+import { TrackTrends } from './components/TrackTrends';
+import { TrackWeek } from './components/TrackWeek';
 import { Planner } from './components/Planner';
 import { RecipeLibrary } from './components/RecipeLibrary';
 import { ShoppingList } from './components/ShoppingList';
+import { DesktopSidebar } from './components/DesktopSidebar';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { APP_NAME, DEFAULT_USER_STATS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 
 const TrackerApp: React.FC = () => {
-    const [view, setView] = useState<AppView>(AppView.TRACK);
+    const [view, setView] = useState<AppView>(AppView.DASHBOARD);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [tomorrowDate] = useState(() => {
@@ -24,6 +28,10 @@ const TrackerApp: React.FC = () => {
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
 
     const [userStats, setUserStatsState] = useState<UserStats>(DEFAULT_USER_STATS);
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const saved = localStorage.getItem('fast800_darkMode');
+        return saved ? JSON.parse(saved) : false;
+    });
 
     const [fastingState, setFastingState] = useState<FastingState>({
         isFasting: false,
@@ -31,6 +39,18 @@ const TrackerApp: React.FC = () => {
         endTime: null,
         config: { protocol: '16:8', targetFastHours: 16 }
     });
+
+    // Dark mode effect
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        localStorage.setItem('fast800_darkMode', JSON.stringify(isDarkMode));
+    }, [isDarkMode]);
+
+    const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
     const [dailyLog, setDailyLog] = useState<DailyLog>({ date: '', items: [] });
 
@@ -183,18 +203,6 @@ const TrackerApp: React.FC = () => {
         setFastingState(newState);
         await saveFastingState(newState);
     };
-
-    const NavLink = ({ targetView, label }: { targetView: AppView, label: string }) => (
-        <button
-            onClick={() => setView(targetView)}
-            className={`px-4 py-2 text-sm font-medium transition-all duration-300 rounded-full ${view === targetView
-                ? 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20'
-                : 'text-muted hover:text-main hover:bg-surface-glass'
-                }`}
-        >
-            {label}
-        </button>
-    );
 
     const SettingsModal = () => {
         const [formStats, setFormStats] = useState(userStats);
@@ -385,140 +393,191 @@ const TrackerApp: React.FC = () => {
         );
     };
 
+    // Props for Track components (Dashboard, Trends, Weekly)
+    const trackProps = {
+        todayPlan,
+        tomorrowPlan,
+        stats: userStats,
+        dailyLog,
+        fastingState,
+        onUpdateStats: handleUpdateStats,
+        onLogMeal: handleLogMeal,
+        onAddFoodLogItems: handleAddFoodLogItems,
+        onUpdateFoodItem: async (item: FoodLogItem) => {
+            const updatedLog = {
+                ...dailyLog,
+                items: dailyLog.items.map(i => i.id === item.id ? item : i)
+            };
+            setDailyLog(updatedLog);
+            await saveDailyLog(updatedLog);
+        },
+        onDeleteFoodItem: async (itemId: string) => {
+            const updatedLog = {
+                ...dailyLog,
+                items: dailyLog.items.filter(i => i.id !== itemId)
+            };
+            setDailyLog(updatedLog);
+            await saveDailyLog(updatedLog);
+        },
+        onAddWorkout: handleAddWorkout,
+        onUpdateWorkout: handleUpdateWorkout,
+        onDeleteWorkout: handleDeleteWorkout,
+        onStartFast: handleStartFast,
+        onEndFast: handleEndFast,
+        onUpdateFastingConfig: handleUpdateFastingConfig,
+        refreshData,
+        onNavigate: setView
+    };
+
     return (
-        <div className="min-h-screen pb-24 md:pb-10 font-sans">
+        <div className="min-h-screen md:flex font-sans">
+            {/* Desktop Sidebar */}
+            <DesktopSidebar
+                currentView={view}
+                onNavigate={setView}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={toggleDarkMode}
+            />
 
-            {/* Top Navigation / Header */}
-            <nav className="sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
-                <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.TRACK)}>
-                        <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-transform group-hover:scale-105" />
-                        <h1 className="text-xl font-medium tracking-tight text-main leading-none">Fast<span className="font-bold text-primary">800</span></h1>
+            {/* Main Content Wrapper */}
+            <div className="w-full md:ml-60">
+                {/* Top Bar - Mobile only */}
+                <nav className="md:hidden sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
+                    <div className="px-4 h-16 flex items-center justify-between">
+                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.DASHBOARD)}>
+                            <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-transform group-hover:scale-105" />
+                            <h1 className="text-xl font-medium tracking-tight text-main leading-none">
+                                Fast<span className="font-bold text-primary">800</span>
+                            </h1>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {/* Dark Mode Toggle */}
+                            <button
+                                onClick={toggleDarkMode}
+                                className="h-10 w-10 rounded-full bg-surface border border-border flex items-center justify-center text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
+                                title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+                            >
+                                {isDarkMode ? (
+                                    // Sun icon for light mode
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="5"></circle>
+                                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                                    </svg>
+                                ) : (
+                                    // Moon icon for dark mode
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                    </svg>
+                                )}
+                            </button>
+
+                            {/* Settings */}
+                            <button
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="h-10 w-10 rounded-full bg-surface border border-border flex items-center justify-center text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
+                                title="Settings"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
+                </nav>
 
-                    <div className="hidden md:flex items-center gap-1">
-                        <NavLink targetView={AppView.TRACK} label="Track" />
-                        <NavLink targetView={AppView.PLANNER} label="Planner" />
-                        <NavLink targetView={AppView.RECIPES} label="Recipes" />
-                        <NavLink targetView={AppView.SHOPPING} label="Shopping" />
-                    </div>
+                {/* Main Content */}
+                <main className="pb-24 md:pb-10">
+                    <AnimatePresence mode="wait">
+                        {view === AppView.DASHBOARD && (
+                            <motion.div
+                                key="dashboard"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-6xl mx-auto p-4 md:p-8"
+                            >
+                                <TrackToday {...trackProps} />
+                            </motion.div>
+                        )}
+                        {view === AppView.TRENDS && (
+                            <motion.div
+                                key="trends"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-6xl mx-auto p-4 md:p-8"
+                            >
+                                <TrackTrends {...trackProps} />
+                            </motion.div>
+                        )}
+                        {view === AppView.WEEKLY && (
+                            <motion.div
+                                key="weekly"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-6xl mx-auto p-4 md:p-8"
+                            >
+                                <TrackWeek {...trackProps} />
+                            </motion.div>
+                        )}
+                        {view === AppView.PLANNER && (
+                            <motion.div
+                                key="planner"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-6xl mx-auto p-4 md:p-8"
+                            >
+                                <Planner stats={userStats} />
+                            </motion.div>
+                        )}
+                        {view === AppView.RECIPES && (
+                            <motion.div
+                                key="recipes"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-6xl mx-auto p-4 md:p-8"
+                            >
+                                <RecipeLibrary />
+                            </motion.div>
+                        )}
+                        {view === AppView.SHOPPING && (
+                            <motion.div
+                                key="shopping"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-6xl mx-auto p-4 md:p-8"
+                            >
+                                <ShoppingList />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </main>
 
-                    <div>
-                        <button
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="h-10 w-10 rounded-full bg-surface border border-border flex items-center justify-center text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
-                            title="Settings"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                        </button>
-                    </div>
-                </div>
-            </nav>
-
-            {/* Main Content Area */}
-            <main>
-                <AnimatePresence mode="wait">
-                    {view === AppView.TRACK && (
-                        <motion.div
-                            key="track"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <Track
-                                todayPlan={todayPlan}
-                                tomorrowPlan={tomorrowPlan}
-                                stats={userStats}
-                                dailyLog={dailyLog}
-                                fastingState={fastingState}
-                                onUpdateStats={handleUpdateStats}
-                                onLogMeal={handleLogMeal}
-                                onAddFoodLogItems={handleAddFoodLogItems}
-                                onUpdateFoodItem={async (item) => {
-                                    const updatedLog = {
-                                        ...dailyLog,
-                                        items: dailyLog.items.map(i => i.id === item.id ? item : i)
-                                    };
-                                    setDailyLog(updatedLog);
-                                    await saveDailyLog(updatedLog);
-                                }}
-                                onDeleteFoodItem={async (itemId) => {
-                                    const updatedLog = {
-                                        ...dailyLog,
-                                        items: dailyLog.items.filter(i => i.id !== itemId)
-                                    };
-                                    setDailyLog(updatedLog);
-                                    await saveDailyLog(updatedLog);
-                                }}
-                                onAddWorkout={handleAddWorkout}
-                                onUpdateWorkout={handleUpdateWorkout}
-                                onDeleteWorkout={handleDeleteWorkout}
-                                onStartFast={handleStartFast}
-                                onEndFast={handleEndFast}
-                                onUpdateFastingConfig={handleUpdateFastingConfig}
-                                refreshData={refreshData}
-                                onNavigate={(view) => setView(view)}
-                            />
-                        </motion.div>
-                    )}
-                    {view === AppView.PLANNER && (
-                        <motion.div
-                            key="planner"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="max-w-6xl mx-auto p-4 md:p-8"
-                        >
-                            <Planner stats={userStats} />
-                        </motion.div>
-                    )}
-                    {view === AppView.RECIPES && (
-                        <motion.div
-                            key="recipes"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="max-w-6xl mx-auto p-4 md:p-8"
-                        >
-                            <RecipeLibrary />
-                        </motion.div>
-                    )}
-                    {view === AppView.SHOPPING && (
-                        <motion.div
-                            key="shopping"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="max-w-6xl mx-auto p-4 md:p-8"
-                        >
-                            <ShoppingList />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </main>
-
-            {/* Mobile Bottom Navigation - Floating Glass */}
-            <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
-                <div className="glass-panel rounded-full px-6 py-3 flex justify-between items-center shadow-xl border-border/50 bg-suface/80">
-                    <button onClick={() => setView(AppView.TRACK)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.TRACK ? 'text-primary' : 'text-muted hover:text-main'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
-                    </button>
-                    <button onClick={() => setView(AppView.PLANNER)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.PLANNER ? 'text-primary' : 'text-muted hover:text-main'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    </button>
-                    <button onClick={() => setView(AppView.RECIPES)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.RECIPES ? 'text-primary' : 'text-muted hover:text-main'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    </button>
-                    <button onClick={() => setView(AppView.SHOPPING)} className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.SHOPPING ? 'text-primary' : 'text-muted hover:text-main'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                    </button>
-                </div>
+                {/* Mobile Bottom Navigation */}
+                <MobileBottomNav currentView={view} onNavigate={setView} />
             </div>
 
+            {/* Settings Modal */}
             {isSettingsOpen && <SettingsModal />}
         </div>
     );

@@ -244,7 +244,7 @@ export const RecipeLibrary: React.FC = () => {
         <div className="card card-padding-lg animate-slide-in-down relative overflow-hidden">
           <div className="relative z-10">
             <h3 className="heading-3 mb-2 flex items-center gap-2">
-              <span className="bg-emerald-100 text-emerald-700 p-1.5 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span>
+              <span className="bg-primary-light p-1.5 rounded-lg" style={{ color: 'var(--primary)' }}><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span>
               Import Recipe via AI
             </h3>
             <p className="text-muted mb-6 max-w-2xl">Paste a recipe URL, full text, or even a rough list of ingredients. Our smart AI will parse the nutrition, ingredients, and instructions for you.</p>
@@ -403,7 +403,13 @@ export const RecipeLibrary: React.FC = () => {
                     <h2 className="text-2xl font-bold text-slate-900 font-serif">Edit Recipe</h2>
                     <div className="flex gap-2">
                       <button onClick={cancelEditing} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg text-sm font-bold">Cancel</button>
-                      <button onClick={saveEditing} className="px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-900/10">Save Changes</button>
+                      <button
+                        onClick={saveEditing}
+                        className="px-5 py-2 text-white rounded-lg text-sm font-bold shadow-lg transition-colors"
+                        style={{ backgroundColor: 'var(--neutral-900)' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--neutral-900)'}
+                      >Save Changes</button>
                     </div>
                   </div>
 
@@ -441,7 +447,7 @@ export const RecipeLibrary: React.FC = () => {
                           type="text"
                           value={editForm.name}
                           onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                          className="w-full p-4 border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 focus:outline-none font-medium bg-slate-50 text-slate-900 text-lg"
+                          className="w-full p-4 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-slate-50 text-slate-900 text-lg"
                           placeholder="Recipe Name"
                         />
                       </div>
@@ -452,7 +458,7 @@ export const RecipeLibrary: React.FC = () => {
                           <select
                             value={editForm.type}
                             onChange={e => setEditForm({ ...editForm, type: e.target.value as any })}
-                            className="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 focus:outline-none bg-slate-50 font-medium text-slate-900"
+                            className="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-slate-50 font-medium text-slate-900"
                           >
                             <option value="breakfast">Breakfast</option>
                             <option value="main meal">Main Meal</option>
@@ -467,7 +473,7 @@ export const RecipeLibrary: React.FC = () => {
                             min="1"
                             value={editForm.servings}
                             onChange={e => setEditForm({ ...editForm, servings: parseInt(e.target.value) || 1 })}
-                            className="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 focus:outline-none font-medium bg-slate-50 text-slate-900"
+                            className="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-slate-50 text-slate-900"
                           />
                         </div>
                       </div>
@@ -501,7 +507,7 @@ export const RecipeLibrary: React.FC = () => {
                           rows={6}
                           value={editForm.ingredients.join('\n')}
                           onChange={e => setEditForm({ ...editForm, ingredients: e.target.value.split('\n') })}
-                          className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 focus:outline-none bg-slate-50 text-slate-900"
+                          className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-slate-50 text-slate-900"
                         />
                       </div>
 
@@ -511,7 +517,7 @@ export const RecipeLibrary: React.FC = () => {
                           rows={6}
                           value={(editForm.instructions || []).join('\n')}
                           onChange={e => setEditForm({ ...editForm, instructions: e.target.value.split('\n') })}
-                          className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 focus:outline-none bg-slate-50 text-slate-900"
+                          className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-slate-50 text-slate-900"
                         />
                       </div>
                     </div>

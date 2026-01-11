@@ -686,9 +686,9 @@ export const ShoppingList: React.FC = () => {
 
         {/* Summary */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4">
+          <div className="bg-primary-light/50 border border-primary-light rounded-2xl p-4">
             <div className="text-primary text-sm font-medium mb-1">In Pantry</div>
-            <div className="text-3xl font-bold text-emerald-900">{inPantryItems.length}</div>
+            <div className="text-3xl font-bold" style={{ color: 'var(--primary)' }}>{inPantryItems.length}</div>
           </div>
           <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4">
             <div className="text-amber-600 text-sm font-medium mb-1">Need to Buy</div>
@@ -719,7 +719,9 @@ export const ShoppingList: React.FC = () => {
           ) : (
             <button
               onClick={handleGenerateShoppingList}
-              className="px-8 py-4 bg-primary text-primary-foreground rounded-2xl hover:bg-emerald-700 transition-all text-lg font-semibold shadow-lg hover:shadow-xl active:scale-95"
+              className="px-8 py-4 bg-primary text-primary-foreground rounded-2xl transition-all text-lg font-semibold shadow-lg hover:shadow-xl active:scale-95"
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
             >
               Generate Shopping List ({needToBuyItems.length} items)
             </button>

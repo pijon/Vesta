@@ -55,9 +55,8 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
     const protocols: FastingProtocol[] = ['12:12', '16:8', '14:10', '18:6', '20:4'];
 
     return (
-        <div className="glass-panel p-0 rounded-3xl overflow-hidden relative group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-orange-500/20"></div>
-            <div className="absolute inset-0 bg-orange-500/5 pointer-events-none" />
+        <div className="bg-surface shadow-sm border border-border rounded-3xl overflow-hidden relative group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-orange-500/20 pointer-events-none"></div>
 
             {/* Settings Modal */}
             <AnimatePresence>
@@ -66,13 +65,13 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
-                        className="absolute inset-0 bg-white dark:bg-slate-900 z-30 p-6 flex flex-col"
+                        className="absolute inset-0 bg-surface z-30 p-6 flex flex-col"
                     >
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-serif text-lg font-medium text-slate-900 dark:text-slate-100">Fasting Protocol</h3>
+                            <h3 className="font-serif text-lg font-medium text-main">Fasting Protocol</h3>
                             <button
                                 onClick={() => setIsSettingsOpen(false)}
-                                className="p-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900"
+                                className="p-1 bg-background rounded-full text-muted hover:text-main transition-colors border border-transparent hover:border-border"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
@@ -92,11 +91,11 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                                         }}
                                         className={`w-full p-3 rounded-xl border flex justify-between items-center transition-all text-sm ${isSelected
                                             ? 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400'
-                                            : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-300 dark:bg-slate-800/50 dark:border-slate-800 dark:text-slate-400'
+                                            : 'bg-background border-border text-muted hover:bg-surface hover:border-orange-200 dark:hover:border-orange-800'
                                             }`}
                                     >
                                         <span className="font-bold">{p}</span>
-                                        <span className="text-xs bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700 shadow-sm">
+                                        <span className="text-xs bg-surface px-2 py-1 rounded-md border border-border shadow-sm text-main">
                                             {target}h fast
                                         </span>
                                     </button>
@@ -111,16 +110,16 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                 <div className="flex-1 flex flex-col justify-between h-full">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <div className={`p-2 rounded-lg ${fastingState.isFasting ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            <div className={`p-2 rounded-lg ${fastingState.isFasting ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-serif text-slate-800 dark:text-slate-100 font-medium leading-none">
+                                <h3 className="text-xl font-serif text-main font-medium leading-none">
                                     {fastingState.isFasting ? 'Fasting' : 'Eating'}
                                 </h3>
                                 <button
                                     onClick={() => setIsSettingsOpen(true)}
-                                    className="text-xs text-slate-400 font-medium hover:text-orange-500 flex items-center gap-1 transition-colors mt-0.5"
+                                    className="text-xs text-muted font-medium hover:text-orange-500 flex items-center gap-1 transition-colors mt-0.5"
                                     title="Change protocol"
                                 >
                                     {fastingState.config.protocol} <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
@@ -130,10 +129,10 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
 
                         <div className="mt-2">
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">
+                                <span className="text-3xl font-bold text-main tabular-nums">
                                     {formatTime(elapsed).replace(/:/g, ':')}
                                 </span>
-                                <span className="text-sm text-slate-400 font-medium">hrs</span>
+                                <span className="text-sm text-muted font-medium">hrs</span>
                             </div>
                             <p className="text-xs text-orange-400/80 font-medium mt-1 uppercase tracking-wide">
                                 {fastingState.isFasting ? 'Elapsed' : 'Since fast'}
@@ -145,7 +144,7 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                         {fastingState.isFasting ? (
                             <button
                                 onClick={onEndFast}
-                                className="px-4 py-2 bg-white dark:bg-slate-800 rounded-xl border border-orange-100 dark:border-orange-800/30 shadow-sm text-orange-600 dark:text-orange-400 text-sm font-bold hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95 transition-all w-full md:w-auto"
+                                className="px-4 py-2 bg-surface rounded-xl border border-orange-100 dark:border-orange-800/30 shadow-sm text-orange-600 dark:text-orange-400 text-sm font-bold hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95 transition-all w-full md:w-auto"
                             >
                                 End Fast
                             </button>
@@ -172,7 +171,7 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                                     fill="none"
                                     stroke="currentColor"
                                     strokeWidth="8"
-                                    className="text-white dark:text-slate-800 opacity-50"
+                                    className="text-muted/20"
                                 />
                                 <circle
                                     cx="50%"
@@ -188,11 +187,11 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                                 />
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-lg font-bold text-slate-800 dark:text-white">{Math.round(percent)}%</span>
+                                <span className="text-lg font-bold text-main">{Math.round(percent)}%</span>
                             </div>
                         </React.Fragment>
                     ) : (
-                        <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center border-4 border-emerald-100 dark:border-emerald-900/30 text-emerald-500 shadow-inner">
+                        <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center border-4 border-emerald-100 dark:border-emerald-900/30 text-emerald-500 shadow-inner">
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 12h2a2 2 0 1 0 0-4h-2v4Z" /><path d="m16.7 13.4-.9-1.8c.8-1.1 1.2-2.5 1.2-4a7 7 0 0 0-7-7 7 7 0 0 0-7 7c0 1.5.4 2.9 1.2 4l-.9 1.8a2 2 0 0 0 2.6 2.6l1.8-.9c1.1.8 2.5 1.2 4 1.2s2.9-.4 4-1.2l1.8.9a2 2 0 0 0 2.6-2.6Z" /></svg>
                         </div>
                     )}

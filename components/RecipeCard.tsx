@@ -73,10 +73,13 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
       <div className="p-6 flex flex-col flex-1">
         <div className="mb-4">
           <div className="flex justify-between items-start gap-3 mb-2">
-            <h3 className="text-xl font-bold text-slate-800 leading-tight font-serif group-hover:text-emerald-700 transition-colors line-clamp-2">
+            <h3 className="text-xl font-bold text-slate-800 leading-tight font-serif transition-colors line-clamp-2"
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = ''}
+            >
               {meal.name}
             </h3>
-            <span className="flex-shrink-0 text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+            <span className="flex-shrink-0 text-sm font-bold bg-calories-bg px-2.5 py-1 rounded-lg border border-calories-border" style={{ color: 'var(--calories)' }}>
               {meal.calories}
             </span>
           </div>
@@ -105,12 +108,18 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
                 e.stopPropagation();
                 onAction(e);
               }}
-              className="w-full py-3 text-sm font-bold text-white bg-slate-900 hover:bg-emerald-600 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
+              className="w-full py-3 text-sm font-bold text-white rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
+              style={{ backgroundColor: 'var(--neutral-900)' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--neutral-900)'}
             >
               {actionLabel || 'Select'}
             </button>
           ) : (
-            <div className="flex items-center justify-center gap-2 text-sm font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">
+            <div className="flex items-center justify-center gap-2 text-sm font-bold text-slate-400 transition-colors"
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = ''}
+            >
               <span>View Recipe</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transform group-hover:translate-x-1 transition-transform"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
             </div>

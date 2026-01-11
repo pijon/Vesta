@@ -69,7 +69,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-emerald-50">
+          <div className="p-6 border-b border-neutral-200 flex justify-between items-center bg-calories-bg">
             <h3 className="font-normal text-2xl text-slate-900 font-serif">Log Food</h3>
             <button
               onClick={handleClose}
@@ -91,7 +91,10 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
               <div className="flex gap-3">
                 <input
                   type="text"
-                  className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                  className="flex-1 p-3 bg-neutral-100 border border-neutral-200 rounded-xl focus:ring-2 outline-none font-medium"
+                  style={{ focusRingColor: 'var(--calories)' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                   placeholder="e.g. 1 apple and a handful of almonds"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -103,9 +106,20 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                   disabled={isAnalyzing || isAnalyzingImage || !input.trim()}
                   className={`px-6 py-3 font-bold rounded-xl transition-colors shadow-lg ${
                     isAnalyzing || isAnalyzingImage || !input.trim()
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                      : 'text-white'
                   }`}
+                  style={isAnalyzing || isAnalyzingImage || !input.trim() ? {} : { backgroundColor: 'var(--calories)' }}
+                  onMouseEnter={(e) => {
+                    if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
+                      e.currentTarget.style.backgroundColor = 'var(--calories-hover)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
+                      e.currentTarget.style.backgroundColor = 'var(--calories)';
+                    }
+                  }}
                 >
                   {isAnalyzing ? '...' : 'Add'}
                 </button>
@@ -132,9 +146,9 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
 
             {/* Loading State */}
             {isAnalyzingImage && (
-              <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-lg">
-                <p className="text-sm text-emerald-700 font-medium flex items-center gap-2">
-                  <LoadingSpinner size="sm" className="text-emerald-600" />
+              <div className="p-3 bg-calories-bg/50 border border-calories-border rounded-lg">
+                <p className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--calories)' }}>
+                  <LoadingSpinner size="sm" style={{ color: 'var(--calories)' }} />
                   Analyzing photo...
                 </p>
               </div>

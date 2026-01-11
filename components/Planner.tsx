@@ -281,9 +281,9 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
                             let indicatorColor = 'bg-transparent';
                             if (hasMeals) {
-                                if (isFastDay) indicatorColor = 'bg-emerald-500';
-                                else if (isNonFastDay) indicatorColor = 'bg-amber-500';
-                                else indicatorColor = 'bg-slate-300';
+                                if (isFastDay) indicatorColor = 'bg-primary';
+                                else if (isNonFastDay) indicatorColor = 'bg-secondary';
+                                else indicatorColor = 'bg-neutral-300 dark:bg-neutral-700';
                             }
 
                             return (
@@ -335,7 +335,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
                                                 return (
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 ${isOver ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                                                        <div className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 ${isOver ? 'bg-error-bg border-error-border' : 'bg-calories-bg border-calories-border'}`} style={{ color: isOver ? 'var(--error)' : 'var(--calories)' }}>
                                                             <span className="text-xs font-bold uppercase tracking-wider opacity-70">Calories Left</span>
                                                             <span className="text-lg font-bold font-serif">{remaining}</span>
                                                         </div>
@@ -370,7 +370,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                     await saveDayPlan(updated);
                                                 }}
                                                 className={`px-3 py-1 text-xs font-bold rounded-full transition-all border ${dayPlan.type === 'non-fast'
-                                                    ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                                    ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
                                                     : 'bg-transparent text-muted border-border hover:border-primary/50'}`}
                                             >
                                                 Non-Fast Day
@@ -382,8 +382,11 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                     <button
                                         onClick={handleAutoPlanDay}
                                         disabled={isGenerating}
-                                        className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95 text-xs"
+                                        className="text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95 text-xs"
                                         title="Auto-Plan this day (800 kcal)"
+                                        style={{ backgroundColor: 'var(--primary)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
                                     >
                                         {isGenerating ? (
                                             <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -397,7 +400,10 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                     </button>
                                     <button
                                         onClick={openAddModal}
-                                        className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95"
+                                        className="text-white px-5 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
+                                        style={{ backgroundColor: 'var(--primary)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                         Add Meal
@@ -495,7 +501,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                 onClick={handleAutoPlanClick}
                                 disabled={isGenerating}
                                 className={`w-full py-4 mt-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg text-white
-                                    ${isGenerating ? 'bg-slate-400 cursor-wait' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-[1.02] active:scale-95'}
+                                    ${isGenerating ? 'bg-slate-400 cursor-wait' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:scale-[1.02] active:scale-95'}
                                 `}
                             >
                                 {isGenerating ? (
@@ -735,11 +741,11 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
                                     <button
                                         onClick={() => handleAutoPlanConfirm('5:2')}
-                                        className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-background hover:border-indigo-500/20 hover:bg-indigo-50 transition-all group"
+                                        className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-background hover:border-amber-500/20 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group"
                                     >
                                         <div className="flex justify-between items-center mb-1">
-                                            <span className="font-bold text-main group-hover:text-indigo-600 transition-colors">5:2 Diet</span>
-                                            <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">Varied</span>
+                                            <span className="font-bold text-main group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">5:2 Diet</span>
+                                            <span className="text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded">Varied</span>
                                         </div>
                                         <p className="text-xs text-muted">2 Fasting Days (800 kcal) + 5 Non-Fasting Days.</p>
                                     </button>

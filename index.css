@@ -4,30 +4,114 @@
   --font-sans: 'Inter', sans-serif;
   --font-serif: 'DM Serif Display', serif;
 
+  /* Expose systematic color scales to Tailwind */
+  --color-emerald-100: var(--emerald-100);
+  --color-emerald-200: var(--emerald-200);
+  --color-emerald-300: var(--emerald-300);
+  --color-emerald-400: var(--emerald-400);
+  --color-emerald-500: var(--emerald-500);
+  --color-emerald-600: var(--emerald-600);
+  --color-emerald-700: var(--emerald-700);
+  --color-emerald-800: var(--emerald-800);
+  --color-emerald-900: var(--emerald-900);
+
+  --color-blue-100: var(--blue-100);
+  --color-blue-200: var(--blue-200);
+  --color-blue-300: var(--blue-300);
+  --color-blue-400: var(--blue-400);
+  --color-blue-500: var(--blue-500);
+  --color-blue-600: var(--blue-600);
+  --color-blue-700: var(--blue-700);
+  --color-blue-800: var(--blue-800);
+  --color-blue-900: var(--blue-900);
+
+  --color-purple-100: var(--purple-100);
+  --color-purple-200: var(--purple-200);
+  --color-purple-300: var(--purple-300);
+  --color-purple-400: var(--purple-400);
+  --color-purple-500: var(--purple-500);
+  --color-purple-600: var(--purple-600);
+  --color-purple-700: var(--purple-700);
+  --color-purple-800: var(--purple-800);
+  --color-purple-900: var(--purple-900);
+
+  --color-red-100: var(--red-100);
+  --color-red-200: var(--red-200);
+  --color-red-300: var(--red-300);
+  --color-red-400: var(--red-400);
+  --color-red-500: var(--red-500);
+  --color-red-600: var(--red-600);
+  --color-red-700: var(--red-700);
+  --color-red-800: var(--red-800);
+  --color-red-900: var(--red-900);
+
+  --color-amber-100: var(--amber-100);
+  --color-amber-200: var(--amber-200);
+  --color-amber-300: var(--amber-300);
+  --color-amber-400: var(--amber-400);
+  --color-amber-500: var(--amber-500);
+  --color-amber-600: var(--amber-600);
+  --color-amber-700: var(--amber-700);
+  --color-amber-800: var(--amber-800);
+  --color-amber-900: var(--amber-900);
+
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-950: var(--neutral-950);
+
+  /* Semantic tokens */
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-glass: var(--surface-glass);
   --color-border: var(--border);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
+  --color-border-muted: var(--border-muted);
   --color-main: var(--text-main);
   --color-muted: var(--text-muted);
 
-  /* Chart Colors - Premium Harmony */
-  --chart-1: var(--primary);
-  /* Emerald */
-  --chart-2: #0ea5e9;
-  /* Sky-500 (Cool complementary) */
-  --chart-3: #84cc16;
-  /* Lime-500 (Warm neighbor) */
-  --chart-4: #f59e0b;
-  /* Amber-500 (Contrast) */
-  --chart-5: #f43f5e;
-  /* Rose-500 (Alert) */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
 
-  --animate-fade-in: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-light: var(--secondary-light);
+
+  --color-calories: var(--calories);
+  --color-calories-bg: var(--calories-bg);
+  --color-calories-border: var(--calories-border);
+
+  --color-weight: var(--weight);
+  --color-weight-bg: var(--weight-bg);
+  --color-weight-border: var(--weight-border);
+
+  --color-workout: var(--workout);
+  --color-workout-bg: var(--workout-bg);
+  --color-workout-border: var(--workout-border);
+
+  --color-error: var(--error);
+  --color-error-bg: var(--error-bg);
+  --color-error-border: var(--error-border);
+
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+
+  /* Chart Colors - Use semantic colors */
+  --chart-1: var(--calories);
+  --chart-2: var(--weight);
+  --chart-3: var(--emerald-400);
+  --chart-4: var(--amber-500);
+  --chart-5: var(--workout) --animate-fade-in: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-slide-up: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-scale-in: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-pulse-slow: pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -94,51 +178,218 @@
 
 @layer base {
   :root {
-    /* Day Mode - Premium Emerald & Sand */
-    --background: #fdfcf8;
-    /* Warm off-white (Stone-50/Paper) */
-    --surface: #ffffff;
-    --surface-glass: rgba(255, 255, 255, 0.85);
-    /* Slightly more opaque for better readability */
+    /* ============================================
+       SYSTEMATIC COLOR PALETTE (HSL-Based)
+       Following: Consistent saturation (90-95%)
+       Scale: 100 (lightest) → 900 (darkest)
+       ============================================ */
 
-    --text-main: #1c1917;
-    /* Stone-900 */
-    --text-muted: #78716c;
-    /* Stone-500 */
-    --border: #e7e5e4;
-    /* Stone-200 */
+    /* Brand Color - Emerald (Primary / Calories) */
+    --emerald-100: hsl(160, 90%, 95%);
+    --emerald-200: hsl(160, 85%, 85%);
+    --emerald-300: hsl(160, 85%, 70%);
+    --emerald-400: hsl(160, 90%, 50%);
+    --emerald-500: hsl(160, 95%, 40%);
+    --emerald-600: hsl(160, 95%, 30%);
+    /* Base brand color */
+    --emerald-700: hsl(160, 95%, 25%);
+    --emerald-800: hsl(160, 95%, 20%);
+    --emerald-900: hsl(160, 100%, 15%);
 
-    --primary: #059669;
-    /* Emerald-600 - Rich, vibrant green */
-    --primary-foreground: #ffffff;
+    /* Weight Tracking - Blue */
+    --blue-100: hsl(210, 90%, 95%);
+    --blue-200: hsl(210, 85%, 85%);
+    --blue-300: hsl(210, 85%, 70%);
+    --blue-400: hsl(210, 90%, 55%);
+    --blue-500: hsl(210, 95%, 45%);
+    --blue-600: hsl(210, 95%, 35%);
+    --blue-700: hsl(210, 95%, 28%);
+    --blue-800: hsl(210, 95%, 22%);
+    --blue-900: hsl(210, 100%, 16%);
 
-    --secondary: #d97706;
-    /* Amber-600 */
-    --secondary-foreground: #ffffff;
+    /* Workout Activity - Purple */
+    --purple-100: hsl(280, 85%, 95%);
+    --purple-200: hsl(280, 80%, 85%);
+    --purple-300: hsl(280, 80%, 70%);
+    --purple-400: hsl(280, 85%, 60%);
+    --purple-500: hsl(280, 90%, 50%);
+    --purple-600: hsl(280, 90%, 40%);
+    --purple-700: hsl(280, 90%, 32%);
+    --purple-800: hsl(280, 90%, 25%);
+    --purple-900: hsl(280, 95%, 18%);
+
+    /* Error / Danger - Red */
+    --red-100: hsl(0, 85%, 95%);
+    --red-200: hsl(0, 80%, 85%);
+    --red-300: hsl(0, 80%, 70%);
+    --red-400: hsl(0, 85%, 60%);
+    --red-500: hsl(0, 90%, 50%);
+    --red-600: hsl(0, 90%, 42%);
+    --red-700: hsl(0, 90%, 35%);
+    --red-800: hsl(0, 90%, 28%);
+    --red-900: hsl(0, 95%, 20%);
+
+    /* Warning - Amber */
+    --amber-100: hsl(40, 90%, 95%);
+    --amber-200: hsl(40, 85%, 85%);
+    --amber-300: hsl(40, 85%, 70%);
+    --amber-400: hsl(40, 90%, 60%);
+    --amber-500: hsl(40, 95%, 50%);
+    --amber-600: hsl(40, 95%, 42%);
+    --amber-700: hsl(40, 95%, 35%);
+    --amber-800: hsl(40, 95%, 28%);
+    --amber-900: hsl(40, 100%, 20%);
+
+    /* Success - Green (Alias to Emerald) */
+    --success-100: var(--emerald-100);
+    --success-200: var(--emerald-200);
+    --success-300: var(--emerald-300);
+    --success-400: var(--emerald-400);
+    --success-500: var(--emerald-500);
+    --success-600: var(--emerald-600);
+    --success-700: var(--emerald-700);
+    --success-800: var(--emerald-800);
+    --success-900: var(--emerald-900);
+
+    /* Neutrals - Tinted with emerald hue (160°, 3-5% saturation) */
+    --neutral-50: hsl(160, 5%, 98%);
+    --neutral-100: hsl(160, 4%, 95%);
+    --neutral-200: hsl(160, 4%, 90%);
+    --neutral-300: hsl(160, 3%, 80%);
+    --neutral-400: hsl(160, 3%, 60%);
+    --neutral-500: hsl(160, 3%, 45%);
+    --neutral-600: hsl(160, 4%, 35%);
+    --neutral-700: hsl(160, 4%, 25%);
+    --neutral-800: hsl(160, 5%, 15%);
+    --neutral-900: hsl(160, 5%, 8%);
+    --neutral-950: hsl(160, 4%, 4%);
+
+    /* ============================================
+       SEMANTIC TOKENS (Light Mode)
+       ============================================ */
+
+    /* Backgrounds */
+    --background: var(--neutral-50);
+    --surface: hsl(0, 0%, 100%);
+    /* Pure white for cards */
+    --surface-glass: hsla(0, 0%, 100%, 0.85);
+
+    /* Text */
+    --text-main: var(--neutral-900);
+    --text-muted: var(--neutral-500);
+
+    /* Borders */
+    --border: var(--neutral-200);
+    --border-muted: var(--neutral-100);
+
+    /* Icon backgrounds - Light mode */
+    --icon-bg: var(--neutral-200);
+    --icon-bg-hover: var(--neutral-300);
+    --icon-color: var(--neutral-600);
+    --icon-color-hover: var(--neutral-800);
+
+    /* Brand / Primary */
+    --primary: var(--emerald-600);
+    --primary-foreground: hsl(0, 0%, 100%);
+    --primary-hover: var(--emerald-700);
+    --primary-light: var(--emerald-100);
+
+    /* Secondary */
+    --secondary: var(--amber-600);
+    --secondary-foreground: hsl(0, 0%, 100%);
+    --secondary-hover: var(--amber-700);
+    --secondary-light: var(--amber-100);
+
+    /* Semantic - Calories */
+    --calories: var(--emerald-600);
+    --calories-bg: var(--emerald-100);
+    --calories-border: var(--emerald-200);
+    --calories-hover: var(--emerald-700);
+
+    /* Semantic - Weight */
+    --weight: var(--blue-600);
+    --weight-bg: var(--blue-100);
+    --weight-border: var(--blue-200);
+    --weight-hover: var(--blue-700);
+
+    /* Semantic - Workout */
+    --workout: var(--purple-600);
+    --workout-bg: var(--purple-100);
+    --workout-border: var(--purple-200);
+    --workout-hover: var(--purple-700);
+
+    /* Semantic - Error */
+    --error: var(--red-600);
+    --error-bg: var(--red-100);
+    --error-border: var(--red-200);
+
+    /* Semantic - Warning */
+    --warning: var(--amber-600);
+    --warning-bg: var(--amber-100);
+    --warning-border: var(--amber-200);
   }
 
   .dark {
-    /* Night Mode - Deep Forest */
-    --background: #020617;
-    /* Slate-950 */
-    --surface: #0f172a;
-    /* Slate-900 */
-    --surface-glass: rgba(15, 23, 42, 0.85);
+    /* Dark Mode - Use lighter variants (400-500) for better visibility */
+    /* Backgrounds - Lighten by 5% per elevation level */
+    --background: var(--neutral-950);
+    --surface: hsl(160, 4%, 9%);
+    /* +5% lightness from background */
+    --surface-glass: hsla(160, 4%, 9%, 0.85);
 
-    --text-main: #f8fafc;
-    /* Slate-50 */
-    --text-muted: #94a3b8;
-    /* Slate-400 */
-    --border: #1e293b;
-    /* Slate-800 */
+    /* Text - High contrast but not pure white */
+    --text-main: hsl(160, 5%, 95%);
+    --text-muted: var(--neutral-400);
 
-    --primary: #10b981;
-    /* Emerald-500 - Brighter for dark mode */
-    --primary-foreground: #ffffff;
+    /* Borders */
+    --border: var(--neutral-800);
+    --border-muted: var(--neutral-900);
 
-    --secondary: #f59e0b;
-    /* Amber-500 */
-    --secondary-foreground: #ffffff;
+    /* Icon backgrounds - Dark mode - Much darker for contrast */
+    --icon-bg: var(--neutral-800);
+    --icon-bg-hover: var(--neutral-700);
+    --icon-color: var(--neutral-400);
+    --icon-color-hover: var(--neutral-200);
+
+    /* Brand / Primary - Brighter for dark mode */
+    --primary: var(--emerald-500);
+    --primary-foreground: var(--neutral-950);
+    --primary-hover: var(--emerald-400);
+    --primary-light: var(--emerald-900);
+
+    /* Secondary */
+    --secondary: var(--amber-500);
+    --secondary-foreground: var(--neutral-950);
+    --secondary-hover: var(--amber-400);
+    --secondary-light: var(--amber-900);
+
+    /* Semantic - Calories */
+    --calories: var(--emerald-500);
+    --calories-bg: var(--emerald-900);
+    --calories-border: var(--emerald-800);
+    --calories-hover: var(--emerald-400);
+
+    /* Semantic - Weight */
+    --weight: var(--blue-500);
+    --weight-bg: var(--blue-900);
+    --weight-border: var(--blue-800);
+    --weight-hover: var(--blue-400);
+
+    /* Semantic - Workout */
+    --workout: var(--purple-500);
+    --workout-bg: var(--purple-900);
+    --workout-border: var(--purple-800);
+    --workout-hover: var(--purple-400);
+
+    /* Semantic - Error */
+    --error: var(--red-500);
+    --error-bg: var(--red-900);
+    --error-border: var(--red-800);
+
+    /* Semantic - Warning */
+    --warning: var(--amber-500);
+    --warning-bg: var(--amber-900);
+    --warning-border: var(--amber-800);
   }
 
   body {
@@ -340,4 +591,17 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@layer utilities {
+  .card-gradient-responsive {
+    background-image: linear-gradient(to bottom right, var(--emerald-50), var(--teal-50));
+    background-color: transparent;
+  }
+
+  .dark .card-gradient-responsive {
+    background-image: none !important;
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+  }
 }

@@ -25,8 +25,8 @@ export const TrackWeek: React.FC<TrackWeekProps> = ({ stats, dailyLog }) => {
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="text-3xl font-serif font-bold text-slate-800 mb-1">Weekly Summary</h2>
-        <p className="text-slate-600">Your progress over the last 7 days</p>
+        <h2 className="text-3xl font-serif font-bold text-main mb-1">Weekly Summary</h2>
+        <p className="text-muted">Your progress over the last 7 days</p>
       </header>
 
       {/* Analytics Summary */}

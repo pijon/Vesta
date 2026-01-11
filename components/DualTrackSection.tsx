@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, PanInfo } from 'framer-motion';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
 
@@ -81,15 +82,15 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: From Your Plan */}
-      <div className="bg-surface rounded-2xl shadow-lg border border-emerald-200 overflow-hidden">
-        <div className="p-5 border-b border-emerald-100 bg-emerald-50/50 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+      <div className="bg-surface rounded-2xl shadow-lg border border-calories-border overflow-hidden">
+        <div className="p-5 border-b border-calories-border bg-calories-bg/50 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--calories)' }}>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
-          <h3 className="font-medium text-emerald-900 text-lg font-serif">From Your Plan</h3>
+          <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>From Your Plan</h3>
         </div>
         <div className="p-4 space-y-2 min-h-[200px]">
           {todayPlan.meals.length === 0 ? (
@@ -97,7 +98,10 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               <p className="font-medium mb-3">No meals planned for today</p>
               <button
                 onClick={() => onNavigate(AppView.PLANNER)}
-                className="px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-md active:scale-95 flex items-center gap-2"
+                className="px-5 py-2.5 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+                style={{ backgroundColor: 'var(--calories)' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--calories-hover)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--calories)'}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 Plan My Day
@@ -106,43 +110,101 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           ) : (
             todayPlan.meals.map((meal, index) => {
               const isCompleted = todayPlan.completedMealIds.includes(meal.id);
-              return (
-                <div
-                  key={index}
-                  onClick={() => onViewRecipe(meal)}
-                  className={`p-4 flex items-center gap-4 rounded-xl border transition-all cursor-pointer ${isCompleted
-                    ? 'bg-emerald-50/50 border-emerald-100 opacity-70'
-                    : 'bg-white border-emerald-200 hover:border-emerald-400 hover:shadow-sm'
-                    }`}
-                >
+
+              // Only apply swipe gestures to uncompleted meals
+              if (isCompleted) {
+                return (
                   <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleMeal(index);
-                    }}
-                    className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${isCompleted
-                      ? 'bg-emerald-600 border-emerald-600 text-white'
-                      : 'border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50'
-                      }`}
+                    key={index}
+                    onClick={() => onViewRecipe(meal)}
+                    className="p-4 flex items-center gap-4 rounded-xl border transition-all cursor-pointer bg-calories-bg/50 border-calories-border opacity-70"
                   >
-                    {isCompleted && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleMeal(index);
+                      }}
+                      className="w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer text-white"
+                      style={{ backgroundColor: 'var(--calories)', borderColor: 'var(--calories)' }}
+                    >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-medium truncate ${isCompleted ? 'text-emerald-700 line-through' : 'text-main'}`}>
-                      {meal.name}
-                    </p>
-                    <div className="flex gap-2 items-center mt-1">
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded uppercase tracking-wide">
-                        {meal.type}
-                      </span>
-                      <span className="text-xs text-muted">{meal.calories} kcal</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate line-through" style={{ color: 'var(--calories)' }}>
+                        {meal.name}
+                      </p>
+                      <div className="flex gap-2 items-center mt-1">
+                        <span className="text-[10px] font-bold bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ color: 'var(--calories)' }}>
+                          {meal.type}
+                        </span>
+                        <span className="text-xs text-muted">{meal.calories} kcal</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                );
+              }
+
+              // Swipeable card for uncompleted meals
+              return (
+                <motion.div
+                  key={index}
+                  drag="x"
+                  dragConstraints={{ left: -80, right: 0 }}
+                  dragElastic={0.2}
+                  dragDirectionLock
+                  className="relative touch-pan-y"
+                  whileDrag={{ scale: 0.98 }}
+                  onDragEnd={(event, info: PanInfo) => {
+                    if (info.offset.x < -50) {
+                      onToggleMeal(index);
+                    }
+                  }}
+                >
+                  {/* Background indicator (visible during drag) */}
+                  <div className="absolute inset-y-0 right-0 w-20 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--calories)' }}>
+                    <svg className="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+
+                  {/* Meal card content */}
+                  <div
+                    onClick={() => onViewRecipe(meal)}
+                    className="relative z-10 p-4 flex items-center gap-4 rounded-xl border transition-all cursor-pointer bg-surface border-calories-border hover:shadow-sm"
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--calories)'}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--calories-border)'}
+                  >
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleMeal(index);
+                      }}
+                      className="w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer border-border"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--calories)';
+                        e.currentTarget.style.backgroundColor = 'var(--calories-bg)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate text-main">
+                        {meal.name}
+                      </p>
+                      <div className="flex gap-2 items-center mt-1">
+                        <span className="text-[10px] font-bold bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ color: 'var(--calories)' }}>
+                          {meal.type}
+                        </span>
+                        <span className="text-xs text-muted">{meal.calories} kcal</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
               );
             })
           )}
@@ -150,16 +212,16 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
       </div>
 
       {/* Right: Your Log */}
-      <div className="bg-surface rounded-2xl shadow-lg border border-blue-200 overflow-hidden">
-        <div className="p-5 border-b border-blue-100 bg-blue-50/50 flex justify-between items-center">
+      <div className="bg-surface rounded-2xl shadow-lg border border-calories-border overflow-hidden">
+        <div className="p-5 border-b border-calories-border bg-calories-bg/50 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--calories)' }}>
               <path d="M12 20h9"></path>
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
             </svg>
-            <h3 className="font-medium text-blue-900 text-lg font-serif">Your Log</h3>
+            <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>Your Log</h3>
           </div>
-          <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+          <span className="text-xs font-bold bg-surface px-2 py-1 rounded-full" style={{ color: 'var(--calories)' }}>
             {totalLoggedItems} {totalLoggedItems === 1 ? 'entry' : 'entries'}
           </span>
         </div>
@@ -175,7 +237,9 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {displayedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-4 flex justify-between items-center rounded-xl border border-blue-100 bg-white hover:border-blue-300 hover:shadow-sm transition-all group"
+                  className="p-4 flex justify-between items-center rounded-xl border border-border bg-surface hover:shadow-sm transition-all group"
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--calories-border)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                 >
                   <div className="flex-1">
                     <p className="font-medium text-main">{item.name}</p>
@@ -183,13 +247,21 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                       <span className="text-xs text-muted">
                         {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      <span className="text-xs text-blue-600 font-bold">{item.calories} kcal</span>
+                      <span className="text-xs font-bold" style={{ color: 'var(--calories)' }}>{item.calories} kcal</span>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleStartEditFood(item)}
-                      className="p-2 hover:bg-blue-50 rounded-lg text-muted hover:text-blue-600 transition-colors"
+                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--calories-bg)';
+                        e.currentTarget.style.color = 'var(--calories)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }}
                       title="Edit entry"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -199,7 +271,15 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     </button>
                     <button
                       onClick={() => handleDeleteFood(item.id)}
-                      className="p-2 hover:bg-red-50 rounded-lg text-muted hover:text-red-600 transition-colors"
+                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--error-bg)';
+                        e.currentTarget.style.color = 'var(--error)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }}
                       title="Delete entry"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -215,11 +295,13 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {displayedWorkouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="p-4 flex justify-between items-center rounded-xl border border-purple-100 bg-purple-50/30 hover:border-purple-300 hover:shadow-sm transition-all group"
+                  className="p-4 flex justify-between items-center rounded-xl border border-workout-border bg-workout-bg/30 hover:shadow-sm transition-all group"
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--workout)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--workout-border)'}
                 >
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
+                    <div className="w-8 h-8 bg-workout-bg rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--workout)' }}>
                         <path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" />
                       </svg>
                     </div>
@@ -229,14 +311,22 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                         <span className="text-xs text-muted">
                           {new Date(workout.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        <span className="text-xs text-purple-600 font-bold">-{workout.caloriesBurned} kcal</span>
+                        <span className="text-xs font-bold" style={{ color: 'var(--workout)' }}>-{workout.caloriesBurned} kcal</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => onEditWorkout(workout)}
-                      className="p-2 hover:bg-purple-100 rounded-lg text-muted hover:text-purple-600 transition-colors"
+                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--workout-bg)';
+                        e.currentTarget.style.color = 'var(--workout)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }}
                       title="Edit workout"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -246,7 +336,15 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     </button>
                     <button
                       onClick={() => handleDeleteWorkout(workout.id)}
-                      className="p-2 hover:bg-red-50 rounded-lg text-muted hover:text-red-600 transition-colors"
+                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--error-bg)';
+                        e.currentTarget.style.color = 'var(--error)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }}
                       title="Delete workout"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -262,7 +360,16 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {!showAllLoggedItems && totalLoggedItems > 3 && (
                 <button
                   onClick={() => setShowAllLoggedItems(true)}
-                  className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-medium hover:bg-blue-50 rounded-lg transition-colors"
+                  className="w-full py-2 text-sm font-medium rounded-lg transition-colors"
+                  style={{ color: 'var(--primary)' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--primary-light)';
+                    e.currentTarget.style.color = 'var(--primary-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = 'var(--primary)';
+                  }}
                 >
                   View All ({totalLoggedItems} total)
                 </button>
@@ -280,14 +387,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             onClick={handleCancelEditFood}
           >
             <div
-              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+              className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-emerald-50">
-                <h3 className="font-normal text-2xl text-slate-900 font-serif">Edit Food Entry</h3>
+              <div className="p-6 border-b border-border flex justify-between items-center bg-calories-bg">
+                <h3 className="font-normal text-2xl text-main font-serif">Edit Food Entry</h3>
                 <button
                   onClick={handleCancelEditFood}
-                  className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                  className="p-2 bg-surface border border-border rounded-full text-muted hover:text-main transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -297,29 +404,29 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               </div>
               <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Food Name</label>
+                  <label className="block text-sm font-bold text-main mb-2">Food Name</label>
                   <input
                     type="text"
                     value={editFoodName}
                     onChange={(e) => setEditFoodName(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-main"
                     placeholder="e.g. Apple"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Calories</label>
+                  <label className="block text-sm font-bold text-main mb-2">Calories</label>
                   <input
                     type="number"
                     value={editFoodCalories}
                     onChange={(e) => setEditFoodCalories(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-main"
                   />
                 </div>
               </div>
               <div className="p-6 pt-0 flex gap-3">
                 <button
                   onClick={handleCancelEditFood}
-                  className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                  className="flex-1 py-3 bg-neutral-100 dark:bg-neutral-800 text-main font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
                 >
                   Cancel
                 </button>
@@ -327,9 +434,20 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   onClick={handleSaveEditFood}
                   disabled={!editFoodName.trim() || !editFoodCalories}
                   className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!editFoodName.trim() || !editFoodCalories
-                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    ? 'bg-neutral-300 dark:bg-neutral-800 text-muted cursor-not-allowed'
+                    : 'text-white'
                     }`}
+                  style={!editFoodName.trim() || !editFoodCalories ? {} : { backgroundColor: 'var(--calories)' }}
+                  onMouseEnter={(e) => {
+                    if (editFoodName.trim() && editFoodCalories) {
+                      e.currentTarget.style.backgroundColor = 'var(--calories-hover)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (editFoodName.trim() && editFoodCalories) {
+                      e.currentTarget.style.backgroundColor = 'var(--calories)';
+                    }
+                  }}
                 >
                   Save Changes
                 </button>
