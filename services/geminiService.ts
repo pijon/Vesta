@@ -22,7 +22,11 @@ const recipeSchema: Schema = {
       type: Type.ARRAY,
       items: { type: Type.STRING }
     },
-    type: { type: Type.STRING, enum: ['breakfast', 'main meal', 'snack', 'light meal'] }
+    tags: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "Tags like 'breakfast', 'main meal', 'snack', 'vegetarian', 'quick', etc."
+    }
   },
   required: ['name', 'calories', 'ingredients']
 };
@@ -36,7 +40,7 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
     CRITICAL INSTRUCTIONS:
     1. FLATTEN all ingredient sections. If the recipe has "For the sauce", "For the marinade", etc., ignore these headers and just list all ingredients in one single list.
     2. Estimate calories per serving if not provided.
-    3. Determine the meal type (breakfast, main meal, snack, light meal).
+    3. Determine appropriate tags (e.g. breakfast, main meal, snack, light meal, vegetarian, high protein).
     4. Default servings to 1 if not found.
     5. Clean up ingredient strings (remove checkboxes or bullets).
 
@@ -264,7 +268,7 @@ export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: 
     id: r.id,
     name: r.name,
     calories: r.calories,
-    type: r.type
+    tags: r.tags
   }));
 
   const prompt = `
@@ -325,7 +329,7 @@ export const planDayWithExistingRecipes = async (recipes: Recipe[], date: string
     id: r.id,
     name: r.name,
     calories: r.calories,
-    type: r.type
+    tags: r.tags
   }));
 
   const prompt = `

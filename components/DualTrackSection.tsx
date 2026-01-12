@@ -83,7 +83,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: From Your Plan */}
       <div className="bg-surface rounded-2xl shadow-lg border border-calories-border overflow-hidden">
-        <div className="p-5 border-b border-calories-border bg-calories-bg/50 flex items-center gap-2">
+        <div className="p-6 border-b border-calories-border bg-calories-bg/50 flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--calories)' }}>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -92,13 +92,13 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           </svg>
           <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>From Your Plan</h3>
         </div>
-        <div className="p-4 space-y-2 min-h-[200px]">
+        <div className="p-6 space-y-3 min-h-[200px]">
           {todayPlan.meals.length === 0 ? (
             <div className="p-8 text-center text-muted flex flex-col items-center justify-center h-full">
-              <p className="font-medium mb-3">No meals planned for today</p>
+              <p className="font-medium mb-4">No meals planned for today</p>
               <button
                 onClick={() => onNavigate(AppView.PLANNER)}
-                className="px-5 py-2.5 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+                className="px-6 py-3 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
                 style={{ backgroundColor: 'var(--calories)' }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--calories-hover)'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--calories)'}
@@ -213,7 +213,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
 
       {/* Right: Your Log */}
       <div className="bg-surface rounded-2xl shadow-lg border border-calories-border overflow-hidden">
-        <div className="p-5 border-b border-calories-border bg-calories-bg/50 flex justify-between items-center">
+        <div className="p-6 border-b border-calories-border bg-calories-bg/50 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--calories)' }}>
               <path d="M12 20h9"></path>
@@ -225,7 +225,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             {totalLoggedItems} {totalLoggedItems === 1 ? 'entry' : 'entries'}
           </span>
         </div>
-        <div className="p-4 space-y-2 min-h-[200px]">
+        <div className="p-6 space-y-3 min-h-[200px]">
           {sortedFoodItems.length === 0 && sortedWorkouts.length === 0 ? (
             <div className="p-8 text-center text-muted">
               <p>No items logged yet</p>

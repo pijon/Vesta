@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe } from '../types';
-import { getRecipes, saveRecipe, deleteRecipe } from '../services/storageService';
+import { getRecipes, saveRecipe, deleteRecipe, migrateRecipesToTags } from '../services/storageService';
 import { parseRecipeText } from '../services/geminiService';
 import { RecipeCard } from './RecipeCard';
-import { getCategoryColor } from '../utils';
 import { Portal } from './Portal';
 import { RecipeIllustration } from './RecipeIllustration';
 import { RecipeDetailModal } from './RecipeDetailModal';
@@ -119,7 +118,7 @@ export const RecipeLibrary: React.FC = () => {
           carbs: partialRecipe.carbs || 0,
           ingredients: partialRecipe.ingredients || [],
           instructions: partialRecipe.instructions || [],
-          type: (partialRecipe.type as any) || 'main meal',
+          tags: partialRecipe.tags || ['main meal'],
           servings: partialRecipe.servings || 1,
         };
 
@@ -183,10 +182,10 @@ export const RecipeLibrary: React.FC = () => {
     .filter(recipe => {
       const matchesSearch =
         recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        recipe.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
         recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchesFilter = activeFilter === 'all' || recipe.type === activeFilter;
+      const matchesFilter = activeFilter === 'all' || recipe.tags?.includes(activeFilter);
       const matchesFavorite = !showFavoritesOnly || recipe.isFavorite;
 
       return matchesSearch && matchesFilter && matchesFavorite;
@@ -220,6 +219,18 @@ export const RecipeLibrary: React.FC = () => {
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             <span className="hidden sm:inline">Export</span>
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Migrate all recipes to use Tags? This will update your database.")) {
+                migrateRecipesToTags().then(() => alert("Migration complete!"));
+              }
+            }}
+            className="btn-secondary btn-sm flex items-center gap-2"
+            title="Migrate Data Structure"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <span className="hidden sm:inline">Migrate DB</span>
           </button>
           <button
             onClick={() => setIsAdding(!isAdding)}
@@ -307,7 +318,7 @@ export const RecipeLibrary: React.FC = () => {
       )}
 
       {/* Search, Sort & Filters */}
-      <div className="space-y-4 glass-panel p-4 rounded-2xl">
+      <div className="space-y-6 glass-panel p-6 rounded-2xl">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -355,7 +366,7 @@ export const RecipeLibrary: React.FC = () => {
               {type}
             </button>
           ))}
-          <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+          <div className="w-px h-6 bg-border mx-1 self-center"></div>
           <button
             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
             className={`badge-md whitespace-nowrap transition-all border flex items-center gap-1.5 ${showFavoritesOnly
@@ -395,20 +406,17 @@ export const RecipeLibrary: React.FC = () => {
       {selectedRecipe && (
         isEditing && editForm ? (
           <Portal>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-slate-900/60 backdrop-blur-sm" onClick={closeRecipe}>
-              <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-black/60 backdrop-blur-sm" onClick={closeRecipe}>
+              <div className="bg-surface w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
                 {/* --- Edit Mode --- */}
                 <div className="flex flex-col h-full">
-                  <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-white sticky top-0 z-10">
-                    <h2 className="text-2xl font-bold text-slate-900 font-serif">Edit Recipe</h2>
+                  <div className="flex justify-between items-center p-6 border-b border-border bg-surface sticky top-0 z-10 transition-colors">
+                    <h2 className="text-2xl font-bold text-main font-serif">Edit Recipe</h2>
                     <div className="flex gap-2">
-                      <button onClick={cancelEditing} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg text-sm font-bold">Cancel</button>
+                      <button onClick={cancelEditing} className="px-4 py-2 text-muted hover:bg-background rounded-lg text-sm font-bold transition-colors">Cancel</button>
                       <button
                         onClick={saveEditing}
-                        className="px-5 py-2 text-white rounded-lg text-sm font-bold shadow-lg transition-colors"
-                        style={{ backgroundColor: 'var(--neutral-900)' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--neutral-900)'}
+                        className="btn-primary btn-sm shadow-lg"
                       >Save Changes</button>
                     </div>
                   </div>
@@ -417,9 +425,9 @@ export const RecipeLibrary: React.FC = () => {
                     <div className="space-y-6">
                       {/* Image Upload Section */}
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-3">Recipe Photo (Optional)</label>
+                        <label className="block text-sm font-bold text-main mb-3">Recipe Photo (Optional)</label>
                         {uploadedImage ? (
-                          <div className="relative rounded-2xl overflow-hidden border border-slate-200">
+                          <div className="relative rounded-2xl overflow-hidden border border-border">
                             <img src={uploadedImage} alt="Recipe preview" className="w-full h-64 object-cover" />
                             <button
                               onClick={handleRemoveImage}
@@ -442,44 +450,79 @@ export const RecipeLibrary: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Recipe Name</label>
+                        <label className="block text-sm font-bold text-main mb-2">Recipe Name</label>
                         <input
                           type="text"
                           value={editForm.name}
                           onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                          className="w-full p-4 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-slate-50 text-slate-900 text-lg"
+                          className="w-full p-4 border border-border rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-background text-main text-lg"
                           placeholder="Recipe Name"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-6">
                         <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Meal Type</label>
-                          <select
-                            value={editForm.type}
-                            onChange={e => setEditForm({ ...editForm, type: e.target.value as any })}
-                            className="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-slate-50 font-medium text-slate-900"
-                          >
-                            <option value="breakfast">Breakfast</option>
-                            <option value="main meal">Main Meal</option>
-                            <option value="snack">Snack</option>
-                            <option value="light meal">Light Meal</option>
-                          </select>
+                          <label className="block text-sm font-bold text-main mb-2">Tags</label>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {['breakfast', 'main meal', 'snack', 'light meal'].map(tag => (
+                              <button
+                                key={tag}
+                                onClick={() => {
+                                  const currentTags = editForm.tags || [];
+                                  const newTags = currentTags.includes(tag)
+                                    ? currentTags.filter(t => t !== tag)
+                                    : [...currentTags, tag];
+                                  setEditForm({ ...editForm, tags: newTags });
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-all ${(editForm.tags || []).includes(tag)
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-surface text-muted border-border hover:border-primary/50'
+                                  }`}
+                              >
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Add custom tags (comma separated)"
+                            className="w-full p-3.5 border border-border rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-background font-medium text-main text-sm"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val) {
+                                  const newTags = [...(editForm.tags || []), ...val.split(',').map(t => t.trim()).filter(Boolean)];
+                                  // Dedupe
+                                  setEditForm({ ...editForm, tags: Array.from(new Set(newTags)) });
+                                  e.currentTarget.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {(editForm.tags || []).filter(t => !['breakfast', 'main meal', 'snack', 'light meal'].includes(t)).map(tag => (
+                              <span key={tag} className="px-2 py-1 bg-surface border border-border rounded-md text-xs font-bold flex items-center gap-1">
+                                {tag}
+                                <button onClick={() => setEditForm({ ...editForm, tags: editForm.tags.filter(t => t !== tag) })} className="hover:text-red-500">×</button>
+                              </span>
+                            ))}
+                          </div>
                         </div>
                         <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Servings</label>
+                          <label className="block text-sm font-bold text-main mb-2">Servings</label>
                           <input
                             type="number"
                             min="1"
                             value={editForm.servings}
                             onChange={e => setEditForm({ ...editForm, servings: parseInt(e.target.value) || 1 })}
-                            className="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-slate-50 text-slate-900"
+                            className="w-full p-3.5 border border-border rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-background text-main"
                           />
                         </div>
                       </div>
 
-                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                        <label className="block text-sm font-bold text-slate-900 mb-4">Nutrition per serving</label>
+                      <div className="bg-background p-6 rounded-2xl border border-border">
+                        <label className="block text-sm font-bold text-main mb-4">Nutrition per serving</label>
                         <div className="grid grid-cols-4 gap-4">
                           {[
                             { label: 'Calories', val: editForm.calories, key: 'calories' },
@@ -488,13 +531,13 @@ export const RecipeLibrary: React.FC = () => {
                             { label: 'Carbs (g)', val: editForm.carbs, key: 'carbs' }
                           ].map((item) => (
                             <div key={item.key}>
-                              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">{item.label}</label>
+                              <label className="block text-xs font-bold text-muted mb-1.5 uppercase tracking-wide">{item.label}</label>
                               <input
                                 type="number"
                                 min="0"
                                 value={item.val || 0}
                                 onChange={e => setEditForm({ ...editForm, [item.key]: parseInt(e.target.value) || 0 })}
-                                className="w-full p-3 border border-slate-200 rounded-xl text-sm text-center font-bold bg-white focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+                                className="w-full p-3 border border-border rounded-xl text-sm text-center font-bold bg-surface focus:ring-2 focus:ring-primary/20 focus:outline-none text-main"
                               />
                             </div>
                           ))}
@@ -502,22 +545,22 @@ export const RecipeLibrary: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Ingredients <span className="text-slate-400 font-normal">(one per line)</span></label>
+                        <label className="block text-sm font-bold text-main mb-2">Ingredients <span className="text-muted font-normal">(one per line)</span></label>
                         <textarea
                           rows={6}
                           value={editForm.ingredients.join('\n')}
                           onChange={e => setEditForm({ ...editForm, ingredients: e.target.value.split('\n') })}
-                          className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-slate-50 text-slate-900"
+                          className="w-full p-4 border border-border rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-background text-main"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Instructions <span className="text-slate-400 font-normal">(one per line)</span></label>
+                        <label className="block text-sm font-bold text-main mb-2">Instructions <span className="text-muted font-normal">(one per line)</span></label>
                         <textarea
                           rows={6}
                           value={(editForm.instructions || []).join('\n')}
                           onChange={e => setEditForm({ ...editForm, instructions: e.target.value.split('\n') })}
-                          className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-slate-50 text-slate-900"
+                          className="w-full p-4 border border-border rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-background text-main"
                         />
                       </div>
                     </div>

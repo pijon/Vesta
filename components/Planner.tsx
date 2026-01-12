@@ -4,7 +4,7 @@ import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan, getUpcomingPlan } f
 import { planWeekWithExistingRecipes, planDayWithExistingRecipes } from '../services/geminiService';
 import { Recipe, DayPlan } from '../types';
 
-import { getCategoryColor } from '../utils';
+import { getRecipeTheme } from '../utils';
 import { Portal } from './Portal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 
@@ -89,7 +89,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
             calories: parseInt(customCalories) || 0,
             ingredients: [],
             instructions: [],
-            type: customType,
+            tags: [customType],
             servings: 1,
             description: 'Eat Out / Custom Meal'
         };
@@ -228,7 +228,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
     const filteredRecipes = availableRecipes.filter(recipe => {
         const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = activeFilter === 'all' || recipe.type === activeFilter;
+        const matchesFilter = activeFilter === 'all' || recipe.tags?.includes(activeFilter);
         const matchesCalories = maxCalories === '' || recipe.calories <= parseInt(maxCalories);
         return matchesSearch && matchesFilter && matchesCalories;
     });
@@ -249,7 +249,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-8 animate-fade-in">
             <header className="flex justify-between items-center section-header">
                 <div>
                     <h2 className="section-title">Weekly Planner</h2>
@@ -313,8 +313,8 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                 <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                     {/* Left Column: Day View */}
-                    <div className="lg:col-span-3 space-y-6">
-                        <div className="bg-surface rounded-2xl premium-shadow border border-border p-6 min-h-[500px]">
+                    <div className="lg:col-span-3 space-y-8">
+                        <div className="bg-surface rounded-2xl premium-shadow border border-border p-8 min-h-[500px]">
                             <div className="flex justify-between items-center mb-6">
                                 <div>
                                     <h2 className="text-2xl font-medium text-main font-serif">
@@ -633,16 +633,18 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                             onClick={() => handleRecipeSelect(recipe)}
                                                             className="flex items-center gap-5 p-3 rounded-xl bg-surface border border-border hover:border-primary hover:shadow-md transition-all text-left group w-full overflow-hidden"
                                                         >
-                                                            <div className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 relative flex items-center justify-center ${getCategoryColor(recipe.type).bg}`}>
-                                                                <div className={`text-3xl font-bold uppercase opacity-50 ${getCategoryColor(recipe.type).text}`}>
-                                                                    {recipe.type.charAt(0)}
+                                                            <div className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 relative flex items-center justify-center ${getRecipeTheme(recipe.tags).bg}`}>
+                                                                <div className={`text-3xl font-bold uppercase opacity-50 ${getRecipeTheme(recipe.tags).text}`}>
+                                                                    {(recipe.name || 'R').charAt(0)}
                                                                 </div>
                                                             </div>
                                                             <div className="flex-1 min-w-0 py-1">
                                                                 <h4 className="font-bold text-lg text-main truncate font-serif">{recipe.name}</h4>
                                                                 <p className="text-xs text-muted line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-[10px] font-bold text-muted bg-background px-2 py-0.5 rounded uppercase tracking-wide">{recipe.type}</span>
+                                                                    {recipe.tags?.map(tag => (
+                                                                        <span key={tag} className="text-[10px] font-bold text-muted bg-background px-2 py-0.5 rounded uppercase tracking-wide">{tag}</span>
+                                                                    ))}
                                                                     <span className="text-xs font-bold text-primary">{recipe.calories} kcal</span>
                                                                 </div>
                                                             </div>

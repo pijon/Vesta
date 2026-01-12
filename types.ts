@@ -8,7 +8,7 @@ export interface Recipe {
   carbs?: number;
   ingredients: string[];
   instructions?: string[];
-  type: 'breakfast' | 'main meal' | 'snack' | 'light meal' | 'any';
+  tags: string[];
   servings: number;
   image?: string; // base64 data URL or external URL
   isFavorite?: boolean;

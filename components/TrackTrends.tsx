@@ -83,17 +83,17 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
     : 0;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h2 className="text-3xl font-serif font-bold text-main mb-1">Trends & Analytics</h2>
+    <div className="space-y-8">
+      <header className="mb-8">
+        <h2 className="text-3xl font-serif font-bold text-main mb-2">Trends & Analytics</h2>
         <p className="text-muted">Track your progress and insights</p>
       </header>
 
       {/* Insight Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Goal Projection Card */}
-        <div className="bg-surface rounded-3xl p-6 border border-border">
-          <div className="flex justify-between items-start mb-4">
+        <div className="bg-surface rounded-2xl p-6 border border-border">
+          <div className="flex justify-between items-start mb-6">
             <h4 className="text-sm font-bold text-muted uppercase tracking-wider">Goal Projection</h4>
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -117,8 +117,8 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
         </div>
 
         {/* Consistency Card */}
-        <div className="bg-surface rounded-3xl p-6 border border-border">
-          <div className="flex justify-between items-start mb-4">
+        <div className="bg-surface rounded-2xl p-6 border border-border">
+          <div className="flex justify-between items-start mb-6">
             <h4 className="text-sm font-bold text-muted uppercase tracking-wider">Diet Consistency</h4>
             <div className={`p-2 rounded-lg ${consistency.consistencyScore >= 80 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -136,10 +136,10 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
         </div>
 
         {/* Latest Net Calories Card */}
-        <div className="bg-surface rounded-3xl p-6 border border-border">
-          <div className="flex justify-between items-start mb-4">
+        <div className="bg-surface rounded-2xl p-6 border border-border">
+          <div className="flex justify-between items-start mb-6">
             <h4 className="text-sm font-bold text-muted uppercase tracking-wider">Latest Net</h4>
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
+            <div className="p-2 bg-primary/10 text-primary rounded-lg">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18M6 6l12 12"></path>
               </svg>
@@ -155,7 +155,7 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
       </div>
 
       {/* Weight Trend Chart */}
-      <div className="bg-surface p-6 rounded-3xl border border-border">
+      <div className="bg-surface p-8 rounded-3xl border border-border">
         <h3 className="font-medium text-main mb-6 font-serif text-lg">Weight Trend</h3>
         {formattedWeightData.length === 0 ? (
           <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
@@ -205,7 +205,7 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
       </div>
 
       {/* Calorie Trends Chart */}
-      <div className="bg-surface p-6 rounded-3xl border border-border">
+      <div className="bg-surface p-8 rounded-3xl border border-border">
         <h3 className="font-medium text-main mb-6 font-serif text-lg">Daily Calories</h3>
         {formattedCalorieData.length === 0 ? (
           <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
@@ -258,7 +258,7 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
       </div>
 
       {/* Workout Activity Chart */}
-      <div className="bg-surface p-6 rounded-3xl border border-border">
+      <div className="bg-surface p-8 rounded-3xl border border-border">
         <h3 className="font-medium text-main mb-6 font-serif text-lg">Workout Activity</h3>
         {formattedWorkoutData.length === 0 ? (
           <div className="h-56 flex items-center justify-center text-muted text-sm">
@@ -303,7 +303,7 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
       <div className="bg-surface rounded-3xl border border-border overflow-hidden">
         <button
           onClick={() => setAdvancedExpanded(!advancedExpanded)}
-          className="w-full p-5 flex justify-between items-center hover:bg-background/50 transition-colors"
+          className="w-full p-8 flex justify-between items-center hover:bg-background/50 transition-colors"
         >
           <h3 className="font-medium text-main text-lg font-serif">Advanced Analytics</h3>
           <svg
@@ -322,7 +322,7 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
           </svg>
         </button>
         {advancedExpanded && (
-          <div className="p-6 pt-0 space-y-6">
+          <div className="p-8 pt-0 space-y-8">
             {/* Weight vs Fasting Chart */}
             <div>
               <h4 className="text-lg font-bold text-main mb-6">Weight vs Fasting Hours</h4>

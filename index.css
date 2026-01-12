@@ -106,6 +106,10 @@
   --color-warning-bg: var(--warning-bg);
   --color-warning-border: var(--warning-border);
 
+  --color-water: var(--water);
+  --color-water-bg: var(--water-bg);
+  --color-water-border: var(--water-border);
+
   /* Chart Colors - Use semantic colors */
   --chart-1: var(--calories);
   --chart-2: var(--weight);
@@ -327,6 +331,12 @@
     --warning: var(--amber-600);
     --warning-bg: var(--amber-100);
     --warning-border: var(--amber-200);
+
+    /* Semantic - Water */
+    --water: var(--blue-600);
+    --water-bg: var(--blue-100);
+    --water-border: var(--blue-200);
+    --water-hover: var(--blue-700);
   }
 
   .dark {
@@ -390,6 +400,12 @@
     --warning: var(--amber-500);
     --warning-bg: var(--amber-900);
     --warning-border: var(--amber-800);
+
+    /* Semantic - Water */
+    --water: var(--blue-500);
+    --water-bg: var(--blue-900);
+    --water-border: var(--blue-800);
+    --water-hover: var(--blue-400);
   }
 
   body {
@@ -510,23 +526,23 @@
 
   /* Badge color variants */
   .badge-emerald {
-    @apply bg-emerald-50 text-emerald-700;
+    @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border dark:border-emerald-800;
   }
 
   .badge-purple {
-    @apply bg-purple-50 text-purple-700;
+    @apply bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 dark:border dark:border-purple-800;
   }
 
   .badge-amber {
-    @apply bg-amber-50 text-amber-700;
+    @apply bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:border dark:border-amber-800;
   }
 
   .badge-sky {
-    @apply bg-sky-50 text-sky-700;
+    @apply bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 dark:border dark:border-sky-800;
   }
 
   .badge-slate {
-    @apply bg-background text-muted;
+    @apply bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:border dark:border-slate-700;
   }
 
   /* --- INPUTS --- */

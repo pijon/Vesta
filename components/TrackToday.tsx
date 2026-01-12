@@ -173,14 +173,14 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Mobile Quick Actions Bar */}
       <div className="md:hidden -mt-4 -mx-4 mb-2 sticky top-16 z-30 bg-surface/95 backdrop-blur-sm border-b border-border p-3">
         <div className="flex gap-2">
           <button
             onClick={() => handleAddWater(250)}
             className="flex-1 py-2.5 text-white rounded-xl font-bold text-sm active:scale-95 transition-transform shadow-sm flex items-center justify-center gap-1.5"
-            style={{ backgroundColor: 'var(--primary)' }}
+            style={{ backgroundColor: 'var(--water)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
@@ -190,7 +190,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           <button
             onClick={() => handleAddWater(500)}
             className="flex-1 py-2.5 text-white rounded-xl font-bold text-sm active:scale-95 transition-transform shadow-sm flex items-center justify-center gap-1.5"
-            style={{ backgroundColor: 'var(--primary-hover)' }}
+            style={{ backgroundColor: 'var(--water-hover)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
@@ -201,15 +201,15 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       </div>
 
       {/* Hero Stats */}
-      <div className="pb-4">
+      <div className="pb-8">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           {/* Net Calories Card */}
-          <div className="md:col-span-5 bg-gradient-to-br from-surface via-calories-bg/30 to-surface p-6 rounded-3xl shadow-xl shadow-calories-bg/50 border border-calories-border/50 flex flex-col h-64 relative overflow-hidden group hover:shadow-2xl hover:shadow-calories-border transition-all duration-500">
+          <div className="md:col-span-5 bg-gradient-to-br from-surface via-calories-bg/30 to-surface p-8 rounded-3xl shadow-xl shadow-calories-bg/50 border border-calories-border/50 flex flex-col h-64 relative overflow-hidden group hover:shadow-2xl hover:shadow-calories-border transition-all duration-500">
             {/* Decorative gradient orb */}
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-emerald-400/20 to-calories/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
 
             {/* Header: Label + Icon */}
-            <div className="flex justify-between items-center mb-3 relative z-10">
+            <div className="flex justify-between items-center mb-4 relative z-10">
               <p className="text-muted text-xs font-bold uppercase tracking-widest">Net Calories</p>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-calories flex items-center justify-center text-white shadow-lg shadow-calories/30">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -260,12 +260,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           </div>
 
           {/* Weight Card */}
-          <div className="md:col-span-7 bg-gradient-to-br from-surface via-weight-bg/30 to-surface p-6 rounded-3xl shadow-xl shadow-weight-bg/50 border border-weight-border/50 flex flex-col h-64 relative overflow-hidden group hover:shadow-2xl hover:shadow-weight-border transition-all duration-500">
+          <div className="md:col-span-7 bg-gradient-to-br from-surface via-weight-bg/30 to-surface p-8 rounded-3xl shadow-xl shadow-weight-bg/50 border border-weight-border/50 flex flex-col h-64 relative overflow-hidden group hover:shadow-2xl hover:shadow-weight-border transition-all duration-500">
             {/* Decorative gradient orb */}
             <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-400/20 to-weight/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
 
             {/* Header: Label + Icon */}
-            <div className="flex justify-between items-center mb-3 relative z-10">
+            <div className="flex justify-between items-center mb-4 relative z-10">
               <p className="text-muted text-xs font-bold uppercase tracking-widest">Current Weight</p>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-weight flex items-center justify-center text-white shadow-lg shadow-weight/30">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -327,7 +327,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       </div>
 
       {/* Quick Actions Bar */}
-      <div className="pb-4">
+      <div className="pb-8">
         <div className="flex gap-3 flex-wrap">
           <button
             onClick={() => setIsFoodModalOpen(true)}
@@ -345,9 +345,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           <button
             onClick={() => handleAddWater(250)}
             className="flex-1 min-w-[140px] py-3 text-white font-bold rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2"
-            style={{ backgroundColor: 'var(--primary)' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
+            style={{ backgroundColor: 'var(--water)' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--water-hover)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--water)'}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
@@ -397,7 +397,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       />
 
       {/* Trackers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Hydration Widget */}
         <HydrationWidget
           intake={hydration}
@@ -416,10 +416,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       </div>
 
       {/* Tomorrow's Preview - Collapsible */}
-      <div className="bg-surface rounded-2xl shadow-lg border border-border overflow-hidden">
+      <div className="bg-surface rounded-3xl shadow-lg border border-border overflow-hidden">
         <button
           onClick={() => setTomorrowExpanded(!tomorrowExpanded)}
-          className="w-full p-5 flex justify-between items-center hover:bg-background/50 transition-colors"
+          className="w-full p-8 flex justify-between items-center hover:bg-background/50 transition-colors"
         >
           <div className="flex items-center gap-3">
             <h3 className="font-medium text-main text-lg font-serif">Tomorrow's Plan</h3>
@@ -443,10 +443,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           </svg>
         </button>
         {tomorrowExpanded && (
-          <div className="p-5 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="p-8 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {tomorrowPlan.meals.length === 0 ? (
               <div className="col-span-full p-8 text-center text-muted border border-dashed border-border rounded-xl bg-background/50">
-                No meals planned for tomorrow
+                <p className="font-medium">No meals planned for tomorrow</p>
               </div>
             ) : (
               tomorrowPlan.meals.map((meal, index) => (
@@ -503,7 +503,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-border flex justify-between items-center bg-surface">
+              <div className="p-8 border-b border-border flex justify-between items-center bg-surface">
                 <h3 className="font-normal text-2xl text-main font-serif">Update Weight</h3>
                 <button
                   onClick={() => setIsWeightModalOpen(false)}
@@ -515,7 +515,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                   </svg>
                 </button>
               </div>
-              <div className="p-6 space-y-5">
+              <div className="p-8 space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-main mb-2">Current Weight (kg)</label>
                   <input
@@ -531,7 +531,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                   <p className="text-xs text-muted mt-2 ml-1">Enter your current weight to update your progress</p>
                 </div>
               </div>
-              <div className="p-6 pt-0 flex gap-3">
+              <div className="p-8 pt-0 flex gap-3">
                 <button
                   onClick={() => setIsWeightModalOpen(false)}
                   className="flex-1 py-3 bg-neutral-100 dark:bg-neutral-800 text-main font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"

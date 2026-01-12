@@ -108,7 +108,7 @@ const DarkModeToggleButton: React.FC<{
   return (
     <button
       onClick={onClick}
-      className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200"
+      className="group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200"
       title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
       style={isHovered ? {
         color: 'var(--main)',
@@ -160,7 +160,7 @@ const SettingsButton: React.FC<{
   return (
     <button
       onClick={onClick}
-      className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200"
+      className="group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200"
       style={isHovered ? {
         color: 'var(--main)',
         backgroundColor: 'var(--background)'
@@ -198,7 +198,7 @@ const SidebarNavButton: React.FC<{
   return (
     <button
       onClick={onClick}
-      className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+      className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
         active
           ? 'text-white'
           : ''
@@ -246,8 +246,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   return (
     <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-60 md:border-r bg-surface border-border">
       {/* Logo */}
-      <div className="p-5 border-b border-border">
-        <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => onNavigate(AppView.DASHBOARD)}>
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onNavigate(AppView.DASHBOARD)}>
           <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-all duration-200 group-hover:scale-105 opacity-90" />
           <h1 className="text-lg font-medium tracking-tight leading-none text-main">
             Fast<span className="font-bold text-primary">800</span>
@@ -256,10 +256,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-6 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 p-4 space-y-8 overflow-y-auto custom-scrollbar">
         {/* Tracking Section */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider px-3 mb-2 text-muted-light opacity-50">
+          <p className="text-xs font-semibold uppercase tracking-wider px-3 mb-3 text-muted-light opacity-50">
             Tracking
           </p>
           <div className="space-y-1">
@@ -276,7 +276,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
         {/* Planning Section */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider px-3 mb-2 text-muted-light opacity-50">
+          <p className="text-xs font-semibold uppercase tracking-wider px-3 mb-3 text-muted-light opacity-50">
             Planning
           </p>
           <div className="space-y-1">

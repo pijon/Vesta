@@ -23,9 +23,9 @@ export const TrackWeek: React.FC<TrackWeekProps> = ({ stats, dailyLog }) => {
   const weeklySummary = getWeeklySummary(dailySummaries, stats.dailyCalorieGoal);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h2 className="text-3xl font-serif font-bold text-main mb-1">Weekly Summary</h2>
+    <div className="space-y-8">
+      <header className="mb-8">
+        <h2 className="text-3xl font-serif font-bold text-main mb-2">Weekly Summary</h2>
         <p className="text-muted">Your progress over the last 7 days</p>
       </header>
 

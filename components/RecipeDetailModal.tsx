@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Recipe } from '../types';
 import { Portal } from './Portal';
-import { getCategoryColor } from '../utils';
+import { getRecipeTheme } from '../utils';
 import { RecipeIllustration } from './RecipeIllustration';
 
 interface RecipeDetailModalProps {
@@ -31,6 +31,7 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, children }) => (
 
 export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose, onEdit, onDelete }) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'ingredients' | 'instructions'>('overview');
+    const theme = getRecipeTheme(recipe?.tags);
 
     if (!recipe) return null;
 
@@ -40,7 +41,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                 <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
 
                     {/* Header Image Area */}
-                    <div className={`relative h-56 md:h-64 flex-shrink-0 overflow-hidden ${!recipe.image ? getCategoryColor(recipe.type).bg : 'bg-slate-900'}`}>
+                    <div className={`relative h-56 md:h-64 flex-shrink-0 overflow-hidden ${!recipe.image ? theme.bg : 'bg-slate-900'}`}>
                         <div className="absolute inset-0 flex items-center justify-center">
                             {recipe.image ? (
                                 <img
@@ -52,9 +53,9 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                 <RecipeIllustration
                                     className="w-full h-full"
                                     theme={{
-                                        bg: getCategoryColor(recipe.type).bg,
-                                        text: getCategoryColor(recipe.type).text,
-                                        accent: recipe.type === 'breakfast' ? '#F59E0B' : undefined
+                                        bg: theme.bg,
+                                        text: theme.text,
+                                        accent: theme.bg.includes('bg-slate') ? '#94a3b8' : undefined
                                     }}
                                 />
                             )}
@@ -71,7 +72,11 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                         </button>
 
                         <div className="absolute bottom-0 left-0 right-0 p-8 pt-0">
-                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3 text-white border border-white/30 backdrop-blur-md bg-white/10`}>{recipe.type}</span>
+                            <div className="flex gap-2 mb-3">
+                                {recipe.tags?.map(tag => (
+                                    <span key={tag} className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-white border border-white/30 backdrop-blur-md bg-white/10`}>{tag}</span>
+                                ))}
+                            </div>
                             <h2 className="text-3xl md:text-4xl font-bold text-white font-serif leading-tight mb-2 drop-shadow-sm">{recipe.name}</h2>
                             <div className="flex text-white/80 text-sm font-medium gap-4">
                                 <span>{recipe.calories} kcal</span>

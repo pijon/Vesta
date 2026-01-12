@@ -429,7 +429,7 @@ export const ShoppingList: React.FC = () => {
     });
 
     return (
-      <div className="space-y-6 pb-20 animate-fade-in">
+      <div className="space-y-8 pb-20 animate-fade-in">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="heading-1">Shopping List</h2>
@@ -510,7 +510,7 @@ export const ShoppingList: React.FC = () => {
   // Loading state
   if (isProcessing) {
     return (
-      <div className="space-y-6 pb-20 animate-fade-in">
+      <div className="space-y-8 pb-20 animate-fade-in">
         <header>
           <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
           <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
@@ -527,7 +527,7 @@ export const ShoppingList: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <div className="space-y-6 pb-20 animate-fade-in">
+      <div className="space-y-8 pb-20 animate-fade-in">
         <header className="section-header">
           <h2 className="section-title">Shopping List</h2>
           <p className="section-description">Your smart grocery assistant</p>
@@ -560,7 +560,7 @@ export const ShoppingList: React.FC = () => {
     });
 
     return (
-      <div className="space-y-6 pb-20 animate-fade-in">
+      <div className="space-y-8 pb-20 animate-fade-in">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="heading-1">Shopping List</h2>
@@ -641,7 +641,7 @@ export const ShoppingList: React.FC = () => {
   // Empty state - no meals planned (MOVED BELOW RAW PHASE)
   if (!isProcessing && aggregatedIngredients.length === 0 && phase !== 'raw') {
     return (
-      <div className="space-y-6 pb-20 animate-fade-in">
+      <div className="space-y-8 pb-20 animate-fade-in">
         <header>
           <h2 className="text-4xl font-normal text-slate-900 tracking-tight font-serif">Shopping List</h2>
           <p className="text-slate-600 font-medium mt-1">Your smart grocery assistant</p>
@@ -670,7 +670,7 @@ export const ShoppingList: React.FC = () => {
   // Phase 1: Requirements Review
   if (phase === 'requirements') {
     return (
-      <div className="space-y-6 pb-20 animate-fade-in">
+      <div className="space-y-8 pb-20 animate-fade-in">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-4xl font-medium text-main tracking-tight font-serif">Review Requirements</h2>

@@ -121,19 +121,19 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
     <div className="bg-surface rounded-3xl border border-border overflow-hidden">
       {/* Header */}
       <div
-        className="p-6 flex justify-between items-center cursor-pointer hover:bg-background/50 transition-colors"
+        className="p-8 flex justify-between items-center cursor-pointer hover:bg-background/50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div>
           <h3 className="text-lg font-serif font-normal text-main">Weekly Summary</h3>
-          <p className="text-sm text-muted mt-1">
+          <p className="text-sm text-muted mt-2">
             {loggedDays.length}/7 days logged • {complianceRate.toFixed(0)}% compliant
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <div className="text-right hidden md:block">
             <div className="text-2xl font-bold text-main">{avgNetCalories.toFixed(0)}</div>
-            <div className="text-xs text-muted">avg net calories/day</div>
+            <div className="text-xs text-muted mt-1">avg net calories/day</div>
           </div>
           <button className="text-muted hover:text-main transition-colors">
             <svg
@@ -158,7 +158,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
       {isExpanded && (
         <div className="border-t border-border">
           {/* Stats Grid */}
-          <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4 bg-background/50">
+          <div className="p-8 grid grid-cols-2 md:grid-cols-4 gap-6 bg-background/50">
             <div>
               <div className="text-xs text-muted mb-1">Avg Calories</div>
               <div className="text-xl font-bold text-main">{avgCalories.toFixed(0)}</div>
@@ -182,8 +182,8 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
           </div>
 
           {/* Weekly Chart */}
-          <div className="p-6 border-t border-border">
-            <h4 className="text-sm font-semibold text-main mb-4">Daily Breakdown</h4>
+          <div className="p-8 border-t border-border">
+            <h4 className="text-sm font-semibold text-main mb-6">Daily Breakdown</h4>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -222,37 +222,40 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
             </div>
             <div className="flex gap-4 mt-4 text-xs justify-center">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-emerald-500"></div>
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: 'var(--primary)' }}></div>
                 <span className="text-muted">Compliant</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-red-500"></div>
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: 'var(--error)' }}></div>
                 <span className="text-muted">Over Goal</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-neutral-200 dark:bg-neutral-800"></div>
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: 'var(--neutral-300)' }}></div>
                 <span className="text-muted">Not Logged</span>
               </div>
             </div>
           </div>
 
           {/* Day-by-Day Grid */}
-          <div className="p-6 border-t border-border">
-            <h4 className="text-sm font-semibold text-main mb-4">Day by Day</h4>
-            <div className="space-y-2">
+          <div className="p-8 border-t border-border">
+            <h4 className="text-sm font-semibold text-main mb-6">Day by Day</h4>
+            <div className="space-y-3">
               {weekData.map((day) => (
                 <div
                   key={day.date}
-                  className={`p-3 rounded-xl flex items-center justify-between ${!day.isLogged
-                    ? 'bg-background border border-border'
+                  className="p-3 rounded-xl flex items-center justify-between border"
+                  style={!day.isLogged
+                    ? { backgroundColor: 'var(--background)', borderColor: 'var(--border)' }
                     : day.isCompliant
-                      ? 'bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900/30'
-                      : 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30'
-                    }`}
+                      ? { backgroundColor: 'var(--calories-bg)', borderColor: 'var(--calories-border)' }
+                      : { backgroundColor: 'var(--error-bg)', borderColor: 'var(--error-border)' }
+                  }
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${!day.isLogged ? 'bg-neutral-300 dark:bg-neutral-700' : day.isCompliant ? 'bg-emerald-500' : 'bg-red-500'
-                      }`}></div>
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: !day.isLogged ? 'var(--neutral-400)' : day.isCompliant ? 'var(--primary)' : 'var(--error)' }}
+                    ></div>
                     <div>
                       <div className="font-medium text-main">{day.dayName}</div>
                       <div className="text-xs text-muted">
@@ -268,7 +271,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
                         <div className="text-xs text-muted">net kcal</div>
                       </div>
                       {day.workoutCount > 0 && (
-                        <div className="flex items-center gap-1 text-primary bg-primary/10 px-2 py-1 rounded-lg">
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ color: 'var(--primary)', backgroundColor: 'var(--primary-light)' }}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" />
                           </svg>
@@ -276,7 +279,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
                         </div>
                       )}
                       {day.isCompliant && (
-                        <div className="text-emerald-500">
+                        <div style={{ color: 'var(--primary)' }}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"></polyline>
                           </svg>
@@ -293,29 +296,29 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
 
           {/* Best & Worst Days */}
           {loggedDays.length >= 2 && (
-            <div className="p-6 border-t border-border grid md:grid-cols-2 gap-4">
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-200 dark:border-emerald-900/30">
+            <div className="p-8 border-t border-border grid md:grid-cols-2 gap-6">
+              <div className="p-6 rounded-2xl border" style={{ backgroundColor: 'var(--calories-bg)', borderColor: 'var(--calories-border)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xl">🏆</span>
-                  <h5 className="text-sm font-semibold text-emerald-900 dark:text-emerald-300">Best Day</h5>
+                  <h5 className="text-sm font-semibold text-main">Best Day</h5>
                 </div>
-                <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                <div className="text-lg font-bold" style={{ color: 'var(--primary)' }}>
                   {bestDay.dayName} - {bestDay.netCalories} kcal
                 </div>
-                <div className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">
+                <div className="text-xs text-muted mt-1">
                   {formatReadableDate(bestDay.date)}
                 </div>
               </div>
 
-              <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-900/30">
+              <div className="p-6 rounded-2xl border" style={{ backgroundColor: 'var(--warning-bg)', borderColor: 'var(--warning-border)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xl">⚠️</span>
-                  <h5 className="text-sm font-semibold text-amber-900 dark:text-amber-300">Highest Day</h5>
+                  <h5 className="text-sm font-semibold text-main">Highest Day</h5>
                 </div>
-                <div className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                <div className="text-lg font-bold" style={{ color: 'var(--warning)' }}>
                   {worstDay.dayName} - {worstDay.netCalories} kcal
                 </div>
-                <div className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                <div className="text-xs text-muted mt-1">
                   {formatReadableDate(worstDay.date)}
                 </div>
               </div>
@@ -324,14 +327,14 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ summaries }) => {
 
           {/* Insights */}
           {insights.length > 0 && (
-            <div className="p-6 border-t border-border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
-              <h4 className="text-sm font-semibold text-main mb-3 flex items-center gap-2">
+            <div className="p-8 border-t border-border" style={{ backgroundColor: 'var(--background)' }}>
+              <h4 className="text-sm font-semibold text-main mb-6 flex items-center gap-2">
                 <span className="text-lg">💡</span>
                 Insights & Recommendations
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {insights.map((insight, index) => (
-                  <div key={index} className="text-sm text-main bg-white/60 dark:bg-black/20 p-3 rounded-lg">
+                  <div key={index} className="text-sm text-main p-3 rounded-lg border border-border" style={{ backgroundColor: 'var(--surface)' }}>
                     {insight}
                   </div>
                 ))}

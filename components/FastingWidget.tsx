@@ -67,7 +67,7 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                         exit={{ opacity: 0, y: 10 }}
                         className="absolute inset-0 bg-surface z-30 p-6 flex flex-col"
                     >
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-6">
                             <h3 className="font-serif text-lg font-medium text-main">Fasting Protocol</h3>
                             <button
                                 onClick={() => setIsSettingsOpen(false)}
@@ -77,7 +77,7 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                             </button>
                         </div>
 
-                        <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                        <div className="space-y-3 overflow-y-auto custom-scrollbar pr-1">
                             {protocols.map(p => {
                                 const target = parseInt(p.split(':')[0]);
                                 const isSelected = fastingState.config.protocol === p;

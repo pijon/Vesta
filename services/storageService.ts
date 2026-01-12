@@ -21,16 +21,19 @@ const getDocRef = (collectionName: string, docId: string) => doc(db, 'users', ge
 export const getRecipes = async (): Promise<Recipe[]> => {
   try {
     const snapshot = await getDocs(getCollectionRef('recipes'));
-    let recipes = snapshot.docs.map(doc => doc.data() as Recipe);
-
-    // Migration: Convert lunch/dinner to main meal (client-side fix)
-    // Ideally we update the DB heavily, but for now just fix on read
-    return recipes.map(r => {
-      if ((r as any).type === 'lunch' || (r as any).type === 'dinner') {
-        return { ...r, type: 'main meal' as const };
+    let recipes = snapshot.docs.map(doc => {
+      const data = doc.data() as any;
+      // Migration on read: If tags are missing but type exists, convert type to tags
+      if (!data.tags && data.type) {
+        // Normalize meal types to tags
+        let tag = data.type;
+        if (tag === 'lunch' || tag === 'dinner') tag = 'main meal';
+        return { ...data, tags: [tag] } as Recipe;
       }
-      return r;
+      return data as Recipe;
     });
+
+    return recipes;
   } catch (e) {
     console.error("Error fetching recipes", e);
     return [];
@@ -43,6 +46,18 @@ export const saveRecipe = async (recipe: Recipe) => {
 
 export const deleteRecipe = async (id: string) => {
   await deleteDoc(getDocRef('recipes', id));
+};
+
+export const migrateRecipesToTags = async () => {
+  const recipes = await getRecipes();
+  const batchSize = 100;
+
+  // Create batches
+  for (let i = 0; i < recipes.length; i += batchSize) {
+    const chunk = recipes.slice(i, i + batchSize);
+    await Promise.all(chunk.map(r => saveRecipe(r)));
+  }
+  console.log(`Migrated ${recipes.length} recipes to use tags.`);
 };
 
 // --- Planning ---

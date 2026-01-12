@@ -39,7 +39,7 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"></path><path d="M14.83 14.8v7.38"></path><path d="M16.96 16.96l-7.387.38"></path><path d="M9.58 14.8l7.38 7.38"></path></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z"></path></svg>
                             </div>
                             <h3 className="text-xl font-serif text-main font-medium">Hydration</h3>
                         </div>
