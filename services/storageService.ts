@@ -238,6 +238,7 @@ export const isInPantry = async (ingredientName: string): Promise<boolean> => {
 
 // --- Enhanced Shopping State ---
 const SHOPPING_DOC = 'shopping';
+
 export const getEnhancedShoppingState = async (): Promise<EnhancedShoppingState> => {
   const d = await getDoc(getDocRef('data', SHOPPING_DOC));
   return d.exists() ? d.data() as EnhancedShoppingState : {
@@ -248,7 +249,8 @@ export const getEnhancedShoppingState = async (): Promise<EnhancedShoppingState>
     cachedPurchasableItems: [],
     cachedParsedIngredients: [],
     cachedAggregatedIngredients: [],
-    ingredientsHash: ''
+    ingredientsHash: '',
+    selectedMealIds: []
   };
 };
 

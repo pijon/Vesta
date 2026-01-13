@@ -274,9 +274,9 @@
 
     /* Backgrounds */
     --background: var(--neutral-50);
-    --surface: hsl(0, 0%, 100%);
-    /* Pure white for cards */
-    --surface-glass: hsla(0, 0%, 100%, 0.85);
+    --surface: hsl(160, 10%, 99%);
+    /* Tinted white for cards */
+    --surface-glass: hsla(160, 10%, 99%, 0.85);
 
     /* Text */
     --text-main: var(--neutral-900);

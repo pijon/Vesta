@@ -474,6 +474,7 @@ export const convertToPurchasableQuantities = async (
     - Meat and fish sold by weight or pre-packaged (chicken breast in 500g-1kg packs)
 
     Format:
+    - ingredientName: Must EXACTLY match the input 'name' field. Do not change spelling or capitalization.
     - requiredQuantity: Show what the recipe needs with unit conversion if helpful (e.g., "1.5 tbsp (≈22ml)")
     - purchasableQuantity: Suggest the smallest realistic package that covers the need
     - purchasableSize: The numeric size for comparison

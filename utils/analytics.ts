@@ -349,3 +349,99 @@ export function formatReadableDate(dateStr: string): string {
   const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
   return date.toLocaleDateString('en-US', options);
 }
+
+/**
+ * Calculate deficit/surplus for each day
+ */
+export interface DeficitSurplusData {
+  date: string;
+  deficit: number;  // positive = under goal, negative = over goal
+  displayDate: string;
+  isCompliant: boolean;
+}
+
+export function calculateDeficitSurplus(
+  summaries: DailySummary[],
+  dailyGoal: number
+): DeficitSurplusData[] {
+
+  if (summaries.length === 0) {
+    return [];
+  }
+
+  return summaries.map(summary => {
+    const deficit = dailyGoal - summary.netCalories;
+    const isCompliant = summary.netCalories <= dailyGoal;
+
+    const date = new Date(summary.date);
+    const displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    return {
+      date: summary.date,
+      deficit,
+      displayDate,
+      isCompliant
+    };
+  });
+}
+
+/**
+ * Enhance period summary with weight change
+ */
+export function enhancePeriodSummaryWithWeight(
+  summary: PeriodSummary,
+  weightHistory: WeightEntry[]
+): PeriodSummary {
+
+  if (!weightHistory || weightHistory.length === 0) {
+    return { ...summary, weightChange: null };
+  }
+
+  // Sort by date
+  const sortedHistory = [...weightHistory].sort((a, b) =>
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  // Find weight entries within the period
+  const startDate = new Date(summary.startDate);
+  const endDate = new Date(summary.endDate);
+
+  const startWeight = sortedHistory.find(entry => {
+    const entryDate = new Date(entry.date);
+    return entryDate >= startDate;
+  });
+
+  const endWeight = [...sortedHistory].reverse().find(entry => {
+    const entryDate = new Date(entry.date);
+    return entryDate <= endDate;
+  });
+
+  let weightChange: number | null = null;
+  if (startWeight && endWeight) {
+    weightChange = startWeight.weight - endWeight.weight; // Positive = lost weight
+  }
+
+  return {
+    ...summary,
+    weightChange
+  };
+}
+
+/**
+ * Format weight change with descriptive text
+ */
+export function formatWeightChange(change: number | null): string {
+  if (change === null) {
+    return 'No data';
+  }
+
+  const absChange = Math.abs(change);
+
+  if (change > 0) {
+    return `${absChange.toFixed(1)} kg lost`;
+  } else if (change < 0) {
+    return `${absChange.toFixed(1)} kg gained`;
+  } else {
+    return 'No change';
+  }
+}

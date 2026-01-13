@@ -18,7 +18,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
   return (
     <div
       onClick={onClick}
-      className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 flex flex-col h-full group ${onClick ? 'cursor-pointer hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1' : ''}`}
+      className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 flex flex-col h-full group ${onClick ? 'cursor-pointer hover:shadow-xl dark:hover:shadow-primary/5 hover:-translate-y-1' : ''}`}
     >
       {/* Card Header / Illustration */}
       <div className={`relative h-48 overflow-hidden ${!meal.image ? theme.bg : 'bg-neutral-100 dark:bg-neutral-800'} transition-colors duration-300`}>

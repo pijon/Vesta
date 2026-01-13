@@ -61,20 +61,20 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-4 animate-fade-in"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-4 animate-fade-in"
         onClick={handleClose}
       >
         <div
-          className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+          className="bg-surface w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-neutral-200 flex justify-between items-center bg-calories-bg">
-            <h3 className="font-normal text-2xl text-slate-900 font-serif">Log Food</h3>
+          <div className="p-6 border-b border-border flex justify-between items-center bg-calories-bg">
+            <h3 className="font-normal text-2xl text-main font-serif">Log Food</h3>
             <button
               onClick={handleClose}
               disabled={isAnalyzing || isAnalyzingImage}
-              className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 bg-surface/50 border border-border rounded-full text-muted hover:text-main transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -87,11 +87,11 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
           <div className="p-6 space-y-4">
             {/* Text Input */}
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-3">What did you eat?</label>
+              <label className="block text-sm font-bold text-main mb-3">What did you eat?</label>
               <div className="flex gap-3">
                 <input
                   type="text"
-                  className="flex-1 p-3 bg-neutral-100 border border-neutral-200 rounded-xl focus:ring-2 outline-none font-medium"
+                  className="flex-1 p-3 bg-background border border-border rounded-xl focus:ring-2 outline-none font-medium text-main placeholder:text-muted"
                   style={{ focusRingColor: 'var(--calories)' }}
                   onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
                   onBlur={(e) => e.target.style.boxShadow = 'none'}
@@ -104,11 +104,10 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                 <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || isAnalyzingImage || !input.trim()}
-                  className={`px-6 py-3 font-bold rounded-xl transition-colors shadow-lg ${
-                    isAnalyzing || isAnalyzingImage || !input.trim()
-                      ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                  className={`px-6 py-3 font-bold rounded-xl transition-colors shadow-lg ${isAnalyzing || isAnalyzingImage || !input.trim()
+                      ? 'bg-neutral-300 dark:bg-neutral-800 text-muted cursor-not-allowed'
                       : 'text-white'
-                  }`}
+                    }`}
                   style={isAnalyzing || isAnalyzingImage || !input.trim() ? {} : { backgroundColor: 'var(--calories)' }}
                   onMouseEnter={(e) => {
                     if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
@@ -124,14 +123,14 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                   {isAnalyzing ? '...' : 'Add'}
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-2 ml-1">AI will estimate calories from your description</p>
+              <p className="text-xs text-muted mt-2 ml-1">AI will estimate calories from your description</p>
             </div>
 
             {/* OR Divider */}
             <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200"></div>
-              <span className="text-xs text-slate-400 font-medium">OR</span>
-              <div className="h-px flex-1 bg-slate-200"></div>
+              <div className="h-px flex-1 bg-border"></div>
+              <span className="text-xs text-muted font-medium">OR</span>
+              <div className="h-px flex-1 bg-border"></div>
             </div>
 
             {/* Photo Input */}
@@ -141,7 +140,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                 onError={(err) => setImageError(err)}
                 disabled={isAnalyzing || isAnalyzingImage}
               />
-              <p className="text-xs text-slate-500 mt-2 ml-1">Upload a photo and AI will analyze it</p>
+              <p className="text-xs text-muted mt-2 ml-1">Upload a photo and AI will analyze it</p>
             </div>
 
             {/* Loading State */}
@@ -156,18 +155,18 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
 
             {/* Error State */}
             {imageError && (
-              <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
-                <p className="text-sm text-red-700">{imageError}</p>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-700 dark:text-red-300">{imageError}</p>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="p-6 pt-0 border-t border-slate-100 bg-slate-50/50">
+          <div className="p-6 pt-0 border-t border-transparent">
             <button
               onClick={handleClose}
               disabled={isAnalyzing || isAnalyzingImage}
-              className="w-full py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-background text-main font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-border"
             >
               Cancel
             </button>

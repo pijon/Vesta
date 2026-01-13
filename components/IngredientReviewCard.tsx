@@ -16,29 +16,27 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
 
   return (
     <div
-      className={`border rounded-2xl p-4 transition-all ${
-        inPantry
-          ? 'bg-emerald-50 border-emerald-200'
-          : 'bg-white border-slate-200'
-      }`}
+      className={`border rounded-2xl p-4 transition-all ${inPantry
+          ? 'bg-primary/5 border-primary/20'
+          : 'bg-surface border-border'
+        }`}
     >
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
-          <h3 className="font-medium text-slate-900 capitalize">
+          <h3 className="font-medium text-main capitalize">
             {ingredient.name}
           </h3>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             {ingredient.totalQuantity} {ingredient.unit}
           </p>
         </div>
 
         <button
           onClick={() => onTogglePantry(ingredient.name, !inPantry)}
-          className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-            inPantry
-              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
+          className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${inPantry
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'bg-surface-highlight text-muted hover:text-main hover:bg-surface-highlight/80'
+            }`}
         >
           {inPantry ? '✓ Have This' : 'Need to Buy'}
         </button>
@@ -48,7 +46,7 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
         <div className="mt-2">
           <button
             onClick={() => setShowRecipes(!showRecipes)}
-            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+            className="text-xs text-primary hover:text-primary-dark font-medium"
           >
             {showRecipes ? '▼' : '▶'} Used in {ingredient.recipes.length} recipes
           </button>
@@ -58,7 +56,7 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
               {ingredient.recipes.map((recipe) => (
                 <div
                   key={recipe.id}
-                  className="text-xs text-slate-600 pl-3 border-l-2 border-emerald-200"
+                  className="text-xs text-muted pl-3 border-l-2 border-primary/20"
                 >
                   {recipe.name}: {recipe.quantity} {ingredient.unit}
                 </div>

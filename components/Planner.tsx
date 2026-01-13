@@ -250,7 +250,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
     return (
         <div className="space-y-8 animate-fade-in">
-            <header className="flex justify-between items-center section-header">
+            <header className="flex justify-between items-center section-header mb-8">
                 <div>
                     <h2 className="section-title">Weekly Planner</h2>
                     <p className="section-description">Design your week.</p>
@@ -260,14 +260,14 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                     disabled={isGenerating}
                     className={isGenerating ? 'btn-base btn-disabled btn-sm flex items-center gap-2' : 'btn-primary btn-sm flex items-center gap-2'}
                 >
-                    {isGenerating ? 'Planning...' : 'Auto-Plan'}
+                    {isGenerating ? 'Planning...' : 'Auto-Plan Week'}
                 </button>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Date Scroller Column */}
                 <div className="lg:col-span-12">
-                    <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar snap-x">
+                    <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar snap-x">
                         {weekDates.map(date => {
                             const d = new Date(date);
                             const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
@@ -310,73 +310,66 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                 </div>
 
                 {/* Main Content Grid */}
-                <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                     {/* Left Column: Day View */}
                     <div className="lg:col-span-3 space-y-8">
                         <div className="bg-surface rounded-2xl premium-shadow border border-border p-8 min-h-[500px]">
-                            <div className="flex justify-between items-center mb-6">
+                            <div className="flex justify-between items-start mb-6 gap-4">
                                 <div>
-                                    <h2 className="text-2xl font-medium text-main font-serif">
-                                        {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}
-                                    </h2>
-                                    <p className="text-muted font-medium mb-2">
+                                    <div className="flex items-center gap-3 flex-wrap mb-1">
+                                        <h2 className="text-2xl font-medium text-main font-serif">
+                                            {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                                        </h2>
+
+                                        {/* Status Badges */}
+                                        {dayPlan && (
+                                            <div className="flex items-center gap-2">
+                                                {/* Day Type Badge */}
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        const newType = dayPlan.type === 'fast' ? 'non-fast' : 'fast';
+                                                        const updated = { ...dayPlan, type: newType };
+                                                        setDayPlan(updated);
+                                                        await saveDayPlan(updated);
+                                                    }}
+                                                    className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border transition-all hover:opacity-80 active:scale-95 ${dayPlan.type === 'fast'
+                                                            ? 'bg-primary/10 text-primary border-primary/20'
+                                                            : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                                                        }`}
+                                                >
+                                                    {dayPlan.type === 'fast' ? 'Fast Day' : 'Non-Fast'}
+                                                </button>
+
+                                                {/* Calories Badge */}
+                                                {(() => {
+                                                    const target = dayPlan.type === 'fast' ? 800 : (stats.nonFastDayCalories || 2000);
+                                                    const current = dayPlan.mealIds ? availableRecipes.filter(r => dayPlan.mealIds.includes(r.id)).reduce((acc, m) => acc + m.calories, 0)
+                                                        : (dayPlan.meals || []).reduce((acc, m) => acc + m.calories, 0); // Handle both formats if needed, though Planner uses .meals typically
+                                                    // Planner.tsx uses dayPlan.meals directly usually. Let's stick to what was there: 
+                                                    // "const current = dayPlan.totalCalories || 0;" - wait, earlier code calculated it from meals.
+                                                    // Let's use the same logic as the original code or valid logic.
+                                                    // Original used: const current = dayPlan.totalCalories || 0;
+                                                    const currentCals = dayPlan.totalCalories || 0;
+                                                    const remaining = target - currentCals;
+                                                    const isOver = remaining < 0;
+
+                                                    return (
+                                                        <div className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border flex items-center gap-1.5 ${isOver
+                                                                ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                                                                : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                                            }`}>
+                                                            <span>{remaining} Left</span>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-muted font-medium">
                                         {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
                                     </p>
-
-                                    {/* Calories Left Display */}
-                                    {dayPlan && (
-                                        <div className="flex flex-col gap-1 mt-3 mb-2">
-                                            {(() => {
-                                                const target = dayPlan.type === 'fast' ? 800 : (stats.nonFastDayCalories || 2000);
-                                                const current = dayPlan.totalCalories || 0;
-                                                const remaining = target - current;
-                                                const isOver = remaining < 0;
-
-                                                return (
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 ${isOver ? 'bg-error-bg border-error-border' : 'bg-calories-bg border-calories-border'}`} style={{ color: isOver ? 'var(--error)' : 'var(--calories)' }}>
-                                                            <span className="text-xs font-bold uppercase tracking-wider opacity-70">Calories Left</span>
-                                                            <span className="text-lg font-bold font-serif">{remaining}</span>
-                                                        </div>
-                                                        <div className="text-xs text-muted font-medium">
-                                                            Target: {target}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </div>
-                                    )}
-
-                                    {/* Day Type Toggles */}
-                                    {dayPlan && (
-                                        <div className="flex gap-2 mt-2">
-                                            <button
-                                                onClick={async () => {
-                                                    const updated = { ...dayPlan, type: 'fast' as const };
-                                                    setDayPlan(updated);
-                                                    await saveDayPlan(updated);
-                                                }}
-                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-all border ${dayPlan.type !== 'non-fast'
-                                                    ? 'bg-primary text-primary-foreground border-primary'
-                                                    : 'bg-transparent text-muted border-border hover:border-primary/50'}`}
-                                            >
-                                                Fast Day
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    const updated = { ...dayPlan, type: 'non-fast' as const };
-                                                    setDayPlan(updated);
-                                                    await saveDayPlan(updated);
-                                                }}
-                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-all border ${dayPlan.type === 'non-fast'
-                                                    ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
-                                                    : 'bg-transparent text-muted border-border hover:border-primary/50'}`}
-                                            >
-                                                Non-Fast Day
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
                                 <div className="flex gap-2">
                                     <button
@@ -434,7 +427,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                             <div
                                                 key={index}
                                                 onClick={() => setSelectedRecipe(meal)}
-                                                className={`p-4 flex items-center justify-between rounded-xl border transition-all cursor-pointer group ${isCompleted
+                                                className={`p-6 flex items-center justify-between rounded-xl border transition-all cursor-pointer group ${isCompleted
                                                     ? 'bg-background border-border opacity-60'
                                                     : 'bg-surface border-border hover:border-primary/50 hover:shadow-sm'
                                                     }`}
@@ -496,29 +489,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                     })
                                 )}
                             </div>
-                            {/* Auto-Plan Button */}
-                            <button
-                                onClick={handleAutoPlanClick}
-                                disabled={isGenerating}
-                                className={`w-full py-4 mt-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg text-white
-                                    ${isGenerating ? 'bg-slate-400 cursor-wait' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:scale-[1.02] active:scale-95'}
-                                `}
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Planning...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                                        AI Auto-Plan Week
-                                    </>
-                                )}
-                            </button>
+
                         </div>
                     </div>
 

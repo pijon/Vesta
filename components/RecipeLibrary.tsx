@@ -9,7 +9,11 @@ import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 
 
-export const RecipeLibrary: React.FC = () => {
+interface RecipeLibraryProps {
+  onSelect?: (recipe: Recipe) => void;
+}
+
+export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -208,8 +212,8 @@ export const RecipeLibrary: React.FC = () => {
     <div className="space-y-8 animate-fade-in pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="heading-1">Recipe Library</h2>
-          <p className="text-muted font-medium mt-2 text-lg">Manage your expanding collection of healthy meals.</p>
+          <h2 className="heading-1">{onSelect ? 'Select a Meal' : 'Recipe Library'}</h2>
+          <p className="text-muted font-medium mt-2 text-lg">{onSelect ? 'Choose a recipe to swap into your plan.' : 'Manage your expanding collection of healthy meals.'}</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -394,9 +398,14 @@ export const RecipeLibrary: React.FC = () => {
             <RecipeCard
               key={recipe.id}
               meal={recipe}
-              onClick={() => openRecipe(recipe)}
+              onClick={onSelect ? () => onSelect(recipe) : () => openRecipe(recipe)}
               showMacros={false}
               onToggleFavorite={(e) => toggleFavorite(e, recipe)}
+              actionLabel={onSelect ? "Select" : undefined}
+              onAction={onSelect ? (e) => {
+                e.stopPropagation();
+                onSelect(recipe);
+              } : undefined}
             />
           ))
         )}

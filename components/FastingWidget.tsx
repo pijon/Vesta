@@ -55,8 +55,9 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
     const protocols: FastingProtocol[] = ['12:12', '16:8', '14:10', '18:6', '20:4'];
 
     return (
-        <div className="bg-surface shadow-sm border border-border rounded-3xl overflow-hidden relative group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-orange-500/20 pointer-events-none"></div>
+        <div className="bg-surface p-6 rounded-3xl shadow-sm border border-border flex flex-col h-64 relative overflow-hidden group hover:shadow-md transition-all duration-500">
+            {/* Decorative gradient orb */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-orange-400/5 to-orange-600/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
 
             {/* Settings Modal */}
             <AnimatePresence>
@@ -106,97 +107,97 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onSt
                 )}
             </AnimatePresence>
 
-            <div className="p-6 relative z-10 flex justify-between items-center gap-6 h-52">
-                <div className="flex-1 flex flex-col justify-between h-full">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className={`p-2 rounded-lg ${fastingState.isFasting ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-serif text-main font-medium leading-none">
-                                    {fastingState.isFasting ? 'Fasting' : 'Eating'}
-                                </h3>
-                                <button
-                                    onClick={() => setIsSettingsOpen(true)}
-                                    className="text-xs text-muted font-medium hover:text-orange-500 flex items-center gap-1 transition-colors mt-0.5"
-                                    title="Change protocol"
-                                >
-                                    {fastingState.config.protocol} <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="mt-2">
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-main tabular-nums">
-                                    {formatTime(elapsed).replace(/:/g, ':')}
-                                </span>
-                                <span className="text-sm text-muted font-medium">hrs</span>
-                            </div>
-                            <p className="text-xs text-orange-400/80 font-medium mt-1 uppercase tracking-wide">
-                                {fastingState.isFasting ? 'Elapsed' : 'Since fast'}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div>
-                        {fastingState.isFasting ? (
-                            <button
-                                onClick={onEndFast}
-                                className="px-4 py-2 bg-surface rounded-xl border border-orange-100 dark:border-orange-800/30 shadow-sm text-orange-600 dark:text-orange-400 text-sm font-bold hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95 transition-all w-full md:w-auto"
-                            >
-                                End Fast
-                            </button>
-                        ) : (
-                            <button
-                                onClick={onStartFast}
-                                className="px-4 py-2 bg-orange-500 rounded-xl shadow-lg border border-orange-400 shadow-orange-500/20 text-white text-sm font-bold hover:bg-orange-600 active:scale-95 transition-all w-full md:w-auto"
-                            >
-                                Start Fast
-                            </button>
-                        )}
-                    </div>
+            {/* Header: Label + Icon */}
+            <div className="flex justify-between items-center mb-4 relative z-10">
+                <div className='flex flex-col'>
+                    <p className="text-muted text-xs font-bold uppercase tracking-widest leading-none">TRE Period</p>
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="text-[10px] text-muted font-medium hover:text-orange-500 flex items-center gap-1 transition-colors mt-1"
+                        title="Change protocol"
+                    >
+                        {fastingState.config.protocol} <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    </button>
                 </div>
 
-                {/* Visual Tracker (Right Side) */}
-                <div className="w-40 h-40 relative flex items-center justify-center flex-shrink-0">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-none dark:shadow-lg transition-colors ${fastingState.isFasting ? 'bg-gradient-to-br from-orange-500 to-orange-700 dark:shadow-orange-500/30' : 'bg-gradient-to-br from-emerald-500 to-emerald-700 dark:shadow-emerald-500/30'}`}>
                     {fastingState.isFasting ? (
-                        <React.Fragment>
-                            <svg className="w-full h-full transform -rotate-90">
-                                <circle
-                                    cx="50%"
-                                    cy="50%"
-                                    r="56"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="8"
-                                    className="text-muted/20"
-                                />
-                                <circle
-                                    cx="50%"
-                                    cy="50%"
-                                    r="56"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="8"
-                                    strokeDasharray="351" // 2 * pi * 56 = 351.8
-                                    strokeDashoffset={351 - (351 * percent) / 100}
-                                    strokeLinecap="round"
-                                    className="text-orange-500 transition-all duration-1000 ease-out"
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-lg font-bold text-main">{Math.round(percent)}%</span>
-                            </div>
-                        </React.Fragment>
+                        <svg width="18" height="18" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M44 24C44 35.0457 35.0457 44 24 44C12.9543 44 4 35.0457 4 24C4 12.9543 12.9543 4 24 4C35.0457 4 44 12.9543 44 24ZM16.2218 31.7782C15.8313 31.3877 15.8313 30.7546 16.2218 30.364L22.5858 24.0001L16.2218 17.6361C15.8313 17.2455 15.8313 16.6124 16.2218 16.2218C16.6123 15.8313 17.2455 15.8313 17.636 16.2218L24 22.5858L30.364 16.2219C30.7545 15.8314 31.3877 15.8314 31.7782 16.2219C32.1687 16.6124 32.1687 17.2456 31.7782 17.6361L25.4142 24.0001L31.7782 30.364C32.1687 30.7545 32.1687 31.3877 31.7782 31.7782C31.3876 32.1687 30.7545 32.1687 30.364 31.7782L24 25.4143L17.6361 31.7782C17.2455 32.1688 16.6124 32.1688 16.2218 31.7782Z" fill="currentColor" />
+                        </svg>
                     ) : (
-                        <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center border-4 border-emerald-100 dark:border-emerald-900/30 text-emerald-500 shadow-inner">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 12h2a2 2 0 1 0 0-4h-2v4Z" /><path d="m16.7 13.4-.9-1.8c.8-1.1 1.2-2.5 1.2-4a7 7 0 0 0-7-7 7 7 0 0 0-7 7c0 1.5.4 2.9 1.2 4l-.9 1.8a2 2 0 0 0 2.6 2.6l1.8-.9c1.1.8 2.5 1.2 4 1.2s2.9-.4 4-1.2l1.8.9a2 2 0 0 0 2.6-2.6Z" /></svg>
-                        </div>
+                        <svg width="18" height="18" viewBox="0 0 17 17" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                            <g transform="translate(1.000000, 0.000000)">
+                                <path d="M7.984,0.053 C3.599,0.053 0.045,3.614 0.045,8.006 C0.045,12.398 3.6,15.959 7.984,15.959 C12.368,15.959 15.923,12.398 15.923,8.006 C15.923,3.614 12.369,0.053 7.984,0.053 L7.984,0.053 Z M7.49,2.045 C8.328,2.045 9.009,2.699 9.009,3.505 C9.009,4.311 8.328,4.965 7.49,4.965 C6.65,4.965 5.971,4.311 5.971,3.505 C5.971,2.699 6.65,2.045 7.49,2.045 L7.49,2.045 Z M8.035,14.908 C4.984,14.908 2.342,10.918 8.101,7.984 C13.357,5.308 10.904,0.744 8.035,1.008 C12.41,1.008 14.974,4.119 14.974,7.958 C14.975,11.797 11.867,14.908 8.035,14.908 L8.035,14.908 Z" />
+                                <ellipse cx="8.493" cy="11.445" rx="1.493" ry="1.445" />
+                            </g>
+                        </svg>
                     )}
+                </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="h-28 flex flex-col relative z-10">
+                {/* Hero Number */}
+                <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-4xl lg:text-5xl font-bold bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-100 dark:to-neutral-400 bg-clip-text text-transparent font-serif tracking-tight leading-none">
+                        {formatTime(elapsed).split(':')[0]}<span className='text-3xl'>:{formatTime(elapsed).split(':')[1]}</span>
+                    </span>
+                    <span className="text-muted font-semibold text-lg">hrs</span>
+                </div>
+
+                {/* Action Row - Fixed h-8 alignment */}
+                <div className="flex items-center justify-between gap-2 mt-auto h-8">
+                    {/* Left: Status Badge */}
+                    {/* Left: Status Badge */}
+                    <div className={`px-2.5 py-1 rounded-lg shadow-sm text-[10px] font-bold uppercase flex items-center gap-1.5 border border-transparent ${fastingState.isFasting
+                        ? 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-100 dark:border-orange-600'
+                        : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100 dark:border-emerald-600'
+                        }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${fastingState.isFasting ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                        {fastingState.isFasting ? 'Fasting' : 'Eating Window'}
+                    </div>
+
+                    {/* Right: Action Button */}
+                    {fastingState.isFasting ? (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEndFast(); }}
+                            className="bg-white border border-border text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm"
+                        >
+                            End Fast
+                        </button>
+                    ) : (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onStartFast(); }}
+                            className="bg-orange-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase hover:bg-orange-600 transition-colors shadow-sm shadow-orange-500/20"
+                        >
+                            Start Fast
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Progress Bar & Actions */}
+            <div className="relative z-10 h-10 mt-auto">
+                <div className="w-full bg-slate-100 dark:bg-white/10 h-2 rounded-full overflow-hidden shadow-inner mt-4">
+                    <motion.div
+                        className={`h-full rounded-full shadow-lg ${fastingState.isFasting
+                            ? 'bg-gradient-to-r from-orange-400 to-orange-600 shadow-none dark:shadow-lg dark:shadow-orange-500/50'
+                            : 'bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-none dark:shadow-lg dark:shadow-emerald-500/50'
+                            }`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${percent}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                    />
+                </div>
+
+                <div className="flex justify-between items-center mt-1.5">
+                    <span className="text-xs text-muted font-semibold">
+                        {fastingState.isFasting ? `${Math.round(percent)}% of target` : 'Tracking inactive'}
+                    </span>
                 </div>
             </div>
         </div>
     );
 };
+

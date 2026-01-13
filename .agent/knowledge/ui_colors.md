@@ -72,3 +72,9 @@ Why HSL is superior for UI: You can create your entire scale (100-900) by primar
 
 Tints: Increase Lightness (add white).
 Shades: Decrease Lightness (add black).
+
+4. Shadows & Elevation
+*   **Philosophy:** Keep it clean and lightweight.
+*   **Avoid:** Heavy, dark shadows (e.g., `shadow-xl`, `shadow-2xl`) or colored shadows (e.g., `shadow-blue-500/50`) which can make the UI look "dirty" or dated in light mode.
+*   **Prefer:** Minimal, subtle shadows (e.g., `shadow-sm`) combined with subtle borders (`border-border`) to define elevation.
+*   **Interaction:** Use slightly increased shadows (e.g., `hover:shadow-md`) for interactive states, but avoid dramatic jumps in elevation.

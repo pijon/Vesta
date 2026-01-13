@@ -77,6 +77,7 @@ export interface PurchasableItem {
   purchasableQuantity: string;   // e.g., "500ml bottle"
   purchasableSize: string;       // e.g., "500ml"
   rationale?: string;
+  // Note: recipes are looked up from aggregatedIngredients dynamically
 }
 
 export interface PantryInventory {
@@ -99,6 +100,7 @@ export interface EnhancedShoppingState {
   cachedParsedIngredients: ParsedIngredient[];
   cachedAggregatedIngredients: AggregatedIngredient[];
   ingredientsHash: string;
+  selectedMealIds?: string[];
 }
 
 export interface FoodLogItem {
