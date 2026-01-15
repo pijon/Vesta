@@ -20,6 +20,13 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onUp
                 const diff = now - fastingState.lastAteTime;
                 setElapsed(diff);
 
+                // Debug logging
+                console.log('TRE Timer Debug:', {
+                    lastAteTime: new Date(fastingState.lastAteTime).toLocaleString(),
+                    now: new Date(now).toLocaleString(),
+                    diffHours: (diff / (1000 * 60 * 60)).toFixed(2)
+                });
+
                 const targetMs = fastingState.config.targetFastHours * 60 * 60 * 1000;
                 setPercent(Math.min(100, (diff / targetMs) * 100));
             } else {
@@ -131,19 +138,8 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onUp
                     <span className="text-muted font-semibold text-lg">hrs</span>
                 </div>
 
-                {/* Subtitle Status */}
-                <div className="text-xs text-muted mb-4">
-                    {!fastingState.lastAteTime ? (
-                        "No meals logged today"
-                    ) : percent >= 100 ? (
-                        `✓ Target reached ${formatTime(elapsed - (fastingState.config.targetFastHours * 60 * 60 * 1000))} ago`
-                    ) : (
-                        `${formatTime((fastingState.config.targetFastHours * 60 * 60 * 1000) - elapsed)} remaining to reach ${fastingState.config.targetFastHours}h`
-                    )}
-                </div>
-
-                {/* Status Badge */}
-                <div className="flex items-center justify-start gap-2 mb-4">
+                {/* Action Row - Status Badge */}
+                <div className="flex items-center gap-2 mt-auto h-8">
                     <div className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase flex items-center gap-1.5 ${percent >= 100
                         ? 'dark:bg-emerald-900/40 dark:text-emerald-100'
                         : 'dark:bg-orange-900/40 dark:text-orange-100'
@@ -168,7 +164,13 @@ export const FastingWidget: React.FC<FastingWidgetProps> = ({ fastingState, onUp
                     </div>
                     <div className="flex justify-between items-center mt-1.5">
                         <span className="text-xs text-muted font-semibold">
-                            {!fastingState.lastAteTime ? 'Not tracking' : `${Math.round(percent)}% of ${fastingState.config.targetFastHours}h target`}
+                            {!fastingState.lastAteTime ? (
+                                'Not tracking'
+                            ) : percent >= 100 ? (
+                                `✓ Target reached ${formatTime(elapsed - (fastingState.config.targetFastHours * 60 * 60 * 1000))} ago`
+                            ) : (
+                                `${formatTime((fastingState.config.targetFastHours * 60 * 60 * 1000) - elapsed)} remaining`
+                            )}
                         </span>
                     </div>
                 </div>
