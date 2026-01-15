@@ -359,12 +359,31 @@ const FASTING_HISTORY_DOC = 'fasting_history'; // Actually maybe a collection?
 
 export const getFastingState = async (): Promise<FastingState> => {
   const d = await getDoc(getDocRef('data', FASTING_DOC));
-  if (d.exists()) return d.data() as FastingState;
+
+  if (d.exists()) {
+    const data = d.data() as any;
+
+    // Migration: Convert old format to new
+    if ('isFasting' in data || 'startTime' in data || 'endTime' in data) {
+      console.log('Migrating old fasting state format to new lastAteTime format...');
+
+      const newState: FastingState = {
+        // If they were fasting, assume they ate before starting the fast
+        // If they were in eating window, use endTime as last ate time
+        lastAteTime: data.endTime || (data.startTime ? data.startTime - (60 * 60 * 1000) : null),
+        config: data.config || { protocol: '16:8', targetFastHours: 16 }
+      };
+
+      // Save migrated state
+      await saveFastingState(newState);
+      return newState;
+    }
+
+    return data as FastingState;
+  }
 
   return {
-    isFasting: false,
-    startTime: null,
-    endTime: null,
+    lastAteTime: null,
     config: { protocol: '16:8', targetFastHours: 16 }
   };
 };

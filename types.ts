@@ -151,9 +151,7 @@ export interface FastingConfig {
 }
 
 export interface FastingState {
-  isFasting: boolean;
-  startTime: number | null; // Timestamp when current fast started
-  endTime: number | null;   // Timestamp when last fast ended (or planned end)
+  lastAteTime: number | null; // Timestamp of last food log - used to calculate time since last ate
   config: FastingConfig;
 }
 

@@ -34,9 +34,7 @@ const TrackerApp: React.FC = () => {
     });
 
     const [fastingState, setFastingState] = useState<FastingState>({
-        isFasting: false,
-        startTime: null,
-        endTime: null,
+        lastAteTime: null,
         config: { protocol: '16:8', targetFastHours: 16 }
     });
 
@@ -102,6 +100,9 @@ const TrackerApp: React.FC = () => {
         };
         setDailyLog(updatedLog);
         await saveDailyLog(updatedLog);
+
+        // Update TRE tracking - food was just logged
+        await updateLastAteTime(Date.now());
     };
 
     const handleAddWorkout = async (workout: WorkoutItem) => {
@@ -142,6 +143,8 @@ const TrackerApp: React.FC = () => {
                 calories: meal.calories,
                 timestamp: Date.now()
             });
+            // Update TRE tracking when adding a meal
+            await updateLastAteTime(Date.now());
         } else {
             for (let i = newItems.length - 1; i >= 0; i--) {
                 if (newItems[i].name === meal.name && newItems[i].calories === meal.calories) {
@@ -160,36 +163,28 @@ const TrackerApp: React.FC = () => {
         handleUpdateStats({ ...userStats, currentWeight: weight });
     };
 
-    const handleStartFast = async () => {
-        const newState: FastingState = {
-            ...fastingState,
-            isFasting: true,
-            startTime: Date.now(),
-            endTime: null
-        };
-        setFastingState(newState);
-        await saveFastingState(newState);
-    };
+    const updateLastAteTime = async (timestamp: number) => {
+        // Check if we completed a successful fast before eating
+        if (fastingState.lastAteTime) {
+            const fastDuration = timestamp - fastingState.lastAteTime;
+            const targetMs = fastingState.config.targetFastHours * 60 * 60 * 1000;
 
-    const handleEndFast = async () => {
-        if (fastingState.startTime) {
-            const now = Date.now();
-            const durationHours = (now - fastingState.startTime) / (1000 * 60 * 60);
-
-            // Add to history
-            await addFastingEntry({
-                id: crypto.randomUUID(),
-                startTime: fastingState.startTime,
-                endTime: now,
-                durationHours,
-                isSuccess: durationHours >= fastingState.config.targetFastHours
-            });
+            if (fastDuration >= targetMs) {
+                // Log successful fast to history
+                await addFastingEntry({
+                    id: crypto.randomUUID(),
+                    startTime: fastingState.lastAteTime,
+                    endTime: timestamp,
+                    durationHours: fastDuration / (1000 * 60 * 60),
+                    isSuccess: true
+                });
+            }
         }
 
+        // Update to new eating time
         const newState: FastingState = {
             ...fastingState,
-            isFasting: false,
-            endTime: Date.now()
+            lastAteTime: timestamp
         };
         setFastingState(newState);
         await saveFastingState(newState);
@@ -422,8 +417,6 @@ const TrackerApp: React.FC = () => {
         onAddWorkout: handleAddWorkout,
         onUpdateWorkout: handleUpdateWorkout,
         onDeleteWorkout: handleDeleteWorkout,
-        onStartFast: handleStartFast,
-        onEndFast: handleEndFast,
         onUpdateFastingConfig: handleUpdateFastingConfig,
         refreshData,
         onNavigate: setView
