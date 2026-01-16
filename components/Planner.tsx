@@ -335,8 +335,8 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                         await saveDayPlan(updated);
                                                     }}
                                                     className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border transition-all hover:opacity-80 active:scale-95 ${dayPlan.type === 'fast'
-                                                            ? 'bg-primary/10 text-primary border-primary/20'
-                                                            : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                                                        ? 'bg-primary/10 text-primary border-primary/20'
+                                                        : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
                                                         }`}
                                                 >
                                                     {dayPlan.type === 'fast' ? 'Fast Day' : 'Non-Fast'}
@@ -357,8 +357,8 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
                                                     return (
                                                         <div className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border flex items-center gap-1.5 ${isOver
-                                                                ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                                                                : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                                            ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                                                            : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                                                             }`}>
                                                             <span>{remaining} Left</span>
                                                         </div>
@@ -375,7 +375,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                     <button
                                         onClick={handleAutoPlanDay}
                                         disabled={isGenerating}
-                                        className="text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95 text-xs"
+                                        className="text-white px-3 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 text-xs"
                                         title="Auto-Plan this day (800 kcal)"
                                         style={{ backgroundColor: 'var(--primary)' }}
                                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
@@ -387,18 +387,18 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
                                         ) : (
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                                         )}
                                         Auto-Plan Day
                                     </button>
                                     <button
                                         onClick={openAddModal}
-                                        className="text-white px-5 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
+                                        className="text-white px-3 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 text-xs"
                                         style={{ backgroundColor: 'var(--primary)' }}
                                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
                                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                         Add Meal
                                     </button>
                                 </div>

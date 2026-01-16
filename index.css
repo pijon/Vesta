@@ -311,10 +311,10 @@
     --calories-hover: var(--emerald-700);
 
     /* Semantic - Weight */
-    --weight: var(--blue-600);
-    --weight-bg: var(--blue-100);
-    --weight-border: var(--blue-200);
-    --weight-hover: var(--blue-700);
+    --weight: hsl(180, 75%, 38%);
+    --weight-bg: hsl(180, 75%, 96%);
+    --weight-border: hsl(180, 60%, 88%);
+    --weight-hover: hsl(180, 75%, 28%);
 
     /* Semantic - Workout */
     --workout: var(--purple-600);
@@ -380,10 +380,10 @@
     --calories-hover: var(--emerald-400);
 
     /* Semantic - Weight */
-    --weight: var(--blue-500);
-    --weight-bg: var(--blue-900);
-    --weight-border: var(--blue-800);
-    --weight-hover: var(--blue-400);
+    --weight: hsl(180, 65%, 55%);
+    --weight-bg: hsl(180, 70%, 12%);
+    --weight-border: hsl(180, 60%, 18%);
+    --weight-hover: hsl(180, 70%, 65%);
 
     /* Semantic - Workout */
     --workout: var(--purple-500);

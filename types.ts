@@ -133,13 +133,15 @@ export interface DailySummary {
 }
 
 export enum AppView {
-  DASHBOARD = 'DASHBOARD',  // Replaces TRACK → Today tab
-  TRENDS = 'TRENDS',        // Was TRACK → Trends tab
-  WEEKLY = 'WEEKLY',        // Was TRACK → Week tab
+  TODAY = 'TODAY',          // Real-time daily tracking
+  ANALYTICS = 'ANALYTICS',  // Historical trends & insights (merged TRENDS + WEEKLY)
   PLANNER = 'PLANNER',
   RECIPES = 'RECIPES',
   SHOPPING = 'SHOPPING',
-  TRACK = 'DASHBOARD'       // Temporary alias for backwards compatibility
+  // Deprecated - for migration only
+  DASHBOARD = 'TODAY',      // Alias
+  TRENDS = 'ANALYTICS',     // Alias
+  WEEKLY = 'ANALYTICS'      // Alias
 }
 
 // --- Fasting ---

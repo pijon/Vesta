@@ -18,8 +18,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    view: AppView.DASHBOARD,
-    label: 'Dashboard',
+    view: AppView.TODAY,
+    label: 'Today',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="9"></rect>
@@ -31,29 +31,13 @@ const navItems: NavItem[] = [
     group: 'tracking'
   },
   {
-    view: AppView.TRENDS,
-    label: 'Trends',
+    view: AppView.ANALYTICS,
+    label: 'Analytics',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-      </svg>
-    ),
-    group: 'tracking'
-  },
-  {
-    view: AppView.WEEKLY,
-    label: 'Weekly',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-        <line x1="16" y1="2" x2="16" y2="6"></line>
-        <line x1="8" y1="2" x2="8" y2="6"></line>
-        <line x1="3" y1="10" x2="21" y2="10"></line>
-        <path d="M8 14h.01"></path>
-        <path d="M12 14h.01"></path>
-        <path d="M16 14h.01"></path>
-        <path d="M8 18h.01"></path>
-        <path d="M12 18h.01"></path>
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
       </svg>
     ),
     group: 'tracking'
@@ -198,11 +182,10 @@ const SidebarNavButton: React.FC<{
   return (
     <button
       onClick={onClick}
-      className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
-        active
-          ? 'text-white'
-          : ''
-      }`}
+      className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${active
+        ? 'text-white'
+        : ''
+        }`}
       style={active ? {
         background: 'linear-gradient(to right, var(--primary), var(--primary-hover))'
       } : isHovered ? {
@@ -247,7 +230,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
     <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-60 md:border-r bg-surface border-border">
       {/* Logo */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onNavigate(AppView.DASHBOARD)}>
+        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onNavigate(AppView.TODAY)}>
           <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-all duration-200 group-hover:scale-105 opacity-90" />
           <h1 className="text-lg font-medium tracking-tight leading-none text-main">
             Fast<span className="font-bold text-primary">800</span>

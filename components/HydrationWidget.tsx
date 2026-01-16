@@ -30,23 +30,26 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
 
     return (
 
-        <div className={`bg-surface p-6 rounded-3xl shadow-sm border border-border flex flex-col h-64 relative overflow-hidden group hover:shadow-md transition-all duration-500 ${className}`}>
-            {/* Decorative gradient orb - Standardized Top-Right */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-blue-400/5 to-blue-600/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-
-            {/* Header: Label + Icon */}
-            <div className="flex justify-between items-center mb-4 relative z-10">
-                <p className="text-muted text-xs font-bold uppercase tracking-widest">Hydration</p>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white shadow-none dark:shadow-lg dark:shadow-blue-500/30">
-                    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 297.001 297.001" fill="currentColor">
+        <div className={`group bg-surface rounded-2xl shadow-sm border border-water-border overflow-hidden hover:shadow-md transition-all cursor-pointer ${className}`}>
+            {/* Header */}
+            <div className="p-6 border-b border-water-border bg-water-bg/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 297.001 297.001" fill="currentColor" style={{ color: 'var(--water)' }}>
                         <path d="M194.551,169.941c-1.739-1.089-3.776-1.642-6.054-1.642c-1.615,0-3.122,0.305-4.479,0.907 c-1.344,0.596-2.516,1.477-3.487,2.618c-0.988,1.16-1.787,2.686-2.372,4.536c-0.599,1.894-0.903,4.066-0.903,6.455 c0,2.413,0.305,4.613,0.905,6.539c0.585,1.875,1.411,3.438,2.455,4.644c1.034,1.197,2.23,2.1,3.556,2.688 c1.337,0.592,2.834,0.892,4.45,0.892c2.093,0,3.962-0.508,5.711-1.551c1.7-1.015,3.085-2.629,4.116-4.799 c1.063-2.238,1.601-5.069,1.601-8.414c0-3.091-0.498-5.789-1.481-8.02C197.611,172.624,196.296,171.036,194.551,169.941z" />
                         <path d="M155.518,2.926c-1.864-1.88-4.367-2.953-7.051-2.925c-2.647,0.009-5.18,1.079-7.031,2.971 C137.326,7.173,40.77,106.791,40.77,189.271c0,59.402,48.328,107.73,107.73,107.73c59.402,0,107.73-48.328,107.73-107.73 C256.23,105.449,159.631,7.072,155.518,2.926z M120.982,205.972c-1.152,1.234-2.64,1.861-4.42,1.861 c-1.817,0-3.304-0.642-4.418-1.909c-1.065-1.208-1.605-2.947-1.605-5.164v-13.744H93.707v13.744c0,2.253-0.57,4.006-1.696,5.212 c-1.152,1.234-2.64,1.861-4.42,1.861c-1.817,0-3.304-0.642-4.418-1.909c-1.065-1.208-1.605-2.947-1.605-5.164v-35.673 c0-2.215,0.535-3.948,1.589-5.148c1.102-1.256,2.594-1.894,4.434-1.894c1.799,0,3.291,0.621,4.435,1.845 c1.116,1.197,1.68,2.946,1.68,5.197v11.49h16.833v-11.49c0-2.222,0.549-3.958,1.631-5.162c1.123-1.247,2.601-1.88,4.392-1.88 c1.799,0,3.291,0.621,4.435,1.845c1.116,1.197,1.68,2.946,1.68,5.197v35.673h0.001 C122.678,203.013,122.108,204.766,120.982,205.972z M157.786,231.529c-0.762,0.798-1.85,1.204-3.232,1.204h-16.152 c-1.497,0-2.711-0.451-3.61-1.34c-0.891-0.879-1.362-1.983-1.362-3.193c0-0.747,0.237-1.633,0.725-2.708 c0.468-1.031,0.981-1.834,1.566-2.456c1.965-2.04,3.758-3.808,5.342-5.264c1.631-1.503,2.786-2.478,3.532-2.98 c1.083-0.765,2.014-1.559,2.741-2.338c0.685-0.737,1.21-1.493,1.56-2.247c0.324-0.699,0.488-1.378,0.488-2.021 c0-0.667-0.149-1.238-0.456-1.747c-0.309-0.509-0.718-0.896-1.251-1.18c-0.554-0.295-1.148-0.439-1.815-0.439 c-1.414,0-2.455,0.588-3.28,1.85c-0.009,0.017-0.16,0.291-0.576,1.481c-0.407,1.156-0.87,2.042-1.416,2.709 c-0.5,0.609-1.432,1.333-3.045,1.333c-1.12,0-2.112-0.401-2.869-1.158c-0.769-0.767-1.159-1.785-1.159-3.023 c0-1.201,0.266-2.454,0.793-3.728c0.527-1.275,1.319-2.442,2.355-3.47c1.04-1.031,2.359-1.868,3.922-2.487 c1.55-0.616,3.369-0.928,5.407-0.928c2.436,0,4.566,0.398,6.33,1.18c1.21,0.554,2.273,1.315,3.174,2.268 c0.901,0.951,1.611,2.065,2.11,3.309c0.5,1.247,0.754,2.559,0.754,3.898c0,2.081-0.526,4.005-1.564,5.717 c-0.973,1.604-1.993,2.891-3.033,3.824c-0.958,0.862-2.515,2.173-4.759,4.006c-1.444,1.181-2.581,2.181-3.397,2.988h8.308 c1.474,0,2.659,0.342,3.523,1.016c0.961,0.75,1.47,1.815,1.47,3.078C158.911,229.775,158.522,230.76,157.786,231.529z M210.814,192.886c-1.008,3.045-2.545,5.726-4.568,7.971c-2.038,2.259-4.57,4.008-7.527,5.2c-2.924,1.178-6.3,1.775-10.036,1.775 c-3.719,0-7.108-0.614-10.073-1.824c-2.997-1.222-5.537-2.977-7.553-5.214c-2.004-2.223-3.536-4.926-4.555-8.036 c-1.002-3.059-1.51-6.404-1.51-9.943c0-3.629,0.531-7.013,1.579-10.057c1.061-3.086,2.626-5.757,4.655-7.94 c2.036-2.191,4.544-3.889,7.456-5.047c2.881-1.146,6.182-1.727,9.814-1.727c4.931,0,9.245,1.026,12.822,3.049 c3.616,2.046,6.39,4.993,8.245,8.758c1.822,3.701,2.747,8.083,2.747,13.025C212.31,186.519,211.808,189.887,210.814,192.886z" />
                     </svg>
+                    <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--water)' }}>Hydration</h3>
                 </div>
+                {/* Subtle indicator icon */}
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: 'var(--water)' }}>
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
             </div>
 
             {/* Content Area */}
-            <div className="h-28 flex flex-col relative z-10">
+            <div className="p-6 flex flex-col flex-1 relative">
                 {/* Hero Number */}
                 <div className="flex items-baseline gap-2 mb-2">
                     {isEditing ? (
@@ -56,13 +59,15 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={handleSave}
                             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                            className="w-24 text-4xl lg:text-5xl font-bold bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-100 dark:to-neutral-400 bg-clip-text text-transparent outline-none border-b-2 border-blue-500 font-serif tracking-tight leading-none"
+                            className="w-24 text-4xl lg:text-5xl font-bold outline-none border-b-2 border-blue-500 font-serif tracking-tight leading-none"
+                            style={{ color: 'var(--text-main)' }}
                             autoFocus
                         />
                     ) : (
                         <span
                             onClick={() => setIsEditing(true)}
-                            className="text-4xl lg:text-5xl font-bold bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-100 dark:to-neutral-400 bg-clip-text text-transparent font-serif tracking-tight leading-none cursor-pointer hover:opacity-80 transition-opacity"
+                            className="text-4xl lg:text-5xl font-bold font-serif tracking-tight leading-none cursor-pointer hover:opacity-80 transition-opacity"
+                            style={{ color: 'var(--text-main)' }}
                         >
                             {intake}
                         </span>
@@ -70,43 +75,53 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
                     <span className="text-muted font-semibold text-lg">/ {goal}</span>
                 </div>
 
-                {/* Action Row - Fixed h-8 alignment */}
-                <div className="flex items-center gap-2 mt-auto h-8">
+                {/* Action Row - Hidden on desktop by default, shown on hover */}
+                <div className="flex items-center gap-2 mt-auto h-8 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button
-                        onClick={() => onAdd(250)}
-                        className="px-2.5 py-1 bg-blue-100 text-blue-900 border border-transparent dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-600 text-[10px] font-bold uppercase rounded-lg transition-all active:scale-95 shadow-sm hover:bg-blue-200 dark:hover:bg-blue-900/60"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onAdd(250);
+                        }}
+                        className="px-2.5 py-1 dark:bg-blue-900/40 dark:text-blue-100 text-[10px] font-bold uppercase rounded-md transition-all active:scale-95 hover:opacity-80 dark:hover:bg-blue-900/60"
+                        style={{ color: 'var(--water)', backgroundColor: 'var(--water-bg)' }}
                     >
                         +250ml
                     </button>
                     <button
-                        onClick={() => onAdd(500)}
-                        className="px-2.5 py-1 bg-blue-100 text-blue-900 border border-transparent dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-600 text-[10px] font-bold uppercase rounded-lg transition-all active:scale-95 shadow-sm hover:bg-blue-200 dark:hover:bg-blue-900/60"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onAdd(500);
+                        }}
+                        className="px-2.5 py-1 dark:bg-blue-900/40 dark:text-blue-100 text-[10px] font-bold uppercase rounded-md transition-all active:scale-95 hover:opacity-80 dark:hover:bg-blue-900/60"
+                        style={{ color: 'var(--water)', backgroundColor: 'var(--water-bg)' }}
                     >
                         +500ml
                     </button>
                     <button
-                        onClick={() => setIsEditing(true)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditing(true);
+                        }}
                         className="p-1.5 rounded-lg text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 ml-auto transition-colors"
                         title="Edit Manually"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                     </button>
                 </div>
-            </div>
 
-            {/* Progress Bar - Always at Bottom */}
-            <div className="relative z-10 h-10 mt-auto">
-                <div className="w-full bg-slate-100 dark:bg-white/10 h-2 rounded-full overflow-hidden shadow-inner mt-4">
-                    <motion.div
-                        className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 shadow-none dark:shadow-lg dark:shadow-blue-500/50"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percentage}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                    />
-
-                </div>
-                <div className="flex justify-between items-center text-xs text-muted font-semibold mt-1.5">
-                    <span>{percentage < 100 ? `${Math.round(100 - percentage)}% to goal` : 'Goal reached!'}</span>
+                {/* Progress Bar */}
+                <div className="mt-4">
+                    <div className="w-full bg-slate-100 dark:bg-white/10 h-2 rounded-full overflow-hidden shadow-inner">
+                        <motion.div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 shadow-none dark:shadow-lg dark:shadow-blue-500/50"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                        />
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-muted font-semibold mt-1.5">
+                        <span>{percentage < 100 ? `${Math.round(100 - percentage)}% to goal` : 'Goal reached!'}</span>
+                    </div>
                 </div>
             </div>
         </div>

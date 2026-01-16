@@ -3,8 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
 import { TrackToday } from './components/TrackToday';
-import { TrackTrends } from './components/TrackTrends';
-import { TrackWeek } from './components/TrackWeek';
+import { TrackAnalytics } from './components/TrackAnalytics';
 import { Planner } from './components/Planner';
 import { RecipeLibrary } from './components/RecipeLibrary';
 import { ShoppingList } from './components/ShoppingList';
@@ -15,7 +14,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 
 const TrackerApp: React.FC = () => {
-    const [view, setView] = useState<AppView>(AppView.DASHBOARD);
+    const [view, setView] = useState<AppView>(AppView.TODAY);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [tomorrowDate] = useState(() => {
@@ -438,7 +437,7 @@ const TrackerApp: React.FC = () => {
                 {/* Top Bar - Mobile only */}
                 <nav className="md:hidden sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
                     <div className="px-4 h-16 flex items-center justify-between">
-                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.DASHBOARD)}>
+                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.TODAY)}>
                             <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-transform group-hover:scale-105" />
                             <h1 className="text-xl font-medium tracking-tight text-main leading-none">
                                 Fast<span className="font-bold text-primary">800</span>
@@ -491,9 +490,9 @@ const TrackerApp: React.FC = () => {
                 {/* Main Content */}
                 <main className="pb-24 md:pb-10">
                     <AnimatePresence mode="wait">
-                        {view === AppView.DASHBOARD && (
+                        {view === AppView.TODAY && (
                             <motion.div
-                                key="dashboard"
+                                key="today"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
@@ -503,28 +502,16 @@ const TrackerApp: React.FC = () => {
                                 <TrackToday {...trackProps} />
                             </motion.div>
                         )}
-                        {view === AppView.TRENDS && (
+                        {view === AppView.ANALYTICS && (
                             <motion.div
-                                key="trends"
+                                key="analytics"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                                 className="max-w-6xl mx-auto p-4 md:p-8"
                             >
-                                <TrackTrends {...trackProps} />
-                            </motion.div>
-                        )}
-                        {view === AppView.WEEKLY && (
-                            <motion.div
-                                key="weekly"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto p-4 md:p-8"
-                            >
-                                <TrackWeek {...trackProps} />
+                                <TrackAnalytics {...trackProps} />
                             </motion.div>
                         )}
                         {view === AppView.PLANNER && (
