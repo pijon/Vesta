@@ -2,22 +2,28 @@ import { Recipe } from './types';
 
 /**
  * Get the background and text color for a recipe based on its tags
+ * Uses more expressive, deeper tones instead of bright pastels
  */
 export function getRecipeTheme(tags: string[] = []): { bg: string; text: string } {
   const lowerTags = tags.map(t => t.toLowerCase());
 
   if (lowerTags.includes('breakfast')) {
-    return { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300' };
+    // Warm, golden breakfast tones - deeper amber/orange
+    return { bg: 'bg-amber-200/80 dark:bg-amber-950/60', text: 'text-amber-800 dark:text-amber-200' };
   }
   if (lowerTags.includes('main meal') || lowerTags.includes('dinner') || lowerTags.includes('lunch')) {
-    return { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300' };
+    // Rich, earthy emerald - deeper green
+    return { bg: 'bg-emerald-200/80 dark:bg-emerald-950/60', text: 'text-emerald-800 dark:text-emerald-200' };
   }
   if (lowerTags.includes('snack')) {
-    return { bg: 'bg-purple-100 dark:bg-purple-900/40', text: 'text-purple-700 dark:text-purple-300' };
+    // Deep, expressive purple - more sophisticated
+    return { bg: 'bg-purple-200/80 dark:bg-purple-950/60', text: 'text-purple-800 dark:text-purple-200' };
   }
   if (lowerTags.includes('light meal')) {
-    return { bg: 'bg-sky-100 dark:bg-sky-900/40', text: 'text-sky-700 dark:text-sky-300' };
+    // Calm, deeper sky blue
+    return { bg: 'bg-sky-200/80 dark:bg-sky-950/60', text: 'text-sky-800 dark:text-sky-200' };
   }
 
-  return { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300' };
+  // Default: sophisticated slate with more depth
+  return { bg: 'bg-slate-200/80 dark:bg-slate-900/80', text: 'text-slate-800 dark:text-slate-200' };
 }

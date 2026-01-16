@@ -801,3 +801,84 @@ export const convertToPurchasableQuantities = async (
     throw error;
   }
 };
+
+export const generateRecipeFromIngredients = async (
+  ingredients: string[],
+  targetCalories: number = 400,
+  mealType: 'breakfast' | 'main meal' | 'light meal' = 'main meal'
+): Promise<Partial<Recipe>> => {
+  if (!apiKey) throw new Error("API Key not found");
+
+  const prompt = `
+    You are an expert Fast 800 diet nutritionist. Create a single recipe using the ingredients provided.
+
+    AVAILABLE INGREDIENTS: ${ingredients.join(', ')}
+
+    TARGET: ${targetCalories} calories per serving
+    MEAL TYPE: ${mealType}
+
+    REQUIREMENTS:
+    1. Use ONLY the ingredients listed above (you can use basic pantry staples: salt, pepper, water, cooking spray)
+    2. Create a complete recipe with name, ingredients (with quantities), and step-by-step instructions
+    3. Calculate accurate nutritional information (calories, protein, fat, carbs) per serving
+    4. Target calories: ${targetCalories} kcal (±50 kcal acceptable)
+    5. Follow Fast 800 principles: high protein, healthy fats, low refined carbs
+    6. Make it simple enough for home cooking
+    7. Servings should be 1 unless recipe naturally serves more
+
+    NUTRITIONAL ACCURACY:
+    - Be precise with portion sizes to hit calorie target
+    - Verify: (protein × 4) + (carbs × 4) + (fat × 9) ≈ total calories
+    - Account for cooking methods (oil for frying adds calories)
+
+    INGREDIENT USAGE - CRITICAL:
+    - DO NOT use ALL ingredients provided
+    - Select ONLY ingredients that work well together for a cohesive dish
+    - Typical recipes use 4-7 ingredients (not counting salt, pepper, water)
+    - Prioritize protein sources as the main component
+    - Choose complementary vegetables and flavors
+    - Skip ingredients that don't fit the dish you're creating
+    - It's perfectly fine to leave out ingredients that don't belong together
+    - Add appropriate tags (${mealType}, and others like quick, high protein, low carb, etc.)
+
+    EXAMPLES OF SELECTIVE USAGE:
+    - Given: "chicken, eggs, spinach, tomatoes, salmon, rice"
+      → Use: chicken, spinach, tomatoes (don't force eggs, salmon, and rice into the same dish)
+    - Given: "beef, lettuce, cheese, tuna, pasta"
+      → Use: beef, lettuce, cheese (make a burger/salad, skip tuna and pasta)
+    - Given: "eggs, bacon, broccoli, chocolate, yogurt"
+      → Use: eggs, bacon, broccoli (breakfast scramble, skip chocolate and yogurt)
+
+    RECIPE CREATIVITY:
+    - Create interesting, flavorful combinations
+    - Consider cooking methods that enhance flavors (grilling, roasting, sautéing)
+    - Balance textures and colors for visual appeal
+    - Make it restaurant-quality but home-cookable
+
+    OUTPUT: Complete recipe with name, ingredients list with quantities, instructions, and accurate nutrition per serving.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: recipeSchema
+      }
+    });
+
+    const output = response.text;
+    if (!output) throw new Error("No response from AI");
+
+    const data = JSON.parse(output);
+    return {
+      ...data,
+      id: crypto.randomUUID()
+    };
+
+  } catch (error) {
+    console.error("Error generating recipe from ingredients:", error);
+    throw error;
+  }
+};

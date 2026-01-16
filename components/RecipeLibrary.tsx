@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe } from '../types';
 import { getRecipes, saveRecipe, deleteRecipe, migrateRecipesToTags } from '../services/storageService';
-import { parseRecipeText } from '../services/geminiService';
+import { parseRecipeText, generateRecipeFromIngredients } from '../services/geminiService';
 import { RecipeCard } from './RecipeCard';
 import { Portal } from './Portal';
 import { RecipeIllustration } from './RecipeIllustration';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
+import { IngredientRecipeModal } from './IngredientRecipeModal';
 
 
 interface RecipeLibraryProps {
@@ -22,6 +23,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [sortOption, setSortOption] = useState<string>('name');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showIngredientModal, setShowIngredientModal] = useState(false);
 
   // Selection and Editing State
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -150,6 +152,15 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     }
   };
 
+  const handleSaveGeneratedRecipe = async (recipe: Recipe) => {
+    await saveRecipe(recipe);
+    setRecipes(await getRecipes());
+
+    // Open the newly saved recipe
+    setSelectedRecipe(recipe);
+    setActiveTab('overview');
+  };
+
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm('Delete this recipe?')) {
@@ -235,6 +246,14 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             <span className="hidden sm:inline">Migrate DB</span>
+          </button>
+          <button
+            onClick={() => setShowIngredientModal(true)}
+            className="btn-secondary btn-sm flex items-center gap-2"
+            title="Create recipe from ingredients"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>
+            <span className="hidden sm:inline">From Ingredients</span>
           </button>
           <button
             onClick={() => setIsAdding(!isAdding)}
@@ -410,6 +429,14 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           ))
         )}
       </div>
+
+      {/* Ingredient Recipe Modal */}
+      {showIngredientModal && (
+        <IngredientRecipeModal
+          onSave={handleSaveGeneratedRecipe}
+          onClose={() => setShowIngredientModal(false)}
+        />
+      )}
 
       {/* Recipe Detail / Edit Modal */}
       {selectedRecipe && (

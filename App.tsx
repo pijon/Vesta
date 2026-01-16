@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
@@ -14,7 +15,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 
 const TrackerApp: React.FC = () => {
-    const [view, setView] = useState<AppView>(AppView.TODAY);
+    const navigate = useNavigate();
+    const location = useLocation();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [tomorrowDate] = useState(() => {
@@ -22,6 +24,31 @@ const TrackerApp: React.FC = () => {
         d.setDate(d.getDate() + 1);
         return d.toISOString().split('T')[0];
     });
+
+    // Derive current view from URL
+    const getCurrentView = (): AppView => {
+        const path = location.pathname;
+        if (path === '/' || path === '/today') return AppView.TODAY;
+        if (path === '/analytics') return AppView.ANALYTICS;
+        if (path === '/planner') return AppView.PLANNER;
+        if (path === '/recipes') return AppView.RECIPES;
+        if (path === '/shopping') return AppView.SHOPPING;
+        return AppView.TODAY;
+    };
+
+    const view = getCurrentView();
+
+    // Navigation handler that updates URL
+    const handleNavigate = (newView: AppView) => {
+        const routes: Record<AppView, string> = {
+            [AppView.TODAY]: '/today',
+            [AppView.ANALYTICS]: '/analytics',
+            [AppView.PLANNER]: '/planner',
+            [AppView.RECIPES]: '/recipes',
+            [AppView.SHOPPING]: '/shopping'
+        };
+        navigate(routes[newView] || '/today');
+    };
 
     const [todayPlan, setTodayPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
@@ -418,7 +445,7 @@ const TrackerApp: React.FC = () => {
         onDeleteWorkout: handleDeleteWorkout,
         onUpdateFastingConfig: handleUpdateFastingConfig,
         refreshData,
-        onNavigate: setView
+        onNavigate: handleNavigate
     };
 
     return (
@@ -426,7 +453,7 @@ const TrackerApp: React.FC = () => {
             {/* Desktop Sidebar */}
             <DesktopSidebar
                 currentView={view}
-                onNavigate={setView}
+                onNavigate={handleNavigate}
                 onOpenSettings={() => setIsSettingsOpen(true)}
                 isDarkMode={isDarkMode}
                 onToggleDarkMode={toggleDarkMode}
@@ -437,7 +464,7 @@ const TrackerApp: React.FC = () => {
                 {/* Top Bar - Mobile only */}
                 <nav className="md:hidden sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
                     <div className="px-4 h-16 flex items-center justify-between">
-                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView(AppView.TODAY)}>
+                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => handleNavigate(AppView.TODAY)}>
                             <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-transform group-hover:scale-105" />
                             <h1 className="text-xl font-medium tracking-tight text-main leading-none">
                                 Fast<span className="font-bold text-primary">800</span>
@@ -554,7 +581,7 @@ const TrackerApp: React.FC = () => {
                 </main>
 
                 {/* Mobile Bottom Navigation */}
-                <MobileBottomNav currentView={view} onNavigate={setView} />
+                <MobileBottomNav currentView={view} onNavigate={handleNavigate} />
             </div>
 
             {/* Settings Modal */}
