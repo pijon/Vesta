@@ -2,7 +2,7 @@
 description: A rigorous feature development workflow that enforces strict adherence to UI/UX rules through mandatory research and validation phases.
 ---
 
-# Vigorous Feature Development Workflow
+# Feature Development Workflow
 
 This workflow is designed to prevent "lazy" implementations by forcing a strict Research -> Design -> Critique -> Implement cycle. It prioritizes correctness and adherence to `rules.md` over speed.
 
@@ -35,23 +35,46 @@ This workflow is designed to prevent "lazy" implementations by forcing a strict 
     -   If ANYTHING is vague, ask the user. Do not guess.
     -   *Stop Condition:* If you have to ask a question, stop here and wait for user input.
 
-## Phase 3: Design & Self-Critique
-**Goal:** Validate the approach *before* proposing it to the user.
+## Phase 3: Strategic Planning (The "Mental Sandbox")
+**Goal:** Simulate the implementation in your head and architect the solution.
 
-1.  **Draft Implementation Plan:**
-    -   Sketch out the changes in `implementation_plan.md` format (Goals, Changes, Verification).
-    -   Do NOT show this to the user yet.
+1.  **Mental Simulation:**
+    *   **Design & Aesthetics:** "Does this feel premium? Am I using `backdrop-blur-md` and semantic tokens?"
+    *   **Architecture:** "Do I need to touch `App.tsx` or just a local component?"
+    *   **Constraints:** "No Redux, No hardcoded hex colors, Mobile-first."
 
-2.  **Perform Self-Critique:**
-    -   Compare your draft against the **Constraints Checklist** from Phase 1.
-    -   *Critique Questions:*
-        -   "Did I use a hardcoded hex color instead of a semantic token?" -> Fix it.
-        -   "Did I suggest a 10px margin instead of the standard spacing scale?" -> Fix it.
-        -   "Did I forget the mobile responsive classes (`md:`, `lg:`)?" -> Fix it.
+2.  **Draft Implementation Artifact (PRP):**
+    *   You MUST produce a plan following this structure (do not deviate):
+    
+    ```markdown
+    # PRP: [Feature Name]
+    
+    ## 🎯 Objective
+    **User Story:** As a [User], I want...
+    **Visual Goal:** [Describe the premium look & feel]
+    
+    ## 🛡️ Hazards & Gotchas (Strict Enforcement)
+    * [ ] **Aesthetics:** Must use "Rich Aesthetics" (semantic tokens, subtle shadows).
+    * [ ] **Colors:** Use semantic tokens from `ui_colors.md` (NO hex codes).
+    * [ ] **Spacing:** Follow "Start Large" strategy from `ui_spacing.md`.
+    * [ ] **Responsiveness:** Must test on mobile dimensions with `md:`, `lg:` breakpoints.
+    
+    ## 📋 Implementation Plan
+    ### Phase 1: Data & Types
+    * **File:** `src/types.ts`
+    * **Details:** ...
+    
+    ### Phase 2: UI Implementation
+    * **File:** `components/MyComponent.tsx`
+    * **Design Specs:** (List specific Tailwind classes)
+    
+    ### Phase 3: Verification
+    * **Visual:** Verify at 375px (Mobile) and 1200px (Desktop).
+    ```
 
-3.  **Finalize & Present Plan:**
-    -   Once the design passes your critique, write the `implementation_plan.md`.
-    -   Use `notify_user` to present the plan for approval.
+3.  **Self-Critique & Approval:**
+    *   Review your PRP against the **Constraints Checklist** from Phase 1.
+    *   **STOP:** Use `notify_user` to present this PRP. Do not proceed to implementation until approved.
 
 ## Phase 4: Implementation (The "Vigorous" Way)
 **Goal:** Code with precision.
@@ -59,7 +82,7 @@ This workflow is designed to prevent "lazy" implementations by forcing a strict 
 1.  **Strict File Editing:**
     -   When editing, use `view_file` effectively to see context.
     -   Apply changes in small, logical chunks.
-    -   **Constant Validation:** After every major edit, ask yourself: "Does this violate the 'Rich Aesthetics' rule?"
+    -   **Constant Validation:** During every edit, ask: "Does this violate the 'Rich Aesthetics' rule?"
 
 2.  **Component Creation Rules:**
     -   **Imports:** Clean and ordered.

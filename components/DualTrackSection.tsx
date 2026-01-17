@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
@@ -6,6 +6,7 @@ import { Portal } from './Portal';
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
   dailyLog: DailyLog;
+  lastAteTime?: number | null;
   onToggleMeal: (index: number) => void;
   onViewRecipe: (recipe: any) => void;
   onEditWorkout: (workout: WorkoutItem) => void;
@@ -19,6 +20,7 @@ interface DualTrackSectionProps {
 export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   todayPlan,
   dailyLog,
+  lastAteTime,
   onToggleMeal,
   onViewRecipe,
   onEditWorkout,
@@ -32,6 +34,32 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const [editFoodName, setEditFoodName] = useState('');
   const [editFoodCalories, setEditFoodCalories] = useState('');
   const [showAllLoggedItems, setShowAllLoggedItems] = useState(false);
+  const [timeSinceMeal, setTimeSinceMeal] = useState<string>('');
+
+  useEffect(() => {
+    if (!lastAteTime) {
+      setTimeSinceMeal('');
+      return;
+    }
+
+    const updateTime = () => {
+      const now = Date.now();
+      const diff = now - lastAteTime;
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+
+      if (hours > 0) {
+        setTimeSinceMeal(`${hours}h ${minutes}m`);
+      } else {
+        setTimeSinceMeal(`${minutes}m`);
+      }
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [lastAteTime]);
 
   const sortedFoodItems = [...(dailyLog.items || [])].sort((a, b) => b.timestamp - a.timestamp);
   const sortedWorkouts = [...(dailyLog.workouts || [])].sort((a, b) => b.timestamp - a.timestamp);
@@ -241,9 +269,20 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             </svg>
             <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>Today's Log</h3>
           </div>
-          <span className="text-xs font-bold bg-surface px-2 py-1 rounded-full" style={{ color: 'var(--calories)' }}>
-            {totalLoggedItems} {totalLoggedItems === 1 ? 'entry' : 'entries'}
-          </span>
+          <div className="flex items-center gap-3">
+            {timeSinceMeal && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface border border-calories-border/50 text-xs font-medium text-muted">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>{timeSinceMeal} ago</span>
+              </div>
+            )}
+            <span className="text-xs font-bold bg-surface px-2 py-1 rounded-full" style={{ color: 'var(--calories)' }}>
+              {totalLoggedItems} {totalLoggedItems === 1 ? 'entry' : 'entries'}
+            </span>
+          </div>
         </div>
         <div className="p-6 space-y-3 min-h-[200px]">
           {sortedFoodItems.length === 0 && sortedWorkouts.length === 0 ? (

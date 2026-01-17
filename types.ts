@@ -12,6 +12,9 @@ export interface Recipe {
   servings: number;
   image?: string; // base64 data URL or external URL
   isFavorite?: boolean;
+  isShared?: boolean;
+  sharedBy?: string; // UID of sharer
+  sharedAt?: number;
 }
 
 export type Meal = Recipe;
@@ -40,6 +43,7 @@ export interface UserStats {
   weightHistory: WeightEntry[];
   dietMode?: 'daily' | '5:2'; // Default 'daily'
   nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
+  dailyWorkoutCalorieGoal?: number; // Daily calorie burn target for workouts
 }
 
 export interface GroceryItem {
@@ -138,6 +142,7 @@ export enum AppView {
   PLANNER = 'PLANNER',
   RECIPES = 'RECIPES',
   SHOPPING = 'SHOPPING',
+  SETTINGS = 'SETTINGS',
   // Deprecated - for migration only
   DASHBOARD = 'TODAY',      // Alias
   TRENDS = 'ANALYTICS',     // Alias
@@ -163,4 +168,14 @@ export interface FastingEntry {
   endTime: number;
   durationHours: number;
   isSuccess: boolean; // Reached target?
+}
+
+// --- Group / Family ---
+export interface Group {
+  id: string;
+  name: string;
+  ownerId: string;
+  createdAt: number;
+  inviteCode: string; // 6-digit code
+  memberIds: string[];
 }

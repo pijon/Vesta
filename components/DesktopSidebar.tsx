@@ -137,26 +137,31 @@ const DarkModeToggleButton: React.FC<{
 };
 
 const SettingsButton: React.FC<{
+  active: boolean;
   onClick: () => void;
-}> = ({ onClick }) => {
+}> = ({ active, onClick }) => {
   const [isHovered, setIsHovered] = React.useState(false);
 
   return (
     <button
       onClick={onClick}
-      className="group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200"
-      style={isHovered ? {
+      className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${active ? 'text-white' : ''}`}
+      style={active ? {
+        background: 'linear-gradient(to right, var(--primary), var(--primary-hover))'
+      } : isHovered ? {
         color: 'var(--main)',
         backgroundColor: 'var(--background)'
       } : {
         color: 'var(--muted)'
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => !active && setIsHovered(true)}
+      onMouseLeave={() => !active && setIsHovered(false)}
     >
       <div
         className="transition-all duration-200"
-        style={isHovered ? {
+        style={active ? {
+          color: 'white'
+        } : isHovered ? {
           color: 'var(--icon-color-hover)'
         } : {
           color: 'var(--icon-color)'
@@ -167,7 +172,7 @@ const SettingsButton: React.FC<{
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
       </div>
-      <span className="font-medium text-sm">Settings</span>
+      <span className={`font-medium text-sm ${active ? 'text-white' : ''}`}>Settings</span>
     </button>
   );
 };
@@ -281,7 +286,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         <DarkModeToggleButton isDarkMode={isDarkMode} onClick={onToggleDarkMode} />
 
         {/* Settings */}
-        <SettingsButton onClick={onOpenSettings} />
+        <SettingsButton active={currentView === AppView.SETTINGS} onClick={onOpenSettings} />
       </div>
     </aside>
   );

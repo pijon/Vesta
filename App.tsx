@@ -14,10 +14,14 @@ import { APP_NAME, DEFAULT_USER_STATS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 
+import { FamilySettings } from './components/FamilySettings';
+import { SettingsView } from './components/SettingsView';
+
+
 const TrackerApp: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    // const [isSettingsOpen, setIsSettingsOpen] = useState(false); // Removed modal state
     const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [tomorrowDate] = useState(() => {
         const d = new Date();
@@ -33,6 +37,7 @@ const TrackerApp: React.FC = () => {
         if (path === '/planner') return AppView.PLANNER;
         if (path === '/recipes') return AppView.RECIPES;
         if (path === '/shopping') return AppView.SHOPPING;
+        if (path === '/settings') return AppView.SETTINGS;
         return AppView.TODAY;
     };
 
@@ -45,7 +50,8 @@ const TrackerApp: React.FC = () => {
             [AppView.ANALYTICS]: '/analytics',
             [AppView.PLANNER]: '/planner',
             [AppView.RECIPES]: '/recipes',
-            [AppView.SHOPPING]: '/shopping'
+            [AppView.SHOPPING]: '/shopping',
+            [AppView.SETTINGS]: '/settings'
         };
         navigate(routes[newView] || '/today');
     };
@@ -225,194 +231,7 @@ const TrackerApp: React.FC = () => {
         await saveFastingState(newState);
     };
 
-    const SettingsModal = () => {
-        const [formStats, setFormStats] = useState(userStats);
-        const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
-        const [showDebug, setShowDebug] = useState(false);
-
-        useEffect(() => {
-            if (showDebug) {
-                setDebugInfo(getLocalStorageDebugInfo());
-            }
-        }, [showDebug]);
-
-        const handleForceSync = async () => {
-            if (confirm("This will attempt to upload data found on this device to the cloud. Continue?")) {
-                const result = await migrateFromLocalStorage(true);
-                if (result.success) {
-                    alert("Sync process finished successfully! Reloading...");
-                    window.location.reload();
-                } else {
-                    alert(`Sync failed: ${result.error}\n\nCheck console for details.`);
-                }
-            }
-        };
-
-        const handleSave = () => {
-            handleUpdateStats(formStats);
-            setIsSettingsOpen(false);
-        };
-
-        return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
-                <div className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden premium-shadow border border-border" onClick={e => e.stopPropagation()}>
-                    <div className="p-6 border-b border-border flex justify-between items-center bg-background/50">
-                        <h3 className="font-medium text-2xl text-main font-serif tracking-tight">Settings</h3>
-                        <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-transparent hover:bg-muted/10 rounded-full text-muted hover:text-main transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    </div>
-                    <div className="p-6 space-y-5">
-                        <div>
-                            <label className="block text-sm font-bold text-main mb-2">Starting Weight (kg)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                value={formStats.startWeight}
-                                onChange={(e) => setFormStats({ ...formStats, startWeight: parseFloat(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
-                            />
-                            <p className="text-xs text-muted mt-1">Your weight when you began the diet.</p>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-main mb-2">Current Weight (kg)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                value={formStats.currentWeight}
-                                onChange={(e) => setFormStats({ ...formStats, currentWeight: parseFloat(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-bold text-main mb-2">Goal Weight (kg)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                value={formStats.goalWeight}
-                                onChange={(e) => setFormStats({ ...formStats, goalWeight: parseFloat(e.target.value) || 0 })}
-                                className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold text-main mb-2">Fasting Day Target</label>
-                                <input
-                                    type="number"
-                                    value={formStats.dailyCalorieGoal}
-                                    onChange={(e) => setFormStats({ ...formStats, dailyCalorieGoal: parseInt(e.target.value) || 0 })}
-                                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
-                                />
-                                <p className="text-xs text-muted mt-1">Target for fasting days</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-main mb-2">Non-Fast Day Target</label>
-                                <input
-                                    type="number"
-                                    value={formStats.nonFastDayCalories || 2000}
-                                    onChange={(e) => setFormStats({ ...formStats, nonFastDayCalories: parseInt(e.target.value) || 0 })}
-                                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium text-main transition-all"
-                                />
-                                <p className="text-xs text-muted mt-1">Target for normal days</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-6 pt-0 space-y-4">
-                        <button onClick={handleSave} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg active:scale-95">
-                            Save Settings
-                        </button>
-
-                        <div className="border-t border-border pt-4 mt-2">
-                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Data Management</h4>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={async () => {
-                                        const json = await exportAllData();
-                                        const blob = new Blob([json], { type: 'application/json' });
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = `fast800_backup_${new Date().toISOString().split('T')[0]}.json`;
-                                        a.click();
-                                        URL.revokeObjectURL(url);
-                                    }}
-                                    className="flex-1 py-2.5 bg-surface border border-border text-main text-sm font-bold rounded-xl hover:bg-background transition-colors flex items-center justify-center gap-2 shadow-sm"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                    Export
-                                </button>
-                                <div className="flex-1 relative">
-                                    <input
-                                        type="file"
-                                        accept=".json"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-
-                                            if (!confirm("This will overwrite your current data. Are you sure?")) {
-                                                e.target.value = '';
-                                                return;
-                                            }
-
-                                            const reader = new FileReader();
-                                            reader.onload = async (event) => {
-                                                const content = event.target?.result as string;
-                                                const result = await importAllData(content);
-                                                if (result.success) {
-                                                    alert("Data imported successfully!");
-                                                    window.location.reload();
-                                                } else {
-                                                    alert(`Failed to import data: ${result.error}`);
-                                                }
-                                            };
-                                            reader.readAsText(file);
-                                        }}
-                                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                                    />
-                                    <button className="w-full h-full py-2.5 bg-red-50 text-red-600 border border-red-100 text-sm font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                        Import
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Data Recovery Section */}
-                        <div className="border-t border-border pt-4 mt-2">
-                            <button
-                                onClick={() => setShowDebug(!showDebug)}
-                                className="text-xs text-muted hover:text-main underline mb-2"
-                            >
-                                {showDebug ? "Hide Recovery Tools" : "Show Recovery Tools"}
-                            </button>
-
-                            {showDebug && (
-                                <div className="bg-slate-50 p-4 rounded-xl border border-border space-y-3">
-                                    <h4 className="text-sm font-bold text-main">Local Data Recovery</h4>
-                                    <div className="space-y-1">
-                                        {Object.entries(debugInfo).map(([key, value]) => (
-                                            <div key={key} className="flex justify-between text-xs">
-                                                <span className="text-slate-500 font-mono">{key.replace('fast800_', '')}</span>
-                                                <span className={(value as string).includes('Found') ? "text-emerald-600 font-bold" : "text-slate-400"}>{value}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <button
-                                        onClick={handleForceSync}
-                                        className="w-full py-2 bg-emerald-100 text-emerald-700 border border-emerald-200 text-sm font-bold rounded-lg hover:bg-emerald-200 transition-colors"
-                                    >
-                                        Force Sync from Device
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
+    // SettingsModal moved to separate component SettingsView.tsx
 
     // Props for Track components (Dashboard, Trends, Weekly)
     const trackProps = {
@@ -454,10 +273,11 @@ const TrackerApp: React.FC = () => {
             <DesktopSidebar
                 currentView={view}
                 onNavigate={handleNavigate}
-                onOpenSettings={() => setIsSettingsOpen(true)}
+                onOpenSettings={() => handleNavigate(AppView.SETTINGS)}
                 isDarkMode={isDarkMode}
                 onToggleDarkMode={toggleDarkMode}
             />
+
 
             {/* Main Content Wrapper */}
             <div className="w-full md:ml-60">
@@ -501,8 +321,11 @@ const TrackerApp: React.FC = () => {
 
                             {/* Settings */}
                             <button
-                                onClick={() => setIsSettingsOpen(true)}
-                                className="h-10 w-10 rounded-full bg-surface border border-border flex items-center justify-center text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
+                                onClick={() => handleNavigate(AppView.SETTINGS)}
+                                className={`h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm border ${view === AppView.SETTINGS
+                                        ? 'bg-primary text-white border-primary'
+                                        : 'bg-surface border-border text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20'
+                                    }`}
                                 title="Settings"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -577,15 +400,30 @@ const TrackerApp: React.FC = () => {
                                 <ShoppingList />
                             </motion.div>
                         )}
+                        {view === AppView.SETTINGS && (
+                            <motion.div
+                                key="settings"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-6xl mx-auto p-4 md:p-8"
+                            >
+                                <SettingsView
+                                    stats={userStats}
+                                    onUpdateStats={handleUpdateStats}
+                                    fastingConfig={fastingState.config}
+                                    onUpdateFastingConfig={handleUpdateFastingConfig}
+                                />
+                            </motion.div>
+                        )}
                     </AnimatePresence>
                 </main>
 
                 {/* Mobile Bottom Navigation */}
                 <MobileBottomNav currentView={view} onNavigate={handleNavigate} />
+                {/* Settings Modal Removed */}
             </div>
-
-            {/* Settings Modal */}
-            {isSettingsOpen && <SettingsModal />}
         </div>
     );
 };

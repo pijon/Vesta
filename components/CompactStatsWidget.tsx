@@ -99,7 +99,9 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                         <span className="text-2xl font-bold text-main font-serif">{caloriesBurned}</span>
                         <span className="text-xs text-muted font-semibold">kcal</span>
                     </div>
-                    <div className="text-[10px] text-muted mt-1">{workoutCount} session{workoutCount !== 1 ? 's' : ''}</div>
+                    <div className="text-[10px] text-muted mt-1">
+                        {Math.round((caloriesBurned / (stats.dailyWorkoutCalorieGoal || 400)) * 100)}% of {stats.dailyWorkoutCalorieGoal || 400}kcal
+                    </div>
                 </div>
             </div>
         </div>

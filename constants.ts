@@ -12,6 +12,7 @@ export const DEFAULT_USER_STATS = {
   currentWeight: 90,
   goalWeight: 80,
   dailyCalorieGoal: 800,
+  dailyWorkoutCalorieGoal: 400, // Default burn target
   dailyWaterGoal: 2000,
   weightHistory: [],
   dietMode: 'daily' as const,

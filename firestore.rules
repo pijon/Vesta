@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isGroupMember(groupId) {
+      // Check if the user's UID is in the 'memberIds' array of the group document
+      let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
+      return isAuthenticated() && request.auth.uid in groupData.memberIds;
+    }
+
+    // --- User Data ---
+    // Users can access their own data subtree completely
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // --- Groups ---
+    match /groups/{groupId} {
+      // Anyone auth'd can create a group (we trust the client to set themselves as owner/member)
+      // Ideally validation would check that request.resource.data.ownerId == auth.uid
+      allow create: if isAuthenticated();
+      
+      // Only members can read/update (e.g. adding members)
+      allow read, update: if isAuthenticated() && request.auth.uid in resource.data.memberIds;
+      
+      // Only owner can delete? Or any member? Let's say any member for now to keep it simple, or stick to logic.
+      // Logic in app says 'leaveGroup' removes self. 
+      // If last member leaves, group might remain ghost. 
+      allow delete: if isAuthenticated() && request.auth.uid in resource.data.memberIds;
+
+      // --- Shared Recipes ---
+      match /shared_recipes/{recipeId} {
+        allow read, write: if isGroupMember(groupId);
+      }
+    }
+  }
+}

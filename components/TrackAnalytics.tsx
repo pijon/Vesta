@@ -32,38 +32,53 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
     const monthlyEnhanced = enhancePeriodSummaryWithWeight(monthlySummary, stats.weightHistory);
 
     // Weight chart data with projected trend line
-    let weightChartData = stats.weightHistory ? [...stats.weightHistory] : [];
-    if (weightChartData.length === 0) {
-        weightChartData.push({
+    let allWeightData = stats.weightHistory ? [...stats.weightHistory] : [];
+    if (allWeightData.length === 0) {
+        allWeightData.push({
             date: new Date().toISOString().split('T')[0],
             weight: stats.startWeight
         });
     }
 
+    // Filter to show only last 7 days of weight data
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const weightChartData = allWeightData
+        .filter(entry => new Date(entry.date) >= sevenDaysAgo)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
     // Add projected data points if we have a projection
     const projectedData: any[] = [];
-    if (weightAnalysis.projectedGoalDate && weightAnalysis.daysToGoal && weightAnalysis.daysToGoal > 0) {
+    if (weightAnalysis.projectedGoalDate && weightAnalysis.daysToGoal && weightAnalysis.daysToGoal > 0 && weightChartData.length > 0) {
         const lastEntry = weightChartData[weightChartData.length - 1];
         const currentWeight = lastEntry.weight;
-        const projectedDate = weightAnalysis.projectedGoalDate;
 
-        // Add intermediate points for smoother projection line (every 7 days)
-        const daysRemaining = weightAnalysis.daysToGoal;
+        // Only show projection for next 7 days
+        const maxProjectionDays = 7;
+        const daysToShow = Math.min(weightAnalysis.daysToGoal, maxProjectionDays);
         const weightToLose = currentWeight - stats.goalWeight;
-        const dailyLossRate = weightToLose / daysRemaining;
+        const dailyLossRate = weightToLose / weightAnalysis.daysToGoal;
 
         const today = new Date(lastEntry.date);
-        const steps = Math.ceil(daysRemaining / 7); // One point per week
 
-        for (let i = 1; i <= steps; i++) {
-            const daysAhead = Math.min(i * 7, daysRemaining);
+        // Add current weight as starting point for projection (connects the lines)
+        projectedData.push({
+            date: today.toISOString().split('T')[0],
+            weight: null,
+            projectedWeight: currentWeight,
+            displayDate: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        });
+
+        // Add projection point for each upcoming day
+        for (let i = 1; i <= daysToShow; i++) {
             const projDate = new Date(today);
-            projDate.setDate(projDate.getDate() + daysAhead);
-            const projWeight = currentWeight - (dailyLossRate * daysAhead);
+            projDate.setDate(projDate.getDate() + i);
+            const projWeight = currentWeight - (dailyLossRate * i);
 
             projectedData.push({
                 date: projDate.toISOString().split('T')[0],
-                weight: null, // Null for actual weight
+                weight: null,
                 projectedWeight: Math.max(projWeight, stats.goalWeight),
                 displayDate: projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             });

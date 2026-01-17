@@ -10,9 +10,21 @@ interface RecipeCardProps {
   onAction?: (e: React.MouseEvent) => void;
   showMacros?: boolean;
   onToggleFavorite?: (e: React.MouseEvent) => void;
+  // Sharing props
+  isInGroup?: boolean;
+  onShare?: (e: React.MouseEvent) => void;
 }
 
-export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLabel, onAction, showMacros = true, onToggleFavorite }) => {
+export const RecipeCard: React.FC<RecipeCardProps> = ({
+  meal,
+  onClick,
+  actionLabel,
+  onAction,
+  showMacros = true,
+  onToggleFavorite,
+  isInGroup,
+  onShare
+}) => {
   const theme = getRecipeTheme(meal.tags);
 
   return (
@@ -41,6 +53,13 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
 
         {/* Badges */}
         <div className="absolute top-4 left-4 flex gap-2 flex-wrap max-w-[70%]">
+          {/* Shared Badge */}
+          {meal.isShared && (
+            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-white/90 text-emerald-700 flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              Family
+            </span>
+          )}
           {meal.tags?.map(tag => (
             <span key={tag} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-surface/90 dark:bg-surface/60 ${theme.text}`}>
               {tag}
@@ -53,22 +72,39 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ meal, onClick, actionLab
           )}
         </div>
 
-        {/* Favorite Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onToggleFavorite) onToggleFavorite(e);
-          }}
-          className={`absolute top-4 right-4 p-2 rounded-full shadow-md backdrop-blur-md transition-all duration-300 ${meal.isFavorite
-            ? 'bg-surface/90 text-red-500 hover:bg-surface hover:scale-110'
-            : 'bg-black/20 text-white hover:bg-surface/90 hover:text-red-500 hover:scale-110'
-            }`}
-          title={meal.isFavorite ? "Remove from favourites" : "Add to favourites"}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={meal.isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-          </svg>
-        </button>
+        {/* Action Buttons (Fav & Share) */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2">
+          {/* Share Button */}
+          {isInGroup && !meal.isShared && onShare && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShare(e);
+              }}
+              className="p-2 rounded-full shadow-md backdrop-blur-md transition-all duration-300 bg-black/20 text-white hover:bg-surface/90 hover:text-emerald-600 hover:scale-110"
+              title="Share with Family"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+            </button>
+          )}
+
+          {/* Favorite Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onToggleFavorite) onToggleFavorite(e);
+            }}
+            className={`p-2 rounded-full shadow-md backdrop-blur-md transition-all duration-300 ${meal.isFavorite
+              ? 'bg-surface/90 text-red-500 hover:bg-surface hover:scale-110'
+              : 'bg-black/20 text-white hover:bg-surface/90 hover:text-red-500 hover:scale-110'
+              }`}
+            title={meal.isFavorite ? "Remove from favourites" : "Add to favourites"}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={meal.isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Content */}

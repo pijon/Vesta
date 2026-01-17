@@ -7,7 +7,7 @@ import { RecipeDetailModal } from './RecipeDetailModal';
 import { WorkoutEntryModal } from './WorkoutEntryModal';
 import { DualTrackSection } from './DualTrackSection';
 import { HydrationWidget } from './HydrationWidget';
-import { FastingWidget } from './FastingWidget';
+
 import { WorkoutWidget } from './WorkoutWidget';
 import { CompactStatsWidget } from './CompactStatsWidget';
 import { RecipeLibrary } from './RecipeLibrary';
@@ -444,15 +444,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             className="h-full"
           />
 
-          <div className="hidden md:block h-full">
-            <FastingWidget
-              fastingState={fastingState}
-              onUpdateConfig={onUpdateFastingConfig}
-            />
-          </div>
-          <div className="md:hidden h-full">
+          <div className="h-full">
             <WorkoutWidget
               workouts={dailyLog.workouts || []}
+              dailyGoal={stats.dailyWorkoutCalorieGoal || 400}
               onLogWorkout={() => setIsWorkoutModalOpen(true)}
             />
           </div>
@@ -463,6 +458,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       <DualTrackSection
         todayPlan={todayPlan}
         dailyLog={dailyLog}
+        lastAteTime={fastingState.lastAteTime}
         onToggleMeal={toggleMeal}
         onViewRecipe={setSelectedRecipe}
         onEditWorkout={handleEditWorkout}

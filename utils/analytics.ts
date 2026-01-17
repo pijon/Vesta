@@ -14,6 +14,51 @@ export interface WeightAnalysis {
   trend: 'losing' | 'maintaining' | 'gaining' | 'insufficient-data';
 }
 
+/**
+ * Calculate linear regression for weight data
+ * Returns slope (kg per day) and intercept
+ */
+function linearRegression(weightHistory: WeightEntry[]): { slope: number; intercept: number; rSquared: number } {
+  const n = weightHistory.length;
+
+  // Convert dates to days since first entry
+  const firstDate = new Date(weightHistory[0].date).getTime();
+  const points = weightHistory.map(entry => ({
+    x: (new Date(entry.date).getTime() - firstDate) / (1000 * 60 * 60 * 24), // days since start
+    y: entry.weight
+  }));
+
+  // Calculate means
+  const meanX = points.reduce((sum, p) => sum + p.x, 0) / n;
+  const meanY = points.reduce((sum, p) => sum + p.y, 0) / n;
+
+  // Calculate slope and intercept
+  let numerator = 0;
+  let denominator = 0;
+
+  for (const point of points) {
+    numerator += (point.x - meanX) * (point.y - meanY);
+    denominator += (point.x - meanX) ** 2;
+  }
+
+  const slope = numerator / denominator;
+  const intercept = meanY - slope * meanX;
+
+  // Calculate R² (coefficient of determination)
+  let ssRes = 0; // Sum of squared residuals
+  let ssTot = 0; // Total sum of squares
+
+  for (const point of points) {
+    const predicted = slope * point.x + intercept;
+    ssRes += (point.y - predicted) ** 2;
+    ssTot += (point.y - meanY) ** 2;
+  }
+
+  const rSquared = 1 - (ssRes / ssTot);
+
+  return { slope, intercept, rSquared };
+}
+
 export interface StreakAnalysis {
   currentStreak: number; // Days
   longestStreak: number;
@@ -67,12 +112,19 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
 
     const firstEntry = sortedHistory[0];
     const lastEntry = sortedHistory[sortedHistory.length - 1];
-
     const daysDiff = (new Date(lastEntry.date).getTime() - new Date(firstEntry.date).getTime()) / (1000 * 60 * 60 * 24);
-    const weightDiff = firstEntry.weight - lastEntry.weight;
 
     if (daysDiff >= 3) { // At least 3 days of data
-      avgWeeklyLoss = (weightDiff / daysDiff) * 7; // Convert to per week
+      // Use linear regression for more accurate trend
+      const { slope, rSquared } = linearRegression(sortedHistory);
+
+      // slope is in kg per day, convert to kg per week
+      avgWeeklyLoss = -slope * 7; // Negative slope means weight going down (losing)
+
+      // Cap at realistic maximum (1kg/week is aggressive but achievable)
+      // This prevents unrealistic projections from initial water weight loss
+      const MAX_WEEKLY_LOSS = 1.0; // kg per week
+      const cappedWeeklyLoss = Math.min(Math.abs(avgWeeklyLoss), MAX_WEEKLY_LOSS);
 
       // Determine trend
       if (avgWeeklyLoss > 0.1) {
@@ -83,9 +135,10 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
         trend = 'maintaining';
       }
 
-      // Project goal date if losing weight
-      if (avgWeeklyLoss > 0 && remainingLoss > 0) {
-        const weeksToGoal = remainingLoss / avgWeeklyLoss;
+      // Project goal date if losing weight (use capped rate for projection)
+      // Only project if we have good data quality (R² > 0.5 means regression fits well)
+      if (avgWeeklyLoss > 0 && remainingLoss > 0 && rSquared > 0.5) {
+        const weeksToGoal = remainingLoss / cappedWeeklyLoss;
         daysToGoal = Math.ceil(weeksToGoal * 7);
 
         const today = new Date();
