@@ -8,13 +8,27 @@ export const GEMINI_THINKING_MODEL = 'gemini-3-pro-preview';
 export const PLACEHOLDER_IMAGE = "https://picsum.photos/400/300";
 
 export const DEFAULT_USER_STATS = {
-  startWeight: 90,
-  currentWeight: 90,
-  goalWeight: 80,
+  startWeight: 0, // Deprecated, will be set by onboarding
+  currentWeight: 0,
+  goalWeight: 0,
+  name: '',
   dailyCalorieGoal: 800,
   dailyWorkoutCalorieGoal: 400, // Default burn target
   dailyWaterGoal: 2000,
-  weightHistory: [],
+  weightHistory: [], // Empty history triggers onboarding
   dietMode: 'daily' as const,
-  nonFastDayCalories: 2000
+  nonFastDayCalories: 2000,
+  dailyWorkoutCountGoal: 1
+};
+
+export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {
+  enableExperimentalRecipes: false,
+  enableAdvancedAnalytics: false,
+  enableGroupSharing: false,
+  enableAIFeatures: false,
+  showDebugInfo: false,
+};
+
+export const DEFAULT_DEV_SETTINGS: import('./types').DevSettings = {
+  featureFlags: DEFAULT_FEATURE_FLAGS,
 };

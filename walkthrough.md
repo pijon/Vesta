@@ -71,3 +71,31 @@ I have redesigned the **Planner Header** to be more compact and visually cleaner
 ## ✅ Verification
 *   **Layout**: Confirmed flex-wrapping ensures badges stay visible on mobile without breaking layout.
 *   **Styles**: Validated against `ui_colors.md` semantic tokens.
+
+# Walkthrough: Workout Widget Goal Update
+**Date**: 2026-01-17
+**Task**: Shift Workout Widget from Calorie Goal to Session Count Goal
+
+## 🖼️ Changes Overview
+I have updated the **Workout Widget** to focus on the frequency of workouts (sessions per day) rather than a calorie target configuration. This encourages consistency.
+
+### 🎨 Visual Standards Implemented
+*   **Primary Metric**: Now displays the number of workouts (e.g., "1 / 1 Sessions").
+*   **Secondary Metric**: Total active calories burned are now displayed as a badge/detail line, rather than the primary progress bar.
+*   **Progress Bar**: Tracks sessions completed vs. daily target.
+
+### 🔄 Specific Updates
+#### 1. Data Model
+*   Added `dailyWorkoutCountGoal` (default: 1) to `UserStats`.
+
+#### 2. Settings
+*   Replaced "Workout Calorie Goal" input with "Daily Workout Target (sessions)".
+
+#### 3. Widget Visuals
+*   **Big Number**: Count of workouts.
+*   **Visual Logic**: Progress fills up based on count (e.g., 1/1 = 100%).
+*   **Calorie Reporting**: Retained as a secondary "X kcal burned" badge.
+
+## ✅ Verification
+*   **Mobile**: Checked layout of "X / Y sessions" text.
+*   **Logic**: Verified defaults to 1 for new users or existing data without the field (via nullish coalescing).

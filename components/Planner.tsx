@@ -252,7 +252,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         <div className="space-y-8 animate-fade-in">
             <header className="flex justify-between items-center section-header mb-8">
                 <div>
-                    <h2 className="section-title">Weekly Planner</h2>
+                    <h2 className="section-title">Meal Planner</h2>
                     <p className="section-description">Design your week.</p>
                 </div>
                 <button

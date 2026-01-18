@@ -17,6 +17,8 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
     const hydration = dailyLog.waterIntake || 0;
     const hydrationGoal = stats.dailyWaterGoal || 2000;
     const workoutCount = (dailyLog.workouts || []).length;
+    const startWeight = stats.weightHistory.length > 0 ? stats.weightHistory[0].weight : stats.currentWeight;
+
 
     return (
         <div className="bg-surface rounded-2xl shadow-sm border border-border p-6 space-y-4">
@@ -64,8 +66,9 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                         <span className="text-xs text-muted font-semibold">kg</span>
                     </div>
                     <div className="text-[10px] text-muted mt-1">
-                        {Math.abs(stats.startWeight - stats.currentWeight).toFixed(1)}kg {stats.startWeight >= stats.currentWeight ? 'lost' : 'gained'}
+                        {Math.abs(startWeight - stats.currentWeight).toFixed(1)}kg {startWeight >= stats.currentWeight ? 'lost' : 'gained'}
                     </div>
+
                 </div>
 
                 {/* Hydration */}

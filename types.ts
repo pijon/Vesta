@@ -35,15 +35,17 @@ export interface WeightEntry {
 }
 
 export interface UserStats {
-  startWeight: number;
+  startWeight: number; // @deprecated - derived from weightHistory[0]
   currentWeight: number;
   goalWeight: number;
+  name?: string; // New field for user name
   dailyCalorieGoal: number; // Used for "fast" days in 5:2, or every day in daily mode
   dailyWaterGoal: number; // in ml
   weightHistory: WeightEntry[];
   dietMode?: 'daily' | '5:2'; // Default 'daily'
   nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
   dailyWorkoutCalorieGoal?: number; // Daily calorie burn target for workouts
+  dailyWorkoutCountGoal?: number; // Daily target for number of workouts (default 1)
 }
 
 export interface GroceryItem {
@@ -178,4 +180,17 @@ export interface Group {
   createdAt: number;
   inviteCode: string; // 6-digit code
   memberIds: string[];
+}
+
+// --- Developer Mode ---
+export interface FeatureFlags {
+  enableExperimentalRecipes: boolean;
+  enableAdvancedAnalytics: boolean;
+  enableGroupSharing: boolean;
+  enableAIFeatures: boolean;
+  showDebugInfo: boolean;
+}
+
+export interface DevSettings {
+  featureFlags: FeatureFlags;
 }

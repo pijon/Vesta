@@ -12,7 +12,10 @@ import { DesktopSidebar } from './components/DesktopSidebar';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { APP_NAME, DEFAULT_USER_STATS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DevModeProvider } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
+import { OnboardingWizard } from './components/OnboardingWizard';
+
 
 import { FamilySettings } from './components/FamilySettings';
 import { SettingsView } from './components/SettingsView';
@@ -34,7 +37,7 @@ const TrackerApp: React.FC = () => {
         const path = location.pathname;
         if (path === '/' || path === '/today') return AppView.TODAY;
         if (path === '/analytics') return AppView.ANALYTICS;
-        if (path === '/planner') return AppView.PLANNER;
+        if (path === '/mealplanner') return AppView.PLANNER;
         if (path === '/recipes') return AppView.RECIPES;
         if (path === '/shopping') return AppView.SHOPPING;
         if (path === '/settings') return AppView.SETTINGS;
@@ -48,7 +51,7 @@ const TrackerApp: React.FC = () => {
         const routes: Record<AppView, string> = {
             [AppView.TODAY]: '/today',
             [AppView.ANALYTICS]: '/analytics',
-            [AppView.PLANNER]: '/planner',
+            [AppView.PLANNER]: '/mealplanner',
             [AppView.RECIPES]: '/recipes',
             [AppView.SHOPPING]: '/shopping',
             [AppView.SETTINGS]: '/settings'
@@ -60,6 +63,8 @@ const TrackerApp: React.FC = () => {
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
 
     const [userStats, setUserStatsState] = useState<UserStats>(DEFAULT_USER_STATS);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('fast800_darkMode');
         return saved ? JSON.parse(saved) : false;
@@ -95,10 +100,19 @@ const TrackerApp: React.FC = () => {
 
         setTodayPlan(today);
         setTomorrowPlan(tomorrow);
-        setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: stats.weightHistory || [] });
+
+        // Check for onboarding: if weight history is empty, show wizard
+        // (Assuming DEFAULT_USER_STATS has empty history, and existing users have history)
+        const history = stats.weightHistory || [];
+        setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: history });
         setDailyLog(log);
         setFastingState(fasting);
+
+        if (history.length === 0) {
+            setShowOnboarding(true);
+        }
     };
+
 
     useEffect(() => {
         const init = async () => {
@@ -231,6 +245,24 @@ const TrackerApp: React.FC = () => {
         await saveFastingState(newState);
     };
 
+    const handleOnboardingComplete = async (data: { name: string; currentWeight: number; goalWeight: number }) => {
+        // Safe update: Update name, goal, and merge current weight into history
+        const updatedStats = {
+            ...userStats,
+            name: data.name,
+            currentWeight: data.currentWeight,
+            goalWeight: data.goalWeight,
+            // Deprecated startWeight: only set if starting fresh
+            startWeight: userStats.weightHistory.length === 0 ? data.currentWeight : userStats.startWeight
+        };
+
+        // Use the existing safe update handler to manage history array logic
+        await handleUpdateStats(updatedStats);
+        setShowOnboarding(false);
+    };
+
+
+
     // SettingsModal moved to separate component SettingsView.tsx
 
     // Props for Track components (Dashboard, Trends, Weekly)
@@ -269,7 +301,10 @@ const TrackerApp: React.FC = () => {
 
     return (
         <div className="min-h-screen md:flex font-sans">
+            {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} />}
+
             {/* Desktop Sidebar */}
+
             <DesktopSidebar
                 currentView={view}
                 onNavigate={handleNavigate}
@@ -323,8 +358,8 @@ const TrackerApp: React.FC = () => {
                             <button
                                 onClick={() => handleNavigate(AppView.SETTINGS)}
                                 className={`h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm border ${view === AppView.SETTINGS
-                                        ? 'bg-primary text-white border-primary'
-                                        : 'bg-surface border-border text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20'
+                                    ? 'bg-primary text-white border-primary'
+                                    : 'bg-surface border-border text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20'
                                     }`}
                                 title="Settings"
                             >
@@ -414,7 +449,9 @@ const TrackerApp: React.FC = () => {
                                     onUpdateStats={handleUpdateStats}
                                     fastingConfig={fastingState.config}
                                     onUpdateFastingConfig={handleUpdateFastingConfig}
+                                    onTestOnboarding={() => setShowOnboarding(true)}
                                 />
+
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -451,7 +488,9 @@ const AuthGuard: React.FC = () => {
 export const App: React.FC = () => {
     return (
         <AuthProvider>
-            <AuthGuard />
+            <DevModeProvider>
+                <AuthGuard />
+            </DevModeProvider>
         </AuthProvider>
     );
 };

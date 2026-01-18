@@ -50,7 +50,7 @@ export const createGroup = async (groupName: string): Promise<string> => {
     await setDoc(getGroupRef(groupId), group);
 
     // 2. Update User Profile with groupId
-    await updateDoc(getUserRef(user.uid), { groupId });
+    await setDoc(getUserRef(user.uid), { groupId }, { merge: true });
 
     return groupId;
 };
@@ -75,7 +75,7 @@ export const joinGroup = async (inviteCode: string): Promise<Group> => {
     });
 
     // 3. Update User Profile
-    await updateDoc(getUserRef(user.uid), { groupId: group.id });
+    await setDoc(getUserRef(user.uid), { groupId: group.id }, { merge: true });
 
     return { ...group, memberIds: [...group.memberIds, user.uid] };
 };
@@ -89,7 +89,7 @@ export const leaveGroup = async (groupId: string): Promise<void> => {
     });
 
     // 2. Clear groupId from User Profile
-    await updateDoc(getUserRef(user.uid), { groupId: null });
+    await setDoc(getUserRef(user.uid), { groupId: null }, { merge: true });
 };
 
 export const getGroup = async (groupId: string): Promise<Group | null> => {

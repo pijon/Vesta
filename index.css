@@ -115,7 +115,8 @@
   --chart-2: var(--weight);
   --chart-3: var(--emerald-400);
   --chart-4: var(--amber-500);
-  --chart-5: var(--workout) --animate-fade-in: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --chart-5: var(--workout);
+  --animate-fade-in: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-slide-up: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-scale-in: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-pulse-slow: pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -273,7 +274,7 @@
        ============================================ */
 
     /* Backgrounds */
-    --background: var(--neutral-50);
+    --background: hsl(160, 8%, 93%);
     --surface: hsl(160, 10%, 99%);
     /* Tinted white for cards */
     --surface-glass: hsla(160, 10%, 99%, 0.85);
@@ -283,7 +284,7 @@
     --text-muted: var(--neutral-500);
 
     /* Borders */
-    --border: var(--neutral-200);
+    --border: hsl(160, 4%, 86%);
     --border-muted: var(--neutral-100);
 
     /* Icon backgrounds - Light mode */
@@ -413,8 +414,8 @@
     color: var(--text-main);
     /* Subtle premium gradient mesh */
     background-image:
-      radial-gradient(at 0% 0%, color-mix(in srgb, var(--primary) 3%, transparent) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, color-mix(in srgb, var(--secondary) 3%, transparent) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, color-mix(in srgb, var(--primary) 6%, transparent) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, color-mix(in srgb, var(--secondary) 6%, transparent) 0px, transparent 50%);
     background-attachment: fixed;
     @apply antialiased selection:bg-primary/20 selection:text-primary transition-colors duration-300;
   }

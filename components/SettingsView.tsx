@@ -2,24 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { UserStats, FastingConfig } from '../types';
 import { FamilySettings } from './FamilySettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface SettingsViewProps {
     stats: UserStats;
     onUpdateStats: (stats: UserStats) => void;
     fastingConfig: FastingConfig;
     onUpdateFastingConfig: (config: FastingConfig) => Promise<void>;
+    onTestOnboarding: () => void;
 }
+
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
     stats,
     onUpdateStats,
     fastingConfig,
-    onUpdateFastingConfig
+    onUpdateFastingConfig,
+    onTestOnboarding
 }) => {
+
     const [formStats, setFormStats] = useState(stats);
     const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
     const [showDebug, setShowDebug] = useState(false);
     const [localFastingConfig, setLocalFastingConfig] = useState(fastingConfig);
+    const { isDevMode, featureFlags, toggleFeatureFlag, resetFlags } = useDevMode();
 
     // Sync local state with props when they change
     useEffect(() => {
@@ -59,6 +65,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         alert("Fasting settings saved!");
     };
 
+    const handleTestOnboarding = () => {
+        if (confirm("Preview Onboarding Flow?\n\nThis will trigger the Welcome Wizard. Completing it will simply update your profile (Name, Current Weight, Goal) without deleting history.")) {
+            onTestOnboarding();
+        }
+    };
+
+
+
     return (
         <div className="space-y-8 pb-20 animate-fade-in">
             {/* Header */}
@@ -85,13 +99,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Body Metrics</h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-main mb-2">Starting (kg)</label>
+                                    <label className="block text-sm font-bold text-main mb-2">Your Name</label>
                                     <input
-                                        type="number"
-                                        step="0.1"
-                                        value={formStats.startWeight}
-                                        onChange={(e) => setFormStats({ ...formStats, startWeight: parseFloat(e.target.value) || 0 })}
+                                        type="text"
+                                        value={formStats.name || ''}
+                                        onChange={(e) => setFormStats({ ...formStats, name: e.target.value })}
                                         className="input w-full"
+                                        placeholder="Enter your name"
                                     />
                                 </div>
                                 <div>
@@ -134,11 +148,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-main mb-2">Daily Workout Goal (kcal)</label>
+                                <label className="block text-sm font-bold text-main mb-2">Daily Workout Target (sessions)</label>
                                 <input
                                     type="number"
-                                    value={formStats.dailyWorkoutCalorieGoal || 400}
-                                    onChange={(e) => setFormStats({ ...formStats, dailyWorkoutCalorieGoal: parseInt(e.target.value) || 0 })}
+                                    min="1"
+                                    value={formStats.dailyWorkoutCountGoal || 1}
+                                    onChange={(e) => setFormStats({ ...formStats, dailyWorkoutCountGoal: parseInt(e.target.value) || 1 })}
                                     className="input w-full"
                                 />
                             </div>
@@ -271,11 +286,133 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     >
                                         Force Sync from Device
                                     </button>
+                                    <button
+                                        onClick={handleTestOnboarding}
+                                        className="w-full py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 text-sm font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors mt-2"
+                                    >
+                                        Preview Onboarding Flow (Safe)
+                                    </button>
+
+
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
+
+                {/* WIDGET 5: Developer Mode (Only visible to verified developers) */}
+                {isDevMode && (
+                    <div className="bg-surface rounded-2xl shadow-sm border border-amber-200 dark:border-amber-900/50 overflow-hidden h-full flex flex-col lg:col-span-2">
+                        <div className="p-6 border-b border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                                        <path d="M2 2l7.586 7.586"></path>
+                                        <circle cx="11" cy="11" r="2"></circle>
+                                    </svg>
+                                </div>
+                                <h3 className="font-medium text-lg font-serif text-amber-700 dark:text-amber-400">Developer Mode</h3>
+                                <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">VERIFIED</span>
+                            </div>
+                            <button
+                                onClick={resetFlags}
+                                className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 underline"
+                            >
+                                Reset Flags
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6 flex-1">
+                            <div className="space-y-1">
+                                <p className="text-xs text-muted">Your account has developer access. Feature flags below allow testing unreleased features.</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Feature Flags</h4>
+
+                                <div className="space-y-3">
+                                    {/* Experimental Recipes */}
+                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                        <div>
+                                            <span className="text-sm font-medium text-main">Experimental Recipes</span>
+                                            <p className="text-xs text-muted">Enable AI-powered recipe generation features</p>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={featureFlags.enableExperimentalRecipes}
+                                            onChange={() => toggleFeatureFlag('enableExperimentalRecipes')}
+                                            className="w-5 h-5 accent-amber-500"
+                                        />
+                                    </label>
+
+                                    {/* Advanced Analytics */}
+                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                        <div>
+                                            <span className="text-sm font-medium text-main">Advanced Analytics</span>
+                                            <p className="text-xs text-muted">Enable detailed analytics and insights</p>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={featureFlags.enableAdvancedAnalytics}
+                                            onChange={() => toggleFeatureFlag('enableAdvancedAnalytics')}
+                                            className="w-5 h-5 accent-amber-500"
+                                        />
+                                    </label>
+
+                                    {/* Group Sharing */}
+                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                        <div>
+                                            <span className="text-sm font-medium text-main">Group Sharing</span>
+                                            <p className="text-xs text-muted">Enable family/group recipe sharing</p>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={featureFlags.enableGroupSharing}
+                                            onChange={() => toggleFeatureFlag('enableGroupSharing')}
+                                            className="w-5 h-5 accent-amber-500"
+                                        />
+                                    </label>
+
+                                    {/* AI Features */}
+                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                        <div>
+                                            <span className="text-sm font-medium text-main">AI Features</span>
+                                            <p className="text-xs text-muted">Enable AI-powered suggestions and automation</p>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={featureFlags.enableAIFeatures}
+                                            onChange={() => toggleFeatureFlag('enableAIFeatures')}
+                                            className="w-5 h-5 accent-amber-500"
+                                        />
+                                    </label>
+
+                                    {/* Debug Info */}
+                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                        <div>
+                                            <span className="text-sm font-medium text-main">Show Debug Info</span>
+                                            <p className="text-xs text-muted">Display debug information in UI components</p>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={featureFlags.showDebugInfo}
+                                            onChange={() => toggleFeatureFlag('showDebugInfo')}
+                                            className="w-5 h-5 accent-amber-500"
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-border">
+                                <p className="text-xs text-muted">
+                                    Developer access is granted via Firebase custom claims. Contact an admin to request access.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

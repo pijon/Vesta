@@ -1,15 +1,19 @@
 import React from 'react';
 import { WorkoutItem } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TrophyIcon } from './TrophyIcon';
 
 interface WorkoutWidgetProps {
     workouts: WorkoutItem[];
-    dailyGoal: number;
+    dailyCountGoal: number;
     onLogWorkout: () => void;
 }
 
-export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyGoal = 400, onLogWorkout }) => {
+export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyCountGoal = 1, onLogWorkout }) => {
     const caloriesBurned = workouts.reduce((sum, w) => sum + w.caloriesBurned, 0);
     const workoutCount = workouts.length;
+    const progressPercent = Math.min(100, (workoutCount / dailyCountGoal) * 100);
+    const isGoalMet = workoutCount >= dailyCountGoal && dailyCountGoal > 0;
 
     return (
         <div
@@ -24,19 +28,20 @@ export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyGoa
                     </svg>
                     <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--workout)' }}>Workouts</h3>
                 </div>
-                {/* Subtle indicator icon - checkmark if goal reached */}
-                {caloriesBurned >= dailyGoal ? (
+                {/* Checkmark if goal reached */}
+                {workoutCount >= dailyCountGoal ? (
                     <div className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 p-1 rounded-full animate-fade-in">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                     </div>
                 ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: 'var(--workout)' }}>
-                        <circle cx="12" cy="12" r="1"></circle>
-                        <circle cx="12" cy="5" r="1"></circle>
-                        <circle cx="12" cy="19" r="1"></circle>
-                    </svg>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--workout)' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </div>
                 )}
             </div>
 
@@ -44,36 +49,54 @@ export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyGoa
             <div className="p-6 flex flex-col flex-1 relative">
                 <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-4xl lg:text-5xl font-bold font-serif tracking-tight leading-none" style={{ color: 'var(--text-main)' }}>
-                        {caloriesBurned}
+                        {workoutCount}
                     </span>
-                    <span className="text-muted font-semibold text-lg">/ {dailyGoal} kcal</span>
+                    <span className="text-muted font-semibold text-lg">/ {dailyCountGoal} sessions</span>
                 </div>
 
-                {/* Action Row */}
-                <div className="mt-auto h-8 flex items-center">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-purple-900/40 dark:text-purple-100" style={{ color: 'var(--workout)', backgroundColor: 'var(--workout-bg)' }}>
-                        <span className="text-[10px] font-bold">
-                            {workoutCount > 0 ? `${workoutCount} active session${workoutCount !== 1 ? 's' : ''}` : 'No sessions yet'}
-                        </span>
-                    </div>
+                {/* Secondary Info: Active Calories & Goal Status */}
+                <div className="mt-auto h-8 flex items-center gap-2">
+                    {caloriesBurned > 0 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-purple-900/40 dark:text-purple-100" style={{ color: 'var(--workout)', backgroundColor: 'var(--workout-bg)' }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.6-3.3.4 1.8 1.4 2.8 2.9 3.3z"></path>
+                            </svg>
+                            <span className="text-[10px] font-bold">
+                                {caloriesBurned} kcal
+                            </span>
+                        </div>
+                    )}
+
+                    {isGoalMet && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-purple-900/40 dark:text-purple-100 animate-fade-in" style={{ color: 'var(--workout)', backgroundColor: 'var(--workout-bg)' }}>
+                            <TrophyIcon className="w-3 h-3 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wide">Goal Hit</span>
+                        </div>
+                    )}
+
+                    {caloriesBurned === 0 && !isGoalMet && (
+                        <span className="text-xs text-muted">No active calories yet</span>
+                    )}
                 </div>
 
-                {/* Progress Bar (Visual indicator) */}
+                {/* Progress Bar */}
                 <div className="mt-4">
                     <div className="w-full bg-slate-100 dark:bg-white/10 h-2 rounded-full overflow-hidden shadow-inner">
-                        <div
-                            className="h-full rounded-full shadow-none dark:shadow-lg dark:shadow-purple-500/30 transition-all duration-1000 ease-out"
+                        <motion.div
+                            className="h-full rounded-full shadow-none dark:shadow-lg dark:shadow-purple-500/30"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progressPercent}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
                             style={{
-                                width: `${Math.min(100, (caloriesBurned / dailyGoal) * 100)}%`,
                                 backgroundColor: 'var(--workout)'
                             }}
                         />
                     </div>
-                    <div className="flex justify-between items-center text-xs text-muted font-semibold mt-1.5">
-                        <span>
-                            {caloriesBurned >= dailyGoal
-                                ? 'Target hit! Great job!'
-                                : `${Math.round(((dailyGoal - caloriesBurned) / dailyGoal) * 100)}% to go`
+                    <div className="flex justify-between items-center mt-1.5 h-6">
+                        <span className="text-xs text-muted font-semibold">
+                            {isGoalMet
+                                ? 'Target reached!'
+                                : `${dailyCountGoal - workoutCount} session${dailyCountGoal - workoutCount !== 1 ? 's' : ''} left`
                             }
                         </span>
                     </div>

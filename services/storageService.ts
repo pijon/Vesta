@@ -15,6 +15,10 @@ const getUserRef = () => doc(db, 'users', getUserId());
 const getCollectionRef = (name: string) => collection(db, 'users', getUserId(), name);
 const getDocRef = (collectionName: string, docId: string) => doc(db, 'users', getUserId(), collectionName, docId);
 
+export const getUserData = async () => {
+    const userDoc = await getDoc(getUserRef());
+    return userDoc.data();
+};
 
 // --- Recipes ---
 // Saved as individual documents in 'recipes' collection

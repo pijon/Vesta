@@ -213,7 +213,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     refreshData();
   };
 
-  const startWeight = stats.startWeight;
+  // Calculate start weight dynamically from history or fallback to current
+  const startWeight = stats.weightHistory.length > 0 ? stats.weightHistory[0].weight : stats.currentWeight;
   const currentWeight = stats.currentWeight;
   const goalWeight = stats.goalWeight;
   const totalToLose = startWeight - goalWeight;
@@ -411,8 +412,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                   />
                 </div>
                 <div className="flex justify-between text-xs font-medium text-muted mt-1.5">
-                  <span>Start: {startWeight}</span>
+                  <span>{/* Start weight hidden */}</span>
                   <span>Goal: {goalWeight}</span>
+
                 </div>
               </div>
 
@@ -447,7 +449,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           <div className="h-full">
             <WorkoutWidget
               workouts={dailyLog.workouts || []}
-              dailyGoal={stats.dailyWorkoutCalorieGoal || 400}
+              dailyCountGoal={stats.dailyWorkoutCountGoal ?? 1}
               onLogWorkout={() => setIsWorkoutModalOpen(true)}
             />
           </div>

@@ -240,7 +240,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                                             minTickGap={30}
                                         />
                                         <YAxis
-                                            domain={[0, 'auto']}
+                                            domain={['auto', 'auto']}
                                             axisLine={false}
                                             tickLine={false}
                                             tick={{ fill: 'var(--color-muted)', fontSize: 12, fontWeight: 500 }}

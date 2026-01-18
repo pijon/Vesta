@@ -146,16 +146,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
                 e.stopPropagation();
                 onAction(e);
               }}
-              className="w-full py-3 text-sm font-bold rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 text-background"
-              style={{ backgroundColor: 'var(--text-main)' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--primary)';
-                e.currentTarget.style.color = 'var(--primary-foreground)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--text-main)';
-                e.currentTarget.style.color = 'var(--background)';
-              }}
+              className="w-full btn-primary text-sm shadow-md hover:shadow-lg active:scale-95"
             >
               {actionLabel || 'Select'}
             </button>

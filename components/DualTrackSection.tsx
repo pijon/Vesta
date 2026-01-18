@@ -263,7 +263,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
       <div className="bg-surface rounded-2xl shadow-sm border border-calories-border overflow-hidden">
         <div className="p-6 border-b border-calories-border bg-calories-bg/50 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+            <svg width="18" height="18" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style={{ color: 'var(--calories)' }}>
               <path d="M290,32H144A64.07,64.07,0,0,0,80,96V416a64.07,64.07,0,0,0,64,64H290Z" />
               <path d="M368,32H350V480h18a64.07,64.07,0,0,0,64-64V96A64.07,64.07,0,0,0,368,32Z" />
             </svg>

@@ -52,6 +52,44 @@ node scripts/copyRecipes.cjs user123abc user456def
 node scripts/copyRecipes.cjs user123abc user456def --overwrite
 ```
 
+## Set Developer Claim Script
+
+Grant or revoke developer access for users. Developers can see experimental features.
+
+### Usage
+
+```bash
+node scripts/setDeveloperClaim.cjs <userId> [options]
+```
+
+### Options
+
+- `--remove` - Revoke developer access
+- `--list` - List all users with developer access
+
+### Examples
+
+**Grant developer access:**
+```bash
+node scripts/setDeveloperClaim.cjs abc123xyz
+```
+
+**Revoke developer access:**
+```bash
+node scripts/setDeveloperClaim.cjs abc123xyz --remove
+```
+
+**List all developers:**
+```bash
+node scripts/setDeveloperClaim.cjs --list
+```
+
+### Important Notes
+
+- User must **sign out and sign back in** after changes for the new claims to take effect
+- Custom claims are embedded in the ID token and verified on every request
+- Claims cannot be modified from the client - only via this admin script
+
 ## Finding User IDs
 
 User IDs can be found in:
