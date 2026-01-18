@@ -12,7 +12,8 @@ import {
     arrayUnion,
     arrayRemove
 } from "firebase/firestore";
-import { Group, Recipe } from "../types";
+import { Group, Recipe, UserStats } from "../types";
+import { MAX_FAMILY_GROUP_SIZE } from "../constants";
 
 // --- Collection Refs ---
 const getGroupsRef = () => collection(db, "groups");
@@ -69,6 +70,10 @@ export const joinGroup = async (inviteCode: string): Promise<Group> => {
     const groupDoc = snapshot.docs[0];
     const group = groupDoc.data() as Group;
 
+    if (group.memberIds.length >= MAX_FAMILY_GROUP_SIZE) {
+        throw new Error(`Group is full (max ${MAX_FAMILY_GROUP_SIZE} members)`);
+    }
+
     // 2. Add user to memberIds
     await updateDoc(groupDoc.ref, {
         memberIds: arrayUnion(user.uid)
@@ -109,8 +114,97 @@ export const getUserGroup = async (): Promise<Group | null> => {
     return null;
 };
 
-// --- Recipe Sharing ---
+export const getGroupMembersDetails = async (memberIds: string[]): Promise<{ id: string, name: string }[]> => {
+    try {
+        const promises = memberIds.map(async (uid) => {
+            // Stats are stored in users/{uid}/data/stats
+            const statsRef = doc(db, "users", uid, "data", "stats");
+            const snap = await getDoc(statsRef);
+            let name = "Unknown Member";
+            if (snap.exists()) {
+                const stats = snap.data() as UserStats;
+                if (stats.name) name = stats.name;
+            }
+            return { id: uid, name };
+        });
+        return await Promise.all(promises);
+    } catch (e) {
+        console.error("Error fetching member details:", e);
+        return [];
+    }
+};
 
+// --- Family Recipe Visibility ---
+
+export const getFamilyMemberRecipes = async (): Promise<Recipe[]> => {
+    const user = getCurrentUser();
+    const group = await getUserGroup();
+
+    if (!group) return [];
+
+    // Get member details for names
+    const memberDetails = await getGroupMembersDetails(group.memberIds);
+    const memberNameMap = new Map(memberDetails.map(m => [m.id, m.name]));
+
+    const allFamilyRecipes: Recipe[] = [];
+
+    // Fetch recipes from each family member (except self)
+    for (const memberId of group.memberIds) {
+        if (memberId === user.uid) continue; // Skip own recipes
+
+        try {
+            const recipesRef = collection(db, "users", memberId, "recipes");
+            const snapshot = await getDocs(recipesRef);
+
+            const memberRecipes = snapshot.docs.map(doc => ({
+                ...doc.data() as Recipe,
+                ownerId: memberId,
+                ownerName: memberNameMap.get(memberId) || "Family Member"
+            }));
+
+            allFamilyRecipes.push(...memberRecipes);
+        } catch (e) {
+            console.error(`Failed to fetch recipes for member ${memberId}:`, e);
+            // Continue with other members
+        }
+    }
+
+    return allFamilyRecipes;
+};
+
+export const copyRecipeToMyLibrary = async (recipe: Recipe): Promise<Recipe> => {
+    const user = getCurrentUser();
+
+    // Create a copy with new ID, removing family ownership fields
+    const copiedRecipe: Recipe = {
+        ...recipe,
+        id: crypto.randomUUID(),
+        ownerId: undefined,
+        ownerName: undefined,
+        isShared: false,
+        sharedBy: undefined,
+        sharedAt: undefined
+    };
+
+    // Clean up undefined fields
+    Object.keys(copiedRecipe).forEach(key => {
+        if (copiedRecipe[key as keyof Recipe] === undefined) {
+            delete copiedRecipe[key as keyof Recipe];
+        }
+    });
+
+    // Save to user's recipes
+    const recipeRef = doc(db, "users", user.uid, "recipes", copiedRecipe.id);
+    await setDoc(recipeRef, copiedRecipe);
+
+    return copiedRecipe;
+};
+
+// --- Recipe Sharing (Deprecated) ---
+
+/**
+ * @deprecated Use getFamilyMemberRecipes() instead.
+ */
 export const shareRecipeToGroup = async (groupId: string, recipe: Recipe): Promise<void> => {
     const sharedRecipeRef = doc(db, "groups", groupId, "shared_recipes", recipe.id);
     await setDoc(sharedRecipeRef, {
@@ -121,12 +215,18 @@ export const shareRecipeToGroup = async (groupId: string, recipe: Recipe): Promi
     });
 };
 
+/**
+ * @deprecated Use getFamilyMemberRecipes() instead.
+ */
 export const getGroupRecipes = async (groupId: string): Promise<Recipe[]> => {
     const recipesRef = collection(db, "groups", groupId, "shared_recipes");
     const snap = await getDocs(recipesRef);
     return snap.docs.map(d => d.data() as Recipe);
 };
 
+/**
+ * @deprecated Use family visibility model instead.
+ */
 export const deleteGroupRecipe = async (groupId: string, recipeId: string): Promise<void> => {
     await deleteDoc(doc(db, "groups", groupId, "shared_recipes", recipeId));
 };

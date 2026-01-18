@@ -15,6 +15,8 @@ export interface Recipe {
   isShared?: boolean;
   sharedBy?: string; // UID of sharer
   sharedAt?: number;
+  ownerId?: string;    // UID of recipe owner (set when viewing family recipes)
+  ownerName?: string;  // Display name of owner (set when viewing family recipes)
 }
 
 export type Meal = Recipe;
@@ -184,11 +186,7 @@ export interface Group {
 
 // --- Developer Mode ---
 export interface FeatureFlags {
-  enableExperimentalRecipes: boolean;
-  enableAdvancedAnalytics: boolean;
-  enableGroupSharing: boolean;
-  enableAIFeatures: boolean;
-  showDebugInfo: boolean;
+  // Add real feature flags here in the future
 }
 
 export interface DevSettings {

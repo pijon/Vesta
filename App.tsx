@@ -320,9 +320,13 @@ const TrackerApp: React.FC = () => {
                 <nav className="md:hidden sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
                     <div className="px-4 h-16 flex items-center justify-between">
                         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => handleNavigate(AppView.TODAY)}>
-                            <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-transform group-hover:scale-105" />
+                            <img
+                                src={isDarkMode ? "/resources/logo_dark.png" : "/resources/logo_light.png"}
+                                alt="Vesta Logo"
+                                className="h-7 w-auto transition-transform group-hover:scale-105"
+                            />
                             <h1 className="text-xl font-medium tracking-tight text-main leading-none">
-                                Fast<span className="font-bold text-primary">800</span>
+                                Vesta
                             </h1>
                         </div>
 
@@ -472,7 +476,7 @@ const AuthGuard: React.FC = () => {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="animate-pulse flex flex-col items-center gap-4">
-                    <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-12 w-auto opacity-50" />
+                    <img src="/resources/logo_light.png" alt="Vesta Logo" className="h-12 w-auto opacity-50" />
                 </div>
             </div>
         );

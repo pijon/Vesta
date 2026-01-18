@@ -3,6 +3,8 @@ import { UserStats, FastingConfig } from '../types';
 import { FamilySettings } from './FamilySettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
 import { useDevMode } from '../contexts/DevModeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { auth } from '../services/firebase';
 
 interface SettingsViewProps {
     stats: UserStats;
@@ -26,6 +28,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [showDebug, setShowDebug] = useState(false);
     const [localFastingConfig, setLocalFastingConfig] = useState(fastingConfig);
     const { isDevMode, featureFlags, toggleFeatureFlag, resetFlags } = useDevMode();
+    const { logout } = useAuth();
+    const [hasCopied, setHasCopied] = useState(false);
 
     // Sync local state with props when they change
     useEffect(() => {
@@ -60,6 +64,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         alert("Profile settings saved!");
     };
 
+    const handleLogout = async () => {
+        if (confirm("Are you sure you want to log out?")) {
+            await logout();
+        }
+    };
+
     const handleSaveFasting = async () => {
         await onUpdateFastingConfig(localFastingConfig);
         alert("Fasting settings saved!");
@@ -71,7 +81,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         }
     };
 
+    const handleCopyId = () => {
+        if (auth.currentUser?.uid) {
+            navigator.clipboard.writeText(auth.currentUser.uid);
+            setHasCopied(true);
+            setTimeout(() => setHasCopied(false), 2000);
+        }
+    };
 
+    const handleExportData = async () => {
+        const jsonString = await exportAllData();
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vesta-data-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="space-y-8 pb-20 animate-fade-in">
@@ -86,11 +115,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* WIDGET 1: My Profile (Merged) */}
                 <div className="bg-surface rounded-2xl shadow-sm border border-calories-border overflow-hidden h-full flex flex-col">
-                    <div className="p-6 border-b border-calories-border bg-calories-bg/50 flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-calories-bg" style={{ color: 'var(--calories)' }}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <div className="p-6 border-b border-calories-border bg-calories-bg/50 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-calories-bg" style={{ color: 'var(--calories)' }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            </div>
+                            <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>My Profile</h3>
                         </div>
-                        <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>My Profile</h3>
+
+                        {/* User ID Tag */}
+                        {auth.currentUser?.uid && (
+                            <button
+                                onClick={handleCopyId}
+                                className="group flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface/80 border border-border/50 hover:bg-surface hover:border-calories-border/50 transition-all cursor-pointer"
+                                title="Click to copy User ID"
+                            >
+                                <span className="text-[10px] uppercase font-bold text-muted group-hover:text-main transition-colors tracking-wider">
+                                    {hasCopied ? "COPIED" : "ID"}
+                                </span>
+                                <span className="text-xs font-mono text-muted/80 group-hover:text-main transition-colors">
+                                    {hasCopied ? "✓" : auth.currentUser.uid.substring(0, 6) + "..."}
+                                </span>
+                            </button>
+                        )}
                     </div>
 
                     <div className="p-6 space-y-6 flex-1">
@@ -192,6 +239,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             >
                                 Save Profile
                             </button>
+
+                            <button
+                                onClick={handleLogout}
+                                className="w-full mt-3 py-2 border border-error-border/50 text-error hover:bg-error-bg/10 rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                                Log Out
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -221,6 +280,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div className="p-6 space-y-4 flex-1">
                         <div className="flex gap-3">
                             <button
+                                onClick={handleExportData}
                                 className="flex-1 btn-secondary flex items-center justify-center gap-2"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -261,149 +321,90 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-border">
-                            <button
-                                onClick={() => setShowDebug(!showDebug)}
-                                className="text-xs text-muted hover:text-main underline mb-2 block w-full text-left"
-                            >
-                                {showDebug ? "Hide Advanced Recovery Tools" : "Show Advanced Recovery Tools"}
-                            </button>
+                    </div>
+                </div>
+            </div>
 
-                            {showDebug && (
-                                <div className="bg-background p-4 rounded-xl border border-border space-y-3 mt-3 animate-fade-in">
-                                    <h4 className="text-sm font-bold text-main">Local Data Recovery</h4>
-                                    <div className="space-y-1">
-                                        {Object.entries(debugInfo).map(([key, value]) => (
-                                            <div key={key} className="flex justify-between text-xs">
-                                                <span className="text-slate-500 font-mono">{key.replace('fast800_', '')}</span>
-                                                <span className={(value as string).includes('Found') ? "text-emerald-600 font-bold" : "text-slate-400"}>{value}</span>
-                                            </div>
-                                        ))}
-                                    </div>
+            {/* WIDGET 5: Developer Mode (Only visible to verified developers) */}
+            {isDevMode && (
+                <div className="bg-surface rounded-2xl shadow-sm border border-warning-border overflow-hidden h-full flex flex-col lg:col-span-2">
+                    <div className="p-6 border-b border-warning-border bg-warning-bg/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-warning-bg" style={{ color: 'var(--warning)' }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                                    <path d="M2 2l7.586 7.586"></path>
+                                    <circle cx="11" cy="11" r="2"></circle>
+                                </svg>
+                            </div>
+                            <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--warning)' }}>Developer Mode</h3>
+                            <span className="ml-2 badge-amber">VERIFIED</span>
+                        </div>
+                        <button
+                            onClick={resetFlags}
+                            className="text-xs hover:text-main underline"
+                            style={{ color: 'var(--warning)' }}
+                        >
+                            Reset Flags
+                        </button>
+                    </div>
+
+                    <div className="p-6 space-y-6 flex-1">
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted">Your account has developer access. Feature flags below allow testing unreleased features.</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="pt-4">
+                                <p className="text-xs text-muted italic">No active feature flags available.</p>
+                            </div>
+
+                            {/* Recovery Tools (New Location) */}
+                            <div className="space-y-4 pt-4 border-t border-border">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Recovery Tools</h4>
+                                    <button
+                                        onClick={() => setShowDebug(!showDebug)}
+                                        className="text-xs text-muted hover:text-main underline"
+                                    >
+                                        {showDebug ? "Hide Debug Info" : "Show Debug Info"}
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <button
                                         onClick={handleForceSync}
-                                        className="w-full py-2 bg-calories-bg text-[var(--calories)] border border-calories-border text-sm font-bold rounded-lg hover:bg-calories-border transition-colors mt-2"
+                                        className="w-full py-2 px-3 bg-calories-bg/50 text-[var(--calories)] border border-calories-border/50 text-sm font-bold rounded-lg hover:bg-calories-bg hover:border-calories-border transition-all flex items-center justify-center gap-2"
                                     >
-                                        Force Sync from Device
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>
+                                        Force Sync
                                     </button>
                                     <button
                                         onClick={handleTestOnboarding}
-                                        className="w-full py-2 bg-water-bg text-[var(--water)] border border-water-border text-sm font-bold rounded-lg hover:bg-water-border transition-colors mt-2"
+                                        className="w-full py-2 px-3 bg-water-bg/50 text-[var(--water)] border border-water-border/50 text-sm font-bold rounded-lg hover:bg-water-bg hover:border-water-border transition-all flex items-center justify-center gap-2"
                                     >
-                                        Preview Onboarding Flow (Safe)
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                                        Preview Intro
                                     </button>
-
-
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
 
-                {/* WIDGET 5: Developer Mode (Only visible to verified developers) */}
-                {isDevMode && (
-                    <div className="bg-surface rounded-2xl shadow-sm border border-warning-border overflow-hidden h-full flex flex-col lg:col-span-2">
-                        <div className="p-6 border-b border-warning-border bg-warning-bg/50 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-warning-bg" style={{ color: 'var(--warning)' }}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-                                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-                                        <path d="M2 2l7.586 7.586"></path>
-                                        <circle cx="11" cy="11" r="2"></circle>
-                                    </svg>
-                                </div>
-                                <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--warning)' }}>Developer Mode</h3>
-                                <span className="ml-2 badge-amber">VERIFIED</span>
-                            </div>
-                            <button
-                                onClick={resetFlags}
-                                className="text-xs hover:text-main underline"
-                                style={{ color: 'var(--warning)' }}
-                            >
-                                Reset Flags
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-6 flex-1">
-                            <div className="space-y-1">
-                                <p className="text-xs text-muted">Your account has developer access. Feature flags below allow testing unreleased features.</p>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Feature Flags</h4>
-
-                                <div className="space-y-3">
-                                    {/* Experimental Recipes */}
-                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
-                                        <div>
-                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Experimental Recipes</span>
-                                            <p className="text-xs text-muted">Enable AI-powered recipe generation features</p>
+                                {showDebug && (
+                                    <div className="bg-background p-4 rounded-xl border border-border space-y-2 animate-fade-in">
+                                        <h4 className="text-xs font-bold text-main mb-2">Local Storage Debug</h4>
+                                        <div className="space-y-1">
+                                            {Object.entries(debugInfo).map(([key, value]) => (
+                                                <div key={key} className="flex justify-between text-xs">
+                                                    <span className="text-slate-500 font-mono">{key.replace('fast800_', '')}</span>
+                                                    <span className={(value as string).includes('Found') ? "text-emerald-600 font-bold" : "text-slate-400"}>{value}</span>
+                                                </div>
+                                            ))}
+                                            {Object.keys(debugInfo).length === 0 && (
+                                                <p className="text-xs text-slate-400 italic">No debug info available (or loading...)</p>
+                                            )}
                                         </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={featureFlags.enableExperimentalRecipes}
-                                            onChange={() => toggleFeatureFlag('enableExperimentalRecipes')}
-                                            className="w-5 h-5 accent-[var(--warning)]"
-                                        />
-                                    </label>
-
-                                    {/* Advanced Analytics */}
-                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
-                                        <div>
-                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Advanced Analytics</span>
-                                            <p className="text-xs text-muted">Enable detailed analytics and insights</p>
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={featureFlags.enableAdvancedAnalytics}
-                                            onChange={() => toggleFeatureFlag('enableAdvancedAnalytics')}
-                                            className="w-5 h-5 accent-[var(--warning)]"
-                                        />
-                                    </label>
-
-                                    {/* Group Sharing */}
-                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
-                                        <div>
-                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Group Sharing</span>
-                                            <p className="text-xs text-muted">Enable family/group recipe sharing</p>
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={featureFlags.enableGroupSharing}
-                                            onChange={() => toggleFeatureFlag('enableGroupSharing')}
-                                            className="w-5 h-5 accent-[var(--warning)]"
-                                        />
-                                    </label>
-
-                                    {/* AI Features */}
-                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
-                                        <div>
-                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">AI Features</span>
-                                            <p className="text-xs text-muted">Enable AI-powered suggestions and automation</p>
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={featureFlags.enableAIFeatures}
-                                            onChange={() => toggleFeatureFlag('enableAIFeatures')}
-                                            className="w-5 h-5 accent-[var(--warning)]"
-                                        />
-                                    </label>
-
-                                    {/* Debug Info */}
-                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
-                                        <div>
-                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Show Debug Info</span>
-                                            <p className="text-xs text-muted">Display debug information in UI components</p>
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={featureFlags.showDebugInfo}
-                                            onChange={() => toggleFeatureFlag('showDebugInfo')}
-                                            className="w-5 h-5 accent-[var(--warning)]"
-                                        />
-                                    </label>
-                                </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-4 border-t border-border">
@@ -413,8 +414,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </div>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };

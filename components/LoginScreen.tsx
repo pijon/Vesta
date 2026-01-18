@@ -32,7 +32,7 @@ export const LoginScreen: React.FC = () => {
                 className="w-full max-w-md bg-surface p-8 rounded-2xl shadow-xl border border-border"
             >
                 <div className="text-center mb-8">
-                    <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-12 w-auto mx-auto mb-4" />
+                    <img src="/resources/logo_light.png" alt="Vesta Logo" className="h-12 w-auto mx-auto mb-4" />
                     <h1 className="text-2xl font-serif font-medium text-main">Welcome Back</h1>
                     <p className="text-muted text-sm mt-2">Sign in to access your tracker</p>
                 </div>

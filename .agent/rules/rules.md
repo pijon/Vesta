@@ -5,7 +5,7 @@ trigger: always_on
 # Project Governance: Fast800-Tracker
 
 ## 1. Product Vision & Persona
-**Fast800-Tracker** is a React-based meal tracking and planning application for the Fast 800 diet.
+**Vesta** (formerly Fast800-Tracker) is a React-based meal tracking and planning application for the Fast 800 diet, designed for families.
 - **Core Value:** Simplicity, visual appeal (Rich Aesthetics), and AI-powered ease.
 - **Vibe:** Clean, Motivating, Responsive, and "Premium".
 

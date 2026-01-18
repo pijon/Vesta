@@ -1,5 +1,6 @@
-export const APP_NAME = "Fast800 Tracker";
+export const APP_NAME = "Vesta";
 export const DAILY_CALORIE_LIMIT = 800;
+export const MAX_FAMILY_GROUP_SIZE = 10;
 
 // Using the recommended models from the coding guidelines
 export const GEMINI_TEXT_MODEL = 'gemini-3-flash-preview';
@@ -22,11 +23,7 @@ export const DEFAULT_USER_STATS = {
 };
 
 export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {
-  enableExperimentalRecipes: false,
-  enableAdvancedAnalytics: false,
-  enableGroupSharing: false,
-  enableAIFeatures: false,
-  showDebugInfo: false,
+  // No flags currently active
 };
 
 export const DEFAULT_DEV_SETTINGS: import('./types').DevSettings = {

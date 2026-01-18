@@ -236,9 +236,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       {/* Logo */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onNavigate(AppView.TODAY)}>
-          <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-7 w-auto transition-all duration-200 group-hover:scale-105 opacity-90" />
+          <img
+            src={isDarkMode ? "/resources/logo_dark.png" : "/resources/logo_light.png"}
+            alt="Vesta Logo"
+            className="h-7 w-auto transition-all duration-200 group-hover:scale-105 opacity-90"
+          />
           <h1 className="text-lg font-medium tracking-tight leading-none text-main">
-            Fast<span className="font-bold text-primary">800</span>
+            Vesta
           </h1>
         </div>
       </div>

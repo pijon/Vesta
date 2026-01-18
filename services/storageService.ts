@@ -16,8 +16,8 @@ const getCollectionRef = (name: string) => collection(db, 'users', getUserId(), 
 const getDocRef = (collectionName: string, docId: string) => doc(db, 'users', getUserId(), collectionName, docId);
 
 export const getUserData = async () => {
-    const userDoc = await getDoc(getUserRef());
-    return userDoc.data();
+  const userDoc = await getDoc(getUserRef());
+  return userDoc.data();
 };
 
 // --- Recipes ---
@@ -52,17 +52,7 @@ export const deleteRecipe = async (id: string) => {
   await deleteDoc(getDocRef('recipes', id));
 };
 
-export const migrateRecipesToTags = async () => {
-  const recipes = await getRecipes();
-  const batchSize = 100;
 
-  // Create batches
-  for (let i = 0; i < recipes.length; i += batchSize) {
-    const chunk = recipes.slice(i, i + batchSize);
-    await Promise.all(chunk.map(r => saveRecipe(r)));
-  }
-  console.log(`Migrated ${recipes.length} recipes to use tags.`);
-};
 
 // --- Planning ---
 const PLAN_DOC = 'plan'; // Keeping reference for legacy migration and export

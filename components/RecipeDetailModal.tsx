@@ -9,6 +9,8 @@ interface RecipeDetailModalProps {
     onClose: () => void;
     onEdit?: () => void;
     onDelete?: (id: string, e: React.MouseEvent) => void;
+    isOwned?: boolean;  // NEW
+    onCopyToLibrary?: () => void;  // NEW
 }
 
 interface TabButtonProps {
@@ -29,7 +31,7 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, children }) => (
     </button>
 );
 
-export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose, onEdit, onDelete }) => {
+export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose, onEdit, onDelete, isOwned = true, onCopyToLibrary }) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'ingredients' | 'instructions'>('overview');
     const theme = getRecipeTheme(recipe?.tags);
 
@@ -119,9 +121,19 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                     <p className="text-muted leading-relaxed text-lg">{recipe.description || 'No description available for this recipe.'}</p>
                                 </div>
 
-                                {(onDelete || onEdit) && (
+                                {(onDelete || onEdit || onCopyToLibrary) && (
                                     <div className="flex gap-3 justify-end pt-8 border-t border-border">
-                                        {onDelete && (
+                                        {!isOwned && onCopyToLibrary && (
+                                            <button
+                                                onClick={onCopyToLibrary}
+                                                className="btn-primary bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 shadow-lg"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                                Copy to My Recipes
+                                            </button>
+                                        )}
+
+                                        {isOwned && onDelete && (
                                             <button
                                                 onClick={(e) => onDelete(recipe.id, e)}
                                                 className="btn-secondary text-error hover:bg-error-bg border-error/20 flex items-center gap-2"
@@ -130,7 +142,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                                 Delete Meal
                                             </button>
                                         )}
-                                        {onEdit && (
+                                        {isOwned && onEdit && (
                                             <button
                                                 onClick={onEdit}
                                                 className="btn-primary flex items-center gap-2 shadow-lg"

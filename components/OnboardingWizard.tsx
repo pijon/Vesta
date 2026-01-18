@@ -41,8 +41,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
                     >
-                        <img src="/resources/800logo.png" alt="Fast800 Logo" className="h-16 w-auto mx-auto mb-6" />
-                        <h1 className="text-3xl md:text-4xl font-serif font-medium text-main mb-3">Welcome to Fast800</h1>
+                        <img src="/resources/logo_light.png" alt="Vesta Logo" className="h-16 w-auto mx-auto mb-6" />
+                        <h1 className="text-3xl md:text-4xl font-serif font-medium text-main mb-3">Welcome to Vesta</h1>
                         <p className="text-xl text-muted">Let's personalize your journey.</p>
                     </motion.div>
 
@@ -121,7 +121,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                                 : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                 }`}
                         >
-                            Start My Request Journey
+                            Start My Vesta Journey
                         </button>
                         <p className="mt-4 text-xs text-muted">By continuing, I commit to tracking my progress honestly.</p>
                     </motion.div>

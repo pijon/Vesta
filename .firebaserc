@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "fast800tracker"
-  }
+    "default": "vesta-planner-app"
+  },
+  "targets": {},
+  "etags": {}
 }

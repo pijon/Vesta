@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe, Group } from '../types';
-import { getRecipes, saveRecipe, deleteRecipe, migrateRecipesToTags } from '../services/storageService';
-import { getUserGroup, getGroupRecipes, shareRecipeToGroup } from '../services/groupService';
+import { getRecipes, saveRecipe, deleteRecipe, getDayPlan, saveDayPlan } from '../services/storageService';
+import { getUserGroup, getFamilyMemberRecipes, copyRecipeToMyLibrary } from '../services/groupService';
 import { parseRecipeText, generateRecipeFromIngredients } from '../services/geminiService';
 import { RecipeCard } from './RecipeCard';
 import { Portal } from './Portal';
@@ -51,8 +51,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       const group = await getUserGroup();
       setUserGroup(group);
       if (group) {
-        const shared = await getGroupRecipes(group.id);
-        setFamilyRecipes(shared);
+        const familyRecipes = await getFamilyMemberRecipes();
+        setFamilyRecipes(familyRecipes);
       }
     } catch (e) {
       console.error("Failed to load group data:", e);
@@ -224,17 +224,24 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     await saveRecipe(updatedRecipe);
   };
 
-  const handleShare = async (e: React.MouseEvent, recipe: Recipe) => {
-    e.stopPropagation();
-    if (!userGroup) return;
+  /* Deprecated manual sharing
+  const handleShare = async (e: React.MouseEvent, recipe: Recipe) => { ... } 
+  */
 
-    if (confirm(`Share "${recipe.name}" with your family group (${userGroup.name})?`)) {
+  const handleCopyToMyLibrary = async (e: React.MouseEvent, recipe: Recipe) => {
+    e.stopPropagation();
+    if (!recipe.ownerId) return; // Only for family recipes
+
+    if (confirm(`Copy "${recipe.name}" to your recipe library?`)) {
       try {
-        await shareRecipeToGroup(userGroup.id, recipe);
-        alert("Recipe shared!");
+        const copied = await copyRecipeToMyLibrary(recipe);
+        alert("Recipe copied to your library!");
         await loadData();
+        // Optionally open the copied recipe
+        setSelectedRecipe(copied);
+        setActiveTab('overview');
       } catch (e: any) {
-        alert("Failed to share: " + e.message);
+        alert("Failed to copy: " + e.message);
       }
     }
   };
@@ -245,7 +252,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `fast800_recipes_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `vesta_recipes_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -260,8 +267,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesFilter = activeFilter === 'all' ||
-        (activeFilter === 'mine' && !recipe.isShared) ||
-        (activeFilter === 'family' && recipe.isShared) ||
+        (activeFilter === 'mine' && !recipe.ownerId) ||
+        (activeFilter === 'family' && !!recipe.ownerId) ||
         recipe.tags?.includes(activeFilter);
 
       const matchesFavorite = !showFavoritesOnly || recipe.isFavorite;
@@ -298,18 +305,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             <span className="hidden sm:inline">Export</span>
           </button>
-          <button
-            onClick={() => {
-              if (confirm("Migrate all recipes to use Tags? This will update your database.")) {
-                migrateRecipesToTags().then(() => alert("Migration complete!"));
-              }
-            }}
-            className="btn-secondary btn-sm flex items-center gap-2"
-            title="Migrate Data Structure"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span className="hidden sm:inline">Migrate DB</span>
-          </button>
+
           <button
             onClick={() => setShowIngredientModal(true)}
             className="btn-secondary btn-sm flex items-center gap-2"
@@ -488,8 +484,22 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
                 e.stopPropagation();
                 onSelect(recipe);
               } : undefined}
-              isInGroup={!!userGroup}
-              onShare={(e) => handleShare(e, recipe)}
+              ownerName={recipe.ownerName}
+              isOwned={!recipe.ownerId}
+              onCopyToLibrary={recipe.ownerId ? (e) => handleCopyToMyLibrary(e, recipe) : undefined}
+              // onShare removed as sharing is now automatic
+              onAddToPlan={async (e) => {
+                e.stopPropagation();
+                if (!confirm(`Add "${recipe.name}" to today's plan?`)) return;
+                const today = new Date().toISOString().split('T')[0];
+                const plan = await getDayPlan(today);
+                // Determine next slot? Or simply append. Appending for now.
+                // We don't have "Breakfast/Lunch" slots strongly typed yet, it's just a list.
+                const newMeals = [...plan.meals, recipe];
+                const totalCals = newMeals.reduce((acc, m) => acc + m.calories, 0);
+                await saveDayPlan({ ...plan, meals: newMeals, totalCalories: totalCals });
+                alert("Recipe added to today's plan.");
+              }}
             />
           ))
         )}
@@ -674,8 +684,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           <RecipeDetailModal
             recipe={selectedRecipe}
             onClose={closeRecipe}
-            onEdit={startEditing}
-            onDelete={(id, e) => handleDelete(e, id)}
+            onEdit={!selectedRecipe.ownerId ? startEditing : undefined}
+            onDelete={!selectedRecipe.ownerId ? (id, e) => handleDelete(e, id) : undefined}
+            isOwned={!selectedRecipe.ownerId}
+            onCopyToLibrary={selectedRecipe.ownerId ? async () => {
+              await handleCopyToMyLibrary({ stopPropagation: () => { } } as React.MouseEvent, selectedRecipe);
+            } : undefined}
           />
         )
       )}

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Group } from '../types';
-import { createGroup, joinGroup, leaveGroup, getUserGroup } from '../services/groupService';
+import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails } from '../services/groupService';
 import { auth } from '../services/firebase';
 
 export const FamilySettings: React.FC = () => {
     const [group, setGroup] = useState<Group | null>(null);
+    const [members, setMembers] = useState<{ id: string, name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [inviteCodeInput, setInviteCodeInput] = useState('');
     const [newGroupName, setNewGroupName] = useState('');
@@ -19,6 +20,12 @@ export const FamilySettings: React.FC = () => {
         try {
             const g = await getUserGroup();
             setGroup(g);
+            if (g) {
+                const details = await getGroupMembersDetails(g.memberIds);
+                setMembers(details);
+            } else {
+                setMembers([]);
+            }
         } catch (e) {
             console.error("Error loading group:", e);
         } finally {
@@ -140,6 +147,24 @@ export const FamilySettings: React.FC = () => {
                             {group.ownerId === auth.currentUser?.uid && (
                                 <span className="badge-sm bg-water-bg font-bold" style={{ color: 'var(--water)' }}>Owner</span>
                             )}
+                        </div>
+
+                        <div className="space-y-3 mb-6 bg-surface/50 rounded-lg p-3 border border-water-border/20">
+                            <p className="text-xs font-bold uppercase tracking-wide opacity-70" style={{ color: 'var(--water)' }}>Members</p>
+                            {members.map(member => (
+                                <div key={member.id} className="flex items-center gap-3 text-sm">
+                                    <div className="w-8 h-8 rounded-full bg-water-bg flex items-center justify-center font-bold text-xs shadow-sm" style={{ color: 'var(--water)' }}>
+                                        {member.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex flex-col leading-tight">
+                                        <span className="font-medium">{member.name}</span>
+                                        <span className="text-[10px] text-muted opacity-80">
+                                            {member.id === group.ownerId ? 'Family Admin' : 'Member'}
+                                            {member.id === auth.currentUser?.uid ? ' (You)' : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         <div className="bg-surface/80 backdrop-blur-sm rounded-lg p-3 mb-6 border border-water-border/30">

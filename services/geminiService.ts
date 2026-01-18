@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GEMINI_TEXT_MODEL } from "../constants";
 import { Recipe, DayPlan, FoodLogItem, PurchasableItem } from "../types";
 
-const apiKey = process.env.API_KEY;
+const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey });
 
 const recipeSchema: Schema = {

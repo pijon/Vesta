@@ -1,10 +1,10 @@
 # GEMINI.md
 
-> **Purpose:** This file is the single source of truth for the AI Agent (Gemini/Antigravity) regarding the Context, Rules, Architecture, and Persona for **Fast800-Tracker**.
+> **Purpose:** This file is the single source of truth for the AI Agent (Gemini/Antigravity) regarding the Context, Rules, Architecture, and Persona for **Vesta**.
 
 ## 1. Project & Vision
 
-**Fast800-Tracker** is a premium, high-aesthetic React web application for tracking the Fast 800 diet.
+**Vesta** is a premium, high-aesthetic React web application for tracking the Fast 800 diet and family meal planning.
 
 -   **Core Vibe:** Rich Aesthetics (Glassmorphism, Vibrant Colors, Motion), "Premium" feel.
 -   **Primary User Goal:** Effortlessly track calories, weight, and hydration while maintaining a calorie deficit.

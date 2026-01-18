@@ -412,7 +412,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1l-3 1-3-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1" /><path d="M6 12v-2" /><path d="M6 8h12a2 2 0 1 1 0 4h-2v2h-4v-2H6z" /><path d="M6 12a6 6 0 1 0 12 0v5" /><path d="M9 21h6" /><path d="M12 17v4" /></svg>
                                         </div>
                                         <h3 className="text-lg font-medium text-main mb-1 font-serif">No meals planned</h3>
-                                        <p className="text-muted text-sm max-w-xs mx-auto mb-6">Plan ahead to stay on track with your Fast800 goals.</p>
+                                        <p className="text-muted text-sm max-w-xs mx-auto mb-6">Plan ahead to stay on track with your Vesta goals.</p>
                                         <button
                                             onClick={openAddModal}
                                             className="text-primary font-bold hover:underline"
@@ -605,9 +605,13 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                             className="flex items-center gap-5 p-3 rounded-xl bg-surface border border-border hover:border-primary hover:shadow-md transition-all text-left group w-full overflow-hidden"
                                                         >
                                                             <div className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 relative flex items-center justify-center ${getRecipeTheme(recipe.tags).bg}`}>
-                                                                <div className={`text-3xl font-bold uppercase opacity-50 ${getRecipeTheme(recipe.tags).text}`}>
-                                                                    {(recipe.name || 'R').charAt(0)}
-                                                                </div>
+                                                                {recipe.image ? (
+                                                                    <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <div className={`text-3xl font-bold uppercase opacity-50 ${getRecipeTheme(recipe.tags).text}`}>
+                                                                        {(recipe.name || 'R').charAt(0)}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             <div className="flex-1 min-w-0 py-1">
                                                                 <h4 className="font-bold text-lg text-main truncate font-serif">{recipe.name}</h4>

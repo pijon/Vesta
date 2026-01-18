@@ -88,7 +88,6 @@ export const ImageInput: React.FC<ImageInputProps> = ({
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-        capture="environment"
         onChange={handleFileSelect}
         disabled={isDisabled}
         className="hidden"
@@ -99,8 +98,8 @@ export const ImageInput: React.FC<ImageInputProps> = ({
         onClick={() => fileInputRef.current?.click()}
         disabled={isDisabled}
         className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white transition-all shadow-sm ${isDisabled
-            ? 'bg-slate-300 cursor-not-allowed'
-            : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
+          ? 'bg-slate-300 cursor-not-allowed'
+          : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
           }`}
       >
         {isCompressing ? (

@@ -17,6 +17,32 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
+  // Manual Entry State
+  const [tab, setTab] = useState<'ai' | 'manual'>('ai');
+  const [manualName, setManualName] = useState('');
+  const [manualCalories, setManualCalories] = useState('');
+
+  const handleManualSubmit = () => {
+    if (!manualName.trim() || !manualCalories) return;
+
+    const kcal = parseInt(manualCalories);
+    if (isNaN(kcal)) return;
+
+    const newItem: FoodLogItem = {
+      id: crypto.randomUUID(),
+      name: manualName.trim(),
+      calories: kcal,
+      timestamp: Date.now()
+    };
+
+    onAddItems([newItem]);
+
+    // Reset and close
+    setManualName('');
+    setManualCalories('');
+    onClose();
+  };
+
   const handleAnalyze = async () => {
     if (!input.trim()) return;
     setIsAnalyzing(true);
@@ -84,79 +110,148 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
           </div>
 
           {/* Content */}
+          {/* Tabs */}
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setTab('ai')}
+              className={`flex-1 py-3 text-sm font-bold transition-colors relative ${tab === 'ai' ? 'text-main' : 'text-muted hover:text-main'
+                }`}
+            >
+              AI Assistant
+              {tab === 'ai' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-calories" />
+              )}
+            </button>
+            <button
+              onClick={() => setTab('manual')}
+              className={`flex-1 py-3 text-sm font-bold transition-colors relative ${tab === 'manual' ? 'text-main' : 'text-muted hover:text-main'
+                }`}
+            >
+              Manual Entry
+              {tab === 'manual' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-calories" />
+              )}
+            </button>
+          </div>
+
+          {/* Content */}
           <div className="p-6 space-y-4">
-            {/* Text Input */}
-            <div>
-              <label className="block text-sm font-bold text-main mb-3">What did you eat?</label>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  className="flex-1 p-3 bg-background border border-border rounded-xl focus:ring-2 outline-none font-medium text-main placeholder:text-muted"
-                  style={{ focusRingColor: 'var(--calories)' }}
-                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
-                  onBlur={(e) => e.target.style.boxShadow = 'none'}
-                  placeholder="e.g. 1 apple and a handful of almonds"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
-                  disabled={isAnalyzing || isAnalyzingImage}
-                />
+            {tab === 'ai' ? (
+              <>
+                {/* AI Text Input */}
+                <div>
+                  <label className="block text-sm font-bold text-main mb-3">What did you eat?</label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      className="flex-1 p-3 bg-background border border-border rounded-xl focus:ring-2 outline-none font-medium text-main placeholder:text-muted"
+                      style={{ focusRingColor: 'var(--calories)' }}
+                      onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
+                      onBlur={(e) => e.target.style.boxShadow = 'none'}
+                      placeholder="e.g. 1 apple and a handful of almonds"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                      disabled={isAnalyzing || isAnalyzingImage}
+                    />
+                    <button
+                      onClick={handleAnalyze}
+                      disabled={isAnalyzing || isAnalyzingImage || !input.trim()}
+                      className={`px-6 py-3 font-bold rounded-xl transition-colors shadow-lg ${isAnalyzing || isAnalyzingImage || !input.trim()
+                        ? 'bg-neutral-300 dark:bg-neutral-800 text-muted cursor-not-allowed'
+                        : 'text-white'
+                        }`}
+                      style={isAnalyzing || isAnalyzingImage || !input.trim() ? {} : { backgroundColor: 'var(--calories)' }}
+                      onMouseEnter={(e) => {
+                        if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
+                          e.currentTarget.style.backgroundColor = 'var(--calories-hover)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
+                          e.currentTarget.style.backgroundColor = 'var(--calories)';
+                        }
+                      }}
+                    >
+                      {isAnalyzing ? '...' : 'Add'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted mt-2 ml-1">AI will estimate calories from your description</p>
+                </div>
+
+                {/* OR Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border"></div>
+                  <span className="text-xs text-muted font-medium">OR</span>
+                  <div className="h-px flex-1 bg-border"></div>
+                </div>
+
+                {/* Photo Input */}
+                <div>
+                  <ImageInput
+                    onImageSelect={handleImageAnalysis}
+                    onError={(err) => setImageError(err)}
+                    disabled={isAnalyzing || isAnalyzingImage}
+                  />
+                  <p className="text-xs text-muted mt-2 ml-1">Upload a photo and AI will analyze it</p>
+                </div>
+
+                {/* Loading State */}
+                {isAnalyzingImage && (
+                  <div className="p-3 bg-calories-bg/50 border border-calories-border rounded-lg">
+                    <p className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--calories)' }}>
+                      <LoadingSpinner size="sm" style={{ color: 'var(--calories)' }} />
+                      Analyzing photo...
+                    </p>
+                  </div>
+                )}
+
+                {/* Error State */}
+                {imageError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
+                    <p className="text-sm text-red-700 dark:text-red-300">{imageError}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Manual Entry Form */
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-main mb-2">Item Name</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 outline-none font-medium text-main placeholder:text-muted"
+                    onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
+                    onBlur={(e) => e.target.style.boxShadow = 'none'}
+                    placeholder="e.g. Grilled Chicken Salad"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-main mb-2">Calories (kcal)</label>
+                  <input
+                    type="number"
+                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 outline-none font-medium text-main placeholder:text-muted"
+                    onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
+                    onBlur={(e) => e.target.style.boxShadow = 'none'}
+                    placeholder="e.g. 350"
+                    value={manualCalories}
+                    onChange={(e) => setManualCalories(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
+                  />
+                </div>
                 <button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing || isAnalyzingImage || !input.trim()}
-                  className={`px-6 py-3 font-bold rounded-xl transition-colors shadow-lg ${isAnalyzing || isAnalyzingImage || !input.trim()
-                      ? 'bg-neutral-300 dark:bg-neutral-800 text-muted cursor-not-allowed'
-                      : 'text-white'
+                  onClick={handleManualSubmit}
+                  disabled={!manualName.trim() || !manualCalories}
+                  className={`w-full py-3 font-bold rounded-xl transition-colors shadow-lg ${!manualName.trim() || !manualCalories
+                    ? 'bg-neutral-300 dark:bg-neutral-800 text-muted cursor-not-allowed'
+                    : 'text-white'
                     }`}
-                  style={isAnalyzing || isAnalyzingImage || !input.trim() ? {} : { backgroundColor: 'var(--calories)' }}
-                  onMouseEnter={(e) => {
-                    if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
-                      e.currentTarget.style.backgroundColor = 'var(--calories-hover)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
-                      e.currentTarget.style.backgroundColor = 'var(--calories)';
-                    }
-                  }}
+                  style={!manualName.trim() || !manualCalories ? {} : { backgroundColor: 'var(--calories)' }}
                 >
-                  {isAnalyzing ? '...' : 'Add'}
+                  Add Entry
                 </button>
-              </div>
-              <p className="text-xs text-muted mt-2 ml-1">AI will estimate calories from your description</p>
-            </div>
-
-            {/* OR Divider */}
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-border"></div>
-              <span className="text-xs text-muted font-medium">OR</span>
-              <div className="h-px flex-1 bg-border"></div>
-            </div>
-
-            {/* Photo Input */}
-            <div>
-              <ImageInput
-                onImageSelect={handleImageAnalysis}
-                onError={(err) => setImageError(err)}
-                disabled={isAnalyzing || isAnalyzingImage}
-              />
-              <p className="text-xs text-muted mt-2 ml-1">Upload a photo and AI will analyze it</p>
-            </div>
-
-            {/* Loading State */}
-            {isAnalyzingImage && (
-              <div className="p-3 bg-calories-bg/50 border border-calories-border rounded-lg">
-                <p className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--calories)' }}>
-                  <LoadingSpinner size="sm" style={{ color: 'var(--calories)' }} />
-                  Analyzing photo...
-                </p>
-              </div>
-            )}
-
-            {/* Error State */}
-            {imageError && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
-                <p className="text-sm text-red-700 dark:text-red-300">{imageError}</p>
               </div>
             )}
           </div>

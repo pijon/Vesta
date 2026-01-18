@@ -1,55 +1,60 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper Functions ---
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    function isGroupMember(groupId) {
-      // Check if the user's UID is in the 'memberIds' array of the group document
-      let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
-      return isAuthenticated() && request.auth.uid in groupData.memberIds;
+
+    // Helper function - checks if two users share a groupId
+    function isFamilyMember(requesterId, targetUserId) {
+      let requesterGroup = get(/databases/$(database)/documents/users/$(requesterId)).data.groupId;
+      let targetGroup = get(/databases/$(database)/documents/users/$(targetUserId)).data.groupId;
+      return requesterGroup != null && requesterGroup == targetGroup;
     }
 
-    // --- User Data ---
-    // Users can access their own data subtree completely
-    match /users/{userId}/{document=**} {
-      allow read, write: if isOwner(userId);
+    // User Data
+    match /users/{userId} {
+      // User profile document - owner only
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Recipes subcollection - readable by family members, writable by owner only
+      match /recipes/{recipeId} {
+        allow read: if request.auth != null && (
+          request.auth.uid == userId ||
+          isFamilyMember(request.auth.uid, userId)
+        );
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // All other subcollections (data, logs, days) - owner only
+      match /data/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /logs/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /days/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
-    // --- Groups ---
+    // Groups: Shared Data
     match /groups/{groupId} {
-      // Anyone auth'd can create a group (we trust the client to set themselves as owner/member)
-      // Ideally validation would check that request.resource.data.ownerId == auth.uid
-      allow create: if isAuthenticated();
-      
-      // Allow read so users can query by invite code to join
-      allow read: if isAuthenticated();
+      // Anyone can create a group
+      allow create: if request.auth != null;
 
-      // Allow update if member OR if joining (adding self)
-      allow update: if isAuthenticated() && (
-        request.auth.uid in resource.data.memberIds ||
-        (
-          !(request.auth.uid in resource.data.memberIds) &&
-          request.auth.uid in request.resource.data.memberIds &&
-          request.resource.data.memberIds.hasAll(resource.data.memberIds)
-        )
+      // Anyone can read (needed for 'find by invite code' queries)
+      allow read: if request.auth != null;
+
+      // Update: Must be a member OR joining (adding self)
+      allow update: if request.auth != null && (
+         request.auth.uid in resource.data.memberIds ||
+         request.auth.uid in request.resource.data.memberIds
       );
-      
-      // Only owner can delete? Or any member? Let's say any member for now to keep it simple, or stick to logic.
-      // Logic in app says 'leaveGroup' removes self. 
-      // If last member leaves, group might remain ghost. 
-      allow delete: if isAuthenticated() && request.auth.uid in resource.data.memberIds;
 
-      // --- Shared Recipes ---
-      match /shared_recipes/{recipeId} {
-        allow read, write: if isGroupMember(groupId);
+      // Delete: Only the owner
+      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+
+      // Subcollections (shared_recipes - legacy)
+      match /{document=**} {
+        allow read, write: if request.auth != null;
       }
     }
   }
