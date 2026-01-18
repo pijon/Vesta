@@ -9,6 +9,7 @@ import { RecipeIllustration } from './RecipeIllustration';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
+import { RecipeEditModal } from './RecipeEditModal';
 
 
 interface RecipeLibraryProps {
@@ -85,37 +86,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     setEditForm(null);
   };
 
-  const saveEditing = async () => {
-    if (editForm) {
-      const updatedRecipe: Recipe = {
-        ...editForm,
-        calories: Number(editForm.calories) || 0,
-        protein: Number(editForm.protein) || 0,
-        fat: Number(editForm.fat) || 0,
-        carbs: Number(editForm.carbs) || 0,
-        servings: Number(editForm.servings) || 1,
-        ingredients: editForm.ingredients.filter(i => i.trim()),
-        instructions: (editForm.instructions || []).filter(i => i.trim()),
-      };
-
-
-      // Safely handle image field
-      if (uploadedImage) {
-        updatedRecipe.image = uploadedImage;
-      } else if (editForm.image) {
-        updatedRecipe.image = editForm.image;
-      } else {
-        delete updatedRecipe.image; // Ensure it's not undefined
-      }
-
-      await saveRecipe(updatedRecipe);
-      await loadData(); // Reload all data
-
-      setSelectedRecipe(updatedRecipe);
-      setIsEditing(false);
-      setEditForm(null);
-      setUploadedImage(null);
-    }
+  const handleSaveEdit = async (updatedRecipe: Recipe) => {
+    await saveRecipe(updatedRecipe);
+    await loadData();
+    setSelectedRecipe(updatedRecipe);
+    setIsEditing(false);
+    setEditForm(null); // Cleanup
   };
 
 
@@ -516,170 +492,11 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       {/* Recipe Detail / Edit Modal */}
       {selectedRecipe && (
         isEditing && editForm ? (
-          <Portal>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-black/60 backdrop-blur-sm" onClick={closeRecipe}>
-              <div className="bg-surface w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
-                {/* --- Edit Mode --- */}
-                <div className="flex flex-col h-full">
-                  <div className="flex justify-between items-center p-6 border-b border-border bg-surface sticky top-0 z-10 transition-colors">
-                    <h2 className="text-2xl font-bold text-main font-serif">Edit Recipe</h2>
-                    <div className="flex gap-2">
-                      <button onClick={cancelEditing} className="px-4 py-2 text-muted hover:bg-background rounded-lg text-sm font-bold transition-colors">Cancel</button>
-                      <button
-                        onClick={saveEditing}
-                        className="btn-primary btn-sm shadow-lg"
-                      >Save Changes</button>
-                    </div>
-                  </div>
-
-                  <div className="p-8 space-y-8 overflow-y-auto">
-                    <div className="space-y-6">
-                      {/* Image Upload Section */}
-                      <div>
-                        <label className="block text-sm font-bold text-main mb-3">Recipe Photo (Optional)</label>
-                        {uploadedImage ? (
-                          <div className="relative rounded-2xl overflow-hidden border border-border">
-                            <img src={uploadedImage} alt="Recipe preview" className="w-full h-64 object-cover" />
-                            <button
-                              onClick={handleRemoveImage}
-                              className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all"
-                              title="Remove image"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                          </div>
-                        ) : (
-                          <ImageInput
-                            onImageSelect={handleImageSelect}
-                            onError={(err) => setImageError(err)}
-                            className="w-full"
-                          />
-                        )}
-                        {imageError && (
-                          <p className="text-red-600 text-sm mt-2">{imageError}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-main mb-2">Recipe Name</label>
-                        <input
-                          type="text"
-                          value={editForm.name}
-                          onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                          className="w-full p-4 border border-border rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-background text-main text-lg"
-                          placeholder="Recipe Name"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-bold text-main mb-2">Tags</label>
-                          <div className="flex flex-wrap gap-2 mb-2">
-                            {['breakfast', 'main meal', 'snack', 'light meal'].map(tag => (
-                              <button
-                                key={tag}
-                                onClick={() => {
-                                  const currentTags = editForm.tags || [];
-                                  const newTags = currentTags.includes(tag)
-                                    ? currentTags.filter(t => t !== tag)
-                                    : [...currentTags, tag];
-                                  setEditForm({ ...editForm, tags: newTags });
-                                }}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-all ${(editForm.tags || []).includes(tag)
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-surface text-muted border-border hover:border-primary/50'
-                                  }`}
-                              >
-                                {tag}
-                              </button>
-                            ))}
-                          </div>
-                          <input
-                            type="text"
-                            placeholder="Add custom tags (comma separated)"
-                            className="w-full p-3.5 border border-border rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-background font-medium text-main text-sm"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                const val = e.currentTarget.value.trim();
-                                if (val) {
-                                  const newTags = [...(editForm.tags || []), ...val.split(',').map(t => t.trim()).filter(Boolean)];
-                                  // Dedupe
-                                  setEditForm({ ...editForm, tags: Array.from(new Set(newTags)) });
-                                  e.currentTarget.value = '';
-                                }
-                              }
-                            }}
-                          />
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {(editForm.tags || []).filter(t => !['breakfast', 'main meal', 'snack', 'light meal'].includes(t)).map(tag => (
-                              <span key={tag} className="px-2 py-1 bg-surface border border-border rounded-md text-xs font-bold flex items-center gap-1">
-                                {tag}
-                                <button onClick={() => setEditForm({ ...editForm, tags: editForm.tags.filter(t => t !== tag) })} className="hover:text-red-500">×</button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-main mb-2">Servings</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={editForm.servings}
-                            onChange={e => setEditForm({ ...editForm, servings: parseInt(e.target.value) || 1 })}
-                            className="w-full p-3.5 border border-border rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none font-medium bg-background text-main"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="bg-background p-6 rounded-2xl border border-border">
-                        <label className="block text-sm font-bold text-main mb-4">Nutrition per serving</label>
-                        <div className="grid grid-cols-4 gap-4">
-                          {[
-                            { label: 'Calories', val: editForm.calories, key: 'calories' },
-                            { label: 'Protein (g)', val: editForm.protein, key: 'protein' },
-                            { label: 'Fat (g)', val: editForm.fat, key: 'fat' },
-                            { label: 'Carbs (g)', val: editForm.carbs, key: 'carbs' }
-                          ].map((item) => (
-                            <div key={item.key}>
-                              <label className="block text-xs font-bold text-muted mb-1.5 uppercase tracking-wide">{item.label}</label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={item.val || 0}
-                                onChange={e => setEditForm({ ...editForm, [item.key]: parseInt(e.target.value) || 0 })}
-                                className="w-full p-3 border border-border rounded-xl text-sm text-center font-bold bg-surface focus:ring-2 focus:ring-primary/20 focus:outline-none text-main"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-main mb-2">Ingredients <span className="text-muted font-normal">(one per line)</span></label>
-                        <textarea
-                          rows={6}
-                          value={editForm.ingredients.join('\n')}
-                          onChange={e => setEditForm({ ...editForm, ingredients: e.target.value.split('\n') })}
-                          className="w-full p-4 border border-border rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-background text-main"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-main mb-2">Instructions <span className="text-muted font-normal">(one per line)</span></label>
-                        <textarea
-                          rows={6}
-                          value={(editForm.instructions || []).join('\n')}
-                          onChange={e => setEditForm({ ...editForm, instructions: e.target.value.split('\n') })}
-                          className="w-full p-4 border border-border rounded-xl font-medium text-sm leading-relaxed focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-background text-main"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Portal>
+          <RecipeEditModal
+            recipe={editForm || selectedRecipe}
+            onSave={handleSaveEdit}
+            onCancel={cancelEditing}
+          />
         ) : (
           <RecipeDetailModal
             recipe={selectedRecipe}

@@ -166,8 +166,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
           </div>
         )}
 
-        <div className="mt-auto pt-4 border-t border-border">
-          {onAction ? (
+        {onAction && (
+          <div className="mt-auto pt-4 border-t border-border">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -177,16 +177,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
             >
               {actionLabel || 'Select'}
             </button>
-          ) : (
-            <div className="flex items-center justify-center gap-2 text-sm font-bold text-muted transition-colors"
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = ''}
-            >
-              <span>View Recipe</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transform group-hover:translate-x-1 transition-transform"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
