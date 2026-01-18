@@ -270,7 +270,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </button>
 
                             {showDebug && (
-                                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-border space-y-3 mt-3 animate-fade-in">
+                                <div className="bg-background p-4 rounded-xl border border-border space-y-3 mt-3 animate-fade-in">
                                     <h4 className="text-sm font-bold text-main">Local Data Recovery</h4>
                                     <div className="space-y-1">
                                         {Object.entries(debugInfo).map(([key, value]) => (
@@ -282,13 +282,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     </div>
                                     <button
                                         onClick={handleForceSync}
-                                        className="w-full py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 text-sm font-bold rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors mt-2"
+                                        className="w-full py-2 bg-calories-bg text-[var(--calories)] border border-calories-border text-sm font-bold rounded-lg hover:bg-calories-border transition-colors mt-2"
                                     >
                                         Force Sync from Device
                                     </button>
                                     <button
                                         onClick={handleTestOnboarding}
-                                        className="w-full py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 text-sm font-bold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors mt-2"
+                                        className="w-full py-2 bg-water-bg text-[var(--water)] border border-water-border text-sm font-bold rounded-lg hover:bg-water-border transition-colors mt-2"
                                     >
                                         Preview Onboarding Flow (Safe)
                                     </button>
@@ -302,10 +302,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* WIDGET 5: Developer Mode (Only visible to verified developers) */}
                 {isDevMode && (
-                    <div className="bg-surface rounded-2xl shadow-sm border border-amber-200 dark:border-amber-900/50 overflow-hidden h-full flex flex-col lg:col-span-2">
-                        <div className="p-6 border-b border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
+                    <div className="bg-surface rounded-2xl shadow-sm border border-warning-border overflow-hidden h-full flex flex-col lg:col-span-2">
+                        <div className="p-6 border-b border-warning-border bg-warning-bg/50 flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-warning-bg" style={{ color: 'var(--warning)' }}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
                                         <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
@@ -313,12 +313,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         <circle cx="11" cy="11" r="2"></circle>
                                     </svg>
                                 </div>
-                                <h3 className="font-medium text-lg font-serif text-amber-700 dark:text-amber-400">Developer Mode</h3>
-                                <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">VERIFIED</span>
+                                <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--warning)' }}>Developer Mode</h3>
+                                <span className="ml-2 badge-amber">VERIFIED</span>
                             </div>
                             <button
                                 onClick={resetFlags}
-                                className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 underline"
+                                className="text-xs hover:text-main underline"
+                                style={{ color: 'var(--warning)' }}
                             >
                                 Reset Flags
                             </button>
@@ -334,72 +335,72 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                                 <div className="space-y-3">
                                     {/* Experimental Recipes */}
-                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
                                         <div>
-                                            <span className="text-sm font-medium text-main">Experimental Recipes</span>
+                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Experimental Recipes</span>
                                             <p className="text-xs text-muted">Enable AI-powered recipe generation features</p>
                                         </div>
                                         <input
                                             type="checkbox"
                                             checked={featureFlags.enableExperimentalRecipes}
                                             onChange={() => toggleFeatureFlag('enableExperimentalRecipes')}
-                                            className="w-5 h-5 accent-amber-500"
+                                            className="w-5 h-5 accent-[var(--warning)]"
                                         />
                                     </label>
 
                                     {/* Advanced Analytics */}
-                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
                                         <div>
-                                            <span className="text-sm font-medium text-main">Advanced Analytics</span>
+                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Advanced Analytics</span>
                                             <p className="text-xs text-muted">Enable detailed analytics and insights</p>
                                         </div>
                                         <input
                                             type="checkbox"
                                             checked={featureFlags.enableAdvancedAnalytics}
                                             onChange={() => toggleFeatureFlag('enableAdvancedAnalytics')}
-                                            className="w-5 h-5 accent-amber-500"
+                                            className="w-5 h-5 accent-[var(--warning)]"
                                         />
                                     </label>
 
                                     {/* Group Sharing */}
-                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
                                         <div>
-                                            <span className="text-sm font-medium text-main">Group Sharing</span>
+                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Group Sharing</span>
                                             <p className="text-xs text-muted">Enable family/group recipe sharing</p>
                                         </div>
                                         <input
                                             type="checkbox"
                                             checked={featureFlags.enableGroupSharing}
                                             onChange={() => toggleFeatureFlag('enableGroupSharing')}
-                                            className="w-5 h-5 accent-amber-500"
+                                            className="w-5 h-5 accent-[var(--warning)]"
                                         />
                                     </label>
 
                                     {/* AI Features */}
-                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
                                         <div>
-                                            <span className="text-sm font-medium text-main">AI Features</span>
+                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">AI Features</span>
                                             <p className="text-xs text-muted">Enable AI-powered suggestions and automation</p>
                                         </div>
                                         <input
                                             type="checkbox"
                                             checked={featureFlags.enableAIFeatures}
                                             onChange={() => toggleFeatureFlag('enableAIFeatures')}
-                                            className="w-5 h-5 accent-amber-500"
+                                            className="w-5 h-5 accent-[var(--warning)]"
                                         />
                                     </label>
 
                                     {/* Debug Info */}
-                                    <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors">
+                                    <label className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl cursor-pointer hover:border-warning-border transition-colors group">
                                         <div>
-                                            <span className="text-sm font-medium text-main">Show Debug Info</span>
+                                            <span className="text-sm font-bold text-main group-hover:text-[var(--warning)] transition-colors">Show Debug Info</span>
                                             <p className="text-xs text-muted">Display debug information in UI components</p>
                                         </div>
                                         <input
                                             type="checkbox"
                                             checked={featureFlags.showDebugInfo}
                                             onChange={() => toggleFeatureFlag('showDebugInfo')}
-                                            className="w-5 h-5 accent-amber-500"
+                                            className="w-5 h-5 accent-[var(--warning)]"
                                         />
                                     </label>
                                 </div>

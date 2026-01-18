@@ -11,6 +11,7 @@ Fast800-Tracker uses a structured `.agent` directory.
 
 ### 🛠️ Skills
 - **Development Guide:** [.agent/skills/development-guide/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/development-guide/SKILL.md)
+- **Feature Switch:** [.agent/skills/feature-switch/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/feature-switch/SKILL.md)
 - **Firebase Ops:** [.agent/skills/firebase-ops/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/firebase-ops/SKILL.md)
 - **Frontend Design:** [.agent/skills/frontend-design/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/frontend-design/SKILL.md)
 - **Brainstorming:** [.agent/skills/brainstorming/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/brainstorming/SKILL.md)
