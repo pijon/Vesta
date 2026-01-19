@@ -95,8 +95,8 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-border flex justify-between items-center bg-calories-bg">
-            <h3 className="font-normal text-2xl text-main font-serif">Log Food</h3>
+          <div className="p-4 md:p-6 border-b border-border flex justify-between items-center bg-calories-bg">
+            <h3 className="font-normal text-xl md:text-2xl text-main font-serif">Log Food</h3>
             <button
               onClick={handleClose}
               disabled={isAnalyzing || isAnalyzingImage}
@@ -135,7 +135,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-4">
+          <div className="p-4 md:p-6 space-y-4">
             {tab === 'ai' ? (
               <>
                 {/* AI Text Input */}
@@ -257,7 +257,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
           </div>
 
           {/* Footer */}
-          <div className="p-6 pt-0 border-t border-transparent">
+          <div className="p-4 md:p-6 pt-0 border-t border-transparent">
             <button
               onClick={handleClose}
               disabled={isAnalyzing || isAnalyzingImage}

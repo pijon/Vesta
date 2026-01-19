@@ -5,15 +5,16 @@ import { calculateDeficitSurplus, DeficitSurplusData } from '../../utils/analyti
 
 interface DeficitSurplusChartProps {
   summaries: DailySummary[];
-  dailyGoal: number;
+  goals: { fast: number; nonFast: number };
+  dayTypes: Record<string, string>;
 }
 
-export const DeficitSurplusChart: React.FC<DeficitSurplusChartProps> = ({ summaries, dailyGoal }) => {
+export const DeficitSurplusChart: React.FC<DeficitSurplusChartProps> = ({ summaries, goals, dayTypes }) => {
   const deficitData = useMemo(() => {
     // Get last 30 days
     const last30Days = summaries.slice(-30);
-    return calculateDeficitSurplus(last30Days, dailyGoal);
-  }, [summaries, dailyGoal]);
+    return calculateDeficitSurplus(last30Days, goals, dayTypes);
+  }, [summaries, goals, dayTypes]);
 
   const stats = useMemo(() => {
     if (deficitData.length === 0) {
@@ -72,6 +73,7 @@ export const DeficitSurplusChart: React.FC<DeficitSurplusChartProps> = ({ summar
             label={{ value: 'kcal', angle: -90, position: 'insideLeft', fill: 'var(--muted)', fontSize: 12 }}
           />
           <Tooltip
+            cursor={{ fill: 'var(--muted)', opacity: 0.1 }}
             contentStyle={{
               backgroundColor: 'var(--surface)',
               border: '1px solid var(--border)',
@@ -81,24 +83,41 @@ export const DeficitSurplusChart: React.FC<DeficitSurplusChartProps> = ({ summar
             }}
             labelStyle={{ color: 'var(--main)', fontWeight: 'bold', marginBottom: '8px' }}
             itemStyle={{ color: 'var(--main)' }}
-            formatter={(value: number) => {
+            formatter={(value: number, name: string, props: any) => {
+              const data = props.payload;
+              const isFast = data.dayType === 'fast';
+              const typeLabel = isFast ? ' (Fast)' : '';
+
               if (value > 0) {
-                return [`${Math.abs(value)} kcal under goal`, 'Deficit'];
+                return [`${Math.abs(value)} kcal under goal${typeLabel}`, `Deficit (Goal: ${data.target})`];
               } else if (value < 0) {
-                return [`${Math.abs(value)} kcal over goal`, 'Surplus'];
+                return [`${Math.abs(value)} kcal over goal${typeLabel}`, `Surplus (Goal: ${data.target})`];
               } else {
-                return ['At goal', 'Perfect'];
+                return [`At goal${typeLabel}`, `Perfect (Goal: ${data.target})`];
               }
             }}
           />
           <ReferenceLine y={0} stroke="var(--primary)" strokeWidth={2} strokeDasharray="5 5" />
           <Bar dataKey="deficit" radius={[4, 4, 0, 0]}>
-            {deficitData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={entry.isCompliant ? 'var(--calories)' : 'var(--error)'}
-              />
-            ))}
+            {deficitData.map((entry, index) => {
+              // Visual Logic:
+              // Fast Day + Compliant = Emerald (var(--calories))
+              // Non-Fast Day + Compliant = Primary (e.g. Slate/Blue) -> var(--primary) or similar
+              // Non-Compliant = Red (var(--error))
+
+              let fill = 'var(--error)';
+              if (entry.isCompliant) {
+                fill = entry.dayType === 'fast' ? 'var(--calories)' : 'var(--neutral-600)'; // Use neutral for standard days
+              }
+
+              return (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={fill}
+                  opacity={entry.dayType === 'fast' ? 1 : 0.7} // Visual distinction
+                />
+              );
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>

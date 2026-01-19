@@ -411,11 +411,14 @@ export interface DeficitSurplusData {
   deficit: number;  // positive = under goal, negative = over goal
   displayDate: string;
   isCompliant: boolean;
+  target: number;
+  dayType: 'fast' | 'non-fast' | 'normal'; // 'normal' for daily mode fallback or unspecified
 }
 
 export function calculateDeficitSurplus(
   summaries: DailySummary[],
-  dailyGoal: number
+  goals: { fast: number; nonFast: number },
+  dayTypes: Record<string, string> = {}
 ): DeficitSurplusData[] {
 
   if (summaries.length === 0) {
@@ -423,6 +426,11 @@ export function calculateDeficitSurplus(
   }
 
   return summaries.map(summary => {
+    // Determine target based on day type
+    // Default to nonFast goal if not specified (assuming standard day)
+    const type = (dayTypes[summary.date] || 'non-fast') as 'fast' | 'non-fast';
+    const dailyGoal = type === 'fast' ? goals.fast : goals.nonFast;
+
     const deficit = dailyGoal - summary.netCalories;
     const isCompliant = summary.netCalories <= dailyGoal;
 
@@ -433,7 +441,9 @@ export function calculateDeficitSurplus(
       date: summary.date,
       deficit,
       displayDate,
-      isCompliant
+      isCompliant,
+      target: dailyGoal,
+      dayType: type
     };
   });
 }

@@ -73,15 +73,15 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onNavigate
 }) => {
   return (
-    <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
-      <div className="glass-panel rounded-full px-6 py-3 flex justify-between items-center shadow-xl border-border/50 bg-surface/80">
+    <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
+      <div className="glass-panel rounded-full px-3 py-1 flex justify-between items-center shadow-xl border-border/50 bg-surface/80">
         {navItems.map(item => (
           <button
             key={item.view}
             onClick={() => onNavigate(item.view)}
-            className={`flex flex-col items-center gap-1 transition-colors ${currentView === item.view
+            className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-colors ${currentView === item.view
                 ? 'text-primary'
-                : 'text-muted hover:text-main'
+                : 'text-muted hover:text-main active:bg-background/50'
               }`}
           >
             {item.icon}

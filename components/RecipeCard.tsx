@@ -43,7 +43,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
       className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 flex flex-col h-full group ${onClick ? 'cursor-pointer hover:shadow-xl dark:hover:shadow-primary/5 hover:-translate-y-1' : ''}`}
     >
       {/* Card Header / Illustration */}
-      <div className={`relative h-48 overflow-hidden ${!meal.image ? theme.bg : 'bg-neutral-100 dark:bg-neutral-800'} transition-colors duration-300`}>
+      <div className={`relative h-32 md:h-48 overflow-hidden ${!meal.image ? theme.bg : 'bg-neutral-100 dark:bg-neutral-800'} transition-colors duration-300`}>
         {meal.image ? (
           <img
             src={meal.image}

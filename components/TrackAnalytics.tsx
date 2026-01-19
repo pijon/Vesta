@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, BarChart, Bar, ComposedChart, ReferenceLine } from 'recharts';
 import { DayPlan, UserStats, DailyLog } from '../types';
-import { getAllDailySummaries } from '../services/storageService';
+import { getAllDailySummaries, getDayPlansInRange } from '../services/storageService';
 import { analyzeWeightTrends, analyzeStreaks, getWeeklySummary, getMonthlySummary, enhancePeriodSummaryWithWeight } from '../utils/analytics';
 import { GoalProjectionCard } from './analytics/GoalProjectionCard';
 import { ComplianceOverviewCard } from './analytics/ComplianceOverviewCard';
@@ -18,9 +18,32 @@ interface TrackAnalyticsProps {
 
 export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog }) => {
     const [dailySummaries, setDailySummaries] = useState<any[]>([]);
+    const [dayTypes, setDayTypes] = useState<Record<string, string>>({});
 
     useEffect(() => {
         getAllDailySummaries().then(setDailySummaries);
+
+        // Fetch day types for the analytical period (last 90 days)
+        const fetchDayTypes = async () => {
+            const today = new Date();
+            const pastDate = new Date();
+            pastDate.setDate(today.getDate() - 95); // Buffer slightly more than 90
+
+            const startStr = pastDate.toISOString().split('T')[0];
+            const endStr = today.toISOString().split('T')[0];
+
+            const plans = await getDayPlansInRange(startStr, endStr);
+            const mapping: Record<string, string> = {};
+
+            Object.values(plans).forEach(plan => {
+                if (plan.type) {
+                    mapping[plan.date] = plan.type;
+                }
+            });
+
+            setDayTypes(mapping);
+        };
+        fetchDayTypes();
     }, [dailyLog, stats]);
 
     // Calculate enhanced analytics
@@ -281,7 +304,14 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                     {/* Daily Deficit/Surplus */}
                     <div className="bg-surface rounded-2xl border border-border p-6 shadow-sm">
                         <h4 className="text-sm font-medium text-muted mb-4">Daily Deficit/Surplus</h4>
-                        <DeficitSurplusChart summaries={dailySummaries} dailyGoal={stats.dailyCalorieGoal} />
+                        <DeficitSurplusChart
+                            summaries={dailySummaries}
+                            goals={{
+                                fast: stats.dailyCalorieGoal,
+                                nonFast: stats.nonFastDayCalories || 2000
+                            }}
+                            dayTypes={dayTypes}
+                        />
                     </div>
                 </div>
             </AnalyticsSection>

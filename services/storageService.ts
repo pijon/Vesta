@@ -145,6 +145,72 @@ export const getUpcomingPlan = async (days: number = 7): Promise<Record<string, 
   return plans;
 };
 
+// Helper to get plan for a range of dates (efficient batch fetch)
+export const getDayPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
+  try {
+    const plans: Record<string, DayPlan> = {};
+    const q = query(
+      getCollectionRef('days'),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate)
+    );
+
+    const snapshot = await getDocs(q);
+    snapshot.forEach(doc => {
+      const plan = doc.data() as DayPlan;
+      plans[plan.date] = plan;
+    });
+
+    // Fallback: Check legacy plan doc for missing dates in range
+    // This ensures users with unmigrated data still see correct Day Types
+    try {
+      const legacyDoc = await getDoc(doc(db, 'users', getUserId(), 'data', 'plan'));
+      if (legacyDoc.exists()) {
+        const legacyData = legacyDoc.data();
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+          const dateStr = d.toISOString().split('T')[0];
+          // Only use legacy if we don't have a new plan AND legacy has data
+          if (!plans[dateStr] && legacyData[dateStr]) {
+            plans[dateStr] = legacyData[dateStr] as DayPlan;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Legacy plan fallback failed:", e);
+    }
+
+    // Fallback: Default to 'fast' day if no data exists
+    // Policy: "Default is a fast day"
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+
+      if (!plans[dateStr]) {
+        // No plan exists -> Default to Fast Day
+        plans[dateStr] = {
+          date: dateStr,
+          meals: [],
+          completedMealIds: [],
+          type: 'fast'
+        };
+      } else if (!plans[dateStr].type) {
+        // Plan exists but no type set -> Default to Fast Day
+        plans[dateStr].type = 'fast';
+      }
+    }
+
+    return plans;
+  } catch (e) {
+    console.error("Error fetching day plans in range:", e);
+    return {};
+  }
+};
+
 // Deprecated: Used only for explicit exports or legacy checks
 export const getWeeklyPlan = async (): Promise<Record<string, DayPlan>> => {
   // Use collection fetch (careful with size)

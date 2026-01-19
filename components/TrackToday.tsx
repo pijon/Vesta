@@ -9,7 +9,7 @@ import { DualTrackSection } from './DualTrackSection';
 import { HydrationWidget } from './HydrationWidget';
 
 import { WorkoutWidget } from './WorkoutWidget';
-import { CompactStatsWidget } from './CompactStatsWidget';
+import { MobileActionCards } from './MobileActionCards';
 import { RecipeLibrary } from './RecipeLibrary';
 import { Portal } from './Portal';
 
@@ -224,15 +224,19 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     progressPercent = Math.max(0, Math.min(100, (lostSoFar / totalToLose) * 100));
   }
 
+  // Check if weight was logged today
+  const today = new Date().toISOString().split('T')[0];
+  const weightLoggedToday = stats.weightHistory.some(entry => entry.date === today);
+
   return (
     <div className="space-y-8">
       {/* Mobile Quick Actions Bar */}
       <div className="md:hidden -mt-4 -mx-4 mb-2 sticky top-16 z-30 bg-surface/95 backdrop-blur-sm border-b border-border p-3">
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {/* Food */}
           <button
             onClick={() => setIsFoodModalOpen(true)}
-            className="flex-1 py-3 text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center p-0"
+            className="flex-1 min-h-[44px] text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center"
             style={{ backgroundColor: 'var(--calories)' }}
           >
             <svg version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 60 60" fill="currentColor">
@@ -249,7 +253,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           {/* Water */}
           <button
             onClick={() => handleAddWater(250)}
-            className="flex-1 py-3 text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-1"
+            className="flex-1 min-h-[44px] text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-1"
             style={{ backgroundColor: 'var(--water)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -263,7 +267,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               setEditingWorkout(null);
               setIsWorkoutModalOpen(true);
             }}
-            className="flex-1 py-3 text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center"
+            className="flex-1 min-h-[44px] text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center"
             style={{ backgroundColor: 'var(--workout)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -271,22 +275,31 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               <path fill="none" d="M0 0h24v24H0z" />
             </svg>
           </button>
-          {/* Weight */}
+          {/* Weight - with nudge indicator if not logged today */}
           <button
             onClick={() => setIsWeightModalOpen(true)}
-            className="flex-1 py-3 bg-slate-600 text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center hover:bg-slate-700"
+            className="flex-1 min-h-[44px] bg-slate-600 text-white rounded-xl font-bold shadow-sm active:scale-95 transition-transform flex items-center justify-center hover:bg-slate-700 relative"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
+            {!weightLoggedToday && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-pulse shadow-lg shadow-amber-400/50" />
+            )}
           </button>
         </div>
       </div>
 
-      {/* Mobile: Compact Stats Widget */}
+      {/* Mobile: Actionable Cards for Food & Water */}
       <div className="md:hidden">
-        <CompactStatsWidget stats={stats} dailyLog={dailyLog} todayPlan={todayPlan} />
+        <MobileActionCards
+          stats={stats}
+          dailyLog={dailyLog}
+          todayPlan={todayPlan}
+          onOpenFoodModal={() => setIsFoodModalOpen(true)}
+          onAddWater={handleAddWater}
+        />
       </div>
 
       {/* Desktop: Hero Stats - Unified 4-Column Grid */}
@@ -594,8 +607,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-8 border-b border-border flex justify-between items-center bg-surface">
-                <h3 className="font-normal text-2xl text-main font-serif">Update Weight</h3>
+              <div className="p-4 md:p-6 border-b border-border flex justify-between items-center bg-surface">
+                <h3 className="font-normal text-xl md:text-2xl text-main font-serif">Update Weight</h3>
                 <button
                   onClick={() => setIsWeightModalOpen(false)}
                   className="p-2 bg-surface border border-border rounded-full text-muted hover:text-main transition-colors"
@@ -606,7 +619,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                   </svg>
                 </button>
               </div>
-              <div className="p-8 space-y-6">
+              <div className="p-4 md:p-6 space-y-4 md:space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-main mb-2">Current Weight (kg)</label>
                   <input
@@ -622,7 +635,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                   <p className="text-xs text-muted mt-2 ml-1">Enter your current weight to update your progress</p>
                 </div>
               </div>
-              <div className="p-8 pt-0 flex gap-4">
+              <div className="p-4 md:p-6 pt-0 flex gap-3 md:gap-4">
                 <button
                   onClick={() => setIsWeightModalOpen(false)}
                   className="flex-1 py-3 bg-neutral-100 dark:bg-neutral-800 text-main font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
