@@ -81,7 +81,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
         const maxProjectionDays = 7;
         const daysToShow = Math.min(weightAnalysis.daysToGoal, maxProjectionDays);
         const weightToLose = currentWeight - stats.goalWeight;
-        const dailyLossRate = weightToLose / weightAnalysis.daysToGoal;
+        const dailyLossRate = weightAnalysis.projectedDailyRate || (weightToLose / weightAnalysis.daysToGoal);
 
         const today = new Date(lastEntry.date);
 

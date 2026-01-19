@@ -12,6 +12,7 @@ export interface WeightAnalysis {
   projectedGoalDate: string | null; // YYYY-MM-DD
   daysToGoal: number | null;
   trend: 'losing' | 'maintaining' | 'gaining' | 'insufficient-data';
+  projectedDailyRate: number; // kg per day (positive = losing in this context, or maybe handle sign consistently)
 }
 
 /**
@@ -103,6 +104,7 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
   let trend: WeightAnalysis['trend'] = 'insufficient-data';
   let projectedGoalDate: string | null = null;
   let daysToGoal: number | null = null;
+  let projectedDailyRate = 0;
 
   if (weightHistory && weightHistory.length >= 2) {
     // Sort by date
@@ -115,16 +117,44 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
     const daysDiff = (new Date(lastEntry.date).getTime() - new Date(firstEntry.date).getTime()) / (1000 * 60 * 60 * 24);
 
     if (daysDiff >= 3) { // At least 3 days of data
+
+      // Filter for recent history (last 30 days) to reflect current trend
+      // rather than all-time average which might be outdated
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      let recentHistory = sortedHistory.filter(entry => new Date(entry.date) >= thirtyDaysAgo);
+
+      // Fallback to full history if insufficient recent data (need at least 3 points for meaningful trend)
+      // Check if recent history covers enough time span (at least 3 days span)
+      let usedHistory = recentHistory;
+      if (recentHistory.length < 3) {
+        usedHistory = sortedHistory;
+      } else {
+        const firstRecent = recentHistory[0];
+        const lastRecent = recentHistory[recentHistory.length - 1];
+        const recentSpan = (new Date(lastRecent.date).getTime() - new Date(firstRecent.date).getTime()) / (1000 * 60 * 60 * 24);
+        if (recentSpan < 3) {
+          usedHistory = sortedHistory;
+        }
+      }
+
       // Use linear regression for more accurate trend
-      const { slope, rSquared } = linearRegression(sortedHistory);
+      const { slope, rSquared } = linearRegression(usedHistory);
 
       // slope is in kg per day, convert to kg per week
       avgWeeklyLoss = -slope * 7; // Negative slope means weight going down (losing)
 
       // Cap at realistic maximum (1kg/week is aggressive but achievable)
       // This prevents unrealistic projections from initial water weight loss
-      const MAX_WEEKLY_LOSS = 1.0; // kg per week
+      avgWeeklyLoss = -slope * 7; // Negative slope means weight going down (losing)
+
+      // Cap at realistic maximum (1.5kg/week is aggressive but achievable)
+      // This prevents unrealistic projections from initial water weight loss
+      const MAX_WEEKLY_LOSS = 1.5; // kg per week
       const cappedWeeklyLoss = Math.min(Math.abs(avgWeeklyLoss), MAX_WEEKLY_LOSS);
+
+      projectedDailyRate = avgWeeklyLoss > 0 ? cappedWeeklyLoss / 7 : 0;
 
       // Determine trend
       if (avgWeeklyLoss > 0.1) {
@@ -158,7 +188,8 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
     avgWeeklyLoss,
     projectedGoalDate,
     daysToGoal,
-    trend
+    trend,
+    projectedDailyRate
   };
 }
 

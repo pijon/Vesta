@@ -75,6 +75,12 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
                         <div className="absolute bottom-0 left-0 right-0 p-8 pt-0">
                             <div className="flex gap-2 mb-3">
+                                {!isOwned && recipe.ownerName && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-indigo-100 border border-indigo-200/30 backdrop-blur-md bg-indigo-500/30">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                        {recipe.ownerName}
+                                    </span>
+                                )}
                                 {recipe.tags?.map(tag => (
                                     <span key={tag} className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-white border border-white/30 backdrop-blur-md bg-white/10`}>{tag}</span>
                                 ))}
