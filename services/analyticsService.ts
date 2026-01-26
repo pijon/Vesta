@@ -1,4 +1,5 @@
-import { getFastingHistory, getUserStats, getAllDailySummaries, DailySummary } from './storageService';
+import { DailySummary } from '../types';
+import { getFastingHistory, getUserStats, getAllDailySummaries } from './storageService';
 
 export interface AnalyticsDataPoint {
     date: string;

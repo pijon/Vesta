@@ -6,7 +6,7 @@ import { getAnalyticsData, getGoalProjection } from '../services/analyticsServic
 import { analyzeWeightTrends, getWeeklySummary, getMonthlySummary, enhancePeriodSummaryWithWeight } from '../utils/analytics';
 import { GoalProjectionCard } from './analytics/GoalProjectionCard';
 import { PeriodicComparison } from './analytics/PeriodicComparison';
-import { DeficitSurplusChart } from './analytics/DeficitSurplusChart';
+import { CalorieBalanceChart } from './analytics/CalorieBalanceChart';
 
 interface TrackTrendsProps {
   todayPlan: DayPlan;
@@ -279,7 +279,7 @@ export const TrackTrends: React.FC<TrackTrendsProps> = ({ stats, dailyLog }) => 
       </div>
 
       {/* NEW: Deficit/Surplus Chart */}
-      <DeficitSurplusChart summaries={dailySummaries} dailyGoal={stats.dailyCalorieGoal} />
+      <CalorieBalanceChart summaries={dailySummaries} dailyGoal={stats.dailyCalorieGoal} />
 
       {/* Workout Activity Chart */}
       <div className="bg-surface p-8 rounded-3xl border border-border shadow-sm">

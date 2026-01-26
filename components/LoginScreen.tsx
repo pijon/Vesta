@@ -25,16 +25,16 @@ export const LoginScreen: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-stone-50 dark:bg-[#1A1714] flex flex-col items-center justify-center p-4">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md bg-surface p-8 rounded-2xl shadow-xl border border-border"
+                className="w-full max-w-md bg-white dark:bg-white/5 p-8 rounded-2xl shadow-xl border border-border"
             >
                 <div className="text-center mb-8">
                     <img src="/resources/logo_light.png" alt="Vesta Logo" className="h-12 w-auto mx-auto mb-4" />
-                    <h1 className="text-2xl font-serif font-medium text-main">Welcome Back</h1>
-                    <p className="text-muted text-sm mt-2">Sign in to access your tracker</p>
+                    <h1 className="text-2xl font-serif font-medium text-charcoal dark:text-stone-200">Welcome Back</h1>
+                    <p className="text-charcoal/60 dark:text-stone-400 text-sm mt-2">Sign in to access your tracker</p>
                 </div>
 
                 {error && (
@@ -46,23 +46,23 @@ export const LoginScreen: React.FC = () => {
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-main/80 mb-2">Email</label>
+                        <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                            className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200"
                             placeholder="you@example.com"
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-main/80 mb-2">Password</label>
+                        <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                            className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200"
                             placeholder="••••••••"
                             required
                         />

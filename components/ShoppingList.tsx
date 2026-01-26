@@ -21,6 +21,8 @@ interface PlanMeal {
   name: string;
   date: string;
   ingredients: string[];
+  servings?: number;
+  cookingServings?: number;
 }
 
 export const ShoppingList: React.FC = () => {
@@ -150,7 +152,9 @@ export const ShoppingList: React.FC = () => {
             id: meal.id,
             name: meal.name,
             date: day.date,
-            ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : []
+            ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
+            servings: meal.servings,
+            cookingServings: meal.cookingServings
           });
         });
       }
@@ -182,13 +186,21 @@ export const ShoppingList: React.FC = () => {
       await saveEnhancedShoppingState(newShoppingState);
 
       // Extract ingredients from selected meals
-      const ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string }> = [];
+      const ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string, scale: number }> = [];
       selectedMeals.forEach(meal => {
+        // Calculate scale factor: cookingServings / servings. Default to 1 if missing.
+        const baseServings = meal.servings || 1;
+        const targetServings = meal.cookingServings || baseServings;
+        const scale = targetServings / baseServings;
+
+        console.log(`Scaling ${meal.name}: ${targetServings}/${baseServings} = ${scale}`);
+
         meal.ingredients.forEach(ing => {
           ingredientsToProcess.push({
             text: ing,
             recipeId: meal.id,
-            recipeName: meal.name
+            recipeName: meal.name,
+            scale: scale
           });
         });
       });
@@ -204,7 +216,7 @@ export const ShoppingList: React.FC = () => {
     }
   };
 
-  const processIngredients = async (ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string }>) => {
+  const processIngredients = async (ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string, scale: number }>) => {
     // Parse ingredients
     const texts = ingredientsToProcess.map(r => r.text);
     const parsed = await parseIngredients(texts);
@@ -222,7 +234,7 @@ export const ShoppingList: React.FC = () => {
       id: crypto.randomUUID(),
       originalText: ingredientsToProcess[index].text,
       name: p.name,
-      quantity: p.quantity,
+      quantity: p.quantity * ingredientsToProcess[index].scale, // Apply scaling
       unit: p.unit,
       recipeId: ingredientsToProcess[index].recipeId,
       recipeName: ingredientsToProcess[index].recipeName
@@ -383,6 +395,26 @@ export const ShoppingList: React.FC = () => {
     setPurchasableItems(purchasableItems.filter(item => item.ingredientName !== ingredientName));
   };
 
+  const handleUpdateItem = async (ingredientName: string, newQuantityString: string) => {
+    const currentItems = [...purchasableItems];
+    const itemIndex = currentItems.findIndex(i => i.ingredientName === ingredientName);
+    if (itemIndex >= 0) {
+      currentItems[itemIndex] = {
+        ...currentItems[itemIndex],
+        purchasableQuantity: newQuantityString // Override display quantity/string
+      };
+      setPurchasableItems(currentItems);
+
+      // Persist to cache
+      const newState = {
+        ...shoppingState,
+        cachedPurchasableItems: currentItems
+      };
+      setShoppingState(newState);
+      await saveEnhancedShoppingState(newState);
+    }
+  };
+
   const handleCopyItem = (item: PurchasableItem) => {
     if (navigator.clipboard) {
       const text = `${item.purchasableQuantity || item.requiredQuantity} ${item.ingredientName}`;
@@ -450,24 +482,19 @@ export const ShoppingList: React.FC = () => {
     availableMeals.forEach(meal => {
       if (!mealsByDate.has(meal.date)) {
         mealsByDate.set(meal.date, []);
+        mealsByDate.get(meal.date)!.push(meal);
+      } else {
+        mealsByDate.get(meal.date)!.push(meal);
       }
-      mealsByDate.get(meal.date)!.push(meal);
     });
 
     return (
       <div className="space-y-8 pb-20 animate-fade-in">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h2 className="heading-1">Shopping List</h2>
-            <p className="text-muted font-medium mt-2">Select which meals to shop for</p>
-          </div>
-        </header>
-
         {/* Info Card */}
         {availableMeals.length === 0 ? (
-          <div className="p-12 text-center text-muted bg-surface rounded-2xl border border-dashed border-border">
+          <div className="p-12 text-center text-charcoal/60 dark:text-stone-400 bg-white dark:bg-white/5 rounded-2xl border border-dashed border-border">
             <div className="text-4xl mb-4">🍽️</div>
-            <p className="text-lg font-medium text-main mb-2">No meals found</p>
+            <p className="text-lg font-medium text-charcoal dark:text-stone-200 mb-2">No meals found</p>
             <p className="text-sm">Go to the Planner to add meals for the upcoming week.</p>
           </div>
         ) : (
@@ -484,7 +511,7 @@ export const ShoppingList: React.FC = () => {
                 <span className="text-border">|</span>
                 <button
                   onClick={() => handleSelectAll(false)}
-                  className="text-sm text-muted hover:text-main px-2 py-1 rounded transition-colors"
+                  className="text-sm text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 px-2 py-1 rounded transition-colors"
                 >
                   Deselect All
                 </button>
@@ -494,7 +521,7 @@ export const ShoppingList: React.FC = () => {
             <div className="space-y-6">
               {Array.from(mealsByDate.entries()).sort().map(([date, meals]) => (
                 <div key={date} className="space-y-3">
-                  <h4 className="text-sm font-bold text-muted uppercase tracking-wider pl-1">
+                  <h4 className="text-sm font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider pl-1">
                     {new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                   </h4>
                   <div className="grid gap-3 md:gap-4">
@@ -508,7 +535,7 @@ export const ShoppingList: React.FC = () => {
                                         group flex items-center justify-between p-5 rounded-xl border cursor-pointer transition-all duration-200
                                         ${isSelected
                               ? 'bg-primary/5 border-primary shadow-sm'
-                              : 'bg-surface border-border hover:border-primary/50 hover:shadow-md'
+                              : 'bg-white dark:bg-white/5 border-border hover:border-primary/50 hover:shadow-md'
                             }
                                       `}
                         >
@@ -525,10 +552,10 @@ export const ShoppingList: React.FC = () => {
                             </div>
 
                             <div>
-                              <div className={`font-medium text-lg ${isSelected ? 'text-primary-dark' : 'text-main'}`}>
+                              <div className={`font-medium text-lg ${isSelected ? 'text-primary' : 'text-charcoal dark:text-stone-200'}`}>
                                 {meal.name}
                               </div>
-                              <div className="text-sm text-muted mt-1">
+                              <div className="text-sm text-charcoal/60 dark:text-stone-400 mt-1">
                                 {meal.ingredients.length > 0
                                   ? `${meal.ingredients.length} ingredients`
                                   : 'No ingredients listed'
@@ -546,7 +573,7 @@ export const ShoppingList: React.FC = () => {
 
             {/* Generate Button */}
             <div className="sticky bottom-6 flex justify-center pt-8 pb-4 z-20 pointer-events-none">
-              <div className="bg-surface/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/10 pointer-events-auto">
+              <div className="bg-white dark:bg-white/5/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/10 pointer-events-auto">
                 <button
                   onClick={handleAnalyzeIngredients}
                   disabled={isProcessing || selectedMealIds.size === 0}
@@ -585,14 +612,9 @@ export const ShoppingList: React.FC = () => {
   if (isProcessing) {
     return (
       <div className="space-y-8 pb-20 animate-fade-in">
-        <header>
-          <h2 className="text-4xl font-normal text-main tracking-tight font-serif">Shopping List</h2>
-          <p className="text-muted font-medium mt-1">Your smart grocery assistant</p>
-        </header>
-
         <div className="p-12 text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-primary mb-4"></div>
-          <p className="text-muted font-medium">{loadingMessage}</p>
+          <p className="text-charcoal/60 dark:text-stone-400 font-medium">{loadingMessage}</p>
         </div>
       </div>
     );
@@ -602,12 +624,7 @@ export const ShoppingList: React.FC = () => {
   if (error) {
     return (
       <div className="space-y-8 pb-20 animate-fade-in">
-        <header className="section-header">
-          <h2 className="section-title">Shopping List</h2>
-          <p className="section-description">Your smart grocery assistant</p>
-        </header>
-
-        <div className="p-8 text-center text-red-600 bg-red-50 rounded-2xl border border-red-200">
+        <div className="p-8 text-center text-error bg-error-bg rounded-2xl border border-error-border">
           <div className="text-3xl mb-2">⚠️</div>
           <p className="font-medium mb-2">Error</p>
           <p className="text-sm">{error}</p>
@@ -623,36 +640,28 @@ export const ShoppingList: React.FC = () => {
   }
 
 
-
-
-
-
   // Phase 1: Requirements Review
   if (phase === 'requirements') {
     return (
       <div className="space-y-8 pb-20 animate-fade-in">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h2 className="text-4xl font-medium text-main tracking-tight font-serif">Review Requirements</h2>
-            <p className="text-muted font-medium mt-1">Mark what you already have in your pantry</p>
-          </div>
+        <div className="flex justify-end mb-4">
           <button
             onClick={handleResetList}
-            className="text-sm font-semibold text-main bg-surface border border-border px-4 py-2 rounded-xl hover:bg-background transition-colors self-start md:self-auto shadow-sm"
+            className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors shadow-sm"
           >
             Reset All
           </button>
-        </header>
+        </div>
 
         {/* Summary */}
         <div className="grid grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-surface border border-primary/20 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-white/5 border border-primary/20 rounded-2xl p-6 shadow-sm">
             <div className="text-primary text-sm font-medium mb-1 uppercase tracking-wider">In Pantry</div>
-            <div className="text-4xl font-bold text-main">{inPantryItems.length}</div>
+            <div className="text-4xl font-bold text-charcoal dark:text-stone-200">{inPantryItems.length}</div>
           </div>
-          <div className="bg-surface border border-amber-500/20 rounded-2xl p-6 shadow-sm">
-            <div className="text-amber-500 text-sm font-medium mb-1 uppercase tracking-wider">Need to Buy</div>
-            <div className="text-4xl font-bold text-main">{needToBuyItems.length}</div>
+          <div className="bg-white dark:bg-white/5 border border-warning/20 rounded-2xl p-6 shadow-sm">
+            <div className="text-warning text-sm font-medium mb-1 uppercase tracking-wider">Need to Buy</div>
+            <div className="text-4xl font-bold text-charcoal dark:text-stone-200">{needToBuyItems.length}</div>
           </div>
         </div>
 
@@ -673,8 +682,8 @@ export const ShoppingList: React.FC = () => {
           {needToBuyItems.length === 0 ? (
             <div className="text-center">
               <div className="text-5xl mb-4">🎉</div>
-              <p className="text-xl font-medium text-main mb-2">You have everything!</p>
-              <p className="text-base text-muted">All ingredients are in your pantry.</p>
+              <p className="text-xl font-medium text-charcoal dark:text-stone-200 mb-2">You have everything!</p>
+              <p className="text-base text-charcoal/60 dark:text-stone-400">All ingredients are in your pantry.</p>
             </div>
           ) : (
             <button
@@ -692,38 +701,32 @@ export const ShoppingList: React.FC = () => {
   // Phase 2: Shopping List
   return (
     <div className="space-y-6 pb-20 animate-fade-in">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-4xl font-medium text-main tracking-tight font-serif">Shopping List</h2>
-          <p className="text-muted font-medium mt-1">Purchase these items at the store</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPhase('requirements')}
-            className="text-sm font-semibold text-main bg-surface border border-border px-4 py-2 rounded-xl hover:bg-background transition-colors"
-          >
-            ← Back to Review
-          </button>
-          <button
-            onClick={handleResetList}
-            className="text-sm font-semibold text-main bg-surface border border-border px-4 py-2 rounded-xl hover:bg-background transition-colors"
-          >
-            Reset
-          </button>
-        </div>
-      </header>
+      <div className="flex justify-end gap-2 mb-4">
+        <button
+          onClick={() => setPhase('requirements')}
+          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
+        >
+          ← Back to Review
+        </button>
+        <button
+          onClick={handleResetList}
+          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
+        >
+          Reset
+        </button>
+      </div>
 
       {purchasableItems.length === 0 ? (
-        <div className="p-12 text-center text-muted border-2 border-dashed border-border rounded-xl">
+        <div className="p-12 text-center text-charcoal/60 dark:text-stone-400 border-2 border-dashed border-border rounded-xl">
           <div className="text-4xl mb-4">✨</div>
-          <p className="text-lg font-medium text-main mb-2">Perfect!</p>
+          <p className="text-lg font-medium text-charcoal dark:text-stone-200 mb-2">Perfect!</p>
           <p className="text-sm">You already have everything you need.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="bg-surface rounded-3xl shadow-sm border border-border overflow-hidden p-6">
+          <div className="bg-white dark:bg-white/5 rounded-3xl shadow-sm border border-border overflow-hidden p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-normal text-main font-serif text-lg">Items to Purchase ({purchasableItems.length})</h3>
+              <h3 className="font-normal text-charcoal dark:text-stone-200 font-serif text-lg">Items to Purchase ({purchasableItems.length})</h3>
             </div>
 
             <motion.div layout className="grid gap-3">
@@ -741,6 +744,7 @@ export const ShoppingList: React.FC = () => {
                       recipes={recipeNames}
                       onRemove={() => handleRemoveItem(item.ingredientName)}
                       onCopy={() => handleCopyItem(item)}
+                      onUpdate={(newVal) => handleUpdateItem(item.ingredientName, newVal)}
                     />
                   );
                 })}

@@ -18,15 +18,15 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
     <div
       className={`border rounded-2xl p-4 transition-all ${inPantry
           ? 'bg-primary/5 border-primary/20'
-          : 'bg-surface border-border'
+          : 'bg-white dark:bg-white/5 border-border'
         }`}
     >
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
-          <h3 className="font-medium text-main capitalize">
+          <h3 className="font-medium text-charcoal dark:text-stone-200 capitalize">
             {ingredient.name}
           </h3>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-charcoal/60 dark:text-stone-400">
             {ingredient.totalQuantity} {ingredient.unit}
           </p>
         </div>
@@ -35,7 +35,7 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
           onClick={() => onTogglePantry(ingredient.name, !inPantry)}
           className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${inPantry
               ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-surface-highlight text-muted hover:text-main hover:bg-surface-highlight/80'
+              : 'bg-white dark:bg-white/5-highlight text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 hover:bg-white dark:bg-white/5-highlight/80'
             }`}
         >
           {inPantry ? '✓ Have This' : 'Need to Buy'}
@@ -56,7 +56,7 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
               {ingredient.recipes.map((recipe) => (
                 <div
                   key={recipe.id}
-                  className="text-xs text-muted pl-3 border-l-2 border-primary/20"
+                  className="text-xs text-charcoal/60 dark:text-stone-400 pl-3 border-l-2 border-primary/20"
                 >
                   {recipe.name}: {recipe.quantity} {ingredient.unit}
                 </div>

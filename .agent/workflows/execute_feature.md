@@ -15,8 +15,9 @@ Your specific directive is to translate the PRP into working React / Tailwind co
 *Before writing code, load your context:*
 1.  **Ingest Spec:** Read the PRP file ($1) completely.
 2.  **Ingest Context:** Read `types.ts`, `constants.ts`, and `rules.md`.
-3.  **Ingest Design:** Review `index.css` to understand available Glassmorphism classes and variables.
-4.  **Sanity Check:**
+3.  **[MANDATORY] Ingest Design System:** Read `.agent/knowledge/design_system.md` - ALL UI must comply with Digital Hearth rules.
+4.  **Ingest Design:** Review `index.css` to understand available Glassmorphism classes and variables.
+5.  **Sanity Check:**
     *   **Components:** Do we have the necessary UI primitives (Buttons, Cards)?
     *   **Dependencies:** Are there any new npm packages needed? (Avoid if possible).
     *   **Action:** If the PRP is missing design details (e.g., "what color is this?"), **STOP** and ask.
@@ -35,6 +36,7 @@ Your specific directive is to translate the PRP into working React / Tailwind co
 3.  **Validate (Crucial):**
     *   **Type Check:** Ensure no explicit `any` types.
     *   **Console Check:** Code must run without React warnings/errors.
+    *   **Design System Check:** Verify compliance with `.agent/knowledge/design_system.md` (correct colors, serif headings, dark mode support).
     *   **Visual Check:**
         *   Does it look "Premium"?
         *   Is it responsive?

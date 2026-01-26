@@ -3,18 +3,21 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
+import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { TrackAnalytics } from './components/TrackAnalytics';
 import { Planner } from './components/Planner';
 import { RecipeLibrary } from './components/RecipeLibrary';
 import { ShoppingList } from './components/ShoppingList';
-import { DesktopSidebar } from './components/DesktopSidebar';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { APP_NAME, DEFAULT_USER_STATS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import { FoodEntryModal } from './components/FoodEntryModal';
+import { WorkoutEntryModal } from './components/WorkoutEntryModal';
+import { WeightEntryModal } from './components/WeightEntryModal';
 
 
 import { FamilySettings } from './components/FamilySettings';
@@ -62,6 +65,13 @@ const TrackerApp: React.FC = () => {
     const [todayPlan, setTodayPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>({ date: '', meals: [], completedMealIds: [] });
 
+    // Global Modal State
+    const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
+    const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
+    const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+    const [editingWorkout, setEditingWorkout] = useState<WorkoutItem | null>(null);
+    const [recentWorkouts, setRecentWorkouts] = useState<WorkoutItem[]>([]);
+
     const [userStats, setUserStatsState] = useState<UserStats>(DEFAULT_USER_STATS);
     const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -88,6 +98,16 @@ const TrackerApp: React.FC = () => {
     const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
     const [dailyLog, setDailyLog] = useState<DailyLog>({ date: '', items: [] });
+
+    useEffect(() => {
+        // Load recent workouts for suggestion
+        const loadRecents = async () => {
+            const { getRecentWorkouts } = await import('./services/storageService');
+            const recents = await getRecentWorkouts(5);
+            setRecentWorkouts(recents);
+        };
+        loadRecents();
+    }, [dailyLog.workouts]);
 
     const refreshData = async () => {
         const [today, tomorrow, stats, log, fasting] = await Promise.all([
@@ -140,15 +160,27 @@ const TrackerApp: React.FC = () => {
     };
 
     const handleAddFoodLogItems = async (items: FoodLogItem[]) => {
+        const now = Date.now();
+        let currentFastingMax = dailyLog.maxFastingHours || 0;
+
+        // Check active fast duration before breaking it
+        if (fastingState.lastAteTime) {
+            const diffHours = (now - fastingState.lastAteTime) / (1000 * 60 * 60);
+            if (diffHours > currentFastingMax) {
+                currentFastingMax = diffHours;
+            }
+        }
+
         const updatedLog: DailyLog = {
             ...dailyLog,
-            items: [...dailyLog.items, ...items]
+            items: [...dailyLog.items, ...items],
+            maxFastingHours: currentFastingMax
         };
         setDailyLog(updatedLog);
         await saveDailyLog(updatedLog);
 
-        // Update TRE tracking - food was just logged
-        await updateLastAteTime(Date.now());
+        // Update TRE tracking - food was just logged (this saves history)
+        await updateLastAteTime(now);
     };
 
     const handleAddWorkout = async (workout: WorkoutItem) => {
@@ -181,32 +213,62 @@ const TrackerApp: React.FC = () => {
     const handleLogMeal = async (meal: Recipe, isAdding: boolean) => {
         // Use current state instead of fetching fresh to avoid extra DB read
         let newItems = [...(dailyLog.items || [])];
+        let currentFastingMax = dailyLog.maxFastingHours || 0;
 
         if (isAdding) {
+            const now = Date.now();
             newItems.push({
                 id: crypto.randomUUID(),
                 name: meal.name,
                 calories: meal.calories,
-                timestamp: Date.now()
+                timestamp: now
             });
+
+            // Check active fast duration before breaking it
+            if (fastingState.lastAteTime) {
+                const diffHours = (now - fastingState.lastAteTime) / (1000 * 60 * 60);
+                if (diffHours > currentFastingMax) {
+                    currentFastingMax = diffHours;
+                }
+            }
+
             // Update TRE tracking when adding a meal
-            await updateLastAteTime(Date.now());
+            await updateLastAteTime(now);
         } else {
             for (let i = newItems.length - 1; i >= 0; i--) {
                 if (newItems[i].name === meal.name && newItems[i].calories === meal.calories) {
                     newItems.splice(i, 1);
+                    // When removing, we don't recalculate maxFastingHours or revert persistence
+                    // as the fast WAS broken/achieved at that time.
                     break;
                 }
             }
         }
 
-        const updatedLog = { ...dailyLog, items: newItems };
+        const updatedLog = { ...dailyLog, items: newItems, maxFastingHours: currentFastingMax };
         setDailyLog(updatedLog);
         await saveDailyLog(updatedLog);
     };
 
     const handleUpdateWeight = (weight: number) => {
         handleUpdateStats({ ...userStats, currentWeight: weight });
+    };
+
+    const handleAddWater = async (amount: number) => {
+        const newIntake = (dailyLog.waterIntake || 0) + amount;
+        const updatedLog = { ...dailyLog, waterIntake: newIntake };
+        setDailyLog(updatedLog);
+        await saveDailyLog(updatedLog);
+        // refreshData is called by saveDailyLog effect usually, but here we update local state immediately
+    };
+
+    const handleWorkoutSave = (workout: WorkoutItem) => {
+        if (editingWorkout) {
+            handleUpdateWorkout(workout);
+        } else {
+            handleAddWorkout(workout);
+        }
+        setEditingWorkout(null);
     };
 
     const updateLastAteTime = async (timestamp: number) => {
@@ -282,6 +344,20 @@ const TrackerApp: React.FC = () => {
             };
             setDailyLog(updatedLog);
             await saveDailyLog(updatedLog);
+
+            // Update lastAteTime to the latest food item time
+            if (updatedLog.items.length > 0) {
+                const latestItem = updatedLog.items.reduce((prev, current) =>
+                    (prev.timestamp > current.timestamp) ? prev : current
+                );
+
+                const newState: FastingState = {
+                    ...fastingState,
+                    lastAteTime: latestItem.timestamp
+                };
+                setFastingState(newState);
+                await saveFastingState(newState);
+            }
         },
         onDeleteFoodItem: async (itemId: string) => {
             const updatedLog = {
@@ -290,94 +366,89 @@ const TrackerApp: React.FC = () => {
             };
             setDailyLog(updatedLog);
             await saveDailyLog(updatedLog);
+
+            // Update lastAteTime to the latest food item time (if any remain)
+            // If no items remain today, we technically don't know the *previous* lastAteTime (yesterday),
+            // so we leave it as is, or we could fetch yesterday's log. 
+            // For now, updating to latest of today if exists is a partial fix.
+            if (updatedLog.items.length > 0) {
+                const latestItem = updatedLog.items.reduce((prev, current) =>
+                    (prev.timestamp > current.timestamp) ? prev : current
+                );
+
+                const newState: FastingState = {
+                    ...fastingState,
+                    lastAteTime: latestItem.timestamp
+                };
+                setFastingState(newState);
+                await saveFastingState(newState);
+            }
         },
         onAddWorkout: handleAddWorkout,
         onUpdateWorkout: handleUpdateWorkout,
         onDeleteWorkout: handleDeleteWorkout,
         onUpdateFastingConfig: handleUpdateFastingConfig,
         refreshData,
-        onNavigate: handleNavigate
+        onNavigate: handleNavigate,
+        // Modal Handlers
+        onOpenFoodModal: () => setIsFoodModalOpen(true),
+        onOpenWorkoutModal: (workout?: WorkoutItem) => {
+            if (workout) setEditingWorkout(workout);
+            else setEditingWorkout(null);
+            setIsWorkoutModalOpen(true);
+        },
+        onOpenWeightModal: () => setIsWeightModalOpen(true),
+        onAddWater: handleAddWater, // Direct action
     };
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 18) return 'Good Afternoon';
+        return 'Good Evening';
+    };
+
+    const getHeaderInfo = () => {
+        const greeting = `${getGreeting()}, ${userStats.name || 'Family'}`;
+
+        switch (view) {
+            case AppView.TODAY:
+                return { title: greeting, subtitle: 'Today\'s Log' };
+            case AppView.ANALYTICS:
+                return { title: greeting, subtitle: 'Analytics & Trends' };
+            case AppView.PLANNER:
+                return { title: greeting, subtitle: 'Meal Planner' };
+            case AppView.RECIPES:
+                return { title: greeting, subtitle: 'Recipe Library' };
+            case AppView.SHOPPING:
+                return { title: greeting, subtitle: 'Shopping List' };
+            case AppView.SETTINGS:
+                return { title: greeting, subtitle: 'Settings & Preferences' };
+            default:
+                return { title: greeting, subtitle: 'Digital Hearth' };
+        }
+    };
+
+    const headerInfo = getHeaderInfo();
 
     return (
         <div className="min-h-screen md:flex font-sans">
             {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} />}
 
-            {/* Desktop Sidebar */}
-
-            <DesktopSidebar
-                currentView={view}
-                onNavigate={handleNavigate}
-                onOpenSettings={() => handleNavigate(AppView.SETTINGS)}
-                isDarkMode={isDarkMode}
-                onToggleDarkMode={toggleDarkMode}
-            />
-
 
             {/* Main Content Wrapper */}
-            <div className="w-full md:ml-60">
-                {/* Top Bar - Mobile only */}
-                <nav className="md:hidden sticky top-0 z-40 bg-surface-glass border-b border-border backdrop-blur-md">
-                    <div className="px-4 h-16 flex items-center justify-between">
-                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => handleNavigate(AppView.TODAY)}>
-                            <img
-                                src={isDarkMode ? "/resources/logo_dark.png" : "/resources/logo_light.png"}
-                                alt="Vesta Logo"
-                                className="h-7 w-auto transition-transform group-hover:scale-105"
-                            />
-                            <h1 className="text-xl font-medium tracking-tight text-main leading-none">
-                                Vesta
-                            </h1>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            {/* Dark Mode Toggle */}
-                            <button
-                                onClick={toggleDarkMode}
-                                className="h-10 w-10 rounded-full bg-surface border border-border flex items-center justify-center text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
-                                title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-                            >
-                                {isDarkMode ? (
-                                    // Sun icon for light mode
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="12" cy="12" r="5"></circle>
-                                        <line x1="12" y1="1" x2="12" y2="3"></line>
-                                        <line x1="12" y1="21" x2="12" y2="23"></line>
-                                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                                        <line x1="1" y1="12" x2="3" y2="12"></line>
-                                        <line x1="21" y1="12" x2="23" y2="12"></line>
-                                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                                    </svg>
-                                ) : (
-                                    // Moon icon for dark mode
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                    </svg>
-                                )}
-                            </button>
-
-                            {/* Settings */}
-                            <button
-                                onClick={() => handleNavigate(AppView.SETTINGS)}
-                                className={`h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm border ${view === AppView.SETTINGS
-                                    ? 'bg-primary text-white border-primary'
-                                    : 'bg-surface border-border text-muted hover:text-primary hover:bg-primary/5 hover:border-primary/20'
-                                    }`}
-                                title="Settings"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </nav>
-
+            <div className="w-full">
                 {/* Main Content */}
-                <main className="pb-24 md:pb-10">
+                <main className="pb-32 pt-8 md:pt-12">
+                    <div className="max-w-6xl mx-auto px-4 md:px-8">
+                        <Header
+                            title={headerInfo.title}
+                            subtitle={headerInfo.subtitle}
+                            isDarkMode={isDarkMode}
+                            onToggleDarkMode={toggleDarkMode}
+                            onNavigate={handleNavigate}
+                        />
+                    </div>
                     <AnimatePresence mode="wait">
                         {view === AppView.TODAY && (
                             <motion.div
@@ -386,9 +457,9 @@ const TrackerApp: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto p-4 md:p-8"
+                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
                             >
-                                <TrackToday {...trackProps} />
+                                <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
                             </motion.div>
                         )}
                         {view === AppView.ANALYTICS && (
@@ -398,7 +469,7 @@ const TrackerApp: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto p-4 md:p-8"
+                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
                             >
                                 <TrackAnalytics {...trackProps} />
                             </motion.div>
@@ -410,7 +481,7 @@ const TrackerApp: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto p-4 md:p-8"
+                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
                             >
                                 <Planner stats={userStats} />
                             </motion.div>
@@ -422,7 +493,7 @@ const TrackerApp: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto p-4 md:p-8"
+                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
                             >
                                 <RecipeLibrary />
                             </motion.div>
@@ -434,7 +505,7 @@ const TrackerApp: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto p-4 md:p-8"
+                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
                             >
                                 <ShoppingList />
                             </motion.div>
@@ -446,7 +517,7 @@ const TrackerApp: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto p-4 md:p-8"
+                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
                             >
                                 <SettingsView
                                     stats={userStats}
@@ -462,8 +533,35 @@ const TrackerApp: React.FC = () => {
                 </main>
 
                 {/* Mobile Bottom Navigation */}
-                <MobileBottomNav currentView={view} onNavigate={handleNavigate} />
-                {/* Settings Modal Removed */}
+                <MobileBottomNav
+                    currentView={view}
+                    onNavigate={handleNavigate}
+                />
+
+                {/* Global Modals */}
+                <FoodEntryModal
+                    isOpen={isFoodModalOpen}
+                    onClose={() => setIsFoodModalOpen(false)}
+                    onAddItems={handleAddFoodLogItems}
+                />
+
+                <WorkoutEntryModal
+                    isOpen={isWorkoutModalOpen}
+                    onClose={() => {
+                        setIsWorkoutModalOpen(false);
+                        setEditingWorkout(null);
+                    }}
+                    onSave={handleWorkoutSave}
+                    editingWorkout={editingWorkout}
+                    recentWorkouts={recentWorkouts}
+                />
+
+                <WeightEntryModal
+                    isOpen={isWeightModalOpen}
+                    onClose={() => setIsWeightModalOpen(false)}
+                    currentWeight={userStats.currentWeight}
+                    onSave={handleUpdateWeight}
+                />
             </div>
         </div>
     );

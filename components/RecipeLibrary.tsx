@@ -10,6 +10,8 @@ import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
+import { GlassCard } from './GlassCard';
+
 
 
 interface RecipeLibraryProps {
@@ -20,6 +22,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [familyRecipes, setFamilyRecipes] = useState<Recipe[]>([]);
   const [userGroup, setUserGroup] = useState<Group | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isAdding, setIsAdding] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -45,10 +48,11 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   }, []);
 
   const loadData = async () => {
-    const userRecipes = await getRecipes();
-    setRecipes(userRecipes);
-
+    setIsLoading(true);
     try {
+      const userRecipes = await getRecipes();
+      setRecipes(userRecipes);
+
       const group = await getUserGroup();
       setUserGroup(group);
       if (group) {
@@ -57,6 +61,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       }
     } catch (e) {
       console.error("Failed to load group data:", e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -267,11 +273,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="heading-1">{onSelect ? 'Select a Meal' : 'Recipe Library'}</h2>
-          <p className="text-muted font-medium mt-2 text-lg">{onSelect ? 'Choose a recipe to swap into your plan.' : 'Manage your expanding collection of healthy meals.'}</p>
-        </div>
+      <div className="flex justify-end gap-3 mb-6">
         <div className="flex gap-3">
           <button
             onClick={handleExport}
@@ -307,20 +309,20 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             )}
           </button>
         </div>
-      </header>
+      </div>
 
       {isAdding && (
-        <div className="card card-padding-lg animate-slide-in-down relative overflow-hidden">
+        <GlassCard className="card-padding-lg animate-slide-in-down relative overflow-hidden mb-8 border border-hearth/20 dark:border-hearth/10">
           <div className="relative z-10">
-            <h3 className="heading-3 mb-2 flex items-center gap-2">
-              <span className="bg-primary-light p-1.5 rounded-lg" style={{ color: 'var(--primary)' }}><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span>
+            <h3 className="heading-3 mb-2 flex items-center gap-2 text-charcoal dark:text-stone-200">
+              <span className="bg-hearth/10 text-hearth p-1.5 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span>
               Import Recipe via AI
             </h3>
-            <p className="text-muted mb-6 max-w-2xl">Paste a recipe URL, full text, or even a rough list of ingredients. Our smart AI will parse the nutrition, ingredients, and instructions for you.</p>
+            <p className="text-charcoal/60 dark:text-stone-400 mb-6 max-w-2xl">Paste a recipe URL, full text, or even a rough list of ingredients. Our smart AI will parse the nutrition, ingredients, and instructions for you.</p>
 
             {/* Image Upload */}
             <div className="mb-6">
-              <label className="block text-sm font-bold text-main mb-3">Recipe Photo (Optional)</label>
+              <label className="block text-sm font-bold text-charcoal dark:text-stone-300 mb-3">Recipe Photo (Optional)</label>
               {uploadedImage ? (
                 <div className="relative rounded-2xl overflow-hidden border border-border">
                   <img src={uploadedImage} alt="Recipe preview" className="w-full h-48 object-cover" />
@@ -348,13 +350,13 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="w-full input min-h-[160px] mb-4"
+              className="w-full input min-h-[160px] mb-4 bg-white dark:bg-black/20 text-charcoal dark:text-stone-200 border-border dark:border-white/10"
               placeholder="Paste your recipe here... e.g. 'Chicken Stir Fry, serves 4. Ingredients: 500g chicken breast...'"
             />
             <button
               onClick={handleAIAdd}
               disabled={isProcessing}
-              className={isProcessing ? 'btn-primary w-full flex justify-center items-center gap-3 text-lg opacity-50' : 'btn-primary w-full flex justify-center items-center gap-3 text-lg'}
+              className={isProcessing ? 'btn-primary w-full flex justify-center items-center gap-3 text-lg opacity-50' : 'btn-primary w-full flex justify-center items-center gap-3 text-lg shadow-lg shadow-hearth/20'}
             >
               {isProcessing ? (
                 <>
@@ -371,22 +373,22 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           </div>
 
           {/* Background Decoration */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-background rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none"></div>
-        </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-hearth/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none blur-3xl"></div>
+        </GlassCard>
       )}
 
       {/* Search, Sort & Filters */}
-      <div className="space-y-6 glass-panel p-6 rounded-2xl">
+      <GlassCard className="space-y-6 !p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal/40 dark:text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <input
               type="text"
-              className="block w-full !pl-12 input"
+              className="block w-full !pl-12 !py-3 bg-charcoal/5 dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl text-charcoal dark:text-stone-200 placeholder:text-charcoal/40 dark:placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all font-medium"
               placeholder="Search recipes, ingredients, tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -397,14 +399,14 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value)}
-              className="appearance-none w-full input cursor-pointer font-bold pr-10"
+              className="appearance-none w-full !py-3 px-4 bg-charcoal/5 dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl text-charcoal dark:text-stone-200 cursor-pointer font-bold focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all"
             >
               <option value="name">Sort: Name (A-Z)</option>
               <option value="caloriesLow">Sort: Calories (Low)</option>
               <option value="caloriesHigh">Sort: Calories (High)</option>
               <option value="protein">Sort: Highest Protein</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-muted">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-charcoal/40 dark:text-stone-500">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             </div>
           </div>
@@ -416,36 +418,53 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             <button
               key={type}
               onClick={() => setActiveFilter(type)}
-              className={`badge-md whitespace-nowrap transition-all border ${activeFilter === type
-                ? 'bg-primary text-primary-foreground border-primary shadow-md transform scale-105'
-                : 'bg-surface text-muted border-transparent hover:border-primary/20 hover:bg-surface/80'
+              className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border ${activeFilter === type
+                ? 'bg-hearth text-white border-hearth shadow-md transform scale-105'
+                : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-transparent hover:border-hearth/20 hover:bg-charcoal/10 dark:hover:bg-white/10'
                 }`}
             >
               {type === 'mine' ? 'My Recipes' : type === 'family' ? 'Family Recipes' : type}
             </button>
           ))}
-          <div className="w-px h-6 bg-border mx-1 self-center"></div>
+          <div className="w-px h-6 bg-charcoal/10 dark:bg-white/10 mx-1 self-center"></div>
           <button
             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-            className={`badge-md whitespace-nowrap transition-all border flex items-center gap-1.5 ${showFavoritesOnly
-              ? 'bg-red-50 text-red-600 border-red-200 shadow-md transform scale-105'
-              : 'bg-surface text-muted border-transparent hover:border-red-100 hover:bg-red-50/50 hover:text-red-500'
+            className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border flex items-center gap-1.5 ${showFavoritesOnly
+              ? 'bg-red-500 text-white border-red-500 shadow-md transform scale-105'
+              : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-transparent hover:border-red-200 hover:bg-red-50/50 hover:text-red-500'
               }`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={showFavoritesOnly ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>
             Favourites
           </button>
         </div>
-      </div>
+      </GlassCard>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-        {filteredRecipes.length === 0 ? (
-          <div className="md:col-span-full py-24 text-center">
-            <div className="w-24 h-24 bg-background rounded-full flex items-center justify-center mx-auto mb-6 text-muted/30">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        {isLoading ? (
+          // Skeleton Loader
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="glass-panel rounded-3xl overflow-hidden h-full flex flex-col animate-pulse">
+              <div className="h-48 md:h-56 bg-border/50 w-full" />
+              <div className="p-4 md:p-6 space-y-4 flex-1">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="h-8 bg-border/50 rounded-xl w-3/4" />
+                  <div className="h-8 w-12 bg-border/50 rounded-lg" />
+                </div>
+              </div>
             </div>
-            <p className="font-medium text-xl text-main mb-2">{recipes.length === 0 ? "Your library is empty." : "No recipes match your search."}</p>
-            <p className="text-muted">{recipes.length === 0 ? "Get started by adding your first recipe above." : "Try adjusting your filters or search terms."}</p>
+          ))
+        ) : filteredRecipes.length === 0 ? (
+          <div className="md:col-span-full py-32 text-center text-charcoal/40 dark:text-stone-500 bg-white/40 dark:bg-white/5 rounded-[3rem] border-2 border-dashed border-charcoal/5 dark:border-white/5 flex flex-col items-center justify-center">
+            <div className="w-20 h-20 rounded-full bg-white/50 dark:bg-white/5 flex items-center justify-center text-4xl mb-6 shadow-sm">
+              🧑‍🍳
+            </div>
+            <p className="font-serif text-2xl mb-2 text-charcoal dark:text-stone-300">
+              {recipes.length === 0 ? "Your cookbook is empty" : "No recipes match found"}
+            </p>
+            <p className="text-charcoal/60 dark:text-stone-500 max-w-sm">
+              {recipes.length === 0 ? "Get started by adding your first recipe manually or import one with AI magic above." : "Try adjusting your filters or search terms to find what you're looking for."}
+            </p>
           </div>
         ) : (
           filteredRecipes.map(recipe => (

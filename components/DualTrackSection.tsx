@@ -33,6 +33,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const [editingFoodItem, setEditingFoodItem] = useState<FoodLogItem | null>(null);
   const [editFoodName, setEditFoodName] = useState('');
   const [editFoodCalories, setEditFoodCalories] = useState('');
+  const [editFoodTime, setEditFoodTime] = useState('');
   const [showAllLoggedItems, setShowAllLoggedItems] = useState(false);
   const [timeSinceMeal, setTimeSinceMeal] = useState<string>('');
 
@@ -72,27 +73,42 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     setEditingFoodItem(item);
     setEditFoodName(item.name);
     setEditFoodCalories(item.calories.toString());
+
+    // Format timestamp to HH:mm for input
+    const date = new Date(item.timestamp);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    setEditFoodTime(`${hours}:${minutes}`);
   };
 
   const handleSaveEditFood = () => {
-    if (!editingFoodItem || !editFoodName.trim() || !editFoodCalories) return;
+    if (!editingFoodItem || !editFoodName.trim() || !editFoodCalories || !editFoodTime) return;
+
+    // Parse new time while keeping original date
+    const originalDate = new Date(editingFoodItem.timestamp);
+    const [hours, minutes] = editFoodTime.split(':').map(Number);
+    originalDate.setHours(hours);
+    originalDate.setMinutes(minutes);
 
     const updatedItem: FoodLogItem = {
       ...editingFoodItem,
       name: editFoodName,
-      calories: parseInt(editFoodCalories) || 0
+      calories: parseInt(editFoodCalories) || 0,
+      timestamp: originalDate.getTime()
     };
 
     onUpdateFoodItem(updatedItem);
     setEditingFoodItem(null);
     setEditFoodName('');
     setEditFoodCalories('');
+    setEditFoodTime('');
   };
 
   const handleCancelEditFood = () => {
     setEditingFoodItem(null);
     setEditFoodName('');
     setEditFoodCalories('');
+    setEditFoodTime('');
   };
 
   const handleDeleteFood = (itemId: string) => {
@@ -112,19 +128,29 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
       {/* Left: From Your Plan */}
-      <div className="bg-surface rounded-2xl shadow-sm border border-calories-border overflow-hidden">
-        <div className="p-6 border-b border-calories-border bg-calories-bg/50 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--calories)' }}>
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>From Your Plan</h3>
+      <div className="glass-card rounded-organic-md flex flex-col h-full">
+        <div className="px-6 py-5 border-b border-white/50 dark:border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center text-hearth">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <h3 className="font-serif text-lg text-charcoal dark:text-stone-200">From Your Plan</h3>
+          </div>
+          <button
+            onClick={() => onNavigate(AppView.PLANNER)}
+            className="text-xs font-bold uppercase tracking-wider text-charcoal/60 dark:text-stone-400 dark:text-stone-400 hover:text-hearth transition-colors px-2 py-1 hover:bg-white/50 dark:hover:bg-white/10 rounded-lg"
+          >
+            View All
+          </button>
         </div>
         <div className="p-6 space-y-3 min-h-[200px]">
           {todayPlan.meals.length === 0 ? (
-            <div className="p-8 text-center text-muted flex flex-col items-center justify-center h-full">
+            <div className="p-8 text-center text-charcoal/60 dark:text-stone-400 dark:text-stone-500 flex flex-col items-center justify-center h-full">
               <p className="font-medium mb-4">No meals planned for today</p>
               <button
                 onClick={() => onNavigate(AppView.PLANNER)}
@@ -147,7 +173,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   <div
                     key={index}
                     onClick={() => onViewRecipe(meal)}
-                    className="p-4 flex items-center gap-4 rounded-xl border transition-all cursor-pointer bg-calories-bg/50 border-calories-border opacity-70"
+                    className="p-4 flex items-center gap-4 rounded-xl border border-transparent bg-stone-50/50 dark:bg-white/[0.02] opacity-60 hover:opacity-100 transition-all cursor-pointer"
                   >
                     <div
                       onClick={(e) => {
@@ -162,97 +188,73 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate line-through" style={{ color: 'var(--calories)' }}>
+                      <p className="font-medium truncate line-through dark:text-stone-400" style={{ color: 'var(--calories)' }}>
                         {meal.name}
                       </p>
                       <div className="flex gap-2 items-center mt-1">
                         <span className="text-[10px] font-bold bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ color: 'var(--calories)' }}>
                           {meal.type}
                         </span>
-                        <span className="text-xs text-muted">{meal.calories} kcal</span>
+                        <span className="text-xs text-charcoal/60 dark:text-stone-400 dark:text-stone-500">{meal.calories} kcal</span>
                       </div>
                     </div>
                   </div>
                 );
               }
 
-              // Swipeable card for uncompleted meals
+              // Simple checklist card for uncompleted meals
               return (
-                <motion.div
+                <div
                   key={index}
-                  drag="x"
-                  dragConstraints={{ left: -80, right: 0 }}
-                  dragElastic={0.2}
-                  dragDirectionLock
-                  className="relative touch-pan-y"
-                  whileDrag={{ scale: 0.98 }}
-                  onDragEnd={(event, info: PanInfo) => {
-                    if (info.offset.x < -50) {
-                      onToggleMeal(index);
-                    }
-                  }}
+                  onClick={() => onViewRecipe(meal)}
+                  className="relative z-10 p-4 flex items-center gap-4 rounded-xl border border-charcoal/10 dark:border-white/10 bg-white/20 dark:bg-white/5 hover:bg-white/40 dark:hover:bg-white/10 hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer group"
                 >
-                  {/* Background indicator (visible during drag) */}
-                  <div className="absolute inset-y-0 right-0 w-20 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--calories)' }}>
-                    <svg className="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleMeal(index);
+                    }}
+                    className="w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer border-border dark:border-white/20 hover:scale-110 active:scale-95"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--calories)';
+                      e.currentTarget.style.backgroundColor = 'var(--calories-bg)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-charcoal dark:text-stone-200">
+                      {meal.name}
+                    </p>
+                    <div className="flex gap-2 items-center mt-1">
+                      <span className="text-[10px] font-bold bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ color: 'var(--calories)' }}>
+                        {meal.type}
+                      </span>
+                      <span className="text-xs text-charcoal/60 dark:text-stone-400 dark:text-stone-400">{meal.calories} kcal</span>
+                    </div>
                   </div>
 
-                  {/* Meal card content */}
-                  <div
-                    onClick={() => onViewRecipe(meal)}
-                    className="relative z-10 p-4 flex items-center gap-4 rounded-xl border transition-all cursor-pointer bg-surface border-calories-border hover:shadow-sm group"
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--calories)'}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--calories-border)'}
-                  >
-                    <div
+                  {/* Actions */}
+                  <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onToggleMeal(index);
+                        onSwapMeal(index);
                       }}
-                      className="w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer border-border"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--calories)';
-                        e.currentTarget.style.backgroundColor = 'var(--calories-bg)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
+                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 dark:text-stone-400 transition-colors active:scale-95 hover:bg-white dark:bg-white/5 dark:hover:bg-white/10 hover:text-primary border border-transparent hover:border-border"
+                      title="Swap meal"
                     >
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate text-main">
-                        {meal.name}
-                      </p>
-                      <div className="flex gap-2 items-center mt-1">
-                        <span className="text-[10px] font-bold bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ color: 'var(--calories)' }}>
-                          {meal.type}
-                        </span>
-                        <span className="text-xs text-muted">{meal.calories} kcal</span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSwapMeal(index);
-                        }}
-                        className="p-2 rounded-lg text-muted transition-colors active:scale-95 hover:bg-surface hover:text-primary border border-transparent hover:border-border"
-                        title="Swap meal"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                          <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                        </svg>
-                      </button>
-                    </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                      </svg>
+                    </button>
                   </div>
-                </motion.div>
+                </div>
               );
             })
           )}
@@ -260,33 +262,31 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
       </div>
 
       {/* Right: Your Log */}
-      <div className="bg-surface rounded-2xl shadow-sm border border-calories-border overflow-hidden">
-        <div className="p-6 border-b border-calories-border bg-calories-bg/50 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style={{ color: 'var(--calories)' }}>
-              <path d="M290,32H144A64.07,64.07,0,0,0,80,96V416a64.07,64.07,0,0,0,64,64H290Z" />
-              <path d="M368,32H350V480h18a64.07,64.07,0,0,0,64-64V96A64.07,64.07,0,0,0,368,32Z" />
-            </svg>
-            <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--calories)' }}>Today's Log</h3>
+      <div className="glass-card rounded-organic-md flex flex-col h-full">
+        <div className="px-6 py-5 border-b border-white/50 dark:border-white/10 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center text-hearth">
+              <svg width="16" height="16" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                <path d="M290,32H144A64.07,64.07,0,0,0,80,96V416a64.07,64.07,0,0,0,64,64H290Z" />
+                <path d="M368,32H350V480h18a64.07,64.07,0,0,0,64-64V96A64.07,64.07,0,0,0,368,32Z" />
+              </svg>
+            </div>
+            <h3 className="font-serif text-lg text-charcoal dark:text-stone-200">Today's Log</h3>
           </div>
           <div className="flex items-center gap-3">
             {timeSinceMeal && (
-              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface border border-calories-border/50 text-xs font-medium text-muted">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span>{timeSinceMeal} ago</span>
-              </div>
+              <span className="text-xs font-bold text-hearth bg-calories-bg px-2 py-1 rounded-md">
+                {timeSinceMeal} ago
+              </span>
             )}
-            <span className="text-xs font-bold bg-surface px-2 py-1 rounded-full" style={{ color: 'var(--calories)' }}>
+            <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 dark:text-stone-400 bg-white/50 dark:bg-white/10 px-2 py-1 rounded-md border border-white/20 dark:border-white/10">
               {totalLoggedItems} {totalLoggedItems === 1 ? 'entry' : 'entries'}
             </span>
           </div>
         </div>
         <div className="p-6 space-y-3 min-h-[200px]">
           {sortedFoodItems.length === 0 && sortedWorkouts.length === 0 ? (
-            <div className="p-8 text-center text-muted">
+            <div className="p-8 text-center text-charcoal/60 dark:text-stone-400 dark:text-stone-500">
               <p>No items logged yet</p>
               <p className="text-xs mt-1">Use Quick Actions to log food or workouts</p>
             </div>
@@ -296,31 +296,27 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {displayedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-4 flex justify-between items-center rounded-xl border border-border bg-surface hover:shadow-sm transition-all group"
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--calories-border)'}
-                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                  className="p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center rounded-xl border border-charcoal/10 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group gap-3"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium text-main">{item.name}</p>
-                    <div className="flex gap-2 items-center mt-1">
-                      <span className="text-xs text-muted">
-                        {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className="text-xs font-bold" style={{ color: 'var(--calories)' }}>{item.calories} kcal</span>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center flex-shrink-0 text-hearth">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-charcoal dark:text-stone-200 truncate">{item.name}</p>
+                      <div className="flex gap-2 items-center mt-1">
+                        <span className="text-xs text-charcoal/60 dark:text-stone-400 dark:text-stone-400">
+                          {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="text-xs font-bold text-hearth">{item.calories} kcal</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  {/* Actions - Visible on mobile (bottom row), Hover on Desktop */}
+                  <div className="flex justify-end gap-1 mt-1 md:mt-0 py-1 md:py-0 border-t md:border-t-0 border-dashed border-charcoal/10 dark:border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleStartEditFood(item)}
-                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--calories-bg)';
-                        e.currentTarget.style.color = 'var(--calories)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-muted)';
-                      }}
+                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 dark:text-stone-400 transition-colors active:scale-95 hover:bg-white/50 dark:hover:bg-white/10"
                       title="Edit entry"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -330,15 +326,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     </button>
                     <button
                       onClick={() => handleDeleteFood(item.id)}
-                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--error-bg)';
-                        e.currentTarget.style.color = 'var(--error)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-muted)';
-                      }}
+                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
                       title="Delete entry"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -354,9 +342,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {displayedWorkouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="p-4 flex justify-between items-center rounded-xl border border-workout-border bg-workout-bg/30 hover:shadow-sm transition-all group"
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--workout)'}
-                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--workout-border)'}
+                  className="p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center rounded-xl border border-charcoal/10 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group gap-3"
                 >
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-8 h-8 bg-workout-bg rounded-full flex items-center justify-center flex-shrink-0">
@@ -365,27 +351,20 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                       </svg>
                     </div>
                     <div>
-                      <p className="font-medium text-main">{workout.type}</p>
+                      <p className="font-medium text-charcoal dark:text-stone-200">{workout.type}</p>
                       <div className="flex gap-2 items-center mt-1">
-                        <span className="text-xs text-muted">
+                        <span className="text-xs text-charcoal/60 dark:text-stone-400">
                           {new Date(workout.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="text-xs font-bold" style={{ color: 'var(--workout)' }}>-{workout.caloriesBurned} kcal</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  {/* Actions */}
+                  <div className="flex justify-end gap-1 mt-1 md:mt-0 py-1 md:py-0 border-t md:border-t-0 border-dashed border-charcoal/10 dark:border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => onEditWorkout(workout)}
-                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--workout-bg)';
-                        e.currentTarget.style.color = 'var(--workout)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-muted)';
-                      }}
+                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-white/50 dark:hover:bg-white/10"
                       title="Edit workout"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -395,15 +374,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     </button>
                     <button
                       onClick={() => handleDeleteWorkout(workout.id)}
-                      className="p-2 rounded-lg text-muted transition-colors active:scale-95"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--error-bg)';
-                        e.currentTarget.style.color = 'var(--error)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-muted)';
-                      }}
+                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
                       title="Delete workout"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -446,14 +417,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             onClick={handleCancelEditFood}
           >
             <div
-              className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+              className="bg-white dark:bg-white/5 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               <div className="p-6 border-b border-border flex justify-between items-center bg-calories-bg">
-                <h3 className="font-normal text-2xl text-main font-serif">Edit Food Entry</h3>
+                <h3 className="font-normal text-2xl text-charcoal dark:text-stone-200 font-serif">Edit Food Entry</h3>
                 <button
                   onClick={handleCancelEditFood}
-                  className="p-2 bg-surface border border-border rounded-full text-muted hover:text-main transition-colors"
+                  className="p-2 bg-white dark:bg-white/5 border border-border rounded-full text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -463,29 +434,38 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               </div>
               <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-bold text-main mb-2">Food Name</label>
+                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Food Name</label>
                   <input
                     type="text"
                     value={editFoodName}
                     onChange={(e) => setEditFoodName(e.target.value)}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-main"
+                    className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-charcoal dark:text-stone-200"
                     placeholder="e.g. Apple"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-main mb-2">Calories</label>
+                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Calories</label>
                   <input
                     type="number"
                     value={editFoodCalories}
                     onChange={(e) => setEditFoodCalories(e.target.value)}
-                    className="w-full p-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-main"
+                    className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-charcoal dark:text-stone-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Time Eaten</label>
+                  <input
+                    type="time"
+                    value={editFoodTime}
+                    onChange={(e) => setEditFoodTime(e.target.value)}
+                    className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-charcoal dark:text-stone-200"
                   />
                 </div>
               </div>
               <div className="p-6 pt-0 flex gap-3">
                 <button
                   onClick={handleCancelEditFood}
-                  className="flex-1 py-3 bg-neutral-100 dark:bg-neutral-800 text-main font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                  className="flex-1 py-3 bg-neutral-100 dark:bg-neutral-800 text-charcoal dark:text-stone-200 font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
                 >
                   Cancel
                 </button>
@@ -493,7 +473,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   onClick={handleSaveEditFood}
                   disabled={!editFoodName.trim() || !editFoodCalories}
                   className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!editFoodName.trim() || !editFoodCalories
-                    ? 'bg-neutral-300 dark:bg-neutral-800 text-muted cursor-not-allowed'
+                    ? 'bg-neutral-300 dark:bg-neutral-800 text-charcoal/60 dark:text-stone-400 cursor-not-allowed'
                     : 'text-white'
                     }`}
                   style={!editFoodName.trim() || !editFoodCalories ? {} : { backgroundColor: 'var(--calories)' }}

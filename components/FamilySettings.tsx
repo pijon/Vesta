@@ -74,7 +74,7 @@ export const FamilySettings: React.FC = () => {
         }
     };
 
-    if (loading && !group) return <div className="py-8 text-center text-muted text-sm">Loading family settings...</div>;
+    if (loading && !group) return <div className="py-8 text-center text-charcoal/60 dark:text-stone-400 text-sm">Loading family settings...</div>;
 
     return (
         <div className="space-y-4">
@@ -111,8 +111,8 @@ export const FamilySettings: React.FC = () => {
                     </div>
 
                     <div className="border border-border rounded-xl p-4">
-                        <h5 className="font-bold text-main mb-2">Join a Family</h5>
-                        <p className="text-xs text-muted mb-3">Enter the invite code from a family member.</p>
+                        <h5 className="font-bold text-charcoal dark:text-stone-200 mb-2">Join a Family</h5>
+                        <p className="text-xs text-charcoal/60 dark:text-stone-400 mb-3">Enter the invite code from a family member.</p>
                         <div className="flex gap-2">
                             <input
                                 type="text"
@@ -149,7 +149,7 @@ export const FamilySettings: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="space-y-3 mb-6 bg-surface/50 rounded-lg p-3 border border-water-border/20">
+                        <div className="space-y-3 mb-6 bg-white dark:bg-white/5/50 rounded-lg p-3 border border-water-border/20">
                             <p className="text-xs font-bold uppercase tracking-wide opacity-70" style={{ color: 'var(--water)' }}>Members</p>
                             {members.map(member => (
                                 <div key={member.id} className="flex items-center gap-3 text-sm">
@@ -158,7 +158,7 @@ export const FamilySettings: React.FC = () => {
                                     </div>
                                     <div className="flex flex-col leading-tight">
                                         <span className="font-medium">{member.name}</span>
-                                        <span className="text-[10px] text-muted opacity-80">
+                                        <span className="text-[10px] text-charcoal/60 dark:text-stone-400 opacity-80">
                                             {member.id === group.ownerId ? 'Family Admin' : 'Member'}
                                             {member.id === auth.currentUser?.uid ? ' (You)' : ''}
                                         </span>
@@ -167,7 +167,7 @@ export const FamilySettings: React.FC = () => {
                             ))}
                         </div>
 
-                        <div className="bg-surface/80 backdrop-blur-sm rounded-lg p-3 mb-6 border border-water-border/30">
+                        <div className="bg-white dark:bg-white/5/80 backdrop-blur-sm rounded-lg p-3 mb-6 border border-water-border/30">
                             <p className="text-xs font-bold mb-1 uppercase tracking-wide" style={{ color: 'var(--water)' }}>Invite Code</p>
                             <div className="flex items-center justify-between">
                                 <span className="text-2xl font-mono font-bold tracking-widest" style={{ color: 'var(--water)' }}>{group.inviteCode}</span>

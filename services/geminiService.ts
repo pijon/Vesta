@@ -35,7 +35,7 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    You are an expert nutritionist specializing in the Fast 800 diet. Extract and structure recipe details from the text below.
+    You are an expert nutritionist specializing in Mediterranean-style nutrition. Extract and structure recipe details from the text below.
 
     CRITICAL INSTRUCTIONS:
 
@@ -51,7 +51,7 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
        - Protein: Calculate from protein sources (meat, fish, eggs, dairy, legumes)
        - Fat: Calculate from oils, butter, cheese, nuts, fatty meats
        - Carbs: Calculate from grains, fruits, starchy vegetables, sugars
-       - For Fast 800 context: Most meals should be 200-400 calories per serving
+       - For context: Most meals should be 200-400 calories per serving to support health goals
        - Be accurate and conservative - underestimate rather than overestimate
 
     3. MACRONUTRIENT ACCURACY:
@@ -132,7 +132,7 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    You are an expert nutritionist specializing in the Fast 800 diet program. Create a balanced, nutritious one-day meal plan.
+    You are an expert nutritionist specializing in Mediterranean-style nutrition. Create a balanced, nutritious one-day meal plan.
 
     TARGET: Approximately 800 calories total for the entire day
 
@@ -154,9 +154,9 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
     - Fiber-rich: Include vegetables, salads, or low-sugar fruits
     - Target macros for the day: ~80-100g protein, ~30-40g fat, ~50-70g carbs
 
-    FAST 800 PRINCIPLES:
+    NUTRITION PRINCIPLES:
     - Mediterranean-style diet emphasis (olive oil, fish, vegetables, legumes)
-    - High protein to preserve muscle mass during weight loss
+    - High protein to support lean body composition
     - Low glycemic index foods to stabilize blood sugar
     - Nutrient-dense, minimally processed foods
     - Meals should be satisfying and reduce hunger
@@ -169,7 +169,7 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
     - Use common, accessible ingredients
 
     HELPFUL TIP:
-    - Include one practical tip for following Fast 800 successfully
+    - Include one practical tip for following healthy nutrition successfully
     - Tips could cover: hydration, meal timing, exercise, sleep, mindset, food prep, etc.
     - Keep tips actionable and encouraging
 
@@ -230,7 +230,7 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    You are a professional nutritionist helping users track their food intake for the Fast 800 diet (800 calorie daily limit).
+    You are a professional nutritionist helping users track their food intake for their daily nutrition goals.
 
     TASK: Analyze the text below and identify ALL food and drink items consumed with accurate calorie estimates.
 
@@ -322,7 +322,7 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    You are a professional nutritionist analyzing food images for Fast 800 diet tracking (800 calorie daily limit).
+    You are a professional nutritionist analyzing food images for daily nutrition tracking.
 
     TASK: Identify all visible food and drink items in this image and provide accurate calorie estimates.
 
@@ -345,7 +345,7 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
     - For vegetables: Fill of plate matters less (low calorie density)
 
     CALORIE ESTIMATION RULES:
-    - Be CONSERVATIVE: Estimate on the HIGHER side for 800 kcal diet adherence
+    - Be CONSERVATIVE: Estimate on the HIGHER side for calorie goal adherence
     - Account for cooking fats: Fried foods add 100-200 kcal from oil
     - Include visible sauces/toppings: Creamy sauces ≈ 100 kcal per 2 tbsp
     - Restaurant portions: Usually 30-50% larger than home portions
@@ -460,10 +460,10 @@ export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: 
   }));
 
   const prompt = `
-    You are an expert meal planner for the Fast 800 diet program. Create a balanced, varied 7-day meal plan.
+    You are an expert meal planner for Mediterranean-style nutrition. Create a balanced, varied 7-day meal plan.
 
     START DATE: ${startDate}
-    DIET MODE: ${dietMode === 'daily' ? 'Strict 800 calories every day' : `5:2 Diet - 2 fast days (800 kcal), 5 non-fast days (${nonFastCalories} kcal)`}
+    DIET MODE: ${dietMode === 'daily' ? 'Consistent daily calorie goal' : `5:2 Pattern - 2 low-calorie days, 5 standard days (${nonFastCalories} kcal)`}
 
     CALORIE TARGETS:
     ${dietMode === 'daily'
@@ -566,7 +566,7 @@ export const planDayWithExistingRecipes = async (recipes: Recipe[], date: string
   }));
 
   const prompt = `
-    You are an expert meal planner for the Fast 800 diet program. Create a balanced single-day meal plan.
+    You are an expert meal planner for Mediterranean-style nutrition. Create a balanced single-day meal plan.
 
     DATE: ${date}
     CALORIE TARGET: Approximately ${targetCalories} kcal total for the day
@@ -600,7 +600,7 @@ export const planDayWithExistingRecipes = async (recipes: Recipe[], date: string
     6. Ensure variety: Try to select recipes with different protein sources and flavors
 
     DAILY TIP:
-    - Provide one practical, actionable tip for following the Fast 800 diet
+    - Provide one practical, actionable tip for maintaining healthy nutrition
     - Topics can include: hydration, meal timing, exercise, sleep, mindset, food prep, portion control
     - Keep it positive, encouraging, and specific
     - Make it relevant to the ${targetCalories} kcal target (e.g., tips for managing hunger on low-calorie days)
@@ -810,7 +810,7 @@ export const generateRecipeFromIngredients = async (
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    You are an expert Fast 800 diet nutritionist. Create a single recipe using the ingredients provided.
+    You are an expert nutritionist. Create a single recipe using the ingredients provided.
 
     AVAILABLE INGREDIENTS: ${ingredients.join(', ')}
 
@@ -822,7 +822,7 @@ export const generateRecipeFromIngredients = async (
     2. Create a complete recipe with name, ingredients (with quantities), and step-by-step instructions
     3. Calculate accurate nutritional information (calories, protein, fat, carbs) per serving
     4. Target calories: ${targetCalories} kcal (±50 kcal acceptable)
-    5. Follow Fast 800 principles: high protein, healthy fats, low refined carbs
+    5. Follow healthy principles: high protein, healthy fats, low refined carbs
     6. Make it simple enough for home cooking
     7. Servings should be 1 unless recipe naturally serves more
 

@@ -368,7 +368,9 @@ export const getAllDailySummaries = async (daysBack: number = 90): Promise<Daily
       caloriesConsumed,
       caloriesBurned,
       netCalories: caloriesConsumed - caloriesBurned,
-      workoutCount: (log.workouts || []).length
+      workoutCount: (log.workouts || []).length,
+      waterIntake: log.waterIntake || 0,
+      maxFastingHours: log.maxFastingHours || 0
     });
   });
 

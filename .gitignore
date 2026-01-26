@@ -25,3 +25,6 @@ scripts/serviceAccountKey.json
 *.njsproj
 *.sln
 *.sw?
+
+# dora code context index
+.dora/

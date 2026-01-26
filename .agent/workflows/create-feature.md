@@ -11,6 +11,7 @@ This workflow is designed to prevent "lazy" implementations by forcing a strict 
 
 1.  **Read Core Documentation:**
     -   Read `.agent/rules/rules.md` for project governance and tech stack.
+    -   **[MANDATORY]** Read `.agent/knowledge/design_system.md` for the complete "Digital Hearth" design language (colors, typography, components, dark mode).
     -   Read `.agent/knowledge/ui_colors.md` for strict color usage (HSL, semantic tokens).
     -   Read `.agent/knowledge/ui_spacing.md` for the "Start Large" spacing strategy.
     
@@ -54,6 +55,7 @@ This workflow is designed to prevent "lazy" implementations by forcing a strict 
     **Visual Goal:** [Describe the premium look & feel]
     
     ## 🛡️ Hazards & Gotchas (Strict Enforcement)
+    * [ ] **Design System:** MUST adhere to `.agent/knowledge/design_system.md` (Digital Hearth palette, serif headings, dark mode support).
     * [ ] **Aesthetics:** Must use "Rich Aesthetics" (semantic tokens, subtle shadows).
     * [ ] **Colors:** Use semantic tokens from `ui_colors.md` (NO hex codes).
     * [ ] **Spacing:** Follow "Start Large" strategy from `ui_spacing.md`.

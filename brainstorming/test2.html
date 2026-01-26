@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="sv">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vesta - Morning Mist Concept</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mist: '#E8F3ED',
+                        eucalyptus: '#6B9080',
+                        champagne: '#F1E3D3',
+                        slate: '#2B2D42',
+                        nordic: '#00B4D8', // Vatten
+                        mint: '#A4C3B2',
+                    },
+                    fontFamily: {
+                        serif: ['Cormorant Garamond', 'serif'],
+                        sans: ['Montserrat', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        '4xl': '3rem',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #E8F3ED;
+            color: #2B2D42;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .mist-gradient {
+            background: linear-gradient(180deg, rgba(232, 243, 237, 0) 0%, rgba(164, 195, 178, 0.15) 100%);
+        }
+
+        .glow-soft {
+            box-shadow: 0 0 30px rgba(107, 144, 128, 0.15);
+        }
+
+        .fluid-ring {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 3s ease-in-out forwards;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 250;
+            }
+        }
+
+        .water-pulse {
+            animation: pulse-blue 4s infinite;
+        }
+
+        @keyframes pulse-blue {
+
+            0%,
+            100% {
+                fill: rgba(0, 180, 216, 0.1);
+            }
+
+            50% {
+                fill: rgba(0, 180, 216, 0.2);
+            }
+        }
+    </style>
+</head>
+
+<body class="p-6 md:p-12 space-y-32 max-w-2xl mx-auto pb-40">
+
+    <!-- SCREEN 1: THE DAILY SPARK (Mist Edition) -->
+    <section id="daily-spark" class="space-y-10">
+        <header class="flex justify-between items-end">
+            <div>
+                <p class="text-[10px] font-bold tracking-[0.3em] uppercase opacity-50 mb-1">Måndag 19 Maj</p>
+                <h1 class="font-serif text-5xl font-semibold italic text-eucalyptus">Gomorron, Peter.</h1>
+            </div>
+            <div class="w-14 h-14 rounded-full glass flex items-center justify-center p-1 shadow-inner">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
+                    class="rounded-full w-full h-full object-cover grayscale-[20%]" alt="Profil">
+            </div>
+        </header>
+
+        <!-- Central Spark Widget -->
+        <div
+            class="relative flex flex-col items-center justify-center glass rounded-4xl p-16 shadow-2xl border-white/80 overflow-hidden">
+            <div class="absolute -top-32 -right-32 w-80 h-80 bg-mint/10 blur-[100px] rounded-full"></div>
+
+            <div class="relative w-64 h-64">
+                <svg viewBox="0 0 200 200" class="w-full h-full transform -rotate-90">
+                    <circle cx="100" cy="100" r="90" stroke="rgba(107, 144, 128, 0.05)" stroke-width="6"
+                        fill="transparent" />
+                    <!-- Kalorier (Eucalyptus) -->
+                    <circle cx="100" cy="100" r="90" stroke="#6B9080" stroke-width="8" fill="transparent"
+                        stroke-dasharray="565" stroke-dashoffset="120" stroke-linecap="round" class="fluid-ring" />
+                    <!-- Vatten (Nordic Blue) -->
+                    <circle cx="100" cy="100" r="75" stroke="#00B4D8" stroke-width="6" fill="transparent"
+                        stroke-dasharray="471" stroke-dashoffset="150" stroke-linecap="round" opacity="0.6" />
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-[10px] font-bold tracking-widest uppercase opacity-40">Balans</span>
+                    <span class="text-5xl font-serif font-bold text-slate">1 240</span>
+                    <span class="text-[10px] font-bold uppercase text-eucalyptus">kcal kvar</span>
+                </div>
+            </div>
+
+            <div class="mt-12 flex gap-10 items-center">
+                <div class="text-center">
+                    <div class="w-2 h-2 rounded-full bg-eucalyptus mx-auto mb-2 glow-soft"></div>
+                    <p class="text-[10px] font-bold uppercase opacity-40 mb-1">Fasta</p>
+                    <p class="font-serif text-xl">14:10</p>
+                </div>
+                <div class="h-8 w-px bg-slate/10"></div>
+                <div class="text-center">
+                    <div class="w-2 h-2 rounded-full bg-nordic mx-auto mb-2"></div>
+                    <p class="text-[10px] font-bold uppercase opacity-40 mb-1">Vatten</p>
+                    <p class="font-serif text-xl text-nordic">1,8L</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity & Workout Grid -->
+        <div class="grid grid-cols-2 gap-6">
+            <!-- Active Hearth (Workout) -->
+            <div class="glass p-6 rounded-4xl flex flex-col justify-between h-52 relative overflow-hidden group">
+                <div class="flex justify-between items-start z-10">
+                    <h3 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Aktivitet</h3>
+                    <div class="bg-eucalyptus/10 p-2 rounded-full">
+                        <svg class="w-4 h-4 text-eucalyptus" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="z-10">
+                    <p class="text-4xl font-serif">412</p>
+                    <p class="text-[10px] font-bold text-eucalyptus">Aktiv förbränning</p>
+                </div>
+                <!-- Abstract Organic Shape Decor -->
+                <div
+                    class="absolute -bottom-10 -right-10 w-32 h-32 bg-mint/20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700">
+                </div>
+            </div>
+
+            <!-- Hydration (Mist Blue) -->
+            <div class="glass p-6 rounded-4xl h-52 flex flex-col justify-between">
+                <h3 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Hydrering</h3>
+                <div class="relative w-full h-24 flex items-end justify-center">
+                    <svg viewBox="0 0 100 100" class="w-full h-full absolute inset-0 opacity-20 water-pulse">
+                        <circle cx="50" cy="50" r="45" />
+                    </svg>
+                    <span class="text-3xl font-serif text-nordic relative mb-4">75%</span>
+                    <div class="absolute bottom-0 w-full h-1/2 bg-nordic/10 blur-xl rounded-full"></div>
+                </div>
+                <div class="flex justify-between">
+                    <button
+                        class="w-8 h-8 rounded-full border border-nordic/20 flex items-center justify-center text-nordic text-xs font-bold">+2</button>
+                    <button
+                        class="w-8 h-8 rounded-full border border-nordic/20 flex items-center justify-center text-nordic text-xs font-bold">+5</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SCREEN 2: THE FAMILY TABLE (Nordic Planner) -->
+    <section id="family-table" class="space-y-8">
+        <header>
+            <h1 class="font-serif text-4xl text-eucalyptus">Veckans Bord</h1>
+            <p class="text-sm opacity-50 font-medium">Planerat för familjen <span
+                    class="border-b border-eucalyptus/20 pb-0.5">Miller</span></p>
+        </header>
+
+        <!-- Minimal Date Scroll -->
+        <div class="flex gap-3 overflow-x-auto pb-6 -mx-6 px-6 no-scrollbar">
+            <div
+                class="flex-shrink-0 w-24 py-4 rounded-3xl bg-eucalyptus text-white flex flex-col items-center shadow-xl shadow-eucalyptus/20">
+                <span class="text-[10px] font-bold uppercase opacity-60">Idag</span>
+                <span class="text-2xl font-serif font-bold">19</span>
+            </div>
+            <div class="flex-shrink-0 w-24 py-4 rounded-3xl glass flex flex-col items-center">
+                <span class="text-[10px] font-bold uppercase opacity-30">Tis</span>
+                <span class="text-2xl font-serif font-bold opacity-40">20</span>
+            </div>
+            <div class="flex-shrink-0 w-24 py-4 rounded-3xl glass flex flex-col items-center">
+                <span class="text-[10px] font-bold uppercase opacity-30">Ons</span>
+                <span class="text-2xl font-serif font-bold opacity-40">21</span>
+            </div>
+            <div class="flex-shrink-0 w-24 py-4 rounded-3xl glass flex flex-col items-center">
+                <span class="text-[10px] font-bold uppercase opacity-30">Tor</span>
+                <span class="text-2xl font-serif font-bold opacity-40">22</span>
+            </div>
+        </div>
+
+        <!-- 5:2 Mode Alert -->
+        <div class="p-6 rounded-4xl glass border-mint/30 flex items-center gap-6">
+            <div class="w-16 h-16 rounded-full bg-mint/20 flex items-center justify-center">
+                <svg class="w-8 h-8 text-eucalyptus" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-width="1.5"
+                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-eucalyptus uppercase tracking-widest">Fastdag (5:2)</p>
+                <p class="font-serif text-xl">Lågkalori-fokus idag</p>
+            </div>
+        </div>
+
+        <!-- Recipe Cards -->
+        <div class="space-y-8">
+            <div
+                class="glass p-4 rounded-[2.5rem] flex items-center gap-6 shadow-soft group hover:translate-y-[-4px] transition-all duration-300">
+                <div class="w-24 h-24 rounded-[2rem] overflow-hidden flex-shrink-0">
+                    <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&fit=crop"
+                        class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start mb-1">
+                        <h3 class="font-serif text-xl font-semibold">Grön Super Bowl</h3>
+                        <span class="text-[10px] font-bold text-nordic uppercase">Lunch</span>
+                    </div>
+                    <p class="text-xs opacity-50 mb-3">Grönkål, quinoa & tahini</p>
+                    <div class="flex gap-2">
+                        <span class="text-[8px] font-black uppercase px-2 py-1 rounded bg-slate/5">420 kcal</span>
+                        <span class="text-[8px] font-black uppercase px-2 py-1 rounded bg-slate/5">15 min</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass p-4 rounded-[2.5rem] flex items-center gap-6 shadow-soft">
+                <div class="w-24 h-24 rounded-[2rem] overflow-hidden flex-shrink-0">
+                    <img src="https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&fit=crop"
+                        class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start mb-1">
+                        <h3 class="font-serif text-xl font-semibold">Ugnsbakad Röding</h3>
+                        <span class="text-[10px] font-bold text-eucalyptus uppercase">Middag</span>
+                    </div>
+                    <p class="text-xs opacity-50 mb-3">Med dill & sommarpotatis</p>
+                    <div class="flex gap-2">
+                        <span class="text-[8px] font-black uppercase px-2 py-1 rounded bg-slate/5">580 kcal</span>
+                        <span class="text-[8px] font-black uppercase px-2 py-1 rounded bg-slate/5">30 min</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SCREEN 3: COOKING MODE (Focus Edition) -->
+    <section id="cooking-mode" class="glass rounded-4xl p-10 min-h-[600px] flex flex-col border-white/40">
+        <header class="flex justify-between items-center mb-16">
+            <div
+                class="px-4 py-2 rounded-2xl bg-white/40 border border-white/50 text-xs font-bold uppercase tracking-widest text-eucalyptus">
+                Steg 2 av 5
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-bold opacity-30">Vikt: 184 lbs</span>
+                <div class="w-10 h-10 rounded-full bg-nordic/10 flex items-center justify-center text-nordic">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-grow">
+            <h1 class="font-serif text-5xl leading-tight font-light mb-8 text-slate">Minska värmen och låt <span
+                    class="italic text-eucalyptus">quinoan</span> sjuda tills vattnet absorberats.</h1>
+
+            <div class="space-y-6 mt-12">
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.4em] opacity-30">Ingredienser</h3>
+                <div class="flex flex-wrap gap-4">
+                    <div
+                        class="px-6 py-4 rounded-3xl bg-white/60 border border-white shadow-sm flex items-center gap-3">
+                        <div class="w-5 h-5 rounded border-2 border-mint flex items-center justify-center">
+                            <div class="w-2.5 h-2.5 bg-mint rounded-sm"></div>
+                        </div>
+                        <span class="font-medium">2 dl Vit Quinoa</span>
+                    </div>
+                    <div
+                        class="px-6 py-4 rounded-3xl bg-white/30 border border-white/30 flex items-center gap-3 opacity-50">
+                        <div class="w-5 h-5 rounded border-2 border-slate/10"></div>
+                        <span class="font-medium">4 dl Vatten</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Insight Floating Card -->
+        <div
+            class="mt-12 p-6 rounded-3xl bg-mint/5 border border-mint/20 italic text-sm text-eucalyptus leading-relaxed">
+            "Tips från Vesta: Använd kallt vatten för att få en luftigare konsistens på quinoan. Detta bevarar
+            proteinets struktur bättre under upphettning."
+        </div>
+
+        <div class="mt-12 flex gap-4">
+            <button class="h-16 px-8 rounded-2xl glass font-bold text-slate/40">Föregående</button>
+            <button
+                class="h-16 flex-grow rounded-2xl bg-eucalyptus text-white font-bold shadow-lg shadow-eucalyptus/20 hover:scale-[1.02] transition-transform">Nästa
+                steg</button>
+        </div>
+    </section>
+
+    <!-- PWA NAV -->
+    <nav
+        class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-sm glass rounded-[2.5rem] p-4 flex justify-around items-center shadow-2xl border-white/80 z-50">
+        <button class="text-eucalyptus">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z">
+                </path>
+            </svg>
+        </button>
+        <button class="text-slate/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+        </button>
+        <div
+            class="w-14 h-14 bg-eucalyptus rounded-full flex items-center justify-center text-white shadow-xl shadow-eucalyptus/30 -mt-14 border-4 border-mist">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+            </svg>
+        </div>
+        <button class="text-slate/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+            </svg>
+        </button>
+        <button class="text-slate/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m10 4a2 2 0 100-4m0 4a2 2 0 110-4m-4 1v1m-6-8V4m6 6v10m6-2V4">
+                </path>
+            </svg>
+        </button>
+    </nav>
+
+    <footer class="text-center py-20 opacity-20 italic font-serif">
+        Vesta — Själsfrid genom näring
+    </footer>
+
+</body>
+
+</html>

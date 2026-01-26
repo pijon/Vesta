@@ -33,7 +33,7 @@ export const Track: React.FC<TrackProps> = (props) => {
   return (
     <div className="min-h-screen">
       {/* Tab Navigation */}
-      <div className="bg-surface/95 backdrop-blur-sm border-b border-border sticky top-16 z-30 transition-all">
+      <div className="bg-white dark:bg-white/5/95 backdrop-blur-sm border-b border-border sticky top-16 z-30 transition-all">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex space-x-1">
             <button

@@ -78,7 +78,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
         onClick={generatedRecipe ? undefined : onClose}
       >
         <div
-          className="bg-surface rounded-2xl p-6 md:p-8 w-full shadow-2xl animate-scale-in overflow-y-auto max-h-[90vh]"
+          className="bg-white dark:bg-white/5 rounded-2xl p-6 md:p-8 w-full shadow-2xl animate-scale-in overflow-y-auto max-h-[90vh]"
           style={{ maxWidth: generatedRecipe ? '800px' : '500px' }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -86,12 +86,12 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
             // PREVIEW MODE
             <>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-serif font-bold text-main">
+                <h2 className="text-2xl font-serif font-bold text-charcoal dark:text-stone-200">
                   Recipe Preview
                 </h2>
                 <button
                   onClick={handleDiscard}
-                  className="p-2 hover:bg-background rounded-lg transition-colors"
+                  className="p-2 hover:bg-stone-50 dark:bg-[#1A1714] rounded-lg transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -103,38 +103,38 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
               {/* Recipe Details */}
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-2xl font-serif font-bold text-main mb-2">{generatedRecipe.name}</h3>
-                  <p className="text-sm text-muted">{generatedRecipe.description}</p>
+                  <h3 className="text-2xl font-serif font-bold text-charcoal dark:text-stone-200 mb-2">{generatedRecipe.name}</h3>
+                  <p className="text-sm text-charcoal/60 dark:text-stone-400">{generatedRecipe.description}</p>
                 </div>
 
                 {/* Nutrition */}
-                <div className="grid grid-cols-4 gap-3 bg-background p-4 rounded-xl border border-border">
+                <div className="grid grid-cols-4 gap-3 bg-stone-50 dark:bg-[#1A1714] p-4 rounded-xl border border-border">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-main">{generatedRecipe.calories}</div>
-                    <div className="text-xs text-muted font-medium">kcal</div>
+                    <div className="text-2xl font-bold text-charcoal dark:text-stone-200">{generatedRecipe.calories}</div>
+                    <div className="text-xs text-charcoal/60 dark:text-stone-400 font-medium">kcal</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-main">{generatedRecipe.protein}g</div>
-                    <div className="text-xs text-muted font-medium">Protein</div>
+                    <div className="text-2xl font-bold text-charcoal dark:text-stone-200">{generatedRecipe.protein}g</div>
+                    <div className="text-xs text-charcoal/60 dark:text-stone-400 font-medium">Protein</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-main">{generatedRecipe.fat}g</div>
-                    <div className="text-xs text-muted font-medium">Fat</div>
+                    <div className="text-2xl font-bold text-charcoal dark:text-stone-200">{generatedRecipe.fat}g</div>
+                    <div className="text-xs text-charcoal/60 dark:text-stone-400 font-medium">Fat</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-main">{generatedRecipe.carbs}g</div>
-                    <div className="text-xs text-muted font-medium">Carbs</div>
+                    <div className="text-2xl font-bold text-charcoal dark:text-stone-200">{generatedRecipe.carbs}g</div>
+                    <div className="text-xs text-charcoal/60 dark:text-stone-400 font-medium">Carbs</div>
                   </div>
                 </div>
 
                 {/* Ingredients */}
                 <div>
-                  <h4 className="font-bold text-main mb-3">Ingredients</h4>
+                  <h4 className="font-bold text-charcoal dark:text-stone-200 mb-3">Ingredients</h4>
                   <ul className="space-y-2">
                     {generatedRecipe.ingredients.map((ingredient, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
                         <span className="text-primary mt-1">•</span>
-                        <span className="text-main">{ingredient}</span>
+                        <span className="text-charcoal dark:text-stone-200">{ingredient}</span>
                       </li>
                     ))}
                   </ul>
@@ -142,14 +142,14 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
 
                 {/* Instructions */}
                 <div>
-                  <h4 className="font-bold text-main mb-3">Instructions</h4>
+                  <h4 className="font-bold text-charcoal dark:text-stone-200 mb-3">Instructions</h4>
                   <ol className="space-y-3">
                     {generatedRecipe.instructions?.map((instruction, i) => (
                       <li key={i} className="flex items-start gap-3 text-sm">
                         <span className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">
                           {i + 1}
                         </span>
-                        <span className="text-main pt-0.5">{instruction}</span>
+                        <span className="text-charcoal dark:text-stone-200 pt-0.5">{instruction}</span>
                       </li>
                     ))}
                   </ol>
@@ -171,7 +171,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
                   </button>
                   <button
                     onClick={handleDiscard}
-                    className="px-6 py-3 border border-border rounded-xl font-semibold hover:bg-background/50 transition-colors text-muted"
+                    className="px-6 py-3 border border-border rounded-xl font-semibold hover:bg-stone-50 dark:bg-[#1A1714]/50 transition-colors text-charcoal/60 dark:text-stone-400"
                   >
                     Discard
                   </button>
@@ -182,12 +182,12 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
             // INPUT MODE
             <>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-serif font-bold text-main">
+                <h2 className="text-2xl font-serif font-bold text-charcoal dark:text-stone-200">
                   Create Recipe from Ingredients
                 </h2>
                 <button
                   onClick={onClose}
-                  className="p-2 hover:bg-background rounded-lg transition-colors"
+                  className="p-2 hover:bg-stone-50 dark:bg-[#1A1714] rounded-lg transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -199,24 +199,24 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
         <div className="space-y-5">
           {/* Ingredients Input */}
           <div>
-            <label className="block text-sm font-medium text-main mb-2">
+            <label className="block text-sm font-medium text-charcoal dark:text-stone-200 mb-2">
               What ingredients do you have?
             </label>
             <textarea
               value={ingredientInput}
               onChange={(e) => setIngredientInput(e.target.value)}
               placeholder="chicken breast, spinach, eggs, tomatoes, olive oil..."
-              className="w-full p-3 border border-border rounded-xl bg-background text-main placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
+              className="w-full p-3 border border-border rounded-xl bg-stone-50 dark:bg-[#1A1714] text-charcoal dark:text-stone-200 placeholder:text-charcoal/60 dark:text-stone-400 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
               rows={4}
             />
-            <p className="text-xs text-muted mt-1.5">
+            <p className="text-xs text-charcoal/60 dark:text-stone-400 mt-1.5">
               Separate ingredients with commas
             </p>
           </div>
 
           {/* Calorie Target */}
           <div>
-            <label className="block text-sm font-medium text-main mb-2">
+            <label className="block text-sm font-medium text-charcoal dark:text-stone-200 mb-2">
               Target Calories
             </label>
             <div className="relative">
@@ -224,29 +224,29 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
                 type="number"
                 value={targetCalories}
                 onChange={(e) => setTargetCalories(parseInt(e.target.value) || 0)}
-                className="w-full p-3 border border-border rounded-xl bg-background text-main focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
+                className="w-full p-3 border border-border rounded-xl bg-stone-50 dark:bg-[#1A1714] text-charcoal dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
                 min={100}
                 max={800}
                 step={50}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal/60 dark:text-stone-400 text-sm">
                 kcal
               </span>
             </div>
-            <p className="text-xs text-muted mt-1.5">
+            <p className="text-xs text-charcoal/60 dark:text-stone-400 mt-1.5">
               Typical range: 200-500 kcal per meal
             </p>
           </div>
 
           {/* Meal Type */}
           <div>
-            <label className="block text-sm font-medium text-main mb-2">
+            <label className="block text-sm font-medium text-charcoal dark:text-stone-200 mb-2">
               Meal Type
             </label>
             <select
               value={mealType}
               onChange={(e) => setMealType(e.target.value as 'breakfast' | 'main meal' | 'light meal')}
-              className="w-full p-3 border border-border rounded-xl bg-background text-main focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
+              className="w-full p-3 border border-border rounded-xl bg-stone-50 dark:bg-[#1A1714] text-charcoal dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
             >
               <option value="breakfast">Breakfast</option>
               <option value="main meal">Main Meal</option>
@@ -276,7 +276,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
             <button
               onClick={onClose}
               disabled={isGenerating}
-              className="px-6 py-3 border border-border rounded-xl font-semibold hover:bg-background/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 border border-border rounded-xl font-semibold hover:bg-stone-50 dark:bg-[#1A1714]/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>

@@ -4,38 +4,40 @@
 
 ## 1. Project & Vision
 
-**Vesta** is a premium, high-aesthetic React web application for tracking the Fast 800 diet and family meal planning.
+**Vesta** is a warm, family-centric nutrition and meal planning application designed to feel like a "Digital Hearth". It guides users towards nourishment and sustainable habits, moving away from clinical tracking to a supportive, communal experience.
 
--   **Core Vibe:** Rich Aesthetics (Glassmorphism, Vibrant Colors, Motion), "Premium" feel.
--   **Primary User Goal:** Effortlessly track calories, weight, and hydration while maintaining a calorie deficit.
--   **Agent Persona:** Senior Front-End Engineer & Product Designer. You care deeply about pixel-perfect UI, smooth animations (`framer-motion`), and clean, maintainable code. You prioritize "Systematic Creativity"—using established tokens creatively rather than adhering to rigid boredom.
+-   **Core Vibe:** Digital Hearth (Warmth, Organic, Communal, Forgiving). Key emotions: Nourishment, Energy, Connection.
+-   **Primary User Goal:** Tend to their health as a "fire to be kept burning" through nourishing food, hydration, and movement, while facilitating family meal planning.
+-   **Agent Persona:** Senior Health Tech Engineer & Product Designer (The "Hearth Keeper"). You prioritize "Nourishment over Numbers". You are encouraging, warm, and systematic. You reject "shame-based" patterns (red error states for calories) and clinical aesthetics.
 
 ## 2. Core Rules (Immutable)
 
 These rules are strictly enforced. Deviations will be rejected by the user.
 
-### A. Aesthetics & UI ("Rich Aesthetics")
-*Ref: [.agent/knowledge/ui_colors.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/knowledge/ui_colors.md), [.agent/knowledge/ui_spacing.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/knowledge/ui_spacing.md), [.agent/skills/frontend-design/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/frontend-design/SKILL.md)*
+### A. Aesthetics & UI ("The Digital Hearth")
+*Ref: [.agent/knowledge/design_system.md](file:///Users/jon/Development/github/vista/.agent/knowledge/design_system.md), [.agent/knowledge/ui_colors.md](file:///Users/jon/Development/github/vista/.agent/knowledge/ui_colors.md), [.agent/knowledge/ui_spacing.md](file:///Users/jon/Development/github/vista/.agent/knowledge/ui_spacing.md)*
 
 1.  **Visual Language:**
-    -   **Primary Action:** `emerald` (Growth, Success).
-    -   **Backgrounds:** `slate` (Depth, Professionalism).
-    -   **Glassmorphism:** Use `backdrop-blur-md` and `bg-white/10` (or `bg-slate-800/50`) for cards and overlays.
+    -   **Concept:** "Soft UI / Neumorphism" with organic, warm textures.
+    -   **Primary Action:** `Hearth Orange` (#E07A5F) - Energy, Warmth.
+    -   **Backgrounds:** `Stone White` (#F4F1DE) - Parchment/Eggshell. AVOID pure white (#FFFFFF).
+    -   **Text:** `Charcoal` (#3D405B) - Softer than black.
+    -   **Secondary:** `Sage Green` (#81B29A) for health/balance, `Eternal Flame` (#F2CC8F) for active states/streaks.
 2.  **Color System (Strict HSL/Semantic Tokens):**
-    -   **Do NOT** use generic HTML colors (`red`, `blue`).
-    -   **Do NOT** use hex codes directly in components.
-    -   **USE** semantic tokens defined in `index.css` or Tailwind classes (e.g., `bg-emerald-500`, `text-slate-200`).
-    -   **Neutrals:** Never pure black (`#000000`) or pure white (`#FFFFFF`). Use `slate-900` or `slate-50`.
-3.  **Spacing ("Start Large" Strategy):**
-    -   Start with generous spacing (`2rem`/`32px`).
-    -   Only reduce spacing to group related elements.
-    -   **Heuristic:** Inner padding > Outer margin spacing for contained elements.
+    -   **Do NOT** use cold clinical colors (standard blues, stark grays).
+    -   **Do NOT** use aggressive "alert" reds for going over limits. Use soft warnings or neutral tones.
+    -   **USE** semantic tokens defined in `index.css` tailored to the Hearth palette.
+3.  **Spacing & Layout:**
+    -   **Card-Based:** Use soft-cornered cards (`rounded-xl` to `rounded-2xl`) with soft drop shadows.
+    -   **Generous Spacing:** Maintain an airy, uncluttered feel.
 4.  **Motion & Feedback:**
-    -   **Interactive Elements:** fast transitions (`duration-200`), distinct `:hover` and `:active` states (scale, brightness).
-    -   **Lifecycle:** Use `AnimatePresence` for all mounting/unmounting components.
+    -   **Metaphor:** Fire, Warmth, Growth.
+    -   **Interactive Elements:** Soft lifts, "glow" effects on hover rather than sharp color changes.
+    -   **Lifecycle:** Use `AnimatePresence` for smooth, organic entrances/exits.
 5.  **Typography & Icons:**
-    -   Use distinctive font pairings if available.
-    -   Icons should be consistently sized and aligned.
+    -   **Headings:** Humanist Serif (e.g., Merriweather, Lora) - Nostalgic, Editorial.
+    -   **Body:** Rounded Sans-Serif (e.g., Outfit, Nunito) - Friendly, Approachable.
+    -   **Icons:** Filled, rounded, soft. Avoid sharp/thin strokes.
 
 ### B. Engineering Standards
 *Ref: [.agent/skills/development-guide/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/development-guide/SKILL.md)*
@@ -69,7 +71,7 @@ These rules are strictly enforced. Deviations will be rejected by the user.
 
 ### Key Data Flows
 1.  **Meal Tracking:** `Today View` → `App.tsx (toggleMeal)` → `DayPlan` → `storageService`.
-2.  **Calorie Calc:** Consumed (DailyLog props) - Burned (Workouts) = Net.
+2.  **Calorie Calc:** Consumed (DailyLog props) - Burned (Workouts) = Net Balance.
 
 ## 4. Key Data Structures
 
@@ -113,3 +115,85 @@ You operate using a set of strictly defined workflows in `.agent/workflows/` and
 ---
 **Last Updated:** 2026-01-17
 **Context:** This file replaces vague system prompts with concrete project realities.
+## Code Exploration with dora
+
+This codebase uses dora for fast code intelligence and architectural analysis.
+
+### IMPORTANT: Use dora for code exploration
+
+**ALWAYS use dora commands for code exploration instead of Grep/Glob/Find.**
+
+### All Commands
+
+**Overview:**
+
+- `dora status` - Check index health, file/symbol counts, last indexed time
+- `dora map` - Show packages, file count, symbol count
+
+**Files & Symbols:**
+
+- `dora ls [directory] [--limit N] [--sort field]` - List files in directory with metadata (symbols, deps, rdeps). Default limit: 100
+- `dora file <path>` - Show file's symbols, dependencies, and dependents
+- `dora symbol <query> [--kind type] [--limit N]` - Find symbols by name across codebase. Default limit: 20
+- `dora refs <symbol> [--kind type] [--limit N]` - Find all references to a symbol
+- `dora exports <path>` - List exported symbols from a file
+- `dora imports <path>` - Show what a file imports
+
+**Dependencies:**
+
+- `dora deps <path> [--depth N]` - Show file dependencies (what this imports). Default depth: 1
+- `dora rdeps <path> [--depth N]` - Show reverse dependencies (what imports this). Default depth: 1
+- `dora adventure <from> <to>` - Find shortest dependency path between two files
+
+**Code Health:**
+
+- `dora leaves [--max-dependents N]` - Find files with few/no dependents. Default: 0
+- `dora lost [--limit N]` - Find unused exported symbols. Default limit: 50
+- `dora treasure [--limit N]` - Find most referenced files and files with most dependencies. Default: 10
+
+**Architecture Analysis:**
+
+- `dora cycles [--limit N]` - Detect circular dependencies. Empty = good. Default: 50
+- `dora coupling [--threshold N]` - Find bidirectionally dependent file pairs. Default threshold: 5
+- `dora complexity [--sort metric]` - Show file complexity metrics (sort by: complexity, symbols, stability). Default: complexity
+
+**Change Impact:**
+
+- `dora changes <ref>` - Show files changed since git ref and their impact
+- `dora graph <path> [--depth N] [--direction type]` - Generate dependency graph. Direction: deps, rdeps, both. Default: both, depth 1
+
+**Documentation:**
+
+- `dora docs [--type TYPE]` - List all documentation files. Use --type to filter by md or txt
+- `dora docs search <query> [--limit N]` - Search through documentation content. Default limit: 20
+- `dora docs show <path> [--content]` - Show document metadata and references. Use --content to include full text
+
+**Note:** To find where a symbol/file is documented, use `dora symbol` or `dora file` which show a `documented_in` field.
+
+**Database:**
+
+- `dora schema` - Show database schema (tables, columns, indexes)
+- `dora cookbook show [recipe]` - Query patterns with real examples (quickstart, methods, references, exports)
+- `dora query "<sql>"` - Execute read-only SQL query against the database
+
+### When to Use Other Tools
+
+- **Read**: For reading file source code
+- **Grep**: Only for non-code files or when dora fails
+- **Edit/Write**: For making changes
+- **Bash**: For running commands/tests
+
+### Quick Workflow
+
+```bash
+dora status                      # Check index health
+dora treasure                    # Find core files
+dora file <path>                 # Understand a file
+dora deps/rdeps <path>           # Navigate dependencies
+dora symbol <query>              # Find symbols (shows documented_in)
+dora refs <symbol>               # Find references
+dora docs                        # List all documentation
+dora docs search <query>         # Search documentation content
+```
+
+For detailed usage and examples, refer to `./dora/docs/SKILL.md`.

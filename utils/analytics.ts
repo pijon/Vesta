@@ -437,7 +437,7 @@ export function formatReadableDate(dateStr: string): string {
 /**
  * Calculate deficit/surplus for each day
  */
-export interface DeficitSurplusData {
+export interface CalorieBalanceData {
   date: string;
   deficit: number;  // positive = under goal, negative = over goal
   displayDate: string;
@@ -446,11 +446,11 @@ export interface DeficitSurplusData {
   dayType: 'fast' | 'non-fast' | 'normal'; // 'normal' for daily mode fallback or unspecified
 }
 
-export function calculateDeficitSurplus(
+export function calculateCalorieBalance(
   summaries: DailySummary[],
   goals: { fast: number; nonFast: number },
-  dayTypes: Record<string, string> = {}
-): DeficitSurplusData[] {
+  dayTypes: Record<string, 'fast' | 'non-fast'>
+): CalorieBalanceData[] {
 
   if (summaries.length === 0) {
     return [];

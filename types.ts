@@ -17,6 +17,7 @@ export interface Recipe {
   sharedAt?: number;
   ownerId?: string;    // UID of recipe owner (set when viewing family recipes)
   ownerName?: string;  // Display name of owner (set when viewing family recipes)
+  cookingServings?: number; // Override for shopping list calculations (how many people you are cooking for)
 }
 
 export type Meal = Recipe;
@@ -48,6 +49,18 @@ export interface UserStats {
   nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
   dailyWorkoutCalorieGoal?: number; // Daily calorie burn target for workouts
   dailyWorkoutCountGoal?: number; // Daily target for number of workouts (default 1)
+  streaks?: {
+    // Global "Perfect Day" Streak
+    currentStreak: number;
+    bestStreak: number;
+    lastLogDate: string;
+    perfectDaysCount: number;
+
+    // Per-Category Streaks
+    calories?: { current: number; best: number; lastLogDate: string };
+    water?: { current: number; best: number; lastLogDate: string };
+    fasting?: { current: number; best: number; lastLogDate: string };
+  };
 }
 
 export interface GroceryItem {
@@ -130,6 +143,7 @@ export interface DailyLog {
   items: FoodLogItem[];
   workouts: WorkoutItem[];
   waterIntake: number; // in ml
+  maxFastingHours?: number; // Maximum fast achieved/broken on this day
 }
 
 export interface DailySummary {
@@ -138,6 +152,27 @@ export interface DailySummary {
   caloriesBurned: number;
   netCalories: number;
   workoutCount: number;
+  waterIntake?: number; // in ml
+  maxFastingHours?: number; // Fasting hours achieved
+}
+
+export interface DailyProgress {
+  calories: {
+    current: number;
+    target: number;
+    status: 'under' | 'perfect' | 'over'; // <90%, 90-100%, >100%
+  };
+  water: {
+    current: number;
+    target: number;
+    isMet: boolean;
+  };
+  fasting: {
+    hours: number;
+    target: number;
+    isMet: boolean;
+  };
+  isPerfectDay: boolean;
 }
 
 export enum AppView {

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="sv">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vesta - Digital Hearth UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        stone: '#F4F1DE',
+                        hearth: '#E07A5F',
+                        flame: '#F2CC8F',
+                        charcoal: '#3D405B',
+                        sage: '#81B29A',
+                        ocean: '#7BAEBC', // Ny organisk blå för vatten
+                    },
+                    fontFamily: {
+                        serif: ['Merriweather', 'serif'],
+                        sans: ['Nunito', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        '3xl': '2rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 25px -5px rgba(61, 64, 91, 0.05), 0 8px 10px -6px rgba(61, 64, 91, 0.05)',
+                        'inner-soft': 'inset 0 2px 4px 0 rgba(61, 64, 91, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #F4F1DE;
+            color: #3D405B;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .hearth-glow {
+            filter: drop-shadow(0 0 15px rgba(224, 122, 95, 0.4));
+        }
+
+        .sunrise-gradient {
+            background: linear-gradient(135deg, #E07A5F 0%, #F2CC8F 100%);
+        }
+
+        .perfect-day-ring {
+            animation: pulse-glow 3s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 5px rgba(242, 204, 143, 0.3));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 20px rgba(242, 204, 143, 0.6));
+            }
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        ::-webkit-scrollbar {
+            height: 4px;
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #E07A5F33;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8 space-y-32 max-w-2xl mx-auto pb-32">
+
+    <!-- SCREEN 1: THE DAILY SPARK (Översikt) -->
+    <section id="daily-spark" class="space-y-8">
+        <header class="flex justify-between items-start">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span
+                        class="bg-flame/20 text-hearth text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-tighter">12
+                        dagars streak</span>
+                    <p class="text-charcoal/40 font-bold text-xs uppercase tracking-widest">Perfekta dagar</p>
+                </div>
+                <h1 class="font-serif text-4xl font-bold">The Daily Spark</h1>
+            </div>
+            <button
+                class="w-14 h-14 rounded-2xl bg-white/60 shadow-soft flex items-center justify-center border border-white">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
+                    class="rounded-xl w-10 h-10 object-cover" alt="Profil">
+            </button>
+        </header>
+
+        <!-- Central Hearth Widget (Ringar för framsteg) -->
+        <div
+            class="relative flex flex-col items-center justify-center glass-card rounded-[3rem] p-12 shadow-soft overflow-hidden">
+            <div class="absolute -top-24 -left-24 w-64 h-64 bg-flame/10 blur-[80px] rounded-full"></div>
+
+            <div class="relative w-72 h-72 flex items-center justify-center">
+                <svg class="w-full h-full transform -rotate-90">
+                    <circle cx="144" cy="144" r="120" stroke="currentColor" stroke-width="12" fill="transparent"
+                        class="text-charcoal/5" />
+                    <!-- Kalorier (Hearth Orange) -->
+                    <circle cx="144" cy="144" r="120" stroke="url(#hearth-grad)" stroke-width="14" fill="transparent"
+                        stroke-dasharray="754" stroke-dashoffset="200" stroke-linecap="round" class="hearth-glow" />
+                    <!-- Vatten (Ocean Blue) -->
+                    <circle cx="144" cy="144" r="100" stroke="currentColor" stroke-width="10" fill="transparent"
+                        stroke-dasharray="628" stroke-dashoffset="140" stroke-linecap="round" class="text-ocean" />
+                    <!-- Fasta (Flame) -->
+                    <circle cx="144" cy="144" r="80" stroke="currentColor" stroke-width="8" fill="transparent"
+                        stroke-dasharray="502" stroke-dashoffset="80" stroke-linecap="round"
+                        class="text-flame perfect-day-ring" />
+
+                    <defs>
+                        <linearGradient id="hearth-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#E07A5F" />
+                            <stop offset="100%" style="stop-color:#F2CC8F" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+
+                <div class="absolute flex flex-col items-center text-center">
+                    <span class="text-xs font-black text-charcoal/30 uppercase tracking-[0.2em] mb-1">Kvarstående</span>
+                    <span class="text-6xl font-serif font-bold text-charcoal">1 420</span>
+                    <div class="mt-2 flex items-center gap-1 text-ocean font-bold text-sm">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Mot en perfekt dag
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-10 grid grid-cols-3 w-full gap-4">
+                <div class="text-center">
+                    <p class="text-[10px] font-black text-charcoal/40 uppercase mb-1">Kalorier</p>
+                    <p class="font-serif text-lg">580<span class="text-xs opacity-40">/2k</span></p>
+                </div>
+                <div class="text-center border-x border-charcoal/10">
+                    <p class="text-[10px] font-black text-charcoal/40 uppercase mb-1">Vatten</p>
+                    <p class="font-serif text-lg text-ocean">1,2<span class="text-xs opacity-60">/2,5L</span></p>
+                </div>
+                <div class="text-center">
+                    <p class="text-[10px] font-black text-charcoal/40 uppercase mb-1">Fasta</p>
+                    <p class="font-serif text-lg text-hearth">14<span class="text-xs opacity-60">/16h</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bento Grid: Widgetar -->
+        <div class="grid grid-cols-2 gap-4">
+            <!-- Aktivitet -->
+            <div
+                class="bg-white/60 p-6 rounded-3xl shadow-soft border border-white flex flex-col justify-between h-48 group cursor-pointer hover:bg-white transition-all">
+                <div class="flex justify-between items-start">
+                    <h3 class="text-[10px] font-black text-charcoal/40 uppercase tracking-widest">Aktivitet</h3>
+                    <div class="flex gap-1">
+                        <div class="w-1.5 h-1.5 rounded-full bg-hearth"></div>
+                        <div class="w-1.5 h-1.5 rounded-full bg-charcoal/10"></div>
+                    </div>
+                </div>
+                <div>
+                    <p class="font-serif text-3xl text-charcoal">412 <span
+                            class="text-xs font-sans font-normal opacity-40 uppercase">kcal</span></p>
+                    <p class="text-[10px] font-bold text-sage">1/2 träningspass klara</p>
+                </div>
+                <div class="flex gap-1 h-8 items-end">
+                    <div class="flex-1 bg-hearth/10 rounded-t-md h-1/2"></div>
+                    <div class="flex-1 bg-hearth/10 rounded-t-md h-3/4"></div>
+                    <div class="flex-1 bg-hearth/40 rounded-t-md h-full"></div>
+                    <div class="flex-1 bg-hearth/10 rounded-t-md h-2/3"></div>
+                    <div class="flex-1 bg-hearth/10 rounded-t-md h-1/2"></div>
+                </div>
+            </div>
+
+            <!-- Fasta -->
+            <div class="bg-white/60 p-6 rounded-3xl shadow-soft border border-white h-48 flex flex-col justify-between">
+                <h3 class="text-[10px] font-black text-charcoal/40 uppercase tracking-widest">Fasta</h3>
+                <div class="py-2">
+                    <p class="font-serif text-3xl text-hearth">14:22:08</p>
+                    <p class="text-[10px] font-bold text-charcoal/40">Sedan kl 20:00</p>
+                </div>
+                <div class="h-1,5 w-full bg-charcoal/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-hearth w-[88%]"></div>
+                </div>
+            </div>
+
+            <!-- Hydrering (Nu blå!) -->
+            <div class="bg-white/60 p-6 rounded-3xl shadow-soft border border-white flex flex-col justify-between h-48">
+                <div class="flex justify-between items-start">
+                    <h3 class="text-[10px] font-black text-charcoal/40 uppercase tracking-widest">Vätska</h3>
+                    <button class="bg-ocean/10 p-1.5 rounded-full text-ocean">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-width="3" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="relative h-16 w-full bg-stone rounded-xl overflow-hidden shadow-inner-soft">
+                    <div class="absolute bottom-0 left-0 right-0 bg-ocean h-[48%] transition-all duration-700"></div>
+                    <div class="absolute inset-0 flex items-center justify-center font-serif text-lg text-charcoal">1,2L
+                    </div>
+                </div>
+                <div class="flex justify-between text-[10px] font-bold text-charcoal/60">
+                    <span>+250ml</span>
+                    <span>+500ml</span>
+                </div>
+            </div>
+
+            <!-- Vikt -->
+            <div class="bg-white/60 p-6 rounded-3xl shadow-soft border border-white h-48">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-[10px] font-black text-charcoal/40 uppercase tracking-widest">Vikt</h3>
+                    <span class="text-[10px] font-bold text-sage">-1,1 kg</span>
+                </div>
+                <div class="mt-2">
+                    <p class="font-serif text-2xl">83,5 <span
+                            class="text-xs font-sans font-normal opacity-40 uppercase">kg</span></p>
+                    <div class="mt-4 h-12 w-full">
+                        <svg viewBox="0 0 100 40" class="w-full h-full overflow-visible">
+                            <path d="M0 35 Q 25 30, 50 20 T 100 5" fill="none" stroke="#81B29A" stroke-width="3"
+                                stroke-linecap="round" />
+                            <circle cx="100" cy="5" r="4" fill="#81B29A" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Senaste aktiviteter -->
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="font-serif text-xl font-bold">Senaste aktivitet</h2>
+                <button class="text-hearth font-bold text-xs uppercase tracking-widest">Logga pass +</button>
+            </div>
+            <div class="space-y-3">
+                <div class="bg-white/40 p-4 rounded-2xl flex items-center justify-between border border-white/60">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-flame/20 flex items-center justify-center text-hearth">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-bold text-charcoal">HIIT-pass</p>
+                            <p class="text-xs text-charcoal/40">45 min • Hög intensitet</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-serif font-bold text-hearth">320 <span class="text-[10px] font-sans">kcal</span>
+                        </p>
+                        <p class="text-[10px] text-charcoal/40">08:45</p>
+                    </div>
+                </div>
+                <div class="bg-white/40 p-4 rounded-2xl flex items-center justify-between border border-white/60">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-ocean/20 flex items-center justify-center text-ocean">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-width="2"
+                                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                </path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-bold text-charcoal">Morgonyoga</p>
+                            <p class="text-xs text-charcoal/40">20 min • Återhämtning</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-serif font-bold text-ocean">92 <span class="text-[10px] font-sans">kcal</span>
+                        </p>
+                        <p class="text-[10px] text-charcoal/40">07:15</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SCREEN 2: THE FAMILY TABLE (Planering) -->
+    <section id="family-table" class="space-y-8">
+        <header class="flex justify-between items-end">
+            <div>
+                <h1 class="font-serif text-3xl font-bold">The Family Table</h1>
+                <p class="text-charcoal/50 text-sm">Delar vardagen med <span class="text-charcoal font-bold">Familjen
+                        Miller</span></p>
+            </div>
+            <button class="bg-charcoal text-stone text-[10px] font-bold px-4 py-2 rounded-xl shadow-lg">Inbjudningskod:
+                VST-X92</button>
+        </header>
+
+        <!-- 5:2-läge -->
+        <div class="bg-hearth/10 border border-hearth/20 p-4 rounded-2xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-hearth text-white flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-bold text-charcoal">Fastdag aktiv (5:2)</p>
+                    <p class="text-xs text-charcoal/60">Mål: max 800 kcal</p>
+                </div>
+            </div>
+            <span class="font-serif text-lg font-bold text-hearth">420 kvar</span>
+        </div>
+
+        <!-- Veckoplanering -->
+        <div class="space-y-6">
+            <div class="group cursor-pointer">
+                <div class="flex items-center gap-4 mb-3">
+                    <span
+                        class="w-8 h-8 rounded-lg bg-white shadow-soft flex items-center justify-center font-bold text-xs text-charcoal/40">12:30</span>
+                    <h2 class="font-serif text-xl font-bold">Lunchval</h2>
+                </div>
+                <div
+                    class="bg-white rounded-[2.5rem] shadow-soft border border-white overflow-hidden hover:shadow-xl transition-all duration-500">
+                    <div class="flex flex-col md:flex-row">
+                        <div class="md:w-48 h-48">
+                            <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=400&fit=crop"
+                                class="w-full h-full object-cover" alt="Sallad">
+                        </div>
+                        <div class="p-6 flex-1 flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-start mb-2">
+                                    <h3 class="font-serif text-2xl font-bold leading-tight">Harvest Grain Bowl med
+                                        Tahini</h3>
+                                    <div class="flex -space-x-2">
+                                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=50&h=50&fit=crop"
+                                            class="w-8 h-8 rounded-full border-2 border-white object-cover">
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <span
+                                        class="bg-ocean/10 text-ocean text-[10px] font-black px-2 py-0.5 rounded-md uppercase">420
+                                        kcal</span>
+                                    <span
+                                        class="bg-flame/10 text-hearth text-[10px] font-black px-2 py-0.5 rounded-md uppercase">Hög
+                                        fiberhalt</span>
+                                    <span
+                                        class="bg-charcoal/5 text-charcoal/40 text-[10px] font-black px-2 py-0.5 rounded-md uppercase">15
+                                        min prep</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-center justify-between border-t border-charcoal/5 pt-4">
+                                <p class="text-xs text-charcoal/50 italic">AI-analys från foto</p>
+                                <button class="text-hearth font-bold text-sm">Börja laga →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button
+                class="w-full py-5 rounded-3xl border-2 border-dashed border-charcoal/10 flex items-center justify-center gap-3 text-charcoal/40 hover:border-hearth/40 hover:text-hearth transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                </svg>
+                <span class="font-bold">Generera inköpslista (12 varor)</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- SCREEN 3: COOKING MODE (Fokusvy) -->
+    <section id="cooking-mode"
+        class="glass-card rounded-[3rem] p-10 shadow-2xl border border-white min-h-[700px] flex flex-col">
+        <div class="flex justify-between items-center mb-10">
+            <div class="bg-white/80 p-1.5 rounded-2xl flex items-center gap-3 border border-white shadow-soft">
+                <span class="text-[10px] font-black text-charcoal/40 uppercase pl-3">Portioner</span>
+                <div class="flex items-center bg-stone rounded-xl">
+                    <button class="w-10 h-10 flex items-center justify-center font-bold">-</button>
+                    <span class="w-8 text-center font-serif text-lg font-bold">4</span>
+                    <button class="w-10 h-10 flex items-center justify-center font-bold">+</button>
+                </div>
+            </div>
+            <div
+                class="bg-hearth text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-hearth/20 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                12:00
+            </div>
+        </div>
+
+        <div class="flex-grow space-y-12">
+            <div class="max-w-xl">
+                <p class="text-hearth font-black uppercase text-xs tracking-widest mb-2">Steg 2 av 5 — Basen</p>
+                <h1 class="font-serif text-4xl leading-snug font-bold text-charcoal">Blanda den masserade grönkålen med
+                    varm quinoa och kikärtor.</h1>
+                <p class="mt-4 text-charcoal/60 leading-relaxed">Värmen från quinoan gör kålen mjukare och mer smakrik.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <h3 class="text-[10px] font-black text-charcoal/40 uppercase tracking-[0.2em]">Ingredienser i detta
+                        steg</h3>
+                    <div class="space-y-2">
+                        <label
+                            class="flex items-center gap-4 p-5 bg-stone/40 rounded-3xl border border-white/50 cursor-pointer hover:bg-white transition-all">
+                            <div class="w-6 h-6 rounded-lg border-2 border-ocean flex items-center justify-center">
+                                <div class="w-3 h-3 bg-ocean rounded-sm"></div>
+                            </div>
+                            <span class="font-bold text-charcoal">2 dl grönkål <span
+                                    class="text-charcoal/30 font-normal">(masserad)</span></span>
+                        </label>
+                        <label
+                            class="flex items-center gap-4 p-5 bg-stone/40 rounded-3xl border border-white/50 cursor-pointer hover:bg-white transition-all">
+                            <div class="w-6 h-6 rounded-lg border-2 border-charcoal/20"></div>
+                            <span class="font-bold text-charcoal">1,5 dl kokt quinoa</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Gemini Smart Insight -->
+                <div class="bg-flame/10 rounded-[2rem] p-6 border border-flame/30 relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-10">
+                        <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L1 21h22L12 2zm0 3.45l8.15 14.1H3.85L12 5.45z" />
+                        </svg>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-2 h-2 rounded-full bg-hearth animate-pulse"></span>
+                        <p class="text-[10px] font-black text-hearth uppercase tracking-widest">Smart näringsanalys</p>
+                    </div>
+                    <p class="text-sm italic leading-relaxed text-charcoal/80">
+                        "Att massera grönkål med lite citron bryter ner de fiberrika cellväggarna, vilket gör det
+                        lättare för kroppen att ta upp <span class="text-hearth font-bold">K-vitamin</span>."
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-12 flex gap-4">
+            <button
+                class="h-16 px-8 rounded-2xl bg-charcoal/5 text-charcoal font-bold hover:bg-charcoal/10 transition-all">Tillbaka</button>
+            <button
+                class="h-16 flex-grow rounded-2xl sunrise-gradient text-white font-black text-lg shadow-xl shadow-hearth/20 hover:scale-[1.02] transition-all">Markera
+                som klart</button>
+        </div>
+    </section>
+
+    <!-- PWA BOTTOM NAV -->
+    <nav
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md glass-card rounded-3xl p-3 shadow-2xl border border-white flex justify-around items-center z-50">
+        <button class="p-4 text-hearth">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z">
+                </path>
+            </svg>
+        </button>
+        <button class="p-4 text-charcoal/30">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                </path>
+            </svg>
+        </button>
+        <div
+            class="w-14 h-14 bg-hearth rounded-2xl flex items-center justify-center text-white shadow-lg shadow-hearth/30 -mt-12 border-4 border-stone">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="3" d="M12 4v16m8-8H4"></path>
+            </svg>
+        </div>
+        <button class="p-4 text-charcoal/30">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+            </svg>
+        </button>
+        <button class="p-4 text-charcoal/30">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m10 4a2 2 0 100-4m0 4a2 2 0 110-4m-4 1v1m-6-8V4m6 6v10m6-2V4">
+                </path>
+            </svg>
+        </button>
+    </nav>
+
+    <footer class="text-center opacity-20 pointer-events-none">
+        <p class="font-serif italic">Designad för Peter Miller — Vesta v2.4.0</p>
+    </footer>
+
+</body>
+
+</html>

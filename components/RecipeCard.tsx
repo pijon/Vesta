@@ -40,7 +40,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 flex flex-col h-full group ${onClick ? 'cursor-pointer hover:shadow-xl dark:hover:shadow-primary/5 hover:-translate-y-1' : ''}`}
+      className={`bg-white dark:bg-white/5 border border-charcoal/5 dark:border-white/5 rounded-3xl overflow-hidden transition-all duration-300 flex flex-col h-full group shadow-sm ${onClick ? 'cursor-pointer hover:shadow-xl dark:hover:shadow-white/5 hover:scale-[1.01]' : ''}`}
     >
       {/* Card Header / Illustration */}
       <div className={`relative h-48 md:h-56 overflow-hidden ${!meal.image ? theme.bg : 'bg-neutral-100 dark:bg-neutral-800'} transition-colors duration-300`}>
@@ -72,12 +72,12 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
             </span>
           )}
           {meal.tags?.slice(0, 3).map(tag => (
-            <span key={tag} className={`px-2.5 md:px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-surface/90 dark:bg-surface/60 ${theme.text}`}>
+            <span key={tag} className={`px-2.5 md:px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-white dark:bg-white/5/90 dark:bg-white dark:bg-white/5/60 ${theme.text}`}>
               {tag}
             </span>
           ))}
           {meal.servings > 1 && (
-            <span className="bg-surface/90 dark:bg-surface/60 backdrop-blur-md px-2.5 md:px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-muted shadow-sm">
+            <span className="bg-white dark:bg-white/5/90 dark:bg-white dark:bg-white/5/60 backdrop-blur-md px-2.5 md:px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-charcoal/60 dark:text-stone-400 shadow-sm">
               {meal.servings} Servings
             </span>
           )}
@@ -92,7 +92,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
                 e.stopPropagation();
                 onCopyToLibrary(e);
               }}
-              className="p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 bg-black/20 text-white hover:bg-surface/90 hover:text-blue-600 hover:scale-110"
+              className="p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 bg-black/20 text-white hover:bg-white dark:bg-white/5/90 hover:text-blue-600 hover:scale-110"
               title="Copy to My Recipes"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -107,8 +107,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
                 if (onToggleFavorite) onToggleFavorite(e);
               }}
               className={`p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 ${meal.isFavorite
-                ? 'bg-surface/90 text-red-500 hover:bg-surface hover:scale-110'
-                : 'bg-black/20 text-white hover:bg-surface/90 hover:text-red-500 hover:scale-110'
+                ? 'bg-white dark:bg-white/5/90 text-red-500 hover:bg-white dark:bg-white/5 hover:scale-110'
+                : 'bg-black/20 text-white hover:bg-white dark:bg-white/5/90 hover:text-red-500 hover:scale-110'
                 }`}
               title={meal.isFavorite ? "Remove from favourites" : "Add to favourites"}
             >
@@ -125,7 +125,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
                 e.stopPropagation();
                 onAddToPlan(e);
               }}
-              className="p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 bg-black/20 text-white hover:bg-surface/90 hover:text-emerald-600 hover:scale-110"
+              className="p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 bg-black/20 text-white hover:bg-white dark:bg-white/5/90 hover:text-primary hover:scale-110"
               title="Add to Today"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><line x1="12" y1="14" x2="12" y2="18"></line><line x1="10" y1="16" x2="14" y2="16"></line></svg>
@@ -138,15 +138,28 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
       <div className="p-4 md:p-6 flex flex-col flex-1">
         <div className="mb-4">
           <div className="flex justify-between items-start gap-3 mb-2">
-            <h3 className="text-lg md:text-xl font-bold text-main leading-tight font-serif transition-colors line-clamp-2"
+            <h3 className="text-lg md:text-xl font-bold text-charcoal dark:text-stone-200 leading-tight font-serif transition-colors line-clamp-2"
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
               onMouseLeave={(e) => e.currentTarget.style.color = ''}
             >
               {meal.name}
             </h3>
-            <span className="flex-shrink-0 text-sm font-bold bg-calories-bg px-2.5 py-1 rounded-lg border border-calories-border" style={{ color: 'var(--calories)' }}>
-              {meal.calories}
-            </span>
+            {(() => {
+              const kcal = meal.calories || 0;
+              let badgeStyle = "badge-sage"; // < 300 (Green/Sage)
+
+              if (kcal >= 300 && kcal <= 500) {
+                badgeStyle = "badge-warning"; // 300-500 (Amber/Warning)
+              } else if (kcal > 500) {
+                badgeStyle = "badge-terracotta"; // > 500 (Terracotta/Primary)
+              }
+
+              return (
+                <span className={`flex-shrink-0 text-sm font-bold px-2.5 py-1 rounded-lg border ${badgeStyle}`}>
+                  {meal.calories}
+                </span>
+              );
+            })()}
           </div>
         </div>
 
@@ -154,9 +167,9 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
         {showMacros && (
           <div className="flex gap-2 mb-6">
             {[
-              { label: 'P', value: meal.protein, color: 'badge-amber border border-amber-100 dark:border-amber-800' },
-              { label: 'F', value: meal.fat, color: 'badge-amber border border-amber-100 dark:border-amber-800' },
-              { label: 'C', value: meal.carbs, color: 'badge-sky border border-sky-100 dark:border-sky-800' }
+              { label: 'P', value: meal.protein, color: 'badge-terracotta' },
+              { label: 'F', value: meal.fat, color: 'badge-warning' },
+              { label: 'C', value: meal.carbs, color: 'badge-water' }
             ].map((macro, i) => (
               <div key={i} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors ${macro.color}`}>
                 <span className="text-[10px] uppercase font-bold opacity-70">{macro.label}</span>

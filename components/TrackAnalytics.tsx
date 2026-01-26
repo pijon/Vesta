@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, BarChart, Bar, ComposedChart, ReferenceLine } from 'recharts';
 import { DayPlan, UserStats, DailyLog } from '../types';
 import { getAllDailySummaries, getDayPlansInRange } from '../services/storageService';
-import { analyzeWeightTrends, analyzeStreaks, getWeeklySummary, getMonthlySummary, enhancePeriodSummaryWithWeight } from '../utils/analytics';
-import { GoalProjectionCard } from './analytics/GoalProjectionCard';
-import { ComplianceOverviewCard } from './analytics/ComplianceOverviewCard';
-import { PeriodicComparison } from './analytics/PeriodicComparison';
-import { DeficitSurplusChart } from './analytics/DeficitSurplusChart';
-import { WeeklySummary } from './WeeklySummary';
+
+
+
+import { GoalsHistoryChart } from './analytics/GoalsHistoryChart';
+
 import { AnalyticsSection } from './AnalyticsSection';
+import { WeeklyHabitPillars } from './analytics/WeeklyHabitPillars';
 
 interface TrackAnalyticsProps {
     todayPlan: DayPlan;
@@ -47,12 +47,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
     }, [dailyLog, stats]);
 
     // Calculate enhanced analytics
-    const weightAnalysis = analyzeWeightTrends(stats);
-    const streakAnalysis = analyzeStreaks(dailySummaries, stats.dailyCalorieGoal);
-    const weeklySummary = getWeeklySummary(dailySummaries, stats.dailyCalorieGoal);
-    const monthlySummary = getMonthlySummary(dailySummaries, stats.dailyCalorieGoal);
-    const weeklyEnhanced = enhancePeriodSummaryWithWeight(weeklySummary, stats.weightHistory);
-    const monthlyEnhanced = enhancePeriodSummaryWithWeight(monthlySummary, stats.weightHistory);
+
 
     // Weight chart data with projected trend line
     let allWeightData = stats.weightHistory ? [...stats.weightHistory] : [];
@@ -71,52 +66,11 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
         .filter(entry => new Date(entry.date) >= sevenDaysAgo)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Add projected data points if we have a projection
-    const projectedData: any[] = [];
-    if (weightAnalysis.projectedGoalDate && weightAnalysis.daysToGoal && weightAnalysis.daysToGoal > 0 && weightChartData.length > 0) {
-        const lastEntry = weightChartData[weightChartData.length - 1];
-        const currentWeight = lastEntry.weight;
-
-        // Only show projection for next 7 days
-        const maxProjectionDays = 7;
-        const daysToShow = Math.min(weightAnalysis.daysToGoal, maxProjectionDays);
-        const weightToLose = currentWeight - stats.goalWeight;
-        const dailyLossRate = weightAnalysis.projectedDailyRate || (weightToLose / weightAnalysis.daysToGoal);
-
-        const today = new Date(lastEntry.date);
-
-        // Add current weight as starting point for projection (connects the lines)
-        projectedData.push({
-            date: today.toISOString().split('T')[0],
-            weight: null,
-            projectedWeight: currentWeight,
-            displayDate: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        });
-
-        // Add projection point for each upcoming day
-        for (let i = 1; i <= daysToShow; i++) {
-            const projDate = new Date(today);
-            projDate.setDate(projDate.getDate() + i);
-            const projWeight = currentWeight - (dailyLossRate * i);
-
-            projectedData.push({
-                date: projDate.toISOString().split('T')[0],
-                weight: null,
-                projectedWeight: Math.max(projWeight, stats.goalWeight),
-                displayDate: projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            });
-        }
-    }
-
     // Combine actual and projected data
-    const formattedWeightData = [
-        ...weightChartData.map(entry => ({
-            ...entry,
-            projectedWeight: null,
-            displayDate: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        })),
-        ...projectedData
-    ];
+    const formattedWeightData = weightChartData.map(entry => ({
+        ...entry,
+        displayDate: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }));
 
     // Calorie chart data (exclude today's incomplete data)
     const today = new Date().toISOString().split('T')[0];
@@ -137,29 +91,24 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
 
     return (
         <div className="space-y-8">
-            <header className="mb-8">
-                <h2 className="text-3xl font-serif font-bold text-main mb-2">Analytics</h2>
-                <p className="text-muted">Track your progress and insights</p>
-            </header>
+
 
             {/* ========================================
                 PROGRESS - "Am I moving toward my goal?"
                 ======================================== */}
             <AnalyticsSection
-                title="PROGRESS"
+                title="Your Progress"
                 mobileCollapsible={true}
                 defaultCollapsed={false}
             >
                 <div className="space-y-6">
-                    {/* Goal Projection Hero Card */}
-                    <GoalProjectionCard weightAnalysis={weightAnalysis} stats={stats} />
-
-                    {/* Weight Trends with Projected Line */}
-                    <div className="bg-surface rounded-2xl border border-border p-6 shadow-sm">
-                        <h4 className="text-sm font-medium text-muted mb-4">Weight Trend</h4>
+                    {/* Weight Trends */}
+                    <div className="">
+                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Weight Trend</h4>
                         {formattedWeightData.length === 0 ? (
-                            <div className="h-48 md:h-56 flex items-center justify-center text-muted text-sm">
-                                No weight data yet
+                            <div className="h-48 md:h-56 flex flex-col items-center justify-center gap-2">
+                                <span className="text-3xl">⚖️</span>
+                                <p className="text-sm text-charcoal/60 dark:text-stone-400">Track your weight to see trends</p>
                             </div>
                         ) : (
                             <div className="h-48 md:h-56 w-full">
@@ -193,9 +142,9 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                                         {/* Goal line (horizontal reference) */}
                                         <ReferenceLine
                                             y={stats.goalWeight}
-                                            stroke="#10b981"
+                                            stroke="var(--color-secondary)"
                                             strokeDasharray="3 3"
-                                            label={{ value: 'Goal', fill: '#10b981', position: 'right', fontSize: 12 }}
+                                            label={{ value: 'Goal', fill: 'var(--color-secondary)', position: 'right', fontSize: 12 }}
                                         />
                                         {/* Actual weight (area chart) */}
                                         <Area
@@ -207,18 +156,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                                             name="Weight (kg)"
                                             connectNulls={false}
                                         />
-                                        {/* Projected weight (dashed line) */}
-                                        <Line
-                                            type="monotone"
-                                            dataKey="projectedWeight"
-                                            stroke="var(--color-primary)"
-                                            strokeWidth={2}
-                                            strokeDasharray="5 5"
-                                            dot={false}
-                                            name="Projected"
-                                            opacity={0.6}
-                                            connectNulls={true}
-                                        />
+
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </div>
@@ -228,26 +166,32 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
             </AnalyticsSection>
 
             {/* ========================================
-                COMPLIANCE - "Am I following the plan?"
+                CONSISTENCY - "Am I building healthy habits?"
                 ======================================== */}
             <AnalyticsSection
-                title="COMPLIANCE"
+                title="Building Healthy Habits"
                 mobileCollapsible={true}
                 defaultCollapsed={true}
             >
                 <div className="space-y-6">
-                    {/* Compliance Overview */}
-                    <ComplianceOverviewCard
-                        streakAnalysis={streakAnalysis}
-                        monthlySummary={monthlySummary}
-                    />
+
+
+                    {/* Weekly Habit Pillars - Visual snapshot */}
+                    <WeeklyHabitPillars summaries={dailySummaries} stats={stats} />
+
+                    {/* Daily Goals History */}
+                    <div className="">
+                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Daily Goals History</h4>
+                        <GoalsHistoryChart summaries={dailySummaries} stats={stats} />
+                    </div>
 
                     {/* Daily Calorie Tracking */}
-                    <div className="bg-surface rounded-2xl border border-border p-6 shadow-sm">
-                        <h4 className="text-sm font-medium text-muted mb-4">Daily Calorie Tracking</h4>
+                    <div className="">
+                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Daily Calorie Tracking</h4>
                         {formattedCalorieData.length === 0 ? (
-                            <div className="h-48 md:h-56 flex items-center justify-center text-muted text-sm">
-                                No calorie data yet
+                            <div className="h-48 md:h-56 flex flex-col items-center justify-center gap-2">
+                                <span className="text-3xl">🍽️</span>
+                                <p className="text-sm text-charcoal/60 dark:text-stone-400">Log meals to track your calories</p>
                             </div>
                         ) : (
                             <div className="h-48 md:h-56 w-full">
@@ -301,18 +245,6 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                         )}
                     </div>
 
-                    {/* Daily Deficit/Surplus */}
-                    <div className="bg-surface rounded-2xl border border-border p-6 shadow-sm">
-                        <h4 className="text-sm font-medium text-muted mb-4">Daily Deficit/Surplus</h4>
-                        <DeficitSurplusChart
-                            summaries={dailySummaries}
-                            goals={{
-                                fast: stats.dailyCalorieGoal,
-                                nonFast: stats.nonFastDayCalories || 2000
-                            }}
-                            dayTypes={dayTypes}
-                        />
-                    </div>
                 </div>
             </AnalyticsSection>
 
@@ -320,24 +252,20 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                 PATTERNS - "What trends exist in my data?"
                 ======================================== */}
             <AnalyticsSection
-                title="PATTERNS"
+                title="Insights & Trends"
                 mobileCollapsible={true}
                 defaultCollapsed={true}
             >
                 <div className="space-y-6">
-                    {/* Time Period Comparison */}
-                    <PeriodicComparison
-                        weeklySummary={weeklyEnhanced}
-                        monthlySummary={monthlyEnhanced}
-                        dailyGoal={stats.dailyCalorieGoal}
-                    />
+
 
                     {/* Workout Activity Pattern */}
-                    <div className="bg-surface rounded-2xl border border-border p-6 shadow-sm">
-                        <h4 className="text-sm font-medium text-muted mb-4">Workout Activity Pattern</h4>
+                    <div className="">
+                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Workout Activity Pattern</h4>
                         {formattedWorkoutData.length === 0 ? (
-                            <div className="h-48 md:h-56 flex items-center justify-center text-muted text-sm">
-                                No workout data yet
+                            <div className="h-48 md:h-56 flex flex-col items-center justify-center gap-2">
+                                <span className="text-3xl">💪</span>
+                                <p className="text-sm text-charcoal/60 dark:text-stone-400">Add workouts to see your activity</p>
                             </div>
                         ) : (
                             <div className="h-48 md:h-56 w-full">
@@ -364,7 +292,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                                         />
                                         <Bar
                                             dataKey="caloriesBurned"
-                                            fill="var(--chart-5)"
+                                            fill="var(--workout)"
                                             radius={[8, 8, 0, 0]}
                                             name="Calories Burned"
                                         />
@@ -375,10 +303,8 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                     </div>
 
                     {/* Weekly Breakdown */}
-                    <div className="bg-surface rounded-2xl border border-border p-6 shadow-sm">
-                        <h4 className="text-sm font-medium text-muted mb-4">Weekly Breakdown</h4>
-                        <WeeklySummary summaries={dailySummaries} />
-                    </div>
+                    {/* Weekly Breakdown */}
+
                 </div>
             </AnalyticsSection>
         </div>

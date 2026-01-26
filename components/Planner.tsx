@@ -7,6 +7,8 @@ import { Recipe, DayPlan } from '../types';
 import { getRecipeTheme } from '../utils';
 import { Portal } from './Portal';
 import { RecipeDetailModal } from './RecipeDetailModal';
+import { GlassCard } from './GlassCard';
+import { CookingMode } from './CookingMode';
 
 import { UserStats } from '../types';
 
@@ -34,6 +36,14 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
     const [customCalories, setCustomCalories] = useState('');
     const [customType, setCustomType] = useState<any>('main meal');
 
+    // Meal Configuration Modal State (Scaling)
+    const [showConfigModal, setShowConfigModal] = useState(false);
+    const [pendingRecipe, setPendingRecipe] = useState<Recipe | null>(null);
+    const [cookingServings, setCookingServings] = useState<number>(2);
+
+    // Cooking Mode State
+    const [cookingModeRecipe, setCookingModeRecipe] = useState<Recipe | null>(null);
+
     useEffect(() => {
         // Generate next 7 days
         const dates = [];
@@ -57,17 +67,36 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         getUpcomingPlan(7).then(setWeekPlans);
     }, [selectedDate]);
 
-    const handleRecipeSelect = async (recipe: Recipe) => {
+    const handleRecipeSelect = (recipe: Recipe) => {
+        // Skip config for custom manual entries (assumed "Eat Out" or simple logging)
+        if (recipe.description === 'Eat Out / Custom Meal') {
+            executeAddMeal(recipe);
+            closeModal(); // Close the main add modal
+            return;
+        }
+
+        setPendingRecipe(recipe);
+        setCookingServings(recipe.servings || 2);
+        setShowConfigModal(true);
+    };
+
+    const executeAddMeal = async (recipe: Recipe, servingsOverride?: number) => {
         if (!dayPlan) return;
 
         let newMeals = [...dayPlan.meals];
 
+        // Create the meal object with the scaling override if provided
+        const mealToAdd: Recipe = {
+            ...recipe,
+            cookingServings: servingsOverride !== undefined ? servingsOverride : recipe.cookingServings
+        };
+
         if (swapIndex !== null && swapIndex >= 0 && swapIndex < newMeals.length) {
             // Swap existing meal
-            newMeals[swapIndex] = recipe;
+            newMeals[swapIndex] = mealToAdd;
         } else {
             // Add new meal
-            newMeals.push(recipe);
+            newMeals.push(mealToAdd);
         }
 
         // Recalculate total calories
@@ -76,8 +105,15 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         const updatedPlan = { ...dayPlan, meals: newMeals, totalCalories: totalCals };
         saveDayPlan(updatedPlan);
         setDayPlan(updatedPlan);
+    };
 
-        closeModal();
+    const confirmConfigAndAdd = () => {
+        if (pendingRecipe) {
+            executeAddMeal(pendingRecipe, cookingServings);
+            setShowConfigModal(false);
+            setPendingRecipe(null);
+            closeModal(); // Close the main add modal
+        }
     };
 
     const handleCustomAdd = () => {
@@ -250,58 +286,35 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
     return (
         <div className="space-y-8 animate-fade-in">
-            <header className="flex justify-between items-center section-header mb-8">
-                <div>
-                    <h2 className="section-title">Meal Planner</h2>
-                    <p className="section-description">Design your week.</p>
-                </div>
-                <button
-                    onClick={handleAutoPlanClick}
-                    disabled={isGenerating}
-                    className={isGenerating ? 'btn-base btn-disabled btn-sm flex items-center gap-2' : 'btn-primary btn-sm flex items-center gap-2'}
-                >
-                    {isGenerating ? 'Planning...' : 'Auto-Plan Week'}
-                </button>
-            </header>
 
+
+            {/* Main Content Grid - The Family Table Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Date Scroller Column */}
+                {/* Date Scroller - Top Bar */}
                 <div className="lg:col-span-12">
-                    <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar snap-x">
+                    <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar snap-x">
                         {weekDates.map(date => {
                             const d = new Date(date);
                             const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
                             const dayNum = d.getDate();
                             const isSelected = date === selectedDate;
-
                             const plan = weekPlans[date];
-                            const isFastDay = plan?.type === 'fast';
-                            const isNonFastDay = plan?.type === 'non-fast';
                             const hasMeals = plan?.meals && plan.meals.length > 0;
-
-                            let indicatorColor = 'bg-transparent';
-                            if (hasMeals) {
-                                if (isFastDay) indicatorColor = 'bg-primary';
-                                else if (isNonFastDay) indicatorColor = 'bg-secondary';
-                                else indicatorColor = 'bg-neutral-300 dark:bg-neutral-700';
-                            }
 
                             return (
                                 <button
                                     key={date}
                                     onClick={() => setSelectedDate(date)}
-                                    className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl transition-all snap-center border-2 
+                                    className={`flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center transition-all snap-center 
                                         ${isSelected
-                                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 border-primary'
-                                            : 'bg-surface hover:bg-surface/80 text-muted border-transparent shadow-sm'
-                                        } relative overflow-hidden`}
+                                            ? 'bg-hearth text-white shadow-lg shadow-hearth/30 scale-105'
+                                            : 'bg-white/80 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/10'}
+                                    `}
                                 >
-                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${isSelected ? 'opacity-90' : 'opacity-60'}`}>{dayName}</span>
-                                    <span className="text-xl font-serif font-medium mt-0.5">{dayNum}</span>
-
-                                    {/* Type Indicator Dot */}
+                                    <span className="text-[10px] font-black uppercase tracking-wide opacity-70">{dayName}</span>
+                                    <span className="text-xl font-serif font-bold">{dayNum}</span>
                                     {hasMeals && (
-                                        <div className={`absolute bottom-2 w-1.5 h-1.5 rounded-full ${indicatorColor} ${isSelected ? 'ring-2 ring-white/20' : ''}`} />
+                                        <div className={`mt-1 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-hearth'}`} />
                                     )}
                                 </button>
                             );
@@ -309,193 +322,125 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                     </div>
                 </div>
 
-                {/* Main Content Grid */}
-                <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                    {/* Left Column: Day View */}
-                    <div className="lg:col-span-3 space-y-8">
-                        <div className="bg-surface rounded-2xl premium-shadow border border-border p-8 min-h-[500px]">
-                            <div className="flex justify-between items-start mb-6 gap-4">
-                                <div>
-                                    <div className="flex items-center gap-3 flex-wrap mb-1">
-                                        <h2 className="text-2xl font-medium text-main font-serif">
-                                            {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}
-                                        </h2>
-
-                                        {/* Status Badges */}
-                                        {dayPlan && (
-                                            <div className="flex items-center gap-2">
-                                                {/* Day Type Badge */}
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        const newType = dayPlan.type === 'fast' ? 'non-fast' : 'fast';
-                                                        const updated = { ...dayPlan, type: newType };
-                                                        setDayPlan(updated);
-                                                        await saveDayPlan(updated);
-                                                    }}
-                                                    className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border transition-all hover:opacity-80 active:scale-95 ${dayPlan.type === 'fast'
-                                                        ? 'bg-primary/10 text-primary border-primary/20'
-                                                        : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
-                                                        }`}
-                                                >
-                                                    {dayPlan.type === 'fast' ? 'Fast Day' : 'Non-Fast'}
-                                                </button>
-
-                                                {/* Calories Badge */}
-                                                {(() => {
-                                                    const target = dayPlan.type === 'fast' ? 800 : (stats.nonFastDayCalories || 2000);
-                                                    const current = dayPlan.mealIds ? availableRecipes.filter(r => dayPlan.mealIds.includes(r.id)).reduce((acc, m) => acc + m.calories, 0)
-                                                        : (dayPlan.meals || []).reduce((acc, m) => acc + m.calories, 0); // Handle both formats if needed, though Planner uses .meals typically
-                                                    // Planner.tsx uses dayPlan.meals directly usually. Let's stick to what was there: 
-                                                    // "const current = dayPlan.totalCalories || 0;" - wait, earlier code calculated it from meals.
-                                                    // Let's use the same logic as the original code or valid logic.
-                                                    // Original used: const current = dayPlan.totalCalories || 0;
-                                                    const currentCals = dayPlan.totalCalories || 0;
-                                                    const remaining = target - currentCals;
-                                                    const isOver = remaining < 0;
-
-                                                    return (
-                                                        <div className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border flex items-center gap-1.5 ${isOver
-                                                            ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                                                            : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                                            }`}>
-                                                            <span>{remaining} Left</span>
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className="text-muted font-medium">
-                                        {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleAutoPlanDay}
-                                        disabled={isGenerating}
-                                        className="text-white px-3 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 text-xs"
-                                        title="Auto-Plan this day (800 kcal)"
-                                        style={{ backgroundColor: 'var(--primary)' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-                                    >
-                                        {isGenerating ? (
-                                            <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                        ) : (
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                                        )}
-                                        Auto-Plan Day
-                                    </button>
-                                    <button
-                                        onClick={openAddModal}
-                                        className="text-white px-3 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 text-xs"
-                                        style={{ backgroundColor: 'var(--primary)' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                        Add Meal
-                                    </button>
-                                </div>
+                {/* Left Column: The Daily Menu (Card View) */}
+                <div className="lg:col-span-12">
+                    <GlassCard className="min-h-[600px] relative">
+                        {/* Header Actions */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+                            <div>
+                                <h2 className="text-3xl font-serif text-charcoal dark:text-stone-200">{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}'s Menu</h2>
+                                <p className="text-charcoal/60 dark:text-stone-400">
+                                    {dayPlan?.meals.length || 0} meals planned • {dayPlan?.totalCalories || 0} kcal total
+                                </p>
                             </div>
-
-                            {/* Meals List */}
-                            <div className="space-y-4">
-                                {dayPlan?.meals.length === 0 ? (
-                                    <div className="text-center py-20 border-2 border-dashed border-border rounded-xl">
-                                        <div className="mx-auto w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-4 text-muted">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1l-3 1-3-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1" /><path d="M6 12v-2" /><path d="M6 8h12a2 2 0 1 1 0 4h-2v2h-4v-2H6z" /><path d="M6 12a6 6 0 1 0 12 0v5" /><path d="M9 21h6" /><path d="M12 17v4" /></svg>
-                                        </div>
-                                        <h3 className="text-lg font-medium text-main mb-1 font-serif">No meals planned</h3>
-                                        <p className="text-muted text-sm max-w-xs mx-auto mb-6">Plan ahead to stay on track with your Vesta goals.</p>
-                                        <button
-                                            onClick={openAddModal}
-                                            className="text-primary font-bold hover:underline"
-                                        >
-                                            Browse Recipes
-                                        </button>
-                                    </div>
-                                ) : (
-                                    dayPlan?.meals.map((meal, index) => {
-                                        const isCompleted = (dayPlan.completedMealIds || []).includes(meal.id);
-                                        return (
-                                            <div
-                                                key={index}
-                                                onClick={() => setSelectedRecipe(meal)}
-                                                className={`p-6 flex items-center justify-between rounded-xl border transition-all cursor-pointer group ${isCompleted
-                                                    ? 'bg-background border-border opacity-60'
-                                                    : 'bg-surface border-border hover:border-primary/50 hover:shadow-sm'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-5">
-                                                    <div
-                                                        onClick={(e) => { e.stopPropagation(); toggleMealCompletion(meal.id); }}
-                                                        className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${isCompleted
-                                                            ? 'bg-primary border-primary text-primary-foreground'
-                                                            : 'border-border hover:border-primary text-transparent'
-                                                            }`}>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                    </div>
-                                                    {meal.image ? (
-                                                        <img src={meal.image} alt={meal.name} className="w-16 h-16 rounded-lg object-cover shadow-sm bg-muted/10" />
-                                                    ) : (
-                                                        <div className="w-16 h-16 rounded-lg bg-muted/10 flex items-center justify-center text-muted">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" /><path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" /></svg>
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <p className={`font-medium text-lg ${isCompleted ? 'text-muted line-through' : 'text-main'}`}>{meal.name}</p>
-                                                        <div className="flex gap-3 text-sm text-muted mt-1">
-                                                            <span className="flex items-center gap-1">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                                                                {meal.prepTime || 'N/A'}m
-                                                            </span>
-                                                            <span className="flex items-center gap-1">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 2.3 3 5 0 2.238-1.789 3.966-4.008 3.998" /><path d="M12 2v2" /><path d="M12 17v4" /><path d="M8 21h8" /></svg>
-                                                                {meal.calories} kcal
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openSwapModal(index);
-                                                        }}
-                                                        className="p-2 text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                                                        title="Swap Meal"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            removeMeal(index);
-                                                        }}
-                                                        className="p-2 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Remove Meal"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
+                            <div className="flex gap-2 flex-wrap">
+                                <button
+                                    onClick={openAddModal}
+                                    className="px-4 py-2 bg-charcoal dark:bg-stone-700 text-white rounded-xl font-bold hover:bg-charcoal/90 dark:hover:bg-stone-600 transition-colors shadow-lg"
+                                >
+                                    + Add Meal
+                                </button>
+                                <button
+                                    onClick={handleAutoPlanDay}
+                                    className="px-4 py-2 bg-hearth/10 dark:bg-hearth/20 text-hearth dark:text-hearth-light rounded-xl font-bold hover:bg-hearth/20 dark:hover:bg-hearth/30 transition-colors"
+                                >
+                                    Auto-Plan Day
+                                </button>
+                                <button
+                                    onClick={handleAutoPlanClick}
+                                    disabled={isGenerating}
+                                    className={isGenerating ? 'px-4 py-2 bg-stone-200 dark:bg-stone-800 text-stone-400 dark:text-stone-600 rounded-xl font-bold cursor-not-allowed' : 'btn-primary px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg'}
+                                >
+                                    {isGenerating ? 'Planning...' : 'Auto-Plan Week'}
+                                </button>
                             </div>
-
                         </div>
-                    </div>
 
+                        {/* Meals List */}
+                        <div className="space-y-4">
+                            {(!dayPlan || dayPlan.meals.length === 0) ? (
+                                <div className="text-center py-24 text-charcoal/40 dark:text-stone-500 border-2 border-dashed border-charcoal/5 dark:border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4">
+                                    <div className="w-16 h-16 rounded-full bg-stone-100 dark:bg-white/5 flex items-center justify-center text-3xl">
+                                        🍽️
+                                    </div>
+                                    <div>
+                                        <p className="font-serif text-xl mb-1 text-charcoal dark:text-stone-300">The table is empty</p>
+                                        <p className="text-sm">Add a meal to start planning your day</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                dayPlan.meals.map((meal, index) => (
+                                    <div key={index} className="group relative bg-white/60 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 rounded-[2rem] p-6 transition-all duration-300 hover:shadow-soft border border-white dark:border-white/5 flex gap-6 items-center">
+                                        {/* Time / Type Indicator */}
+                                        <div className="flex flex-col items-center gap-1 min-w-[60px]">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-charcoal/40 dark:text-stone-500 rotate-180 writing-vertical-rl h-10">
+                                                {meal.tags?.[0] || 'Meal'}
+                                            </span>
+                                            <div className="w-px h-8 bg-charcoal/10 dark:bg-white/10"></div>
+                                        </div>
 
+                                        {/* Image */}
+                                        <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 bg-stone dark:bg-stone-800">
+                                            {meal.image ? (
+                                                <img src={meal.image} alt={meal.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-3xl font-serif text-charcoal/20 dark:text-white/20">
+                                                    {(meal.name || 'M').charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-xl font-serif text-charcoal dark:text-stone-200 truncate">{meal.name}</h3>
+                                            <div className="flex gap-4 mt-2">
+                                                <span className="text-xs font-bold text-hearth dark:text-flame px-2 py-1 bg-hearth/10 dark:bg-flame/10 rounded-lg">
+                                                    {meal.calories} kcal
+                                                </span>
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                    {meal.prepTime || 15}m
+                                                </span>
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                                    {meal.cookingServings || meal.servings || 2} ppl
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setCookingModeRecipe(meal)}
+                                                className="w-10 h-10 rounded-full bg-hearth/10 dark:bg-white/5 text-hearth dark:text-stone-300 flex items-center justify-center hover:bg-hearth hover:text-white dark:hover:bg-hearth dark:hover:text-white transition-all shadow-sm"
+                                                title="Start Cooking Mode"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => removeMeal(index)}
+                                                className="w-10 h-10 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </GlassCard>
                 </div>
             </div>
+
+            {/* Cooking Mode Overlay */}
+            <AnimatePresence>
+                {cookingModeRecipe && (
+                    <CookingMode
+                        recipe={cookingModeRecipe}
+                        onClose={() => setCookingModeRecipe(null)}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Improved Add/Swap Meal Modal */}
             <AnimatePresence>
@@ -505,23 +450,23 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm px-4 py-4"
+                            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-50 dark:bg-[#1A1714]/80 backdrop-blur-sm px-4 py-4"
                             onClick={closeModal}
                         >
                             <motion.div
                                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
                                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                                className="bg-surface w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] border border-border"
+                                className="bg-white dark:bg-white/5 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] border border-border"
                                 onClick={e => e.stopPropagation()}
                             >
                                 {/* Header */}
-                                <div className="p-6 border-b border-border flex justify-between items-center bg-surface rounded-t-2xl">
+                                <div className="p-6 border-b border-border flex justify-between items-center bg-white dark:bg-white/5 rounded-t-2xl">
                                     <div>
-                                        <h3 className="font-normal text-3xl text-main font-serif">{swapIndex !== null ? 'Swap Meal' : 'Add Meal'}</h3>
-                                        <p className="text-sm text-muted font-medium mt-1">Select from library or add a quick entry</p>
+                                        <h3 className="font-normal text-3xl text-charcoal dark:text-stone-200 font-serif">{swapIndex !== null ? 'Swap Meal' : 'Add Meal'}</h3>
+                                        <p className="text-sm text-charcoal/60 dark:text-stone-400 font-medium mt-1">Select from library or add a quick entry</p>
                                     </div>
-                                    <button onClick={closeModal} className="p-2 bg-background hover:bg-background/80 rounded-full transition-colors text-muted hover:text-main">
+                                    <button onClick={closeModal} className="p-2 bg-stone-50 dark:bg-[#1A1714] hover:bg-stone-50 dark:bg-[#1A1714]/80 rounded-full transition-colors text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                     </button>
                                 </div>
@@ -530,13 +475,13 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                 <div className="px-6 pt-4 flex gap-4 border-b border-border">
                                     <button
                                         onClick={() => setModalTab('library')}
-                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'library' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-main'}`}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'library' ? 'border-primary text-primary' : 'border-transparent text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200'}`}
                                     >
                                         From Library
                                     </button>
                                     <button
                                         onClick={() => setModalTab('custom')}
-                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'custom' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-main'}`}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'custom' ? 'border-primary text-primary' : 'border-transparent text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200'}`}
                                     >
                                         Eat Out / Quick Add
                                     </button>
@@ -545,29 +490,29 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                 {modalTab === 'library' ? (
                                     <>
                                         {/* Search & Filter */}
-                                        <div className="p-6 space-y-4 border-b border-border bg-background/50">
+                                        <div className="p-6 space-y-4 border-b border-border bg-stone-50 dark:bg-[#1A1714]/50">
                                             <div className="flex flex-col md:flex-row gap-3">
                                                 <div className="relative flex-1">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-charcoal/60 dark:text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                                     </svg>
                                                     <input
                                                         type="text"
                                                         placeholder="Search recipes..."
-                                                        className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted text-main"
+                                                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-white/5 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted text-charcoal dark:text-stone-200"
                                                         value={searchTerm}
                                                         onChange={(e) => setSearchTerm(e.target.value)}
                                                     />
                                                 </div>
                                                 <div className="relative w-full md:w-36">
-                                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none z-10">
+                                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/60 dark:text-stone-400 pointer-events-none z-10">
                                                         <span className="text-[10px] font-bold uppercase tracking-wide opacity-70">Max Cal</span>
                                                     </div>
                                                     <input
                                                         type="number"
                                                         placeholder="Any"
                                                         min="0"
-                                                        className="w-full pl-20 pr-3 py-3 bg-surface border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted text-main"
+                                                        className="w-full pl-20 pr-3 py-3 bg-white dark:bg-white/5 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted text-charcoal dark:text-stone-200"
                                                         value={maxCalories}
                                                         onChange={(e) => setMaxCalories(e.target.value)}
                                                     />
@@ -580,7 +525,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                         onClick={() => setActiveFilter(type as any)}
                                                         className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border ${activeFilter === type
                                                             ? 'bg-main text-surface border-main'
-                                                            : 'bg-surface text-muted border-border hover:border-border'
+                                                            : 'bg-white dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-border hover:border-border'
                                                             }`}
                                                     >
                                                         {type}
@@ -590,10 +535,10 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         </div>
 
                                         {/* List */}
-                                        <div className="overflow-y-auto p-4 flex-1 bg-background/50">
+                                        <div className="overflow-y-auto p-4 flex-1 bg-stone-50 dark:bg-[#1A1714]/50">
                                             <div className="grid gap-3">
                                                 {filteredRecipes.length === 0 ? (
-                                                    <div className="text-center py-16 text-muted">
+                                                    <div className="text-center py-16 text-charcoal/60 dark:text-stone-400">
                                                         <p className="font-medium">No matching recipes found.</p>
                                                         <p className="text-xs mt-2">Try the "Eat Out / Quick Add" tab for manual entries.</p>
                                                     </div>
@@ -602,7 +547,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                         <button
                                                             key={recipe.id}
                                                             onClick={() => handleRecipeSelect(recipe)}
-                                                            className="flex items-center gap-5 p-3 rounded-xl bg-surface border border-border hover:border-primary hover:shadow-md transition-all text-left group w-full overflow-hidden"
+                                                            className="flex items-center gap-5 p-3 rounded-xl bg-white dark:bg-white/5 border border-border hover:border-primary hover:shadow-md transition-all text-left group w-full overflow-hidden"
                                                         >
                                                             <div className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 relative flex items-center justify-center ${getRecipeTheme(recipe.tags).bg}`}>
                                                                 {recipe.image ? (
@@ -614,17 +559,17 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                                 )}
                                                             </div>
                                                             <div className="flex-1 min-w-0 py-1">
-                                                                <h4 className="font-bold text-lg text-main truncate font-serif">{recipe.name}</h4>
-                                                                <p className="text-xs text-muted line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
+                                                                <h4 className="font-bold text-lg text-charcoal dark:text-stone-200 truncate font-serif">{recipe.name}</h4>
+                                                                <p className="text-xs text-charcoal/60 dark:text-stone-400 line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
                                                                 <div className="flex items-center gap-2">
                                                                     {recipe.tags?.map(tag => (
-                                                                        <span key={tag} className="text-[10px] font-bold text-muted bg-background px-2 py-0.5 rounded uppercase tracking-wide">{tag}</span>
+                                                                        <span key={tag} className="text-[10px] font-bold text-charcoal/60 dark:text-stone-400 bg-stone-50 dark:bg-[#1A1714] px-2 py-0.5 rounded uppercase tracking-wide">{tag}</span>
                                                                     ))}
                                                                     <span className="text-xs font-bold text-primary">{recipe.calories} kcal</span>
                                                                 </div>
                                                             </div>
                                                             <div className="pr-2">
-                                                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${swapIndex !== null ? 'bg-main text-surface border-main' : 'border-border text-muted group-hover:border-primary group-hover:text-primary'}`}>
+                                                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${swapIndex !== null ? 'bg-main text-surface border-main' : 'border-border text-charcoal/60 dark:text-stone-400 group-hover:border-primary group-hover:text-primary'}`}>
                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                                                 </div>
                                                             </div>
@@ -635,12 +580,12 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         </div>
                                     </>
                                 ) : (
-                                    <div className="p-8 flex flex-col gap-6 bg-background/50 flex-1 overflow-y-auto">
-                                        <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
-                                            <label className="block text-sm font-bold text-main/80 mb-2">Meal Name / Restaurant</label>
+                                    <div className="p-8 flex flex-col gap-6 bg-stone-50 dark:bg-[#1A1714]/50 flex-1 overflow-y-auto">
+                                        <div className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-border shadow-sm">
+                                            <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Meal Name / Restaurant</label>
                                             <input
                                                 type="text"
-                                                className="w-full p-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main placeholder-muted"
+                                                className="w-full p-4 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200 placeholder-muted"
                                                 placeholder="e.g. Pizza Express, Caesar Salad..."
                                                 value={customName}
                                                 onChange={e => setCustomName(e.target.value)}
@@ -648,20 +593,20 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-6">
-                                            <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
-                                                <label className="block text-sm font-bold text-main/80 mb-2">Estimated Calories</label>
+                                            <div className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-border shadow-sm">
+                                                <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Estimated Calories</label>
                                                 <input
                                                     type="number"
-                                                    className="w-full p-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                                                    className="w-full p-4 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200"
                                                     placeholder="0"
                                                     value={customCalories}
                                                     onChange={e => setCustomCalories(e.target.value)}
                                                 />
                                             </div>
-                                            <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
-                                                <label className="block text-sm font-bold text-main/80 mb-2">Meal Type</label>
+                                            <div className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-border shadow-sm">
+                                                <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Meal Type</label>
                                                 <select
-                                                    className="w-full p-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-main"
+                                                    className="w-full p-4 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200"
                                                     value={customType}
                                                     onChange={e => setCustomType(e.target.value)}
                                                 >
@@ -680,7 +625,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         >
                                             Add to Plan
                                         </button>
-                                        <p className="text-center text-xs text-muted">Custom meals are added to this day's plan but not saved to your library.</p>
+                                        <p className="text-center text-xs text-charcoal/60 dark:text-stone-400">Custom meals are added to this day's plan but not saved to your library.</p>
                                     </div>
                                 )}
                             </motion.div>
@@ -688,58 +633,142 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                     </Portal>
                 )}
             </AnimatePresence>
-            {/* Recipe Details Modal */}
-            {selectedRecipe && (
-                <RecipeDetailModal
-                    recipe={selectedRecipe}
-                    onClose={() => setSelectedRecipe(null)}
-                />
-            )}
 
-            {showAutoPlanModal && (
-                <Portal>
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowAutoPlanModal(false)}>
-                        <div className="bg-surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden premium-shadow border border-border" onClick={e => e.stopPropagation()}>
-                            <div className="p-6">
-                                <h3 className="text-xl font-bold text-main font-serif mb-2">Auto-Plan Week</h3>
-                                <p className="text-muted text-sm mb-6">Choose how you want the AI to plan your week.</p>
+            {/* Meal Configuration (Scaling) Modal */}
+            <AnimatePresence>
+                {showConfigModal && pendingRecipe && (
+                    <Portal>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[110] flex items-center justify-center bg-stone-50 dark:bg-[#1A1714]/80 backdrop-blur-sm px-4"
+                            onClick={() => setShowConfigModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                                className="bg-white dark:bg-white/5 w-full max-w-sm rounded-3xl shadow-2xl p-6 border border-border"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="text-center mb-6">
+                                    <div className={`w-16 h-16 mx-auto rounded-2xl mb-4 flex items-center justify-center text-3xl font-bold shadow-sm ${getRecipeTheme(pendingRecipe.tags).bg} ${getRecipeTheme(pendingRecipe.tags).text}`}>
+                                        {pendingRecipe.image ? (
+                                            <img src={pendingRecipe.image} alt="" className="w-full h-full object-cover rounded-2xl" />
+                                        ) : (
+                                            (pendingRecipe.name || 'M').charAt(0)
+                                        )}
+                                    </div>
+                                    <h3 className="text-xl font-bold text-charcoal dark:text-stone-200 font-serif leading-tight">{pendingRecipe.name}</h3>
+                                    <p className="text-sm text-charcoal/60 dark:text-stone-400 mt-1">Configure serving size</p>
+                                </div>
 
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={() => handleAutoPlanConfirm('daily')}
-                                        className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-background hover:border-primary/20 hover:bg-primary/5 transition-all group"
-                                    >
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="font-bold text-main group-hover:text-primary transition-colors">Strict Fasting</span>
-                                            <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">800 kcal</span>
+                                <div className="bg-stone-50 dark:bg-[#1A1714] rounded-2xl p-6 border border-border mb-6">
+                                    <label className="block text-center text-xs font-bold uppercase tracking-wider text-charcoal/60 dark:text-stone-400 mb-4">Cooking For</label>
+                                    <div className="flex items-center justify-center gap-6">
+                                        <button
+                                            onClick={() => setCookingServings(Math.max(1, cookingServings - 1))}
+                                            className="w-12 h-12 rounded-full bg-white dark:bg-white/5 border border-border hover:border-primary hover:text-primary flex items-center justify-center transition-all active:scale-95"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        </button>
+
+                                        <div className="text-center w-16">
+                                            <span className="text-4xl font-bold text-charcoal dark:text-stone-200 block leading-none">{cookingServings}</span>
+                                            <span className="text-[10px] text-charcoal/60 dark:text-stone-400 font-bold uppercase tracking-wide">People</span>
                                         </div>
-                                        <p className="text-xs text-muted">Plan 800 calories for every day of the week.</p>
+
+                                        <button
+                                            onClick={() => setCookingServings(cookingServings + 1)}
+                                            className="w-12 h-12 rounded-full bg-white dark:bg-white/5 border border-border hover:border-primary hover:text-primary flex items-center justify-center transition-all active:scale-95"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        </button>
+                                    </div>
+                                    <div className="mt-4 text-center">
+                                        <span className="text-xs text-charcoal/60 dark:text-stone-400 bg-white dark:bg-white/5 px-2 py-1 rounded border border-border">
+                                            Original Recipe: serves {pendingRecipe.servings || 1}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-3">
+                                    <button
+                                        onClick={confirmConfigAndAdd}
+                                        className="btn-primary w-full py-3.5 text-base shadow-lg"
+                                    >
+                                        Add to Plan ({cookingServings === (pendingRecipe.servings || 1) ? 'Standard' : `${(cookingServings / (pendingRecipe.servings || 1)).toFixed(1).replace(/\.0$/, '')}x Shopping List`})
                                     </button>
-
                                     <button
-                                        onClick={() => handleAutoPlanConfirm('5:2')}
-                                        className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-background hover:border-amber-500/20 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group"
+                                        onClick={() => setShowConfigModal(false)}
+                                        className="btn-ghost w-full py-3 text-sm"
                                     >
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="font-bold text-main group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">5:2 Diet</span>
-                                            <span className="text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded">Varied</span>
-                                        </div>
-                                        <p className="text-xs text-muted">2 Fasting Days (800 kcal) + 5 Non-Fasting Days.</p>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    </Portal>
+                )}
+            </AnimatePresence>
+
+            {/* Recipe Details Modal */}
+            {
+                selectedRecipe && (
+                    <RecipeDetailModal
+                        recipe={selectedRecipe}
+                        onClose={() => setSelectedRecipe(null)}
+                    />
+                )
+            }
+
+            {
+                showAutoPlanModal && (
+                    <Portal>
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowAutoPlanModal(false)}>
+                            <div className="bg-white dark:bg-white/5 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden premium-shadow border border-border" onClick={e => e.stopPropagation()}>
+                                <div className="p-6">
+                                    <h3 className="text-xl font-bold text-charcoal dark:text-stone-200 font-serif mb-2">Auto-Plan Week</h3>
+                                    <p className="text-charcoal/60 dark:text-stone-400 text-sm mb-6">Choose how you want the AI to plan your week.</p>
+
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={() => handleAutoPlanConfirm('daily')}
+                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-stone-50 dark:bg-[#1A1714] hover:border-primary/20 hover:bg-primary/5 transition-all group"
+                                        >
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="font-bold text-charcoal dark:text-stone-200 group-hover:text-primary transition-colors">Strict Fasting</span>
+                                                <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">800 kcal</span>
+                                            </div>
+                                            <p className="text-xs text-charcoal/60 dark:text-stone-400">Plan 800 calories for every day of the week.</p>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleAutoPlanConfirm('5:2')}
+                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-stone-50 dark:bg-[#1A1714] hover:border-amber-500/20 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group"
+                                        >
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="font-bold text-charcoal dark:text-stone-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">5:2 Diet</span>
+                                                <span className="text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded">Varied</span>
+                                            </div>
+                                            <p className="text-xs text-charcoal/60 dark:text-stone-400">2 Fasting Days (800 kcal) + 5 Non-Fasting Days.</p>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-stone-50 dark:bg-[#1A1714]/50 border-t border-border flex justify-end">
+                                    <button
+                                        onClick={() => setShowAutoPlanModal(false)}
+                                        className="px-4 py-2 text-sm font-bold text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200"
+                                    >
+                                        Cancel
                                     </button>
                                 </div>
                             </div>
-                            <div className="p-4 bg-background/50 border-t border-border flex justify-end">
-                                <button
-                                    onClick={() => setShowAutoPlanModal(false)}
-                                    className="px-4 py-2 text-sm font-bold text-muted hover:text-main"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
                         </div>
-                    </div>
-                </Portal>
-            )}
+                    </Portal>
+                )
+            }
         </div >
     );
 };

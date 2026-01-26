@@ -20,13 +20,14 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
 
     if (mobileCollapsible && isMobile) {
         return (
-            <div className="bg-surface rounded-3xl border border-border overflow-hidden shadow-sm">
+            <div className="bg-[var(--card-bg)] backdrop-blur-md rounded-3xl border border-charcoal/10 dark:border-white/10 shadow-sm overflow-hidden">
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
-                    className="w-full p-6 flex justify-between items-center hover:bg-background/50 transition-colors"
+                    className="w-full px-6 py-4 flex justify-between items-center hover:bg-black/5 transition-colors border-b border-transparent data-[expanded=true]:border-charcoal/10 dark:data-[expanded=true]:border-white/10"
                     aria-expanded={isExpanded}
+                    data-expanded={isExpanded}
                 >
-                    <h3 className="font-medium text-main text-lg font-serif">{title}</h3>
+                    <h3 className="font-normal text-charcoal dark:text-stone-200 text-lg font-serif">{title}</h3>
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="20"
@@ -42,15 +43,19 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
                         <path d="m6 9 6 6 6-6" />
                     </svg>
                 </button>
-                {isExpanded && <div className="p-6 pt-0">{children}</div>}
-            </div>
+                {isExpanded && <div className="p-6 pt-6 border-t border-charcoal/10 dark:border-white/10">{children}</div>}
+            </div >
         );
     }
 
     return (
-        <div className="bg-surface p-8 rounded-3xl border border-border shadow-sm">
-            <h3 className="font-medium text-main mb-6 font-serif text-lg">{title}</h3>
-            {children}
+        <div className="bg-[var(--card-bg)] backdrop-blur-md rounded-3xl border border-charcoal/10 dark:border-white/10 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-charcoal/10 dark:border-white/10">
+                <h3 className="font-normal text-charcoal dark:text-stone-200 font-serif text-lg">{title}</h3>
+            </div>
+            <div className="p-6 md:p-8">
+                {children}
+            </div>
         </div>
     );
 };
