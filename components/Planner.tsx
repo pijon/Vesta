@@ -332,6 +332,23 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Date Scroller - Top Bar */}
                 <div className="lg:col-span-12">
+                    {/* Month Header */}
+                    <div className="flex items-center justify-between mb-4 px-1">
+                        <h2 className="text-xl font-serif font-bold text-charcoal dark:text-stone-200">
+                            {(() => {
+                                if (weekDates.length === 0) return '';
+                                const start = new Date(weekDates[0]);
+                                const end = new Date(weekDates[weekDates.length - 1]);
+                                const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+                                const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
+                                const year = start.getFullYear();
+                                return startMonth === endMonth
+                                    ? `${startMonth} ${year}`
+                                    : `${startMonth} / ${endMonth} ${year}`;
+                            })()}
+                        </h2>
+                    </div>
+
                     <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar snap-x">
                         {weekDates.map(date => {
                             const d = new Date(date);
@@ -340,23 +357,36 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             const isSelected = date === selectedDate;
                             const plan = weekPlans[date];
                             const hasMeals = plan?.meals && plan.meals.length > 0;
+                            const isToday = new Date().toISOString().split('T')[0] === date;
 
                             return (
                                 <button
                                     key={date}
                                     onClick={() => setSelectedDate(date)}
-                                    className={`flex - shrink - 0 w - 16 h - 20 rounded - 2xl flex flex - col items - center justify - center transition - all snap - center 
+                                    className={`
+                                        flex-shrink-0 w-[4.5rem] h-24 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 snap-center border
                                         ${isSelected
-                                            ? 'bg-hearth text-white shadow-lg shadow-hearth/30 scale-105'
-                                            : 'bg-white/80 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/10'
+                                            ? 'bg-hearth text-white shadow-lg shadow-hearth/30 border-hearth transform -translate-y-1'
+                                            : 'bg-white dark:bg-white/5 border-stone-200 dark:border-white/5 text-charcoal/60 dark:text-stone-400 hover:border-hearth/50 hover:shadow-sm'
                                         }
-`}
+                                    `}
                                 >
-                                    <span className="text-[10px] font-black uppercase tracking-wide opacity-70">{dayName}</span>
-                                    <span className="text-xl font-serif font-bold">{dayNum}</span>
-                                    {hasMeals && (
-                                        <div className={`mt - 1 w - 1.5 h - 1.5 rounded - full ${isSelected ? 'bg-white' : 'bg-hearth'} `} />
-                                    )}
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isSelected ? 'opacity-90' : 'opacity-60'}`}>
+                                        {dayName}
+                                    </span>
+                                    <span className={`text-2xl font-serif font-bold mb-1 ${isSelected ? 'text-white' : 'text-charcoal dark:text-stone-200'}`}>
+                                        {dayNum}
+                                    </span>
+
+                                    {/* Indicators Container */}
+                                    <div className="flex gap-1 h-1.5">
+                                        {isToday && !isSelected && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-hearth/40" title="Today" />
+                                        )}
+                                        {hasMeals && (
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-sage-500'} `} />
+                                        )}
+                                    </div>
                                 </button>
                             );
                         })}
@@ -377,20 +407,20 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             <div className="flex gap-2 flex-wrap">
                                 <button
                                     onClick={openAddModal}
-                                    className="px-4 py-2 bg-sage/10 dark:bg-sage/20 text-sage-800 dark:text-sage-200 rounded-xl font-bold hover:bg-sage/20 dark:hover:bg-sage/30 transition-all active:scale-95"
+                                    className="px-5 py-2.5 bg-sage/10 text-sage-800 dark:text-sage-200 rounded-2xl font-bold hover:bg-sage/20 transition-all active:scale-95 flex items-center gap-2"
                                 >
-                                    + Add Meal
+                                    <span>+</span> Add Meal
                                 </button>
                                 <button
                                     onClick={handleAutoPlanDay}
-                                    className="px-4 py-2 bg-hearth/10 dark:bg-hearth/20 text-hearth dark:text-hearth-light rounded-xl font-bold hover:bg-hearth/20 dark:hover:bg-hearth/30 transition-colors"
+                                    className="px-5 py-2.5 bg-hearth/10 text-hearth dark:text-hearth-light rounded-2xl font-bold hover:bg-hearth/20 transition-colors"
                                 >
                                     Auto-Plan Day
                                 </button>
                                 <button
                                     onClick={handleAutoPlanClick}
                                     disabled={isGenerating}
-                                    className={isGenerating ? 'px-4 py-2 bg-stone-200 dark:bg-stone-800 text-stone-400 dark:text-stone-600 rounded-xl font-bold cursor-not-allowed' : 'btn-primary px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg'}
+                                    className={isGenerating ? 'px-5 py-2.5 bg-stone-200 dark:bg-stone-800 text-stone-400 dark:text-stone-600 rounded-2xl font-bold cursor-not-allowed' : 'btn-primary px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all'}
                                 >
                                     {isGenerating ? 'Planning...' : 'Auto-Plan Week'}
                                 </button>
@@ -411,14 +441,9 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                 </div>
                             ) : (
                                 dayPlan.meals.map((meal, index) => (
-                                    <div key={index} className="group relative bg-white/60 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 rounded-[2rem] p-6 transition-all duration-300 hover:shadow-soft border border-white dark:border-white/5 flex gap-6 items-center">
+                                    <div key={index} className="group relative bg-white dark:bg-white/5 hover:bg-stone-50 dark:hover:bg-white/10 rounded-3xl p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-stone-200 dark:border-white/5 flex gap-6 items-center">
                                         {/* Time / Type Indicator */}
-                                        <div className="flex flex-col items-center gap-1 min-w-[60px]">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-charcoal/40 dark:text-stone-500 writing-vertical-rl h-10">
-                                                {meal.tags?.[0] || 'Meal'}
-                                            </span>
-                                            <div className="w-px h-8 bg-charcoal/10 dark:bg-white/10"></div>
-                                        </div>
+
 
                                         {/* Image */}
                                         <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 bg-stone dark:bg-stone-800">
@@ -434,7 +459,10 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-xl font-serif text-charcoal dark:text-stone-200 truncate">{meal.name}</h3>
-                                            <div className="flex gap-4 mt-2">
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 px-2 py-1 bg-charcoal/5 dark:bg-white/10 rounded-lg uppercase tracking-wide">
+                                                    {meal.tags?.[0] || 'Meal'}
+                                                </span>
                                                 <span className="text-xs font-bold text-hearth dark:text-flame px-2 py-1 bg-hearth/10 dark:bg-flame/10 rounded-lg">
                                                     {meal.calories} kcal
                                                 </span>
