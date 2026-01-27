@@ -44,14 +44,48 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [imageError, setImageError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, []);
 
-  const loadData = async () => {
+  const [hasLoadedAll, setHasLoadedAll] = useState(false);
+
+  // Automatically load the rest of the recipes if the user starts searching, filtering, or sorting
+  useEffect(() => {
+    if (!hasLoadedAll && !isLoading) {
+      const isSearching = searchQuery.trim().length > 0;
+      const isFiltering = activeFilter !== 'all';
+      const isSorting = sortOption !== 'name'; // Assuming 'name' describes the implicit default or random order we accepted, actually default state is 'name'
+
+      if (isSearching || isFiltering || isSorting) {
+        loadData(true);
+      }
+    }
+  }, [searchQuery, activeFilter, sortOption]);
+
+  const loadData = async (loadAll: boolean = false) => {
+    // Prevent double loading if already loading all
+    if (isLoading && loadAll) return;
+
     setIsLoading(true);
     try {
-      const userRecipes = await getRecipes();
-      setRecipes(userRecipes);
+      // Initial load: 24 items (enough for 1080p screen without scrolling too much)
+      // Full load: fetch all
+      const limit = (loadAll || hasLoadedAll) ? undefined : 24;
+      const userRecipes = await getRecipes(limit);
+
+      if (loadAll) {
+        setHasLoadedAll(true);
+        setRecipes(userRecipes);
+      } else {
+        // If we asked for 24 and got 24, there might be more.
+        // If we got less than 24, we definitely have all.
+        if (userRecipes.length < 24) {
+          setHasLoadedAll(true);
+        } else {
+          setHasLoadedAll(false);
+        }
+        setRecipes(userRecipes);
+      }
 
       const group = await getUserGroup();
       setUserGroup(group);
@@ -64,6 +98,10 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLoadMore = () => {
+    loadData(true);
   };
 
   const openRecipe = (recipe: Recipe) => {
@@ -499,6 +537,18 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           ))
         )}
       </div>
+
+      {!hasLoadedAll && !isLoading && recipes.length > 0 && (
+        <div className="flex justify-center mt-8 pb-4">
+          <button
+            onClick={handleLoadMore}
+            className="btn-secondary flex items-center gap-2 group"
+          >
+            <span>Load All Recipes</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:translate-y-0.5 transition-transform"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>
+          </button>
+        </div>
+      )}
 
       {/* Ingredient Recipe Modal */}
       {showIngredientModal && (

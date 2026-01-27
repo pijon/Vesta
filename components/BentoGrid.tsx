@@ -50,16 +50,16 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
     );
 };
 
-export const FastingCard: React.FC<{ elapsedString: string; startTime: string; progressPercent: number; isFasting: boolean }> = ({
-    elapsedString, startTime, isFasting
+export const FastingCard: React.FC<{ elapsedString: string; startTime: string; progressPercent: number; isFasting: boolean; size?: 'sm' | 'md' }> = ({
+    elapsedString, startTime, isFasting, size = 'md'
 }) => {
     return (
-        <div className="glass-card p-6 rounded-3xl h-56 flex flex-col justify-between">
+        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'}`}>
             <div className="relative z-10">
                 <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Fasting</h3>
             </div>
             <div className="absolute inset-0 z-0 flex flex-col justify-center items-center text-center">
-                <p className="font-serif text-4xl text-hearth dark:text-flame mb-1 transition-colors">{elapsedString}</p>
+                <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-4xl'} text-hearth dark:text-flame mb-1 transition-colors`}>{elapsedString}</p>
                 <p className="text-xs font-bold text-charcoal/40 dark:text-stone-400 uppercase tracking-wide">
                     {isFasting ? `Since ${startTime}` : 'Eating Window'}
                 </p>
@@ -81,8 +81,20 @@ export const CaloriesRemainingCard: React.FC<{
     const isOver = caloriesRemaining < 0;
     const absRemaining = Math.abs(caloriesRemaining);
 
+    // Calculate consumed percentage for the glow height
+    // If remaining is 500/2000, consumed is 1500 (75%)
+    // If remaining is -200/2000, consumed is 2200 (110%)
+    const consumed = caloriesGoal - caloriesRemaining;
+    const percentConsumed = Math.min(100, (consumed / caloriesGoal) * 100);
+
     return (
-        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300`}>
+        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
+            {/* Ember Glow Background */}
+            <div
+                className={`absolute bottom-0 left-0 right-0 z-0 transition-all duration-1000 ease-out bg-gradient-to-t ${isOver ? 'from-red-500/20 via-red-500/5 to-transparent' : 'from-hearth/30 via-hearth/5 to-transparent'}`}
+                style={{ height: `${percentConsumed}%` }}
+            ></div>
+
             <div className="relative z-10 flex justify-between items-start">
                 <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">
                     {isOver ? 'Over Limit' : 'Remaining'}
@@ -99,7 +111,7 @@ export const CaloriesRemainingCard: React.FC<{
                 </div>
             </div>
 
-            <div className="absolute inset-0 z-0 flex flex-col items-center justify-center text-center">
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center pointer-events-none">
                 <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-3xl'} ${isOver ? 'text-red-500' : 'text-charcoal dark:text-stone-200'} transition-colors`}>
                     {absRemaining}
                     <span className="text-xs font-sans font-normal opacity-40 dark:opacity-60 uppercase ml-1">kcal</span>
@@ -109,13 +121,10 @@ export const CaloriesRemainingCard: React.FC<{
                 </p>
             </div>
 
-            {/* Visual Progress Bar at bottom */}
-            <div className="relative z-10 w-full h-1.5 bg-neutral-100 dark:bg-white/5 rounded-full mt-auto overflow-hidden">
-                <div
-                    className={`h-full rounded-full ${isOver ? 'bg-red-500' : 'bg-hearth'}`}
-                    style={{ width: `${Math.min(100, Math.max(5, ((caloriesGoal - caloriesRemaining) / caloriesGoal) * 100))}%` }}
-                ></div>
-            </div>
+            {/* Spacer to maintain flex layout structure if needed, though with absolute center it might not be strictly necessary, 
+                but let's keep the flex behavior consistent or just remove the progress bar as requested. 
+                The Header is at top. Consumed glow is background. Text is centered. 
+                We don't need the bottom bar anymore. */}
         </div>
     );
 };
