@@ -18,6 +18,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { FoodEntryModal } from './components/FoodEntryModal';
 import { WorkoutEntryModal } from './components/WorkoutEntryModal';
 import { WeightEntryModal } from './components/WeightEntryModal';
+import { LoadingScreen } from './components/LoadingScreen';
 
 
 import { FamilySettings } from './components/FamilySettings';
@@ -74,6 +75,7 @@ const TrackerApp: React.FC = () => {
 
     const [userStats, setUserStatsState] = useState<UserStats>(DEFAULT_USER_STATS);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
 
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('fast800_darkMode');
@@ -110,34 +112,44 @@ const TrackerApp: React.FC = () => {
     }, [dailyLog.workouts]);
 
     const refreshData = async () => {
-        const [today, tomorrow, stats, log, fasting] = await Promise.all([
-            getDayPlan(todayDate),
-            getDayPlan(tomorrowDate),
-            getUserStats(),
-            getDailyLog(todayDate),
-            getFastingState()
-        ]);
+        try {
+            const [today, tomorrow, stats, log, fasting] = await Promise.all([
+                getDayPlan(todayDate),
+                getDayPlan(tomorrowDate),
+                getUserStats(),
+                getDailyLog(todayDate),
+                getFastingState()
+            ]);
 
-        setTodayPlan(today);
-        setTomorrowPlan(tomorrow);
+            setTodayPlan(today);
+            setTomorrowPlan(tomorrow);
 
-        // Check for onboarding: if weight history is empty, show wizard
-        // (Assuming DEFAULT_USER_STATS has empty history, and existing users have history)
-        const history = stats.weightHistory || [];
-        setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: history });
-        setDailyLog(log);
-        setFastingState(fasting);
+            // Check for onboarding: if weight history is empty, show wizard
+            // (Assuming DEFAULT_USER_STATS has empty history, and existing users have history)
+            const history = stats.weightHistory || [];
+            setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: history });
+            setDailyLog(log);
+            setFastingState(fasting);
 
-        if (history.length === 0) {
-            setShowOnboarding(true);
+            if (history.length === 0) {
+                setShowOnboarding(true);
+            }
+        } catch (error) {
+            console.error("Failed to refresh data", error);
         }
     };
 
 
     useEffect(() => {
         const init = async () => {
-            await migrateFromLocalStorage();
-            await refreshData();
+            try {
+                await migrateFromLocalStorage();
+                await refreshData();
+            } catch (error) {
+                console.error("Initialization error", error);
+            } finally {
+                setIsInitializing(false);
+            }
         };
         init();
     }, [todayDate, tomorrowDate]);
@@ -431,6 +443,10 @@ const TrackerApp: React.FC = () => {
 
     const headerInfo = getHeaderInfo();
 
+    if (isInitializing) {
+        return <LoadingScreen />;
+    }
+
     return (
         <div className="min-h-screen md:flex font-sans">
             {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} />}
@@ -571,13 +587,7 @@ const AuthGuard: React.FC = () => {
     const { user, loading } = useAuth();
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="animate-pulse flex flex-col items-center gap-4">
-                    <img src="/resources/logo_light.png" alt="Vesta Logo" className="h-12 w-auto opacity-50" />
-                </div>
-            </div>
-        );
+        return <LoadingScreen />;
     }
 
     if (!user) {

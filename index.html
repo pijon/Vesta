@@ -71,7 +71,88 @@
 </head>
 
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #F4F1DE;
+        font-family: 'Nunito', sans-serif;
+      }
+
+      .initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #F4F1DE;
+        /* Stone White */
+        z-index: 9999;
+      }
+
+      .logo-pulse {
+        width: 96px;
+        height: 96px;
+        margin-bottom: 24px;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      .loading-text {
+        font-family: 'Merriweather', serif;
+        color: #3D405B;
+        /* Charcoal */
+        font-size: 1.1rem;
+        font-weight: 500;
+        opacity: 0.8;
+        animation: fadeText 3s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        50% {
+          opacity: 0.8;
+          transform: scale(0.95);
+        }
+      }
+
+      @keyframes fadeText {
+
+        0%,
+        100% {
+          opacity: 0.8;
+        }
+
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* Dark mode support if user has system preference */
+      @media (prefers-color-scheme: dark) {
+
+        body,
+        .initial-loader {
+          background-color: #1A1714 !important;
+        }
+
+        .loading-text {
+          color: #F4F1DE !important;
+        }
+      }
+    </style>
+    <div class="initial-loader">
+      <img src="/resources/logo_light.png" alt="Vesta" class="logo-pulse">
+      <div class="loading-text">Warming the Hearth...</div>
+    </div>
+  </div>
   <script type="module" src="index.tsx"></script>
 </body>
 

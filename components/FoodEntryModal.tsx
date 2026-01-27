@@ -87,20 +87,20 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm px-4 py-4 animate-fade-in"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4 py-4 animate-fade-in"
         onClick={handleClose}
       >
         <div
-          className="bg-[var(--color-stone)] dark:bg-[#1A1714] w-full max-w-lg rounded-[2.5rem] border border-white/50 dark:border-white/5 shadow-2xl overflow-hidden"
+          className="bg-[var(--background)] w-full max-w-lg rounded-3xl border border-border shadow-2xl overflow-hidden backdrop-blur-md"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 md:p-8 border-b border-charcoal/5 dark:border-white/5 flex justify-between items-center bg-transparent">
+          <div className="p-6 md:p-8 border-b border-border flex justify-between items-center bg-transparent">
             <h3 className="font-normal text-2xl md:text-3xl text-hearth font-serif">Log Food</h3>
             <button
               onClick={handleClose}
               disabled={isAnalyzing || isAnalyzingImage}
-              className="p-2 bg-charcoal/5 dark:bg-white/5 border border-transparent rounded-full text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 bg-[var(--input-bg)] border border-transparent rounded-full text-muted hover:text-[var(--text-main)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -111,26 +111,24 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
 
           {/* Content */}
           {/* Tabs */}
-          <div className="flex border-b border-border">
+          <div className="flex border-b border-border p-1 mx-6 mt-4 bg-[var(--input-bg)] rounded-xl">
             <button
               onClick={() => setTab('ai')}
-              className={`flex-1 py-3 text-sm font-bold transition-colors relative ${tab === 'ai' ? 'text-charcoal dark:text-stone-200' : 'text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200'
+              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${tab === 'ai'
+                ? 'bg-[var(--surface)] text-hearth shadow-sm'
+                : 'text-muted hover:text-[var(--text-main)]'
                 }`}
             >
               AI Assistant
-              {tab === 'ai' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-calories" />
-              )}
             </button>
             <button
               onClick={() => setTab('manual')}
-              className={`flex-1 py-3 text-sm font-bold transition-colors relative ${tab === 'manual' ? 'text-charcoal dark:text-stone-200' : 'text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200'
+              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${tab === 'manual'
+                ? 'bg-[var(--surface)] text-hearth shadow-sm'
+                : 'text-muted hover:text-[var(--text-main)]'
                 }`}
             >
               Manual Entry
-              {tab === 'manual' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-calories" />
-              )}
             </button>
           </div>
 
@@ -140,14 +138,11 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
               <>
                 {/* AI Text Input */}
                 <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-3">What did you eat?</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">What did you eat?</label>
                   <div className="flex gap-3">
                     <input
                       type="text"
-                      className="flex-1 p-3 bg-white dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-charcoal dark:text-stone-200 placeholder:text-charcoal/40 dark:placeholder:text-stone-600"
-                      style={{ focusRingColor: 'var(--calories)' }}
-                      onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
-                      onBlur={(e) => e.target.style.boxShadow = 'none'}
+                      className="flex-1 p-3 bg-[var(--input-bg)] border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
                       placeholder="e.g. 1 apple and a handful of almonds"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
@@ -157,32 +152,21 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                     <button
                       onClick={handleAnalyze}
                       disabled={isAnalyzing || isAnalyzingImage || !input.trim()}
-                      className={`px-6 py-3 font-bold rounded-xl transition-colors shadow-lg ${isAnalyzing || isAnalyzingImage || !input.trim()
-                        ? 'bg-neutral-300 dark:bg-neutral-800 text-charcoal/60 dark:text-stone-400 cursor-not-allowed'
-                        : 'text-white'
+                      className={`px-6 py-3 font-bold rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 ${isAnalyzing || isAnalyzingImage || !input.trim()
+                        ? 'bg-[var(--input-bg)] text-muted cursor-not-allowed shadow-none'
+                        : 'bg-hearth text-white'
                         }`}
-                      style={isAnalyzing || isAnalyzingImage || !input.trim() ? {} : { backgroundColor: 'var(--calories)' }}
-                      onMouseEnter={(e) => {
-                        if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
-                          e.currentTarget.style.backgroundColor = 'var(--calories-hover)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isAnalyzing && !isAnalyzingImage && input.trim()) {
-                          e.currentTarget.style.backgroundColor = 'var(--calories)';
-                        }
-                      }}
                     >
                       {isAnalyzing ? '...' : 'Add'}
                     </button>
                   </div>
-                  <p className="text-xs text-charcoal/60 dark:text-stone-400 mt-2 ml-1">AI will estimate calories from your description</p>
+                  <p className="text-xs text-muted mt-2 ml-1">AI will estimate calories from your description</p>
                 </div>
 
                 {/* OR Divider */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 py-2">
                   <div className="h-px flex-1 bg-border"></div>
-                  <span className="text-xs text-charcoal/60 dark:text-stone-400 font-medium">OR</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted">OR</span>
                   <div className="h-px flex-1 bg-border"></div>
                 </div>
 
@@ -193,7 +177,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                     onError={(err) => setImageError(err)}
                     disabled={isAnalyzing || isAnalyzingImage}
                   />
-                  <p className="text-xs text-charcoal/60 dark:text-stone-400 mt-2 ml-1">Upload a photo and AI will analyze it</p>
+                  <p className="text-xs text-muted mt-2 ml-1">Upload a photo and AI will analyze it</p>
                 </div>
 
                 {/* Loading State */}
@@ -217,24 +201,20 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
               /* Manual Entry Form */
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Item Name</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Item Name</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-white dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-charcoal dark:text-stone-200 placeholder:text-charcoal/40 dark:placeholder:text-stone-600"
-                    onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
-                    onBlur={(e) => e.target.style.boxShadow = 'none'}
+                    className="w-full p-3 bg-[var(--input-bg)] border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
                     placeholder="e.g. Grilled Chicken Salad"
                     value={manualName}
                     onChange={(e) => setManualName(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Calories (kcal)</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Calories (kcal)</label>
                   <input
                     type="number"
-                    className="w-full p-3 bg-white dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-charcoal dark:text-stone-200 placeholder:text-charcoal/40 dark:placeholder:text-stone-600"
-                    onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--calories)'}
-                    onBlur={(e) => e.target.style.boxShadow = 'none'}
+                    className="w-full p-3 bg-[var(--input-bg)] border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
                     placeholder="e.g. 350"
                     value={manualCalories}
                     onChange={(e) => setManualCalories(e.target.value)}
@@ -244,11 +224,10 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                 <button
                   onClick={handleManualSubmit}
                   disabled={!manualName.trim() || !manualCalories}
-                  className={`w-full py-3 font-bold rounded-xl transition-colors shadow-lg ${!manualName.trim() || !manualCalories
-                    ? 'bg-neutral-300 dark:bg-neutral-800 text-charcoal/60 dark:text-stone-400 cursor-not-allowed'
-                    : 'text-white'
+                  className={`w-full py-3 font-bold rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 ${!manualName.trim() || !manualCalories
+                    ? 'bg-[var(--input-bg)] text-muted cursor-not-allowed shadow-none'
+                    : 'bg-hearth text-white'
                     }`}
-                  style={!manualName.trim() || !manualCalories ? {} : { backgroundColor: 'var(--calories)' }}
                 >
                   Add Entry
                 </button>
@@ -261,7 +240,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
             <button
               onClick={handleClose}
               disabled={isAnalyzing || isAnalyzingImage}
-              className="w-full py-3 bg-white/50 dark:bg-white/5 text-charcoal dark:text-stone-200 font-bold rounded-xl hover:bg-white dark:hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-charcoal/5 dark:border-white/5"
+              className="w-full py-3 bg-transparent text-muted font-bold rounded-xl hover:text-[var(--text-main)] hover:bg-[var(--input-bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-border"
             >
               Cancel
             </button>

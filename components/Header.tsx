@@ -19,9 +19,9 @@ export const Header: React.FC<HeaderProps> = ({
     return (
         <div className="flex justify-between items-center mb-4">
             <div>
-                <h1 className="text-4xl font-serif text-charcoal dark:text-stone-100 transition-colors">{title}</h1>
+                <h1 className="text-2xl md:text-4xl font-serif text-charcoal dark:text-stone-100 transition-colors">{title}</h1>
                 {subtitle && (
-                    <p className="text-charcoal/60 dark:text-stone-400 dark:text-stone-400 mt-1">{subtitle}</p>
+                    <p className="text-sm md:text-base text-charcoal/60 dark:text-stone-400 mt-1">{subtitle}</p>
                 )}
             </div>
             <div className="flex gap-4 items-center">

@@ -18,6 +18,8 @@ export interface Recipe {
   ownerId?: string;    // UID of recipe owner (set when viewing family recipes)
   ownerName?: string;  // Display name of owner (set when viewing family recipes)
   cookingServings?: number; // Override for shopping list calculations (how many people you are cooking for)
+  isLeftover?: boolean; // If true, this is a leftover from a previous meal
+  isPacked?: boolean;   // If true, this is a packed lunch/meal
 }
 
 export type Meal = Recipe;

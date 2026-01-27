@@ -300,7 +300,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center flex-shrink-0 text-hearth">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      <svg width="18" height="18" viewBox="0 -4.83 52 52" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><g transform="translate(-788.946 -1785.428)"><path d="M814.946,1793.095a24,24,0,0,0-24,24h48A24,24,0,0,0,814.946,1793.095Z" /><line x2="48" transform="translate(790.946 1825.761)" /><line y2="5.667" transform="translate(814.946 1787.428)" /></g></svg>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-charcoal dark:text-stone-200 truncate">{item.name}</p>
@@ -346,8 +346,11 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 >
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-8 h-8 bg-workout-bg rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--workout)' }}>
-                        <path d="m13.73 4 2.54 2.54 2.54-2.54 2.54 2.54L18.81 9l2.54 2.54-2.54 2.54L16.27 11.54 13.73 14.08 11.19 11.54 8.65 14.08 6.11 11.54 3.57 14.08 1.03 11.54 3.57 9 1.03 6.46 3.57 3.92 6.11 6.46 8.65 3.92 11.19 6.46z" />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32" fill="currentColor" stroke="none" style={{ color: 'var(--workout)' }}>
+                        <path d="M24,13.5V10c0-4.4-3.6-8-8-8s-8,3.6-8,8v3.5c-1.9,2-3,4.6-3,7.5c0,3.5,1.6,6.7,4.4,8.8C9.6,29.9,9.8,30,10,30h12
+	c0.2,0,0.4-0.1,0.6-0.2c2.8-2.1,4.4-5.3,4.4-8.8C27,18.1,25.9,15.4,24,13.5z M10,11.8V10c0-3.3,2.7-6,6-6s6,2.7,6,6v1.8
+	c-1.7-1.1-3.8-1.8-6-1.8S11.7,10.7,10,11.8z M22,20.1c-0.1,0-0.2,0-0.3,0c-0.4,0-0.8-0.3-1-0.7c-0.3-1.1-1.1-2-2-2.6
+	c-0.5-0.3-0.6-0.9-0.3-1.4c0.3-0.5,0.9-0.6,1.4-0.3c1.3,0.9,2.3,2.2,2.8,3.7C22.8,19.4,22.5,19.9,22,20.1z"/>
                       </svg>
                     </div>
                     <div>
@@ -413,18 +416,18 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
       {editingFoodItem && (
         <Portal>
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-4 animate-fade-in"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 animate-fade-in"
             onClick={handleCancelEditFood}
           >
             <div
-              className="bg-white dark:bg-white/5 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+              className="bg-background w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden border border-border"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-border flex justify-between items-center bg-calories-bg">
-                <h3 className="font-normal text-2xl text-charcoal dark:text-stone-200 font-serif">Edit Food Entry</h3>
+              <div className="p-6 border-b border-border flex justify-between items-center bg-white/40 dark:bg-white/5">
+                <h3 className="heading-3">Edit Food Entry</h3>
                 <button
                   onClick={handleCancelEditFood}
-                  className="p-2 bg-white dark:bg-white/5 border border-border rounded-full text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 transition-colors"
+                  className="p-2 bg-white/50 dark:bg-white/5 border border-border rounded-full text-muted hover:text-main transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -434,59 +437,48 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               </div>
               <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Food Name</label>
+                  <label className="block text-sm font-bold text-main mb-2">Food Name</label>
                   <input
                     type="text"
                     value={editFoodName}
                     onChange={(e) => setEditFoodName(e.target.value)}
-                    className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-charcoal dark:text-stone-200"
+                    className="w-full input"
                     placeholder="e.g. Apple"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Calories</label>
+                  <label className="block text-sm font-bold text-main mb-2">Calories</label>
                   <input
                     type="number"
                     value={editFoodCalories}
                     onChange={(e) => setEditFoodCalories(e.target.value)}
-                    className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-charcoal dark:text-stone-200"
+                    className="w-full input"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Time Eaten</label>
+                  <label className="block text-sm font-bold text-main mb-2">Time Eaten</label>
                   <input
                     type="time"
                     value={editFoodTime}
                     onChange={(e) => setEditFoodTime(e.target.value)}
-                    className="w-full p-3 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-charcoal dark:text-stone-200"
+                    className="w-full input"
                   />
                 </div>
               </div>
               <div className="p-6 pt-0 flex gap-3">
                 <button
                   onClick={handleCancelEditFood}
-                  className="flex-1 py-3 bg-neutral-100 dark:bg-neutral-800 text-charcoal dark:text-stone-200 font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                  className="flex-1 py-3 bg-white/50 dark:bg-white/5 text-main font-bold rounded-2xl border border-border hover:bg-white dark:hover:bg-white/10 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveEditFood}
                   disabled={!editFoodName.trim() || !editFoodCalories}
-                  className={`flex-1 py-3 font-bold rounded-xl transition-colors shadow-lg ${!editFoodName.trim() || !editFoodCalories
-                    ? 'bg-neutral-300 dark:bg-neutral-800 text-charcoal/60 dark:text-stone-400 cursor-not-allowed'
-                    : 'text-white'
+                  className={`flex-1 py-3 font-bold rounded-2xl transition-colors shadow-lg shadow-primary/20 ${!editFoodName.trim() || !editFoodCalories
+                    ? 'bg-border text-muted cursor-not-allowed shadow-none'
+                    : 'bg-primary text-white hover:bg-primary/90'
                     }`}
-                  style={!editFoodName.trim() || !editFoodCalories ? {} : { backgroundColor: 'var(--calories)' }}
-                  onMouseEnter={(e) => {
-                    if (editFoodName.trim() && editFoodCalories) {
-                      e.currentTarget.style.backgroundColor = 'var(--calories-hover)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (editFoodName.trim() && editFoodCalories) {
-                      e.currentTarget.style.backgroundColor = 'var(--calories)';
-                    }
-                  }}
                 >
                   Save Changes
                 </button>

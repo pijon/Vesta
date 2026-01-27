@@ -82,6 +82,30 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const [hydration, setHydration] = useState(dailyLog.waterIntake || 0);
   const [activityHistory, setActivityHistory] = useState<DailySummary[]>([]);
 
+  // Fasting Live Timer State
+  const [elapsedFastingHours, setElapsedFastingHours] = useState(0);
+
+  useEffect(() => {
+    // Initial calculation
+    const calculateFasting = () => {
+      if (fastingState.lastAteTime) {
+        const lastAte = new Date(fastingState.lastAteTime).getTime();
+        const now = Date.now();
+        const diffMs = now - lastAte;
+        const hours = diffMs / (1000 * 60 * 60);
+        setElapsedFastingHours(hours);
+      } else {
+        setElapsedFastingHours(0);
+      }
+    };
+
+    calculateFasting();
+
+    // Update every minute
+    const interval = setInterval(calculateFasting, 60000);
+    return () => clearInterval(interval);
+  }, [fastingState.lastAteTime]);
+
   useEffect(() => {
     const loadHistory = async () => {
       try {
@@ -206,6 +230,13 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const today = new Date().toISOString().split('T')[0];
   const weightLoggedToday = stats.weightHistory.some(entry => entry.date === today);
 
+  // Helper to format hours into string
+  const formatFastingTime = (hours: number) => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours % 1) * 60);
+    return `${h}h ${m}m`;
+  };
+
   return (
     <div className="space-y-8">
       {/* Mobile: 2x2 Grid of Rich Widgets */}
@@ -253,7 +284,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               caloriesGoal={dailyTarget}
               waterLiters={hydration / 1000}
               waterGoal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
-              fastingHours={dailyLog.maxFastingHours || 0}
+              fastingHours={elapsedFastingHours}
               fastingGoal={fastingState.config.targetFastHours}
             />
           </div>
@@ -267,11 +298,21 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               history={activityHistory}
               onAddWorkout={() => onOpenWorkoutModal()}
             />
-            <FastingCard
-              elapsedString={`${Math.floor(dailyLog.maxFastingHours || 0)}h ${Math.round(((dailyLog.maxFastingHours || 0) % 1) * 60)}m`}
-              startTime={fastingState.lastAteTime ? new Date(fastingState.lastAteTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-              isFasting={!!fastingState.lastAteTime}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <CaloriesRemainingCard
+                caloriesRemaining={dailyTarget - consumed + caloriesBurned}
+                caloriesGoal={dailyTarget}
+                size="sm"
+                onLogFood={onOpenFoodModal}
+              />
+              <FastingCard
+                elapsedString={formatFastingTime(elapsedFastingHours)}
+                startTime={fastingState.lastAteTime ? new Date(fastingState.lastAteTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                isFasting={!!fastingState.lastAteTime}
+                progressPercent={Math.min((elapsedFastingHours / fastingState.config.targetFastHours) * 100, 100)}
+                size="sm"
+              />
+            </div>
             <HydrationCard
               liters={hydration / 1000}
               goal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}

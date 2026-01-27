@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan, getUpcomingPlan } from '../services/storageService';
+import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan, getUpcomingPlan, getDayPlansInRange } from '../services/storageService';
 import { planWeekWithExistingRecipes, planDayWithExistingRecipes } from '../services/geminiService';
 import { Recipe, DayPlan } from '../types';
 
@@ -26,7 +26,8 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
     const [showAutoPlanModal, setShowAutoPlanModal] = useState(false);
 
     // Modal UI State
-    const [modalTab, setModalTab] = useState<'library' | 'custom'>('library');
+    const [modalTab, setModalTab] = useState<'library' | 'custom' | 'leftovers'>('library');
+    const [leftoverCandidates, setLeftoverCandidates] = useState<{ date: string; recipe: Recipe }[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState<'all' | 'breakfast' | 'main meal' | 'snack' | 'light meal'>('all');
     const [maxCalories, setMaxCalories] = useState<string>('');
@@ -145,10 +146,49 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         setDayPlan(updatedPlan);
     };
 
+    const togglePacked = async (index: number) => {
+        if (!dayPlan) return;
+        const newMeals = [...dayPlan.meals];
+        const meal = newMeals[index];
+        newMeals[index] = { ...meal, isPacked: !meal.isPacked };
+
+        const updatedPlan = { ...dayPlan, meals: newMeals };
+        saveDayPlan(updatedPlan);
+        setDayPlan(updatedPlan);
+    }
+
     const openAddModal = () => {
         setSwapIndex(null);
         resetModalState();
         setShowAddModal(true);
+
+        // Fetch last 3 days for Leftovers tab
+        const endD = new Date(selectedDate);
+        endD.setDate(endD.getDate() - 1);
+        const endDate = endD.toISOString().split('T')[0];
+
+        const startD = new Date(selectedDate);
+        startD.setDate(startD.getDate() - 3);
+        const startDate = startD.toISOString().split('T')[0];
+
+        getDayPlansInRange(startDate, endDate).then(plans => {
+            const candidates: { date: string; recipe: Recipe }[] = [];
+
+            // Iterate from yesterday backwards
+            for (let i = 1; i <= 3; i++) {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const plan = plans[dateStr];
+
+                if (plan && plan.meals) {
+                    plan.meals.forEach(m => {
+                        candidates.push({ date: dateStr, recipe: m });
+                    });
+                }
+            }
+            setLeftoverCandidates(candidates);
+        });
     };
 
     const openSwapModal = (index: number) => {
@@ -305,16 +345,17 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                 <button
                                     key={date}
                                     onClick={() => setSelectedDate(date)}
-                                    className={`flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center transition-all snap-center 
+                                    className={`flex - shrink - 0 w - 16 h - 20 rounded - 2xl flex flex - col items - center justify - center transition - all snap - center 
                                         ${isSelected
                                             ? 'bg-hearth text-white shadow-lg shadow-hearth/30 scale-105'
-                                            : 'bg-white/80 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/10'}
-                                    `}
+                                            : 'bg-white/80 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/10'
+                                        }
+`}
                                 >
                                     <span className="text-[10px] font-black uppercase tracking-wide opacity-70">{dayName}</span>
                                     <span className="text-xl font-serif font-bold">{dayNum}</span>
                                     {hasMeals && (
-                                        <div className={`mt-1 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-hearth'}`} />
+                                        <div className={`mt - 1 w - 1.5 h - 1.5 rounded - full ${isSelected ? 'bg-white' : 'bg-hearth'} `} />
                                     )}
                                 </button>
                             );
@@ -336,7 +377,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             <div className="flex gap-2 flex-wrap">
                                 <button
                                     onClick={openAddModal}
-                                    className="px-4 py-2 bg-charcoal dark:bg-stone-700 text-white rounded-xl font-bold hover:bg-charcoal/90 dark:hover:bg-stone-600 transition-colors shadow-lg"
+                                    className="px-4 py-2 bg-sage/10 dark:bg-sage/20 text-sage-800 dark:text-sage-200 rounded-xl font-bold hover:bg-sage/20 dark:hover:bg-sage/30 transition-all active:scale-95"
                                 >
                                     + Add Meal
                                 </button>
@@ -373,7 +414,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                     <div key={index} className="group relative bg-white/60 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 rounded-[2rem] p-6 transition-all duration-300 hover:shadow-soft border border-white dark:border-white/5 flex gap-6 items-center">
                                         {/* Time / Type Indicator */}
                                         <div className="flex flex-col items-center gap-1 min-w-[60px]">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-charcoal/40 dark:text-stone-500 rotate-180 writing-vertical-rl h-10">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-charcoal/40 dark:text-stone-500 writing-vertical-rl h-10">
                                                 {meal.tags?.[0] || 'Meal'}
                                             </span>
                                             <div className="w-px h-8 bg-charcoal/10 dark:bg-white/10"></div>
@@ -405,6 +446,22 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                                     {meal.cookingServings || meal.servings || 2} ppl
                                                 </span>
+                                                {meal.isLeftover && (
+                                                    <span className="text-xs font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-lg flex items-center gap-1" title="Leftover from previous day">
+                                                        ♻️ Leftover
+                                                    </span>
+                                                )}
+                                                {meal.isPacked && (
+                                                    <span className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-lg flex items-center gap-1" title="Packed Lunch">
+                                                        <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                            <g transform="translate(1.000000, 2.000000)">
+                                                                <rect x="0" y="0" width="16" height="2" />
+                                                                <path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" />
+                                                            </g>
+                                                        </svg>
+                                                        Packed
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
 
@@ -416,6 +473,18 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                 title="Start Cooking Mode"
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); togglePacked(index); }}
+                                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 hover:bg-blue-50 hover:text-blue-500'} `}
+                                                title="Toggle Packed Lunch"
+                                            >
+                                                <svg width="18" height="18" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                    <g transform="translate(1.000000, 2.000000)">
+                                                        <rect x="0" y="0" width="16" height="2" />
+                                                        <path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" />
+                                                    </g>
+                                                </svg>
                                             </button>
                                             <button
                                                 onClick={() => removeMeal(index)}
@@ -450,23 +519,23 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-50 dark:bg-[#1A1714]/80 backdrop-blur-sm px-4 py-4"
+                            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4 py-4"
                             onClick={closeModal}
                         >
                             <motion.div
                                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
                                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                                className="bg-white dark:bg-white/5 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] border border-border"
+                                className="bg-[var(--background)] w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] border border-border backdrop-blur-md"
                                 onClick={e => e.stopPropagation()}
                             >
                                 {/* Header */}
-                                <div className="p-6 border-b border-border flex justify-between items-center bg-white dark:bg-white/5 rounded-t-2xl">
+                                <div className="p-6 border-b border-border flex justify-between items-center bg-transparent rounded-t-3xl">
                                     <div>
-                                        <h3 className="font-normal text-3xl text-charcoal dark:text-stone-200 font-serif">{swapIndex !== null ? 'Swap Meal' : 'Add Meal'}</h3>
-                                        <p className="text-sm text-charcoal/60 dark:text-stone-400 font-medium mt-1">Select from library or add a quick entry</p>
+                                        <h3 className="font-normal text-3xl text-[var(--text-main)] font-serif">{swapIndex !== null ? 'Swap Meal' : 'Add Meal'}</h3>
+                                        <p className="text-sm text-[var(--text-secondary)] font-medium mt-1">Select from library or add a quick entry</p>
                                     </div>
-                                    <button onClick={closeModal} className="p-2 bg-stone-50 dark:bg-[#1A1714] hover:bg-stone-50 dark:bg-[#1A1714]/80 rounded-full transition-colors text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200">
+                                    <button onClick={closeModal} className="p-2 bg-[var(--input-bg)] hover:bg-[var(--border)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-main)]">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                     </button>
                                 </div>
@@ -475,44 +544,50 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                 <div className="px-6 pt-4 flex gap-4 border-b border-border">
                                     <button
                                         onClick={() => setModalTab('library')}
-                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'library' ? 'border-primary text-primary' : 'border-transparent text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200'}`}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'library' ? 'border-primary text-primary' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-main)]'}`}
                                     >
                                         From Library
                                     </button>
                                     <button
                                         onClick={() => setModalTab('custom')}
-                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'custom' ? 'border-primary text-primary' : 'border-transparent text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200'}`}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'custom' ? 'border-primary text-primary' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-main)]'}`}
                                     >
                                         Eat Out / Quick Add
+                                    </button>
+                                    <button
+                                        onClick={() => setModalTab('leftovers')}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === 'leftovers' ? 'border-primary text-primary' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-main)]'}`}
+                                    >
+                                        Leftovers
                                     </button>
                                 </div>
 
                                 {modalTab === 'library' ? (
                                     <>
                                         {/* Search & Filter */}
-                                        <div className="p-6 space-y-4 border-b border-border bg-stone-50 dark:bg-[#1A1714]/50">
+                                        <div className="p-6 space-y-4 border-b border-border bg-transparent">
                                             <div className="flex flex-col md:flex-row gap-3">
                                                 <div className="relative flex-1">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-charcoal/60 dark:text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-3.5 h-5 w-5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                                     </svg>
                                                     <input
                                                         type="text"
                                                         placeholder="Search recipes..."
-                                                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-white/5 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted text-charcoal dark:text-stone-200"
+                                                        className="w-full pl-10 pr-4 py-3 bg-[var(--input-bg)] border border-transparent focus:border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder-[var(--text-muted)] text-[var(--text-main)] transition-all"
                                                         value={searchTerm}
                                                         onChange={(e) => setSearchTerm(e.target.value)}
                                                     />
                                                 </div>
                                                 <div className="relative w-full md:w-36">
-                                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/60 dark:text-stone-400 pointer-events-none z-10">
+                                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none z-10">
                                                         <span className="text-[10px] font-bold uppercase tracking-wide opacity-70">Max Cal</span>
                                                     </div>
                                                     <input
                                                         type="number"
                                                         placeholder="Any"
                                                         min="0"
-                                                        className="w-full pl-20 pr-3 py-3 bg-white dark:bg-white/5 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted text-charcoal dark:text-stone-200"
+                                                        className="w-full pl-20 pr-3 py-3 bg-[var(--input-bg)] border border-transparent focus:border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder-[var(--text-muted)] text-[var(--text-main)] transition-all"
                                                         value={maxCalories}
                                                         onChange={(e) => setMaxCalories(e.target.value)}
                                                     />
@@ -522,11 +597,11 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                 {['all', 'breakfast', 'main meal', 'snack', 'light meal'].map(type => (
                                                     <button
                                                         key={type}
-                                                        onClick={() => setActiveFilter(type as any)}
-                                                        className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border ${activeFilter === type
-                                                            ? 'bg-main text-surface border-main'
-                                                            : 'bg-white dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-border hover:border-border'
-                                                            }`}
+                                                        onClick={() => setActiveFilter(type)}
+                                                        className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all ${activeFilter === type
+                                                            ? 'bg-primary text-white shadow-md shadow-primary/20'
+                                                            : 'bg-charcoal/5 dark:bg-white/5 text-[var(--text-secondary)] hover:bg-charcoal/10 dark:hover:bg-white/10'
+                                                            } `}
                                                     >
                                                         {type}
                                                     </button>
@@ -535,10 +610,10 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         </div>
 
                                         {/* List */}
-                                        <div className="overflow-y-auto p-4 flex-1 bg-stone-50 dark:bg-[#1A1714]/50">
+                                        <div className="overflow-y-auto p-4 flex-1 bg-transparent">
                                             <div className="grid gap-3">
                                                 {filteredRecipes.length === 0 ? (
-                                                    <div className="text-center py-16 text-charcoal/60 dark:text-stone-400">
+                                                    <div className="text-center py-16 text-[var(--text-secondary)]">
                                                         <p className="font-medium">No matching recipes found.</p>
                                                         <p className="text-xs mt-2">Try the "Eat Out / Quick Add" tab for manual entries.</p>
                                                     </div>
@@ -546,30 +621,27 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                                     filteredRecipes.map(recipe => (
                                                         <button
                                                             key={recipe.id}
-                                                            onClick={() => handleRecipeSelect(recipe)}
-                                                            className="flex items-center gap-5 p-3 rounded-xl bg-white dark:bg-white/5 border border-border hover:border-primary hover:shadow-md transition-all text-left group w-full overflow-hidden"
+                                                            onClick={() => executeAddMeal(recipe)}
+                                                            className="flex items-center gap-4 p-2 rounded-xl bg-[var(--card-bg)] border border-border hover:border-primary hover:shadow-md transition-all text-left group"
                                                         >
-                                                            <div className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 relative flex items-center justify-center ${getRecipeTheme(recipe.tags).bg}`}>
+                                                            <div className={`w - 20 h - 20 rounded - lg overflow - hidden flex - shrink - 0 relative flex items - center justify - center ${getRecipeTheme(recipe.tags).bg} `}>
                                                                 {recipe.image ? (
                                                                     <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
                                                                 ) : (
-                                                                    <div className={`text-3xl font-bold uppercase opacity-50 ${getRecipeTheme(recipe.tags).text}`}>
+                                                                    <div className={`text - 3xl font - bold uppercase opacity - 50 ${getRecipeTheme(recipe.tags).text} `}>
                                                                         {(recipe.name || 'R').charAt(0)}
                                                                     </div>
                                                                 )}
                                                             </div>
                                                             <div className="flex-1 min-w-0 py-1">
-                                                                <h4 className="font-bold text-lg text-charcoal dark:text-stone-200 truncate font-serif">{recipe.name}</h4>
-                                                                <p className="text-xs text-charcoal/60 dark:text-stone-400 line-clamp-1 mb-2 font-sans">{recipe.description || 'Delicious home cooked meal'}</p>
-                                                                <div className="flex items-center gap-2">
-                                                                    {recipe.tags?.map(tag => (
-                                                                        <span key={tag} className="text-[10px] font-bold text-charcoal/60 dark:text-stone-400 bg-stone-50 dark:bg-[#1A1714] px-2 py-0.5 rounded uppercase tracking-wide">{tag}</span>
-                                                                    ))}
-                                                                    <span className="text-xs font-bold text-primary">{recipe.calories} kcal</span>
+                                                                <h4 className="font-bold text-lg text-[var(--text-main)] truncate font-serif">{recipe.name}</h4>
+                                                                <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-sans mt-0.5">
+                                                                    <span className="bg-charcoal/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold">{recipe.tags[0] || 'Meal'}</span>
+                                                                    <span className="font-medium">{recipe.calories} kcal</span>
                                                                 </div>
                                                             </div>
                                                             <div className="pr-2">
-                                                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${swapIndex !== null ? 'bg-main text-surface border-main' : 'border-border text-charcoal/60 dark:text-stone-400 group-hover:border-primary group-hover:text-primary'}`}>
+                                                                <div className={`w - 8 h - 8 rounded - full border flex items - center justify - center transition - all ${swapIndex !== null ? 'bg-main text-surface border-main' : 'border-border text-charcoal/60 dark:text-stone-400 group-hover:border-primary group-hover:text-primary'} `}>
                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                                                 </div>
                                                             </div>
@@ -579,13 +651,13 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                             </div>
                                         </div>
                                     </>
-                                ) : (
-                                    <div className="p-8 flex flex-col gap-6 bg-stone-50 dark:bg-[#1A1714]/50 flex-1 overflow-y-auto">
-                                        <div className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-border shadow-sm">
-                                            <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Meal Name / Restaurant</label>
+                                ) : modalTab === 'custom' ? (
+                                    <div className="p-8 flex flex-col gap-6 bg-transparent flex-1 overflow-y-auto">
+                                        <div className="bg-[var(--card-bg)] p-6 rounded-2xl border border-border shadow-sm">
+                                            <label className="block text-sm font-bold text-[var(--text-main)] mb-2">Meal Name / Restaurant</label>
                                             <input
                                                 type="text"
-                                                className="w-full p-4 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200 placeholder-muted"
+                                                className="w-full p-4 bg-[var(--input-bg)] border border-transparent focus:border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-[var(--text-main)] placeholder-muted"
                                                 placeholder="e.g. Pizza Express, Caesar Salad..."
                                                 value={customName}
                                                 onChange={e => setCustomName(e.target.value)}
@@ -593,20 +665,20 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-6">
-                                            <div className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-border shadow-sm">
-                                                <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Estimated Calories</label>
+                                            <div className="bg-[var(--card-bg)] p-6 rounded-2xl border border-border shadow-sm">
+                                                <label className="block text-sm font-bold text-[var(--text-main)] mb-2">Estimated Calories</label>
                                                 <input
                                                     type="number"
-                                                    className="w-full p-4 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200"
+                                                    className="w-full p-4 bg-[var(--input-bg)] border border-transparent focus:border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-[var(--text-main)]"
                                                     placeholder="0"
                                                     value={customCalories}
                                                     onChange={e => setCustomCalories(e.target.value)}
                                                 />
                                             </div>
-                                            <div className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-border shadow-sm">
-                                                <label className="block text-sm font-bold text-charcoal dark:text-stone-200/80 mb-2">Meal Type</label>
+                                            <div className="bg-[var(--card-bg)] p-6 rounded-2xl border border-border shadow-sm">
+                                                <label className="block text-sm font-bold text-[var(--text-main)] mb-2">Meal Type</label>
                                                 <select
-                                                    className="w-full p-4 bg-stone-50 dark:bg-[#1A1714] border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-charcoal dark:text-stone-200"
+                                                    className="w-full p-4 bg-[var(--input-bg)] border border-transparent focus:border-border rounded-xl focus:ring-2 focus:ring-primary outline-none font-medium text-[var(--text-main)]"
                                                     value={customType}
                                                     onChange={e => setCustomType(e.target.value)}
                                                 >
@@ -625,7 +697,53 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         >
                                             Add to Plan
                                         </button>
-                                        <p className="text-center text-xs text-charcoal/60 dark:text-stone-400">Custom meals are added to this day's plan but not saved to your library.</p>
+                                        <p className="text-center text-xs text-[var(--text-secondary)]">Custom meals are added to this day's plan but not saved to your library.</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-y-auto p-4 flex-1 bg-transparent">
+                                        <div className="grid gap-3">
+                                            {leftoverCandidates.length === 0 ? (
+                                                <div className="text-center py-16 text-[var(--text-secondary)]">
+                                                    <p className="font-medium">No meals found from the last 3 days.</p>
+                                                    <p className="text-xs mt-2">Plan meals for previous days to see them here.</p>
+                                                </div>
+                                            ) : (
+                                                leftoverCandidates.map(({ date, recipe }, idx) => (
+                                                    <button
+                                                        key={`${date} -${recipe.id} -${idx} `}
+                                                        onClick={() => executeAddMeal({ ...recipe, isLeftover: true, id: crypto.randomUUID() })}
+                                                        className="flex items-center gap-5 p-3 rounded-xl bg-[var(--card-bg)] border border-border hover:border-primary hover:shadow-md transition-all text-left group w-full overflow-hidden"
+                                                    >
+                                                        <div className={`w - 20 h - 20 rounded - lg overflow - hidden flex - shrink - 0 relative flex items - center justify - center ${getRecipeTheme(recipe.tags).bg} `}>
+                                                            {recipe.image ? (
+                                                                <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className={`text - 3xl font - bold uppercase opacity - 50 ${getRecipeTheme(recipe.tags).text} `}>
+                                                                    {(recipe.name || 'R').charAt(0)}
+                                                                </div>
+                                                            )}
+                                                            <div className="absolute top-1 right-1 bg-white/80 dark:bg-black/50 backdrop-blur-sm rounded-full p-1">
+                                                                <span className="text-xs">♻️</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0 py-1">
+                                                            <h4 className="font-bold text-lg text-[var(--text-main)] truncate font-serif">{recipe.name}</h4>
+                                                            <p className="text-xs text-[var(--text-secondary)] line-clamp-1 mb-2 font-sans">
+                                                                Leftover from {new Date(date).toLocaleDateString(undefined, { weekday: 'long' })}
+                                                            </p>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-primary">{recipe.calories} kcal</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="pr-2">
+                                                            <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center transition-all text-charcoal/60 dark:text-stone-400 group-hover:border-primary group-hover:text-primary">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </motion.div>
@@ -642,52 +760,47 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[110] flex items-center justify-center bg-stone-50 dark:bg-[#1A1714]/80 backdrop-blur-sm px-4"
+                            className="fixed inset-0 z-[110] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4"
                             onClick={() => setShowConfigModal(false)}
                         >
                             <motion.div
-                                initial={{ scale: 0.95, opacity: 0, y: 10 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                exit={{ scale: 0.95, opacity: 0, y: 10 }}
-                                className="bg-white dark:bg-white/5 w-full max-w-sm rounded-3xl shadow-2xl p-6 border border-border"
-                                onClick={e => e.stopPropagation()}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="bg-[var(--card-bg)] p-6 rounded-3xl shadow-xl w-full max-w-sm relative border border-border"
                             >
-                                <div className="text-center mb-6">
-                                    <div className={`w-16 h-16 mx-auto rounded-2xl mb-4 flex items-center justify-center text-3xl font-bold shadow-sm ${getRecipeTheme(pendingRecipe.tags).bg} ${getRecipeTheme(pendingRecipe.tags).text}`}>
-                                        {pendingRecipe.image ? (
-                                            <img src={pendingRecipe.image} alt="" className="w-full h-full object-cover rounded-2xl" />
-                                        ) : (
-                                            (pendingRecipe.name || 'M').charAt(0)
-                                        )}
-                                    </div>
-                                    <h3 className="text-xl font-bold text-charcoal dark:text-stone-200 font-serif leading-tight">{pendingRecipe.name}</h3>
-                                    <p className="text-sm text-charcoal/60 dark:text-stone-400 mt-1">Configure serving size</p>
+                                <div className={`w - 16 h - 16 mx - auto rounded - 2xl mb - 4 flex items - center justify - center text - 3xl font - bold shadow - sm ${getRecipeTheme(pendingRecipe.tags).bg} ${getRecipeTheme(pendingRecipe.tags).text} `}>
+                                    {pendingRecipe.image ? (
+                                        <img src={pendingRecipe.image} alt="" className="w-full h-full object-cover rounded-2xl" />
+                                    ) : (
+                                        (pendingRecipe.name || 'M').charAt(0)
+                                    )}
                                 </div>
-
-                                <div className="bg-stone-50 dark:bg-[#1A1714] rounded-2xl p-6 border border-border mb-6">
-                                    <label className="block text-center text-xs font-bold uppercase tracking-wider text-charcoal/60 dark:text-stone-400 mb-4">Cooking For</label>
+                                <h3 className="text-xl font-bold text-[var(--text-main)] font-serif leading-tight">{pendingRecipe.name}</h3>
+                                <p className="text-sm text-[var(--text-secondary)] mt-1">Configure serving size</p>
+                                <div className="bg-[var(--surface)] rounded-2xl p-6 border border-border mb-6">
+                                    <label className="block text-center text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-4">Cooking For</label>
                                     <div className="flex items-center justify-center gap-6">
                                         <button
                                             onClick={() => setCookingServings(Math.max(1, cookingServings - 1))}
-                                            className="w-12 h-12 rounded-full bg-white dark:bg-white/5 border border-border hover:border-primary hover:text-primary flex items-center justify-center transition-all active:scale-95"
+                                            className="w-12 h-12 rounded-full bg-[var(--input-bg)] border border-border hover:border-primary hover:text-primary flex items-center justify-center transition-all active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                         </button>
 
                                         <div className="text-center w-16">
-                                            <span className="text-4xl font-bold text-charcoal dark:text-stone-200 block leading-none">{cookingServings}</span>
-                                            <span className="text-[10px] text-charcoal/60 dark:text-stone-400 font-bold uppercase tracking-wide">People</span>
+                                            <span className="text-4xl font-bold text-[var(--text-main)] block leading-none">{cookingServings}</span>
+                                            <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wide">People</span>
                                         </div>
 
                                         <button
                                             onClick={() => setCookingServings(cookingServings + 1)}
-                                            className="w-12 h-12 rounded-full bg-white dark:bg-white/5 border border-border hover:border-primary hover:text-primary flex items-center justify-center transition-all active:scale-95"
+                                            className="w-12 h-12 rounded-full bg-[var(--input-bg)] border border-border hover:border-primary hover:text-primary flex items-center justify-center transition-all active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                         </button>
                                     </div>
                                     <div className="mt-4 text-center">
-                                        <span className="text-xs text-charcoal/60 dark:text-stone-400 bg-white dark:bg-white/5 px-2 py-1 rounded border border-border">
+                                        <span className="text-xs text-[var(--text-secondary)] bg-[var(--input-bg)] px-2 py-1 rounded border border-border">
                                             Original Recipe: serves {pendingRecipe.servings || 1}
                                         </span>
                                     </div>
@@ -726,40 +839,40 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
             {
                 showAutoPlanModal && (
                     <Portal>
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowAutoPlanModal(false)}>
-                            <div className="bg-white dark:bg-white/5 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden premium-shadow border border-border" onClick={e => e.stopPropagation()}>
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowAutoPlanModal(false)}>
+                            <div className="bg-[var(--background)] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden premium-shadow border border-border backdrop-blur-md" onClick={e => e.stopPropagation()}>
                                 <div className="p-6">
-                                    <h3 className="text-xl font-bold text-charcoal dark:text-stone-200 font-serif mb-2">Auto-Plan Week</h3>
-                                    <p className="text-charcoal/60 dark:text-stone-400 text-sm mb-6">Choose how you want the AI to plan your week.</p>
+                                    <h3 className="text-xl font-bold text-[var(--text-main)] font-serif mb-2">Auto-Plan Week</h3>
+                                    <p className="text-[var(--text-secondary)] text-sm mb-6">Choose how you want the AI to plan your week.</p>
 
                                     <div className="space-y-3">
                                         <button
                                             onClick={() => handleAutoPlanConfirm('daily')}
-                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-stone-50 dark:bg-[#1A1714] hover:border-primary/20 hover:bg-primary/5 transition-all group"
+                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-[var(--surface)] hover:border-primary/20 hover:bg-primary/5 transition-all group"
                                         >
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="font-bold text-charcoal dark:text-stone-200 group-hover:text-primary transition-colors">Strict Fasting</span>
+                                                <span className="font-bold text-[var(--text-main)] group-hover:text-primary transition-colors">Strict Fasting</span>
                                                 <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">800 kcal</span>
                                             </div>
-                                            <p className="text-xs text-charcoal/60 dark:text-stone-400">Plan 800 calories for every day of the week.</p>
+                                            <p className="text-xs text-[var(--text-secondary)]">Plan 800 calories for every day of the week.</p>
                                         </button>
 
                                         <button
                                             onClick={() => handleAutoPlanConfirm('5:2')}
-                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-stone-50 dark:bg-[#1A1714] hover:border-amber-500/20 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group"
+                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-[var(--surface)] hover:border-amber-500/20 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group"
                                         >
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="font-bold text-charcoal dark:text-stone-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">5:2 Diet</span>
+                                                <span className="font-bold text-[var(--text-main)] group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">5:2 Diet</span>
                                                 <span className="text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded">Varied</span>
                                             </div>
-                                            <p className="text-xs text-charcoal/60 dark:text-stone-400">2 Fasting Days (800 kcal) + 5 Non-Fasting Days.</p>
+                                            <p className="text-xs text-[var(--text-secondary)]">2 Fasting Days (800 kcal) + 5 Non-Fasting Days.</p>
                                         </button>
                                     </div>
                                 </div>
-                                <div className="p-4 bg-stone-50 dark:bg-[#1A1714]/50 border-t border-border flex justify-end">
+                                <div className="p-4 bg-[var(--surface)] border-t border-border flex justify-end">
                                     <button
                                         onClick={() => setShowAutoPlanModal(false)}
-                                        className="px-4 py-2 text-sm font-bold text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200"
+                                        className="px-4 py-2 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-main)]"
                                     >
                                         Cancel
                                     </button>

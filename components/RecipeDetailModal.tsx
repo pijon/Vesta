@@ -24,7 +24,7 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, children }) => (
         onClick={onClick}
         className={`px-6 py-4 text-sm font-bold transition-all border-b-2 relative ${active
             ? 'border-hearth text-hearth'
-            : 'border-transparent text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:hover:text-stone-200 hover:bg-stone-50 dark:hover:bg-white/5'
+            : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-main)] hover:bg-[var(--background)]'
             }`}
     >
         {children}
@@ -42,11 +42,11 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
     return (
         <Portal>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-stone-900/60 backdrop-blur-sm" onClick={onClose}>
-                <div className="bg-stone-50 dark:bg-[#1A1714] w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100 animate-scale-in border border-white/50 dark:border-white/5" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-stone-900/40 backdrop-blur-sm" onClick={onClose}>
+                <div className="bg-[var(--background)] w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100 animate-scale-in border border-border" onClick={e => e.stopPropagation()}>
 
                     {/* Header Image Area */}
-                    <div className={`relative h-64 md:h-80 flex-shrink-0 overflow-hidden ${!recipe.image ? theme.bg : 'bg-stone-50 dark:bg-[#1A1714]'}`}>
+                    <div className={`relative h-64 md:h-80 flex-shrink-0 overflow-hidden ${!recipe.image ? theme.bg : 'bg-[var(--background)]'}`}>
                         <div className="absolute inset-0 flex items-center justify-center">
                             {recipe.image ? (
                                 <img
@@ -101,40 +101,40 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex border-b border-charcoal/10 dark:border-white/10 px-8 bg-white dark:bg-white/5 sticky top-0 z-10 shadow-sm">
+                    <div className="flex border-b border-border px-8 bg-[var(--surface)] sticky top-0 z-10 shadow-sm">
                         <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>Overview</TabButton>
                         <TabButton active={activeTab === 'ingredients'} onClick={() => setActiveTab('ingredients')}>Ingredients</TabButton>
                         <TabButton active={activeTab === 'instructions'} onClick={() => setActiveTab('instructions')}>Instructions</TabButton>
                     </div>
 
                     {/* Tab Content */}
-                    <div className="p-8 md:p-10 overflow-y-auto bg-stone-50 dark:bg-[#1A1714] flex-1">
+                    <div className="p-8 md:p-10 overflow-y-auto bg-transparent flex-1">
                         {activeTab === 'overview' && (
                             <div className="space-y-8 animate-fade-in">
-                                <div className="bg-white dark:bg-white/5 p-8 rounded-3xl border border-charcoal/5 dark:border-white/5 shadow-sm flex justify-between items-center">
-                                    <div className="grid grid-cols-3 gap-8 w-full divide-x divide-charcoal/10 dark:divide-white/10">
+                                <div className="bg-[var(--surface)] p-8 rounded-3xl border border-border shadow-sm flex justify-between items-center">
+                                    <div className="grid grid-cols-3 gap-8 w-full divide-x divide-border">
                                         <div className="text-center px-4">
-                                            <p className="text-charcoal/60 dark:text-stone-400 text-xs font-black uppercase tracking-widest mb-2">Protein</p>
-                                            <p className="text-3xl font-serif font-medium text-charcoal dark:text-stone-200">{recipe.protein || 0}<span className="text-sm font-bold text-charcoal/40 dark:text-stone-500 ml-1 font-sans">g</span></p>
+                                            <p className="text-[var(--text-secondary)] text-xs font-black uppercase tracking-widest mb-2">Protein</p>
+                                            <p className="text-3xl font-serif font-medium text-[var(--text-main)]">{recipe.protein || 0}<span className="text-sm font-bold text-[var(--text-muted)] ml-1 font-sans">g</span></p>
                                         </div>
                                         <div className="text-center px-4">
-                                            <p className="text-charcoal/60 dark:text-stone-400 text-xs font-black uppercase tracking-widest mb-2">Fat</p>
-                                            <p className="text-3xl font-serif font-medium text-charcoal dark:text-stone-200">{recipe.fat || 0}<span className="text-sm font-bold text-charcoal/40 dark:text-stone-500 ml-1 font-sans">g</span></p>
+                                            <p className="text-[var(--text-secondary)] text-xs font-black uppercase tracking-widest mb-2">Fat</p>
+                                            <p className="text-3xl font-serif font-medium text-[var(--text-main)]">{recipe.fat || 0}<span className="text-sm font-bold text-[var(--text-muted)] ml-1 font-sans">g</span></p>
                                         </div>
                                         <div className="text-center px-4">
-                                            <p className="text-charcoal/60 dark:text-stone-400 text-xs font-black uppercase tracking-widest mb-2">Carbs</p>
-                                            <p className="text-3xl font-serif font-medium text-charcoal dark:text-stone-200">{recipe.carbs || 0}<span className="text-sm font-bold text-charcoal/40 dark:text-stone-500 ml-1 font-sans">g</span></p>
+                                            <p className="text-[var(--text-secondary)] text-xs font-black uppercase tracking-widest mb-2">Carbs</p>
+                                            <p className="text-3xl font-serif font-medium text-[var(--text-main)]">{recipe.carbs || 0}<span className="text-sm font-bold text-[var(--text-muted)] ml-1 font-sans">g</span></p>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <h3 className="text-2xl font-serif text-charcoal dark:text-stone-200 mb-4">About this meal</h3>
-                                    <p className="text-charcoal/80 dark:text-stone-400 leading-relaxed text-lg">{recipe.description || 'No description available for this recipe.'}</p>
+                                    <h3 className="text-2xl font-serif text-[var(--text-main)] mb-4">About this meal</h3>
+                                    <p className="text-[var(--text-secondary)] leading-relaxed text-lg">{recipe.description || 'No description available for this recipe.'}</p>
                                 </div>
 
                                 {(onDelete || onEdit || onCopyToLibrary) && (
-                                    <div className="flex gap-3 justify-end pt-8 border-t border-charcoal/10 dark:border-white/10">
+                                    <div className="flex gap-3 justify-end pt-8 border-t border-border">
                                         {!isOwned && onCopyToLibrary && (
                                             <button
                                                 onClick={onCopyToLibrary}
@@ -148,7 +148,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                         {isOwned && onDelete && (
                                             <button
                                                 onClick={(e) => onDelete(recipe.id, e)}
-                                                className="btn-secondary text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 border-red-200 dark:border-red-900/30 flex items-center gap-2"
+                                                className="btn-secondary text-red-500 hover:bg-red-50/50 border-red-200/50 flex items-center gap-2"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                                 Delete
@@ -157,7 +157,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                         {isOwned && onEdit && (
                                             <button
                                                 onClick={onEdit}
-                                                className="btn-primary flex items-center gap-2 shadow-lg shadow-hearth/20 bg-charcoal dark:bg-stone-700 text-white"
+                                                className="btn-primary flex items-center gap-2 shadow-lg shadow-hearth/20 bg-charcoal text-white"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                                 Edit Recipe
@@ -170,14 +170,14 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
                         {activeTab === 'ingredients' && (
                             <div className="space-y-6 animate-fade-in">
-                                <h3 className="flex items-center gap-3 text-2xl font-serif text-charcoal dark:text-stone-200 mb-6">
+                                <h3 className="flex items-center gap-3 text-2xl font-serif text-[var(--text-main)] mb-6">
                                     <span className="bg-sage/10 text-sage p-2 rounded-xl"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 13.87A8 8 0 1 1 6 10a8 8 0 0 1 8-4 8 8 0 0 1 8 4"></path><polyline points="22 6 22 17 6 17 6 6"></polyline></svg></span>
                                     Shopping List
                                 </h3>
                                 <ul className="space-y-3">
                                     {recipe.ingredients.map((ing, i) => (
-                                        <li key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-white dark:bg-white/5 border border-charcoal/5 dark:border-white/5 shadow-sm text-lg text-charcoal dark:text-stone-300 font-medium hover:border-hearth/30 transition-colors group">
-                                            <div className="mt-1.5 w-5 h-5 rounded-full border-2 border-charcoal/20 dark:border-stone-600 flex-shrink-0 group-hover:border-hearth transition-colors"></div>
+                                        <li key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-[var(--card-bg)] border border-border shadow-sm text-lg text-[var(--text-main)] font-medium hover:border-hearth/30 transition-colors group">
+                                            <div className="mt-1.5 w-5 h-5 rounded-full border-2 border-border flex-shrink-0 group-hover:border-hearth transition-colors"></div>
                                             <span className="leading-relaxed">{ing}</span>
                                         </li>
                                     ))}
@@ -187,22 +187,22 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
                         {activeTab === 'instructions' && (
                             <div className="space-y-8 animate-fade-in">
-                                <h3 className="flex items-center gap-3 text-2xl font-serif text-charcoal dark:text-stone-200 mb-8">
+                                <h3 className="flex items-center gap-3 text-2xl font-serif text-[var(--text-main)] mb-8">
                                     <span className="bg-hearth/10 text-hearth p-2 rounded-xl"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>
                                     Preparation
                                 </h3>
                                 {recipe.instructions && recipe.instructions.length > 0 ? (
-                                    <div className="space-y-0 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-charcoal/10 dark:before:bg-white/10 before:content-['']">
+                                    <div className="space-y-0 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-border before:content-['']">
                                         {recipe.instructions.map((step, i) => (
                                             <div key={i} className="relative pl-16 pb-12 group last:pb-0">
-                                                <span className="absolute left-0 top-0 w-10 h-10 rounded-full bg-white dark:bg-stone-800 text-charcoal/60 dark:text-stone-400 text-base font-bold flex items-center justify-center ring-4 ring-stone-50 dark:ring-[#1A1714] group-hover:bg-hearth group-hover:text-white transition-colors border border-charcoal/10 dark:border-white/10 shadow-sm">{i + 1}</span>
-                                                <p className="text-charcoal dark:text-stone-300 text-lg leading-relaxed pt-1">{step}</p>
+                                                <span className="absolute left-0 top-0 w-10 h-10 rounded-full bg-[var(--surface)] text-[var(--text-secondary)] text-base font-bold flex items-center justify-center ring-4 ring-[var(--background)] group-hover:bg-hearth group-hover:text-white transition-colors border border-border shadow-sm">{i + 1}</span>
+                                                <p className="text-[var(--text-main)] text-lg leading-relaxed pt-1">{step}</p>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-16 bg-white dark:bg-white/5 rounded-3xl border-2 border-dashed border-charcoal/5 dark:border-white/5">
-                                        <p className="text-charcoal/40 dark:text-stone-500 text-lg font-serif">No instructions available</p>
+                                    <div className="text-center py-16 bg-[var(--surface)] rounded-3xl border-2 border-dashed border-border">
+                                        <p className="text-[var(--text-muted)] text-lg font-serif">No instructions available</p>
                                     </div>
                                 )}
                             </div>

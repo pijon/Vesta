@@ -1,7 +1,7 @@
 import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem } from "../types";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit } from "firebase/firestore";
 
 // Helper to get current user ID or throw
 const getUserId = () => {
@@ -22,9 +22,17 @@ export const getUserData = async () => {
 
 // --- Recipes ---
 // Saved as individual documents in 'recipes' collection
-export const getRecipes = async (): Promise<Recipe[]> => {
+// Saved as individual documents in 'recipes' collection
+export const getRecipes = async (limitCount?: number): Promise<Recipe[]> => {
   try {
-    const snapshot = await getDocs(getCollectionRef('recipes'));
+    let q;
+    if (limitCount) {
+      q = query(getCollectionRef('recipes'), limit(limitCount));
+    } else {
+      q = getCollectionRef('recipes');
+    }
+
+    const snapshot = await getDocs(q);
     let recipes = snapshot.docs.map(doc => {
       const data = doc.data() as any;
       // Migration on read: If tags are missing but type exists, convert type to tags
@@ -60,13 +68,108 @@ const PLAN_DOC = 'plan'; // Keeping reference for legacy migration and export
 // Refactored to use 'days' collection to avoid 1MB document limit.
 // Legacy 'data/plan' document is deprecated.
 
+// Helper to strip heavy fields from meals before saving
+const dehydrateMeal = (meal: Recipe): Recipe => {
+  // If no description or explicitly custom, keep everything
+  if (!meal.description && !meal.id) return meal;
+  if (meal.description === 'Eat Out / Custom Meal') return meal;
+
+  // Ensure we have an ID to hydrate from later
+  if (!meal.id) return meal;
+
+  // Strip heavy fields, keep overrides and identifiers
+  // We keep tags/name/calories/servings to allow basic display without hydration if needed (optional optimization)
+  // But for now, we'll stripping big text blobs: instructions, ingredients, image.
+  const { instructions, ingredients, image, description, ...kept } = meal;
+
+  // Note: We might want to keep 'description' if it's short? 
+  // Let's assume we can re-fetch everything from library.
+  return kept as Recipe;
+};
+
+// Helper to get a single recipe
+export const getRecipe = async (id: string): Promise<Recipe | null> => {
+  try {
+    const docSnap = await getDoc(getDocRef('recipes', id));
+    if (docSnap.exists()) return docSnap.data() as Recipe;
+    return null;
+  } catch (e) {
+    console.error(`Error fetching recipe ${id}`, e);
+    return null;
+  }
+};
+
+// Helper to re-attach fields from library
+const hydrateMeals = async (meals: Recipe[]): Promise<Recipe[]> => {
+  if (!meals || meals.length === 0) return [];
+
+  // 1. Identify meals that need hydration
+  // We identify them if they have an ID and are missing 'instructions' or 'ingredients'
+  const mealsToHydrate = meals.filter(m =>
+    !!m.id &&
+    m.description !== 'Eat Out / Custom Meal' &&
+    (!m.instructions || m.instructions.length === 0)
+  );
+
+  // Optimization: If nothing needs hydration, return immediately
+  if (mealsToHydrate.length === 0) return meals;
+
+  // 2. Fetch specific recipes in parallel
+  // Deduplicate IDs first
+  const uniqueIds = Array.from(new Set(mealsToHydrate.map(m => m.id)));
+
+  // Fetch from DB (Promise.all)
+  // TODO: Add a simple in-memory cache here if we find we are re-fetching same IDs frequently in a session
+  console.log(`Hydrating ${uniqueIds.length} recipes...`);
+
+  const fetchedRecipes = await Promise.all(
+    uniqueIds.map(async id => {
+      const r = await getRecipe(id);
+      return r;
+    })
+  );
+
+  const recipeMap = new Map();
+  fetchedRecipes.forEach(r => {
+    if (r) recipeMap.set(r.id, r);
+  });
+
+  // 3. Merge
+  return meals.map(meal => {
+    // If it has instructions, it's already full (or custom)
+    if (meal.instructions && meal.instructions.length > 0) return meal;
+    if (meal.description === 'Eat Out / Custom Meal') return meal;
+
+    const original = recipeMap.get(meal.id);
+    if (original) {
+      // Merge: Original props + Overrides from the plan
+      return {
+        ...original,
+        ...meal, // Overrides from plan
+        ingredients: original.ingredients,
+        instructions: original.instructions,
+        image: original.image,
+        description: original.description
+      };
+    }
+
+    // If original not found (deleted?), keep what we have
+    return meal;
+  });
+};
+
 export const getDayPlan = async (date: string): Promise<DayPlan> => {
   try {
     const docRef = doc(db, 'users', getUserId(), 'days', date);
     const dayDoc = await getDoc(docRef);
 
     if (dayDoc.exists()) {
-      return dayDoc.data() as DayPlan;
+      const plan = dayDoc.data() as DayPlan;
+      // Hydrate meals
+      if (plan.meals) {
+        plan.meals = await hydrateMeals(plan.meals);
+      }
+      return plan;
     }
 
     // 2. Fallback to legacy (if not found in new, and legacy exists)
@@ -81,7 +184,12 @@ export const getDayPlan = async (date: string): Promise<DayPlan> => {
 
 export const saveDayPlan = async (dayPlan: DayPlan) => {
   const docRef = doc(db, 'users', getUserId(), 'days', dayPlan.date);
-  await setDoc(docRef, dayPlan);
+
+  // Dehydrate before saving
+  const dehydratedMeals = dayPlan.meals.map(dehydrateMeal);
+  const planToSave = { ...dayPlan, meals: dehydratedMeals };
+
+  await setDoc(docRef, planToSave);
 };
 
 // Migration Helper
@@ -136,6 +244,7 @@ export const getUpcomingPlan = async (days: number = 7): Promise<Record<string, 
 
   // Fetch in parallel
   await Promise.all(dates.map(async date => {
+    // getDayPlan handles hydration internally now
     const p = await getDayPlan(date);
     if (p.meals && p.meals.length > 0) {
       plans[date] = p;
@@ -159,6 +268,51 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
     snapshot.forEach(doc => {
       const plan = doc.data() as DayPlan;
       plans[plan.date] = plan;
+    });
+
+    // Bulk Hydration - Optimization
+    // Instead of hydrating each isolated plan (which might re-fetch recipes N times),
+    // we could collect all meals and hydrate once. 
+    // However, for simplicity and since getRecipes likely caches/uses Firestore SDK cache, we will simply iterate.
+    // NOTE: getDayPlan above handles single day hydration. Here we loaded raw data from query.
+    // We MUST hydrate these plans.
+
+    // Gather all all meals from all plans
+    const allMeals: Recipe[] = [];
+    Object.values(plans).forEach(p => {
+      if (p.meals) allMeals.push(...p.meals);
+    });
+
+    // If we have any meals, let's pre-fetch library once to be efficient
+    let allRecipes: Recipe[] = [];
+    if (allMeals.length > 0) {
+      try {
+        allRecipes = await getRecipes();
+      } catch (e) { console.warn("Hydration pre-fetch failed", e); }
+    }
+    const recipeMap = new Map(allRecipes.map(r => [r.id, r]));
+
+    // Now hydrate in memory using the map directly to avoid N calls
+    Object.values(plans).forEach(p => {
+      if (p.meals) {
+        p.meals = p.meals.map(meal => {
+          if (meal.instructions && meal.instructions.length > 0) return meal;
+          if (meal.description === 'Eat Out / Custom Meal') return meal;
+
+          const original = recipeMap.get(meal.id);
+          if (original) {
+            return {
+              ...original,
+              ...meal,
+              ingredients: original.ingredients,
+              instructions: original.instructions,
+              image: original.image,
+              description: original.description
+            };
+          }
+          return meal;
+        });
+      }
     });
 
     // Fallback: Check legacy plan doc for missing dates in range
