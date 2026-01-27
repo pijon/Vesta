@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import {
   getUpcomingPlan,
   getPantryInventory,
@@ -23,6 +23,7 @@ interface PlanMeal {
   ingredients: string[];
   servings?: number;
   cookingServings?: number;
+  isLeftover?: boolean;
 }
 
 export const ShoppingList: React.FC = () => {
@@ -63,6 +64,34 @@ export const ShoppingList: React.FC = () => {
   useEffect(() => {
     initializeShoppingList();
   }, []);
+
+  // Debounced persistence for items (fixes jerky drag and drop)
+  useEffect(() => {
+    // Skip initial load or empty
+    if (purchasableItems.length === 0 && shoppingState.cachedPurchasableItems.length === 0) return;
+
+    // We only want to save if the order/content significantly changed or if we just need to sync
+    // Simple debounce to prevent saving on every drag frame
+    const timeoutId = setTimeout(async () => {
+      // Only save if different to prevent loops, though simpler to just save for now
+      // This will run 1s after the LAST change
+      const newState = {
+        ...shoppingState,
+        cachedPurchasableItems: purchasableItems
+      };
+
+      // We don't need to await this
+      saveEnhancedShoppingState(newState).catch(console.error);
+
+      // Update local shopping state wrapper if needed, but risky if it triggers re-renders loop
+      // Actually, we should just update the internal shoppingState ref without causing loop if possible
+      // But setShoppingState is fine as long as purchasableItems doesn't change from it
+      setShoppingState(prev => ({ ...prev, cachedPurchasableItems: purchasableItems }));
+
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [purchasableItems]);
 
   // Simple hash function for ingredients from selected meals
   const hashIngredients = (ingredients: Array<{ text: string, recipeId: string, recipeName: string }>): string => {
@@ -154,7 +183,8 @@ export const ShoppingList: React.FC = () => {
             date: day.date,
             ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
             servings: meal.servings,
-            cookingServings: meal.cookingServings
+            cookingServings: meal.cookingServings,
+            isLeftover: meal.isLeftover
           });
         });
       }
@@ -188,6 +218,12 @@ export const ShoppingList: React.FC = () => {
       // Extract ingredients from selected meals
       const ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string, scale: number }> = [];
       selectedMeals.forEach(meal => {
+        // Skip ingredients for leftovers
+        if (meal.isLeftover) {
+          console.log(`Skipping ingredients for leftover meal: ${meal.name}`);
+          return;
+        }
+
         // Calculate scale factor: cookingServings / servings. Default to 1 if missing.
         const baseServings = meal.servings || 1;
         const targetServings = meal.cookingServings || baseServings;
@@ -415,6 +451,32 @@ export const ShoppingList: React.FC = () => {
     }
   };
 
+  const handleReorder = (newOrder: PurchasableItem[]) => {
+    // Only update local state for smooth 60fps dragging
+    setPurchasableItems(newOrder);
+  };
+
+  const handleToggleCheck = async (ingredientName: string) => {
+    const isChecked = shoppingState.purchased.includes(ingredientName);
+    let newPurchased;
+
+    if (isChecked) {
+      newPurchased = shoppingState.purchased.filter(n => n !== ingredientName);
+    } else {
+      newPurchased = [...shoppingState.purchased, ingredientName];
+    }
+
+    // Immediate UI update via local state if needed (purchasableItems doesn't track check status directly, handled by lookup below)
+
+    const newState = {
+      ...shoppingState,
+      purchased: newPurchased
+    };
+
+    setShoppingState(newState);
+    await saveEnhancedShoppingState(newState);
+  };
+
   const handleCopyItem = (item: PurchasableItem) => {
     if (navigator.clipboard) {
       const text = `${item.purchasableQuantity || item.requiredQuantity} ${item.ingredientName}`;
@@ -554,11 +616,18 @@ export const ShoppingList: React.FC = () => {
                             <div>
                               <div className={`font-medium text-lg ${isSelected ? 'text-primary' : 'text-charcoal dark:text-stone-200'}`}>
                                 {meal.name}
+                                {meal.isLeftover && (
+                                  <span className="ml-2 text-xs font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 align-middle" title="Leftover from previous day">
+                                    ♻️ Leftover
+                                  </span>
+                                )}
                               </div>
                               <div className="text-sm text-charcoal/60 dark:text-stone-400 mt-1">
-                                {meal.ingredients.length > 0
-                                  ? `${meal.ingredients.length} ingredients`
-                                  : 'No ingredients listed'
+                                {meal.isLeftover
+                                  ? 'No ingredients needed'
+                                  : (meal.ingredients.length > 0
+                                    ? `${meal.ingredients.length} ingredients`
+                                    : 'No ingredients listed')
                                 }
                               </div>
                             </div>
@@ -653,15 +722,14 @@ export const ShoppingList: React.FC = () => {
           </button>
         </div>
 
-        {/* Summary */}
         <div className="grid grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white dark:bg-white/5 border border-primary/20 rounded-2xl p-6 shadow-sm">
-            <div className="text-primary text-sm font-medium mb-1 uppercase tracking-wider">In Pantry</div>
-            <div className="text-4xl font-bold text-charcoal dark:text-stone-200">{inPantryItems.length}</div>
+          <div className="card p-6 flex flex-col items-center text-center">
+            <div className="text-primary text-xs font-bold uppercase tracking-widest mb-2">In Pantry</div>
+            <div className="text-4xl font-serif text-charcoal dark:text-stone-200">{inPantryItems.length}</div>
           </div>
-          <div className="bg-white dark:bg-white/5 border border-warning/20 rounded-2xl p-6 shadow-sm">
-            <div className="text-warning text-sm font-medium mb-1 uppercase tracking-wider">Need to Buy</div>
-            <div className="text-4xl font-bold text-charcoal dark:text-stone-200">{needToBuyItems.length}</div>
+          <div className="card p-6 flex flex-col items-center text-center">
+            <div className="text-warning text-xs font-bold uppercase tracking-widest mb-2">Need to Buy</div>
+            <div className="text-4xl font-serif text-charcoal dark:text-stone-200">{needToBuyItems.length}</div>
           </div>
         </div>
 
@@ -729,27 +797,28 @@ export const ShoppingList: React.FC = () => {
               <h3 className="font-normal text-charcoal dark:text-stone-200 font-serif text-lg">Items to Purchase ({purchasableItems.length})</h3>
             </div>
 
-            <motion.div layout className="grid gap-3">
-              <AnimatePresence initial={false} mode="popLayout">
-                {purchasableItems.map(item => {
-                  const aggIng = aggregatedIngredients.find(ing =>
-                    ing.name.toLowerCase() === item.ingredientName.toLowerCase()
-                  );
-                  const recipeNames = aggIng?.recipes.map(r => r.name) || [];
+            <Reorder.Group axis="y" values={purchasableItems} onReorder={handleReorder} className="grid gap-3">
+              {purchasableItems.map(item => {
+                const aggIng = aggregatedIngredients.find(ing =>
+                  ing.name.toLowerCase() === item.ingredientName.toLowerCase()
+                );
+                const recipeNames = aggIng?.recipes.map(r => r.name) || [];
+                const isChecked = shoppingState.purchased?.includes(item.ingredientName);
 
-                  return (
-                    <ShoppingItem
-                      key={item.ingredientName}
-                      item={item}
-                      recipes={recipeNames}
-                      onRemove={() => handleRemoveItem(item.ingredientName)}
-                      onCopy={() => handleCopyItem(item)}
-                      onUpdate={(newVal) => handleUpdateItem(item.ingredientName, newVal)}
-                    />
-                  );
-                })}
-              </AnimatePresence>
-            </motion.div>
+                return (
+                  <ShoppingItem
+                    key={item.ingredientName}
+                    item={item}
+                    recipes={recipeNames}
+                    isChecked={isChecked}
+                    onToggleCheck={() => handleToggleCheck(item.ingredientName)}
+                    onRemove={() => handleRemoveItem(item.ingredientName)}
+                    onCopy={() => handleCopyItem(item)}
+                    onUpdate={(val) => handleUpdateItem(item.ingredientName, val)}
+                  />
+                );
+              })}
+            </Reorder.Group>
           </div>
         </div>
       )}

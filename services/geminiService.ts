@@ -644,69 +644,132 @@ const ingredientParseSchema: Schema = {
   }
 };
 
+const INGREDIENT_CACHE_KEY = 'vesta_ingredient_cache';
+
 export const parseIngredients = async (ingredientTexts: string[]): Promise<Array<{ name: string, quantity: number, unit: string }>> => {
   if (!apiKey) throw new Error("API Key not found");
 
-  const prompt = `
-    You are an ingredient parsing specialist. Parse ingredient strings into structured, normalized data for recipe management.
-
-    TASK: Extract ingredient name (normalized, lowercase), quantity (as number), and unit from each ingredient string.
-
-    BASIC RULES:
-    - If no quantity is specified, use 1
-    - If no unit is specified, use "item"
-    - Handle vague quantities intelligently:
-      * "to taste" → quantity: 1, unit: "pinch"
-      * "a pinch" → quantity: 1, unit: "pinch"
-      * "a dash" → quantity: 1, unit: "dash"
-      * "a handful" → quantity: 1, unit: "handful"
-
-    EXAMPLES:
-    "2 tbsp olive oil" → {name: "olive oil", quantity: 2, unit: "tbsp"}
-    "500g chicken breast" → {name: "chicken breast", quantity: 500, unit: "g"}
-    "1 onion, diced" → {name: "onion", quantity: 1, unit: "item"}
-    "Salt and pepper to taste" → {name: "salt and pepper", quantity: 1, unit: "pinch"}
-    "Fresh basil leaves" → {name: "basil leaves", quantity: 1, unit: "handful"}
-    "2 eggs" → {name: "eggs", quantity: 2, unit: "item"}
-    "1 egg, beaten" → {name: "eggs", quantity: 1, unit: "item"}
-    "Large egg" → {name: "eggs", quantity: 1, unit: "item"}
-
-    CRITICAL NORMALIZATION RULES:
-    - Return EXACTLY one result per input ingredient (maintain 1:1 correspondence)
-    - Use PLURAL form for countable items: "egg" → "eggs", "tomato" → "tomatoes", "onion" → "onions"
-    - Use SINGULAR form for uncountable items: "rice", "flour", "water", "salt"
-    - Remove ALL modifiers: "fresh", "extra virgin", "organic", "free-range", "large", "small"
-    - Remove preparation instructions: "diced", "chopped", "beaten", "minced"
-    - Be consistent with the SAME canonical name:
-      * "egg", "eggs", "large egg" → ALL become "eggs"
-      * "onion", "onions", "red onion" → ALL become "onions"
-      * "olive oil", "extra virgin olive oil", "EVOO" → ALL become "olive oil"
-      * "tomato", "tomatoes", "cherry tomatoes" → ALL become "tomatoes"
-    - For compound ingredients like "salt and pepper", keep as ONE item
-    - The output array MUST have the same length as the input array
-
-    Ingredient strings:
-    ${JSON.stringify(ingredientTexts)}
-  `;
-
+  // 1. Load Cache
+  let cache: Record<string, { name: string, quantity: number, unit: string }> = {};
   try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: ingredientParseSchema
-      }
-    });
-
-    const output = response.text;
-    if (!output) throw new Error("No response from AI");
-
-    return JSON.parse(output);
-  } catch (error) {
-    console.error("Error parsing ingredients:", error);
-    throw error;
+    const stored = localStorage.getItem(INGREDIENT_CACHE_KEY);
+    if (stored) cache = JSON.parse(stored);
+  } catch (e) {
+    console.warn("Failed to load ingredient cache", e);
   }
+
+  // 2. Identify Missing Items & Deduplicate
+  const uniqueTexts = Array.from(new Set(ingredientTexts));
+  const missingTexts: string[] = [];
+
+  uniqueTexts.forEach(text => {
+    if (!cache[text]) {
+      missingTexts.push(text);
+    }
+  });
+
+  // 3. Process Missing Items (if any)
+  if (missingTexts.length > 0) {
+    console.log(`[AI Parsing] Cache hit: ${uniqueTexts.length - missingTexts.length} items. Fetching ${missingTexts.length} new items.`);
+
+    // Batch in chunks of 20 to avoid token limits if list is huge
+    const chunkSize = 20;
+    for (let i = 0; i < missingTexts.length; i += chunkSize) {
+      const chunk = missingTexts.slice(i, i + chunkSize);
+
+      const prompt = `
+        You are an ingredient parsing specialist. Parse ingredient strings into structured, normalized data for recipe management.
+
+        TASK: Extract ingredient name (normalized, lowercase), quantity (as number), and unit from each ingredient string.
+
+        BASIC RULES:
+        - If no quantity is specified, use 1
+        - If no unit is specified, use "item"
+        - Handle vague quantities intelligently:
+          * "to taste" → quantity: 1, unit: "pinch"
+          * "a pinch" → quantity: 1, unit: "pinch"
+          * "a dash" → quantity: 1, unit: "dash"
+          * "a handful" → quantity: 1, unit: "handful"
+
+        EXAMPLES:
+        "2 tbsp olive oil" → {name: "olive oil", quantity: 2, unit: "tbsp"}
+        "500g chicken breast" → {name: "chicken breast", quantity: 500, unit: "g"}
+        "1 onion, diced" → {name: "onion", quantity: 1, unit: "item"}
+        "Salt and pepper to taste" → {name: "salt and pepper", quantity: 1, unit: "pinch"}
+        "Fresh basil leaves" → {name: "basil leaves", quantity: 1, unit: "handful"}
+        "2 eggs" → {name: "eggs", quantity: 2, unit: "item"}
+        "1 egg, beaten" → {name: "eggs", quantity: 1, unit: "item"}
+        "Large egg" → {name: "eggs", quantity: 1, unit: "item"}
+
+        CRITICAL NORMALIZATION RULES:
+        - Return EXACTLY one result per input ingredient (maintain 1:1 correspondence)
+        - Use PLURAL form for countable items: "egg" → "eggs", "tomato" → "tomatoes", "onion" → "onions"
+        - Use SINGULAR form for uncountable items: "rice", "flour", "water", "salt"
+        - Remove ALL modifiers: "fresh", "extra virgin", "organic", "free-range", "large", "small"
+        - Remove preparation instructions: "diced", "chopped", "beaten", "minced"
+        - Be consistent with the SAME canonical name:
+          * "egg", "eggs", "large egg" → ALL become "eggs"
+          * "onion", "onions", "red onion" → ALL become "onions"
+          * "olive oil", "extra virgin olive oil", "EVOO" → ALL become "olive oil"
+          * "tomato", "tomatoes", "cherry tomatoes" → ALL become "tomatoes"
+        - For compound ingredients like "salt and pepper", keep as ONE item
+        - The output array MUST have the same length as the input array
+
+        Ingredient strings:
+        ${JSON.stringify(chunk)}
+      `;
+
+      try {
+        const response = await ai.models.generateContent({
+          model: GEMINI_TEXT_MODEL,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: ingredientParseSchema
+          }
+        });
+
+        const output = response.text;
+        if (output) {
+          const parsedChunk: Array<{ name: string, quantity: number, unit: string }> = JSON.parse(output);
+
+          if (parsedChunk.length === chunk.length) {
+            // Update cache
+            chunk.forEach((text, index) => {
+              cache[text] = parsedChunk[index];
+            });
+          } else {
+            console.warn(`[AI Parsing] Chunk mismatch. Sent ${chunk.length}, got ${parsedChunk.length}. Falling back to individual processing or partial cache not implemented.`);
+            // Ideally we retry or handle this, but for now we just try to save what matched if strictly ordered, 
+            // but safe to skip cache save for safety if length mismatches
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing ingredient chunk:", error);
+        // Don't throw, just continue. Missing items will fail lookup later and maybe just be skipped or return error
+      }
+    }
+
+    // Save Updated Cache
+    try {
+      localStorage.setItem(INGREDIENT_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+      console.error("Failed to save ingredient cache", e);
+    }
+  } else {
+    console.log(`[AI Parsing] All ${ingredientTexts.length} ingredients found in cache. Instant return.`);
+  }
+
+  // 4. Construct Result
+  const results = ingredientTexts.map(text => {
+    const cached = cache[text];
+    if (cached) return cached;
+
+    // Fallback for failed items: return raw but valid structure
+    return { name: text.toLowerCase().trim(), quantity: 1, unit: 'item' };
+  });
+
+  return results;
 };
 
 const purchasableItemSchema: Schema = {

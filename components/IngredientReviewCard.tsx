@@ -16,9 +16,9 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
 
   return (
     <div
-      className={`border rounded-2xl p-4 transition-all ${inPantry
-          ? 'bg-primary/5 border-primary/20'
-          : 'bg-white dark:bg-white/5 border-border'
+      className={`card p-4 transition-all ${inPantry
+        ? 'ring-1 ring-primary/20 bg-primary/5'
+        : 'hover:shadow-md'
         }`}
     >
       <div className="flex justify-between items-start mb-2">
@@ -33,9 +33,9 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
 
         <button
           onClick={() => onTogglePantry(ingredient.name, !inPantry)}
-          className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${inPantry
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-white dark:bg-white/5-highlight text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 hover:bg-white dark:bg-white/5-highlight/80'
+          className={`btn-sm transition-all ${inPantry
+            ? 'btn-primary'
+            : 'btn-secondary text-charcoal/60 dark:text-stone-400'
             }`}
         >
           {inPantry ? '✓ Have This' : 'Need to Buy'}
