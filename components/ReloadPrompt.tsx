@@ -1,17 +1,49 @@
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import { useEffect, useRef } from 'react'
 
 export function ReloadPrompt() {
+    const registration = useRef<ServiceWorkerRegistration | undefined>(undefined)
+
     const {
         needRefresh: [needRefresh, setNeedRefresh],
         updateServiceWorker,
     } = useRegisterSW({
         onRegistered(r) {
             console.log('SW Registered: ' + r)
+            registration.current = r
         },
         onRegisterError(error) {
             console.log('SW registration error', error)
         },
     })
+
+    useEffect(() => {
+        const updateSW = () => {
+            if (registration.current) {
+                console.log('Checking for SW update...')
+                registration.current.update()
+            }
+        }
+
+        // Check for updates on focus/visibility change
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                updateSW()
+            }
+        }
+
+        window.addEventListener('visibilitychange', handleVisibilityChange)
+        window.addEventListener('focus', updateSW)
+
+        // Check every hour
+        const interval = setInterval(updateSW, 60 * 60 * 1000)
+
+        return () => {
+            window.removeEventListener('visibilitychange', handleVisibilityChange)
+            window.removeEventListener('focus', updateSW)
+            clearInterval(interval)
+        }
+    }, [])
 
     const close = () => setNeedRefresh(false)
 
