@@ -620,11 +620,14 @@ const AuthGuard: React.FC = () => {
     return <TrackerApp />;
 };
 
+import { ReloadPrompt } from './components/ReloadPrompt';
+
 export const App: React.FC = () => {
     return (
         <AuthProvider>
             <DevModeProvider>
                 <AuthGuard />
+                <ReloadPrompt />
             </DevModeProvider>
         </AuthProvider>
     );
