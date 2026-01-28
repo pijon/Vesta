@@ -38,6 +38,7 @@ const TrackerApp: React.FC = () => {
 
     // Check for date change on focus/visibility change
     useEffect(() => {
+        console.log("Vesta PWA 1.0.1 - Update Check");
         const checkDate = () => {
             const now = new Date().toISOString().split('T')[0];
             if (now !== todayDate) {
