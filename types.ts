@@ -223,7 +223,7 @@ export interface Group {
 
 // --- Developer Mode ---
 export interface FeatureFlags {
-  // Add real feature flags here in the future
+  forceSundayReset: boolean;
 }
 
 export interface DevSettings {

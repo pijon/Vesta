@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan, getUpcomingPlan, getDayPlansInRange } from '../services/storageService';
-import { planWeekWithExistingRecipes, planDayWithExistingRecipes } from '../services/geminiService';
+
 import { Recipe, DayPlan } from '../types';
 
 import { getRecipeTheme } from '../utils';
@@ -9,21 +9,18 @@ import { Portal } from './Portal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { GlassCard } from './GlassCard';
 import { CookingMode } from './CookingMode';
+import BatchPlannerModal from './BatchPlannerModal';
 
 import { UserStats } from '../types';
 
-export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
+export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [weekDates, setWeekDates] = useState<string[]>([]);
     const [weekPlans, setWeekPlans] = useState<Record<string, DayPlan>>({});
     const [dayPlan, setDayPlan] = useState<DayPlan | null>(null);
     const [availableRecipes, setAvailableRecipes] = useState<Recipe[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [swapIndex, setSwapIndex] = useState<number | null>(null);
 
-    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-    const [showAutoPlanModal, setShowAutoPlanModal] = useState(false);
 
     // Modal UI State
     const [modalTab, setModalTab] = useState<'library' | 'custom' | 'leftovers'>('library');
@@ -44,6 +41,10 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
 
     // Cooking Mode State
     const [cookingModeRecipe, setCookingModeRecipe] = useState<Recipe | null>(null);
+    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+
+    const [swapIndex, setSwapIndex] = useState<number | null>(null);
+    const [showBatchPlanner, setShowBatchPlanner] = useState(false);
 
     useEffect(() => {
         // Generate next 7 days
@@ -106,6 +107,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         const updatedPlan = { ...dayPlan, meals: newMeals, totalCalories: totalCals };
         saveDayPlan(updatedPlan);
         setDayPlan(updatedPlan);
+        onPlanChanged?.();
     };
 
     const confirmConfigAndAdd = () => {
@@ -144,6 +146,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         const updatedPlan = { ...dayPlan, meals: newMeals, totalCalories: totalCals };
         saveDayPlan(updatedPlan);
         setDayPlan(updatedPlan);
+        onPlanChanged?.();
     };
 
     const togglePacked = async (index: number) => {
@@ -155,6 +158,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         const updatedPlan = { ...dayPlan, meals: newMeals };
         saveDayPlan(updatedPlan);
         setDayPlan(updatedPlan);
+        onPlanChanged?.();
     }
 
     const openAddModal = () => {
@@ -212,95 +216,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         setSwapIndex(null);
     };
 
-    const handleAutoPlanClick = () => {
-        const recipes = availableRecipes; // Use state variable
-        if (recipes.length < 3) {
-            alert("You need at least a few recipes in your library for the AI to create a plan. Go to the Recipes tab to add some!");
-            return;
-        }
-        setShowAutoPlanModal(true);
-    };
 
-    const handleAutoPlanConfirm = async (mode: 'daily' | '5:2') => {
-        setShowAutoPlanModal(false);
-        setIsGenerating(true);
-        try {
-            const weeklyPlan = await planWeekWithExistingRecipes(
-                availableRecipes,
-                selectedDate,
-                mode,
-                stats.nonFastDayCalories || 2000
-            );
-
-            // Process and save
-            await Promise.all(weeklyPlan.map(async day => {
-                const meals = availableRecipes.filter(r => day.mealIds.includes(r.id));
-                const totalCals = meals.reduce((acc, m) => acc + m.calories, 0);
-
-                const planForDay: DayPlan = {
-                    date: day.date,
-                    meals: meals,
-                    completedMealIds: [], // Reset completed status for new plan
-                    tips: day.dailyTip || "Stay on track!",
-                    totalCalories: totalCals,
-                    type: day.type || (totalCals > 1000 ? 'non-fast' : 'fast') // Fallback logic
-                };
-
-                await saveDayPlan(planForDay);
-            }));
-
-            // Refresh current day view
-            getDayPlan(selectedDate).then(setDayPlan);
-
-        } catch (error) {
-            console.error("Auto plan failed:", error);
-            alert("Failed to generate plan. Please try again.");
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-
-
-    const handleAutoPlanDay = async () => {
-        const recipes = availableRecipes;
-        if (recipes.length < 3) {
-            alert("You need at least a few recipes in your library for the AI to create a plan.");
-            return;
-        }
-
-        if (dayPlan && dayPlan.meals.length > 0) {
-            if (!confirm("This will replace your existing meals for this day. Continue?")) {
-                return;
-            }
-        }
-
-        setIsGenerating(true);
-        try {
-            // Defaulting to 800 (Fast Day) for the "Plan My Day" feature
-            const result = await planDayWithExistingRecipes(recipes, selectedDate, 800);
-
-            const meals = recipes.filter(r => result.mealIds.includes(r.id));
-            const totalCals = meals.reduce((acc, m) => acc + m.calories, 0);
-
-            const newPlan: DayPlan = {
-                date: selectedDate,
-                meals: meals,
-                completedMealIds: [],
-                tips: result.dailyTip || "Stay on track!",
-                totalCalories: totalCals,
-                type: 'fast' // Assuming fast day for this specific action
-            };
-
-            await saveDayPlan(newPlan);
-            setDayPlan(newPlan);
-        } catch (error) {
-            console.error("Auto plan day failed:", error);
-            alert("Failed to generate plan. Please try again.");
-        } finally {
-            setIsGenerating(false);
-        }
-    };
 
     const filteredRecipes = availableRecipes.filter(recipe => {
         const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -322,6 +238,24 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
         const updatedPlan = { ...dayPlan, completedMealIds: newCompleted };
         setDayPlan(updatedPlan);
         await saveDayPlan(updatedPlan);
+        onPlanChanged?.();
+    };
+
+    const toggleFastDay = async () => {
+        const newType = dayPlan?.type === 'fast' ? 'non-fast' : 'fast';
+        const updatedPlan: DayPlan = dayPlan
+            ? { ...dayPlan, type: newType }
+            : { date: selectedDate, meals: [], completedMealIds: [], type: newType };
+
+        setDayPlan(updatedPlan);
+        await saveDayPlan(updatedPlan);
+        onPlanChanged?.();
+
+        // Optimistically update the week view cache
+        setWeekPlans(prev => ({
+            ...prev,
+            [selectedDate]: updatedPlan
+        }));
     };
 
     return (
@@ -358,6 +292,7 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             const plan = weekPlans[date];
                             const hasMeals = plan?.meals && plan.meals.length > 0;
                             const isToday = new Date().toISOString().split('T')[0] === date;
+                            const isFast = plan?.type === 'fast';
 
                             return (
                                 <button
@@ -369,12 +304,13 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                             ? 'bg-hearth text-white shadow-lg shadow-hearth/30 border-hearth transform -translate-y-1'
                                             : 'bg-white dark:bg-white/5 border-stone-200 dark:border-white/5 text-charcoal/60 dark:text-stone-400 hover:border-hearth/50 hover:shadow-sm'
                                         }
+                                        ${isFast && !isSelected ? 'bg-[var(--color-flame)]/10 dark:bg-[var(--color-flame)]/5 border-[var(--color-flame)]/30' : ''}
                                     `}
                                 >
                                     <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isSelected ? 'opacity-90' : 'opacity-60'}`}>
                                         {dayName}
                                     </span>
-                                    <span className={`text-2xl font-serif font-bold mb-1 ${isSelected ? 'text-white' : 'text-charcoal dark:text-stone-200'}`}>
+                                    <span className={`text-2xl font-serif font-bold mb-1 ${isSelected ? 'text-white' : 'text-charcoal dark:text-stone-200'} ${isFast && !isSelected ? 'text-[var(--color-flame)]' : ''}`}>
                                         {dayNum}
                                     </span>
 
@@ -385,6 +321,12 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                                         )}
                                         {hasMeals && (
                                             <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-sage-500'} `} />
+                                        )}
+                                        {isFast && !isSelected && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-flame)]" title="Fast Day" />
+                                        )}
+                                        {isFast && isSelected && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-white" title="Fast Day" />
                                         )}
                                     </div>
                                 </button>
@@ -406,23 +348,35 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                             </div>
                             <div className="flex gap-2 flex-wrap">
                                 <button
+                                    onClick={toggleFastDay}
+                                    className={`px-5 py-2.5 rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${dayPlan?.type === 'fast'
+                                        ? 'bg-[var(--color-flame)]/10 text-[var(--color-flame)] hover:bg-[var(--color-flame)]/20'
+                                        : 'bg-stone-100 text-stone-500 dark:bg-white/5 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-white/10'
+                                        }`}
+                                >
+                                    {dayPlan?.type === 'fast' ? (
+                                        <>
+                                            <span className="text-sm">🔥</span> Fast Day
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-sm">🍲</span> Nourish
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
                                     onClick={openAddModal}
                                     className="px-5 py-2.5 bg-sage/10 text-sage-800 dark:text-sage-200 rounded-2xl font-bold hover:bg-sage/20 transition-all active:scale-95 flex items-center gap-2"
                                 >
                                     <span>+</span> Add Meal
                                 </button>
+
                                 <button
-                                    onClick={handleAutoPlanDay}
-                                    className="px-5 py-2.5 bg-hearth/10 text-hearth dark:text-hearth-light rounded-2xl font-bold hover:bg-hearth/20 transition-colors"
+                                    onClick={() => setShowBatchPlanner(true)}
+                                    className="px-5 py-2.5 bg-hearth/10 text-hearth dark:text-flame rounded-2xl font-bold hover:bg-hearth/20 transition-all active:scale-95 flex items-center gap-2"
                                 >
-                                    Auto-Plan Day
-                                </button>
-                                <button
-                                    onClick={handleAutoPlanClick}
-                                    disabled={isGenerating}
-                                    className={isGenerating ? 'px-5 py-2.5 bg-stone-200 dark:bg-stone-800 text-stone-400 dark:text-stone-600 rounded-2xl font-bold cursor-not-allowed' : 'btn-primary px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all'}
-                                >
-                                    {isGenerating ? 'Planning...' : 'Auto-Plan Week'}
+                                    <span>✨</span> Plan Ahead
                                 </button>
                             </div>
                         </div>
@@ -864,52 +818,12 @@ export const Planner: React.FC<{ stats: UserStats }> = ({ stats }) => {
                 )
             }
 
-            {
-                showAutoPlanModal && (
-                    <Portal>
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowAutoPlanModal(false)}>
-                            <div className="bg-[var(--background)] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden premium-shadow border border-border backdrop-blur-md" onClick={e => e.stopPropagation()}>
-                                <div className="p-6">
-                                    <h3 className="text-xl font-bold text-[var(--text-main)] font-serif mb-2">Auto-Plan Week</h3>
-                                    <p className="text-[var(--text-secondary)] text-sm mb-6">Choose how you want the AI to plan your week.</p>
 
-                                    <div className="space-y-3">
-                                        <button
-                                            onClick={() => handleAutoPlanConfirm('daily')}
-                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-[var(--surface)] hover:border-primary/20 hover:bg-primary/5 transition-all group"
-                                        >
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="font-bold text-[var(--text-main)] group-hover:text-primary transition-colors">Strict Fasting</span>
-                                                <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">800 kcal</span>
-                                            </div>
-                                            <p className="text-xs text-[var(--text-secondary)]">Plan 800 calories for every day of the week.</p>
-                                        </button>
-
-                                        <button
-                                            onClick={() => handleAutoPlanConfirm('5:2')}
-                                            className="w-full text-left p-4 rounded-xl border-2 border-transparent bg-[var(--surface)] hover:border-amber-500/20 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group"
-                                        >
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="font-bold text-[var(--text-main)] group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">5:2 Diet</span>
-                                                <span className="text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded">Varied</span>
-                                            </div>
-                                            <p className="text-xs text-[var(--text-secondary)]">2 Fasting Days (800 kcal) + 5 Non-Fasting Days.</p>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="p-4 bg-[var(--surface)] border-t border-border flex justify-end">
-                                    <button
-                                        onClick={() => setShowAutoPlanModal(false)}
-                                        className="px-4 py-2 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-main)]"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </Portal>
-                )
-            }
+            <BatchPlannerModal
+                isOpen={showBatchPlanner}
+                onClose={() => setShowBatchPlanner(false)}
+                mode="manual"
+            />
         </div >
     );
 };

@@ -8,6 +8,7 @@ import { WorkoutEntryModal } from './WorkoutEntryModal';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard, CaloriesRemainingCard } from './BentoGrid';
+import SundayResetWidget from './SundayResetWidget';
 // import { MobileActionCards } from './MobileActionCards';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
@@ -34,10 +35,10 @@ interface TrackTodayProps {
   onUpdateFastingConfig: (config: FastingConfig) => void;
   refreshData: () => void;
   onNavigate: (view: AppView) => void;
-  // New props for global modals
   onOpenFoodModal: () => void;
   onOpenWorkoutModal: (workout?: WorkoutItem) => void;
   onOpenWeightModal: () => void;
+  onOpenSundayReset: () => void;
   onAddWater: (amount: number) => void;
 }
 
@@ -61,6 +62,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onOpenFoodModal,
   onOpenWorkoutModal,
   onOpenWeightModal,
+  onOpenSundayReset,
   onAddWater
 }) => {
   // Removed local modal state
@@ -305,6 +307,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               fastingHours={elapsedFastingHours}
               fastingGoal={fastingState.config.targetFastHours}
             />
+            {/* Sunday Reset Widget (conditionally renders if Sunday) */}
+            <SundayResetWidget onOpen={onOpenSundayReset} />
           </div>
 
           {/* Right: Bento Grid */}

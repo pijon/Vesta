@@ -430,95 +430,66 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
   }
 };
 
-const weeklyPlanSchema: Schema = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      date: { type: Type.STRING, description: "YYYY-MM-DD format" },
-      mealIds: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
-        description: "IDs of the selected recipes"
-      },
-      dailyTip: { type: Type.STRING },
-      type: { type: Type.STRING, enum: ['fast', 'non-fast'] }
-    },
-    required: ["date", "mealIds", "type"]
-  }
+
+
+export type DayConfig = {
+  date: string;
+  type: 'fast' | 'non-fast';
+  meals: number;
+  useLeftovers: boolean;
+  ignore: boolean;
 };
 
-export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: string, dietMode: 'daily' | '5:2' = 'daily', nonFastCalories: number = 2000): Promise<{ date: string, mealIds: string[], dailyTip?: string, type?: 'fast' | 'non-fast' }[]> => {
+export const planSpecificDays = async (
+  recipes: Recipe[],
+  dayConfigs: DayConfig[],
+  season: string = 'Current'
+): Promise<{ date: string, mealIds: string[], type?: 'fast' | 'non-fast' }[]> => {
   if (!apiKey) throw new Error("API Key not found");
 
-  // Simplify recipes to reduce token usage and focus AI on nutrition/type
-  const simplifiedRecipes = recipes.map(r => ({
-    id: r.id,
-    name: r.name,
-    calories: r.calories,
-    tags: r.tags
-  }));
+  // Filter out ignored days
+  const activeDays = dayConfigs.filter(d => !d.ignore);
+  if (activeDays.length === 0) return [];
+
+  // OPTIMIZATION: Map complex UUIDs to simple integer IDs
+  const recipeMap = new Map<string, string>();
+  const simplifiedRecipes = recipes.map((r, index) => {
+    const simpleId = (index + 1).toString();
+    recipeMap.set(simpleId, r.id);
+    return {
+      id: simpleId,
+      name: r.name,
+      calories: r.calories,
+      tags: r.tags
+    };
+  });
+
+  const schedulePrompt = activeDays.map(day => `
+    DATE: ${day.date}
+    TYPE: ${day.type} (${day.type === 'fast' ? '~800 kcal' : 'Standard nourishment'})
+    MEALS: ${day.meals} meals
+    LEFTOVERS: ${day.useLeftovers ? 'MUST use leftovers from previous dinner for lunch' : 'No constraint'}
+  `).join('\n');
 
   const prompt = `
-    You are an expert meal planner for Mediterranean-style nutrition. Create a balanced, varied 7-day meal plan.
+    You are an expert meal planner for Mediterranean-style nutrition. Create a plan for the following specific schedule:
 
-    START DATE: ${startDate}
-    DIET MODE: ${dietMode === 'daily' ? 'Consistent daily calorie goal' : `5:2 Pattern - 2 low-calorie days, 5 standard days (${nonFastCalories} kcal)`}
-
-    CALORIE TARGETS:
-    ${dietMode === 'daily'
-      ? '- Every day: ~800 calories total\n    - Each day should have type: "fast"'
-      : `- Fast days (2 days): ~800 calories total, type: "fast"\n    - Non-fast days (5 days): ~${nonFastCalories} calories total, type: "non-fast"\n    - Spread fast days across the week (e.g., Monday + Thursday, or Tuesday + Friday) - avoid consecutive days`
-    }
+    ${schedulePrompt}
 
     VARIETY REQUIREMENTS:
-    1. PROTEIN ROTATION: Rotate protein sources throughout the week
-       - Don't repeat the same protein on consecutive days
-       - Mix: chicken, fish, eggs, legumes, tofu, beef, pork, seafood
-       - Aim for fish at least 2-3 times per week (Mediterranean diet principle)
-
-    2. CUISINE DIVERSITY: Vary cuisines if recipes allow
-       - Don't serve Mediterranean meals every single day
-       - Mix different flavor profiles: Asian, Mexican, Indian, Mediterranean, etc.
-
-    3. MEAL TYPE BALANCE: Ensure variety in breakfast choices
-       - Don't repeat the same breakfast multiple days in a row
-       - Mix: egg-based, yogurt-based, oatmeal, smoothies, etc.
-
-    4. RECIPE REUSE LIMITS:
-       - Avoid using the exact same recipe more than twice in the week
-       - If limited recipes available, space out repetitions (at least 3 days apart)
-
-    NUTRITIONAL BALANCE (across the week):
-    - High protein emphasis: Most meals should include quality protein
-    - Adequate healthy fats: Include sources like olive oil, nuts, avocado
-    - Low-carb vegetables: Prioritize non-starchy vegetables
-    - Fiber-rich foods: Include in most meals
-    - Limited refined carbs: Minimize white bread, pasta, rice, sugar
-
-    MEAL STRUCTURE GUIDELINES:
-    - Each day should have 2-3 meals total (breakfast + 1-2 main meals OR breakfast + main meal + light meal)
-    - Fast days (800 kcal): Usually 2-3 meals
-    - Non-fast days (${nonFastCalories} kcal): Usually 3 meals
-    - Select recipes whose tags match the meal time (breakfast tag for breakfast, main meal tag for lunch/dinner)
+    1. PROTEIN ROTATION: Rotate protein sources (chicken, fish, eggs, legumes, etc.)
+    2. MEAL TYPE BALANCE: Varied breakfasts (eggs, yogurt, oats)
+    3. LEFTOVERS: If a day requests leftovers, you MUST schedule the previous day's DINNER as the current day's LUNCH.
 
     RECIPE SELECTION RULES:
-    1. Use ONLY the recipes provided in the JSON list below - do not invent recipes
-    2. Return the exact recipe ID from the list
-    3. Match calorie targets as closely as possible
-    4. Prioritize recipes with appropriate tags for the meal slot
-    5. Consider recipe calories when building daily totals
-
-    DAILY TIP REQUIREMENTS:
-    - Provide one unique, actionable tip for each day
-    - Vary tip topics: hydration, exercise, sleep, mindset, meal prep, portion control, etc.
-    - Keep tips positive, practical, and encouraging
-    - Don't repeat the same tip multiple days
+    1. Use ONLY the recipes provided in the JSON list below (return simple IDs like "1", "2")
+    2. Match calorie targets: Fast days (~800), Standard (~2000)
+    3. SEASONAL PREFERENCE: Current season is "${season}".
 
     AVAILABLE RECIPES:
     ${JSON.stringify(simplifiedRecipes)}
 
-    CRITICAL: Each day object MUST include "type": "fast" or "non-fast" based on calorie target for that day.
+    CRITICAL: Return a JSON array matching the requested dates.
   `;
 
   try {
@@ -527,109 +498,42 @@ export const planWeekWithExistingRecipes = async (recipes: Recipe[], startDate: 
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: weeklyPlanSchema
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              date: { type: Type.STRING, description: "YYYY-MM-DD" },
+              mealIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+              type: { type: Type.STRING, enum: ['fast', 'non-fast'] }
+            },
+            required: ["date", "mealIds", "type"]
+          }
+        }
       }
     });
 
     const output = response.text;
     if (!output) throw new Error("No response from AI");
 
-    return JSON.parse(output);
+    const parsedData: { date: string, mealIds: string[], type?: 'fast' | 'non-fast' }[] = JSON.parse(output);
+
+    // Map back simple IDs to Real UUIDs
+    const finalPlan = parsedData.map(day => ({
+      ...day,
+      mealIds: day.mealIds
+        .map(simpleId => recipeMap.get(simpleId))
+        .filter((id): id is string => !!id)
+    }));
+
+    return finalPlan;
   } catch (error) {
-    console.error("Error generating weekly plan:", error);
+    console.error("Error generating plan:", error);
     throw error;
   }
 };
 
-const singleDayPlanSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    mealIds: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "IDs of the selected recipes"
-    },
-    dailyTip: { type: Type.STRING }
-  },
-  required: ["mealIds"]
-};
 
-export const planDayWithExistingRecipes = async (recipes: Recipe[], date: string, targetCalories: number = 800): Promise<{ mealIds: string[], dailyTip?: string }> => {
-  if (!apiKey) throw new Error("API Key not found");
-
-  // Simplify recipes
-  const simplifiedRecipes = recipes.map(r => ({
-    id: r.id,
-    name: r.name,
-    calories: r.calories,
-    tags: r.tags
-  }));
-
-  const prompt = `
-    You are an expert meal planner for Mediterranean-style nutrition. Create a balanced single-day meal plan.
-
-    DATE: ${date}
-    CALORIE TARGET: Approximately ${targetCalories} kcal total for the day
-
-    MEAL STRUCTURE:
-    ${targetCalories <= 900
-      ? '- 2-3 meals total (breakfast + 1-2 main meals OR breakfast + main meal + light snack)\n    - Breakfast: 200-300 kcal\n    - Main meal(s): 300-500 kcal each\n    - Light meal/snack: 100-200 kcal (if included)'
-      : `- 3 meals total (breakfast + lunch + dinner)\n    - Breakfast: ${Math.round(targetCalories * 0.25)}-${Math.round(targetCalories * 0.3)} kcal\n    - Lunch: ${Math.round(targetCalories * 0.35)}-${Math.round(targetCalories * 0.4)} kcal\n    - Dinner: ${Math.round(targetCalories * 0.3)}-${Math.round(targetCalories * 0.35)} kcal`
-    }
-
-    NUTRITIONAL BALANCE:
-    - Prioritize protein: Include quality protein in each meal (meat, fish, eggs, legumes, dairy)
-    - Healthy fats: Use sources like olive oil, nuts, avocado
-    - Low-carb vegetables: Emphasize non-starchy vegetables
-    - Minimize refined carbs: Avoid white bread, pasta, rice, sugar
-    - Fiber-rich: Include vegetables, salads, or low-sugar fruits
-    - Target macros: ~${Math.round(targetCalories * 0.3 / 4)}g protein, ~${Math.round(targetCalories * 0.25 / 9)}g fat, ~${Math.round(targetCalories * 0.25 / 4)}g carbs
-
-    MEAL DISTRIBUTION:
-    - Start with breakfast (tag: "breakfast")
-    - Include 1-2 main meals (tag: "main meal")
-    - Optional: Add light meal or snack (tag: "light meal" or "snack") if under calorie target
-    - Select recipes whose tags match the appropriate meal time
-
-    RECIPE SELECTION RULES:
-    1. Use ONLY the recipes provided in the JSON list below - do not invent recipes
-    2. Return the exact recipe ID from the list
-    3. Combine recipes to match the ${targetCalories} kcal target as closely as possible
-    4. Aim to be within ±50 kcal of the target
-    5. Prioritize recipes with tags matching the meal slot (breakfast, main meal, etc.)
-    6. Ensure variety: Try to select recipes with different protein sources and flavors
-
-    DAILY TIP:
-    - Provide one practical, actionable tip for maintaining healthy nutrition
-    - Topics can include: hydration, meal timing, exercise, sleep, mindset, food prep, portion control
-    - Keep it positive, encouraging, and specific
-    - Make it relevant to the ${targetCalories} kcal target (e.g., tips for managing hunger on low-calorie days)
-
-    AVAILABLE RECIPES:
-    ${JSON.stringify(simplifiedRecipes)}
-
-    IMPORTANT: The sum of selected recipe calories should be as close to ${targetCalories} kcal as possible. Prioritize meeting the calorie target over other preferences.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: singleDayPlanSchema
-      }
-    });
-
-    const output = response.text;
-    if (!output) throw new Error("No response from AI");
-
-    return JSON.parse(output);
-  } catch (error) {
-    console.error("Error generating day plan:", error);
-    throw error;
-  }
-};
 
 const ingredientParseSchema: Schema = {
   type: Type.ARRAY,
@@ -670,85 +574,92 @@ export const parseIngredients = async (ingredientTexts: string[]): Promise<Array
 
   // 3. Process Missing Items (if any)
   if (missingTexts.length > 0) {
-    console.log(`[AI Parsing] Cache hit: ${uniqueTexts.length - missingTexts.length} items. Fetching ${missingTexts.length} new items.`);
+    console.log(`[AI Parsing] Cache hit: ${uniqueTexts.length - missingTexts.length} items.Fetching ${missingTexts.length} new items.`);
 
-    // Batch in chunks of 20 to avoid token limits if list is huge
-    const chunkSize = 20;
+    // Batch in chunks of 150 (Flash model has large context) to reduce round-trips
+    const chunkSize = 150;
+    const chunkPromises = [];
+
     for (let i = 0; i < missingTexts.length; i += chunkSize) {
       const chunk = missingTexts.slice(i, i + chunkSize);
+      chunkPromises.push((async () => {
 
-      const prompt = `
-        You are an ingredient parsing specialist. Parse ingredient strings into structured, normalized data for recipe management.
+        const prompt = `
+        You are an ingredient parsing specialist.Parse ingredient strings into structured, normalized data for recipe management.
 
-        TASK: Extract ingredient name (normalized, lowercase), quantity (as number), and unit from each ingredient string.
+  TASK: Extract ingredient name(normalized, lowercase), quantity(as number), and unit from each ingredient string.
 
         BASIC RULES:
-        - If no quantity is specified, use 1
-        - If no unit is specified, use "item"
-        - Handle vague quantities intelligently:
+- If no quantity is specified, use 1
+  - If no unit is specified, use "item"
+    - Handle vague quantities intelligently:
           * "to taste" → quantity: 1, unit: "pinch"
-          * "a pinch" → quantity: 1, unit: "pinch"
-          * "a dash" → quantity: 1, unit: "dash"
-          * "a handful" → quantity: 1, unit: "handful"
+  * "a pinch" → quantity: 1, unit: "pinch"
+    * "a dash" → quantity: 1, unit: "dash"
+      * "a handful" → quantity: 1, unit: "handful"
 
-        EXAMPLES:
-        "2 tbsp olive oil" → {name: "olive oil", quantity: 2, unit: "tbsp"}
-        "500g chicken breast" → {name: "chicken breast", quantity: 500, unit: "g"}
-        "1 onion, diced" → {name: "onion", quantity: 1, unit: "item"}
-        "Salt and pepper to taste" → {name: "salt and pepper", quantity: 1, unit: "pinch"}
-        "Fresh basil leaves" → {name: "basil leaves", quantity: 1, unit: "handful"}
-        "2 eggs" → {name: "eggs", quantity: 2, unit: "item"}
-        "1 egg, beaten" → {name: "eggs", quantity: 1, unit: "item"}
-        "Large egg" → {name: "eggs", quantity: 1, unit: "item"}
+EXAMPLES:
+"2 tbsp olive oil" → { name: "olive oil", quantity: 2, unit: "tbsp" }
+"500g chicken breast" → { name: "chicken breast", quantity: 500, unit: "g" }
+"1 onion, diced" → { name: "onion", quantity: 1, unit: "item" }
+"Salt and pepper to taste" → { name: "salt and pepper", quantity: 1, unit: "pinch" }
+"Fresh basil leaves" → { name: "basil leaves", quantity: 1, unit: "handful" }
+"2 eggs" → { name: "eggs", quantity: 2, unit: "item" }
+"1 egg, beaten" → { name: "eggs", quantity: 1, unit: "item" }
+"Large egg" → { name: "eggs", quantity: 1, unit: "item" }
 
         CRITICAL NORMALIZATION RULES:
-        - Return EXACTLY one result per input ingredient (maintain 1:1 correspondence)
-        - Use PLURAL form for countable items: "egg" → "eggs", "tomato" → "tomatoes", "onion" → "onions"
-        - Use SINGULAR form for uncountable items: "rice", "flour", "water", "salt"
-        - Remove ALL modifiers: "fresh", "extra virgin", "organic", "free-range", "large", "small"
+- Return EXACTLY one result per input ingredient(maintain 1: 1 correspondence)
+  - Use PLURAL form for countable items: "egg" → "eggs", "tomato" → "tomatoes", "onion" → "onions"
+    - Use SINGULAR form for uncountable items: "rice", "flour", "water", "salt"
+      - Remove ALL modifiers: "fresh", "extra virgin", "organic", "free-range", "large", "small"
         - Remove preparation instructions: "diced", "chopped", "beaten", "minced"
-        - Be consistent with the SAME canonical name:
+          - Be consistent with the SAME canonical name:
           * "egg", "eggs", "large egg" → ALL become "eggs"
-          * "onion", "onions", "red onion" → ALL become "onions"
-          * "olive oil", "extra virgin olive oil", "EVOO" → ALL become "olive oil"
-          * "tomato", "tomatoes", "cherry tomatoes" → ALL become "tomatoes"
+  * "onion", "onions", "red onion" → ALL become "onions"
+    * "olive oil", "extra virgin olive oil", "EVOO" → ALL become "olive oil"
+      * "tomato", "tomatoes", "cherry tomatoes" → ALL become "tomatoes"
         - For compound ingredients like "salt and pepper", keep as ONE item
-        - The output array MUST have the same length as the input array
+          - The output array MUST have the same length as the input array
 
         Ingredient strings:
         ${JSON.stringify(chunk)}
-      `;
+`;
 
-      try {
-        const response = await ai.models.generateContent({
-          model: GEMINI_TEXT_MODEL,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: ingredientParseSchema
+        try {
+          const response = await ai.models.generateContent({
+            model: GEMINI_TEXT_MODEL,
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: ingredientParseSchema
+            }
+          });
+
+          const output = response.text;
+          if (output) {
+            const parsedChunk: Array<{ name: string, quantity: number, unit: string }> = JSON.parse(output);
+
+            if (parsedChunk.length === chunk.length) {
+              // Update cache
+              chunk.forEach((text, index) => {
+                cache[text] = parsedChunk[index];
+              });
+            } else {
+              console.warn(`[AI Parsing] Chunk mismatch.Sent ${chunk.length}, got ${parsedChunk.length}. Falling back to individual processing or partial cache not implemented.`);
+              // Ideally we retry or handle this, but for now we just try to save what matched if strictly ordered, 
+              // but safe to skip cache save for safety if length mismatches
+            }
           }
-        });
-
-        const output = response.text;
-        if (output) {
-          const parsedChunk: Array<{ name: string, quantity: number, unit: string }> = JSON.parse(output);
-
-          if (parsedChunk.length === chunk.length) {
-            // Update cache
-            chunk.forEach((text, index) => {
-              cache[text] = parsedChunk[index];
-            });
-          } else {
-            console.warn(`[AI Parsing] Chunk mismatch. Sent ${chunk.length}, got ${parsedChunk.length}. Falling back to individual processing or partial cache not implemented.`);
-            // Ideally we retry or handle this, but for now we just try to save what matched if strictly ordered, 
-            // but safe to skip cache save for safety if length mismatches
-          }
+        } catch (error) {
+          console.error("Error parsing ingredient chunk:", error);
+          // Don't throw, just continue. Missing items will fail lookup later and maybe just be skipped or return error
         }
-      } catch (error) {
-        console.error("Error parsing ingredient chunk:", error);
-        // Don't throw, just continue. Missing items will fail lookup later and maybe just be skipped or return error
-      }
+      })());
     }
+
+    // Wait for all chunks to complete
+    await Promise.all(chunkPromises);
 
     // Save Updated Cache
     try {
@@ -757,7 +668,7 @@ export const parseIngredients = async (ingredientTexts: string[]): Promise<Array
       console.error("Failed to save ingredient cache", e);
     }
   } else {
-    console.log(`[AI Parsing] All ${ingredientTexts.length} ingredients found in cache. Instant return.`);
+    console.log(`[AI Parsing] All ${ingredientTexts.length} ingredients found in cache.Instant return.`);
   }
 
   // 4. Construct Result
@@ -793,57 +704,57 @@ export const convertToPurchasableQuantities = async (
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    You are a grocery shopping assistant specializing in converting recipe quantities to realistic store-buyable amounts.
+    You are a grocery shopping assistant specializing in converting recipe quantities to realistic store - buyable amounts.
 
-    TASK: Convert aggregated recipe ingredient quantities into practical grocery store package sizes that customers can actually purchase.
+  TASK: Convert aggregated recipe ingredient quantities into practical grocery store package sizes that customers can actually purchase.
 
     SHOPPING CONTEXT - Consider:
-    - Common package sizes in supermarkets (e.g., olive oil comes in 250ml, 500ml, 1L bottles)
-    - Buy the smallest package that covers the need (but realistic - don't suggest buying a single egg)
-    - Fresh produce often sold by weight or count (e.g., "3 tomatoes" or "500g tomatoes")
-    - Dry goods come in standard packages (flour in 1kg bags, rice in 1kg/2kg bags)
-    - Spices and seasonings come in small jars (50g-100g typical)
-    - Dairy products have standard sizes (milk in 1L/2L, cheese in 200g-500g blocks)
-    - Meat and fish sold by weight or pre-packaged (chicken breast in 500g-1kg packs)
+- Common package sizes in supermarkets(e.g., olive oil comes in 250ml, 500ml, 1L bottles)
+  - Buy the smallest package that covers the need(but realistic - don't suggest buying a single egg)
+    - Fresh produce often sold by weight or count(e.g., "3 tomatoes" or "500g tomatoes")
+  - Dry goods come in standard packages(flour in 1kg bags, rice in 1kg / 2kg bags)
+  - Spices and seasonings come in small jars(50g - 100g typical)
+  - Dairy products have standard sizes(milk in 1L / 2L, cheese in 200g - 500g blocks)
+  - Meat and fish sold by weight or pre - packaged(chicken breast in 500g - 1kg packs)
 
     Format:
-    - ingredientName: Must EXACTLY match the input 'name' field. Do not change spelling or capitalization.
-    - requiredQuantity: Show what the recipe needs with unit conversion if helpful (e.g., "1.5 tbsp (≈22ml)")
-    - purchasableQuantity: Suggest the smallest realistic package that covers the need
+    - ingredientName: Must EXACTLY match the input 'name' field.Do not change spelling or capitalization.
+    - requiredQuantity: Show what the recipe needs with unit conversion if helpful(e.g., "1.5 tbsp (≈22ml)")
+  - purchasableQuantity: Suggest the smallest realistic package that covers the need
     - purchasableSize: The numeric size for comparison
-    - rationale: Brief explanation (max 10 words)
+      - rationale: Brief explanation(max 10 words)
 
-    Examples:
-    Input: {name: "olive oil", quantity: 1.5, unit: "tbsp"}
-    Output: {
-      ingredientName: "olive oil",
-      requiredQuantity: "1.5 tbsp (≈22ml)",
+Examples:
+Input: { name: "olive oil", quantity: 1.5, unit: "tbsp" }
+Output: {
+  ingredientName: "olive oil",
+    requiredQuantity: "1.5 tbsp (≈22ml)",
       purchasableQuantity: "250ml bottle",
-      purchasableSize: "250ml",
-      rationale: "Smallest bottle size, provides many servings"
-    }
+        purchasableSize: "250ml",
+          rationale: "Smallest bottle size, provides many servings"
+}
 
-    Input: {name: "chicken breast", quantity: 750, unit: "g"}
-    Output: {
-      ingredientName: "chicken breast",
-      requiredQuantity: "750g",
+Input: { name: "chicken breast", quantity: 750, unit: "g" }
+Output: {
+  ingredientName: "chicken breast",
+    requiredQuantity: "750g",
       purchasableQuantity: "750g pack",
-      purchasableSize: "750g",
-      rationale: "Standard supermarket pack size"
-    }
+        purchasableSize: "750g",
+          rationale: "Standard supermarket pack size"
+}
 
-    Input: {name: "cumin", quantity: 1, unit: "pinch"}
-    Output: {
-      ingredientName: "cumin",
-      requiredQuantity: "1 pinch",
+Input: { name: "cumin", quantity: 1, unit: "pinch" }
+Output: {
+  ingredientName: "cumin",
+    requiredQuantity: "1 pinch",
       purchasableQuantity: "50g jar",
-      purchasableSize: "50g",
-      rationale: "Standard spice jar size"
-    }
+        purchasableSize: "50g",
+          rationale: "Standard spice jar size"
+}
 
     Ingredients to convert:
     ${JSON.stringify(aggregatedIngredients)}
-  `;
+`;
 
   try {
     const response = await ai.models.generateContent({
@@ -873,52 +784,52 @@ export const generateRecipeFromIngredients = async (
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = `
-    You are an expert nutritionist. Create a single recipe using the ingredients provided.
+    You are an expert nutritionist.Create a single recipe using the ingredients provided.
 
-    AVAILABLE INGREDIENTS: ${ingredients.join(', ')}
+  AVAILABLE INGREDIENTS: ${ingredients.join(', ')}
 
-    TARGET: ${targetCalories} calories per serving
+TARGET: ${targetCalories} calories per serving
     MEAL TYPE: ${mealType}
 
-    REQUIREMENTS:
-    1. Use ONLY the ingredients listed above (you can use basic pantry staples: salt, pepper, water, cooking spray)
-    2. Create a complete recipe with name, ingredients (with quantities), and step-by-step instructions
-    3. Calculate accurate nutritional information (calories, protein, fat, carbs) per serving
-    4. Target calories: ${targetCalories} kcal (±50 kcal acceptable)
-    5. Follow healthy principles: high protein, healthy fats, low refined carbs
-    6. Make it simple enough for home cooking
+REQUIREMENTS:
+1. Use ONLY the ingredients listed above(you can use basic pantry staples: salt, pepper, water, cooking spray)
+2. Create a complete recipe with name, ingredients(with quantities), and step - by - step instructions
+3. Calculate accurate nutritional information(calories, protein, fat, carbs) per serving
+4. Target calories: ${targetCalories} kcal(±50 kcal acceptable)
+5. Follow healthy principles: high protein, healthy fats, low refined carbs
+6. Make it simple enough for home cooking
     7. Servings should be 1 unless recipe naturally serves more
 
     NUTRITIONAL ACCURACY:
-    - Be precise with portion sizes to hit calorie target
-    - Verify: (protein × 4) + (carbs × 4) + (fat × 9) ≈ total calories
-    - Account for cooking methods (oil for frying adds calories)
+- Be precise with portion sizes to hit calorie target
+  - Verify: (protein × 4) + (carbs × 4) + (fat × 9) ≈ total calories
+    - Account for cooking methods(oil for frying adds calories)
 
     INGREDIENT USAGE - CRITICAL:
-    - DO NOT use ALL ingredients provided
-    - Select ONLY ingredients that work well together for a cohesive dish
-    - Typical recipes use 4-7 ingredients (not counting salt, pepper, water)
-    - Prioritize protein sources as the main component
-    - Choose complementary vegetables and flavors
-    - Skip ingredients that don't fit the dish you're creating
-    - It's perfectly fine to leave out ingredients that don't belong together
-    - Add appropriate tags (${mealType}, and others like quick, high protein, low carb, etc.)
+- DO NOT use ALL ingredients provided
+  - Select ONLY ingredients that work well together for a cohesive dish
+    - Typical recipes use 4 - 7 ingredients(not counting salt, pepper, water)
+      - Prioritize protein sources as the main component
+        - Choose complementary vegetables and flavors
+          - Skip ingredients that don't fit the dish you're creating
+            - It's perfectly fine to leave out ingredients that don't belong together
+              - Add appropriate tags(${mealType}, and others like quick, high protein, low carb, etc.)
 
     EXAMPLES OF SELECTIVE USAGE:
-    - Given: "chicken, eggs, spinach, tomatoes, salmon, rice"
-      → Use: chicken, spinach, tomatoes (don't force eggs, salmon, and rice into the same dish)
-    - Given: "beef, lettuce, cheese, tuna, pasta"
-      → Use: beef, lettuce, cheese (make a burger/salad, skip tuna and pasta)
-    - Given: "eggs, bacon, broccoli, chocolate, yogurt"
-      → Use: eggs, bacon, broccoli (breakfast scramble, skip chocolate and yogurt)
+- Given: "chicken, eggs, spinach, tomatoes, salmon, rice"
+      → Use: chicken, spinach, tomatoes(don't force eggs, salmon, and rice into the same dish)
+  - Given: "beef, lettuce, cheese, tuna, pasta"
+      → Use: beef, lettuce, cheese(make a burger / salad, skip tuna and pasta)
+- Given: "eggs, bacon, broccoli, chocolate, yogurt"
+      → Use: eggs, bacon, broccoli(breakfast scramble, skip chocolate and yogurt)
 
     RECIPE CREATIVITY:
-    - Create interesting, flavorful combinations
-    - Consider cooking methods that enhance flavors (grilling, roasting, sautéing)
-    - Balance textures and colors for visual appeal
-    - Make it restaurant-quality but home-cookable
+  - Create interesting, flavorful combinations
+- Consider cooking methods that enhance flavors(grilling, roasting, sautéing)
+- Balance textures and colors for visual appeal
+  - Make it restaurant - quality but home - cookable
 
-    OUTPUT: Complete recipe with name, ingredients list with quantities, instructions, and accurate nutrition per serving.
+OUTPUT: Complete recipe with name, ingredients list with quantities, instructions, and accurate nutrition per serving.
   `;
 
   try {

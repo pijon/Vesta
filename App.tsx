@@ -10,7 +10,7 @@ const RecipeLibrary = React.lazy(() => import('./components/RecipeLibrary').then
 const ShoppingList = React.lazy(() => import('./components/ShoppingList').then(module => ({ default: module.ShoppingList })));
 const FamilySettings = React.lazy(() => import('./components/FamilySettings').then(module => ({ default: module.FamilySettings })));
 const SettingsView = React.lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
-
+import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -23,6 +23,9 @@ import { FoodEntryModal } from './components/FoodEntryModal';
 import { WorkoutEntryModal } from './components/WorkoutEntryModal';
 import { WeightEntryModal } from './components/WeightEntryModal';
 import { LoadingScreen } from './components/LoadingScreen';
+
+
+
 
 
 const TrackerApp: React.FC = () => {
@@ -94,6 +97,7 @@ const TrackerApp: React.FC = () => {
     const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
     const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+    const [isSundayResetOpen, setIsSundayResetOpen] = useState(false);
     const [editingWorkout, setEditingWorkout] = useState<WorkoutItem | null>(null);
     const [recentWorkouts, setRecentWorkouts] = useState<WorkoutItem[]>([]);
 
@@ -434,6 +438,7 @@ const TrackerApp: React.FC = () => {
             setIsWorkoutModalOpen(true);
         },
         onOpenWeightModal: () => setIsWeightModalOpen(true),
+        onOpenSundayReset: () => setIsSundayResetOpen(true),
         onAddWater: handleAddWater, // Direct action
     };
 
@@ -524,7 +529,7 @@ const TrackerApp: React.FC = () => {
                                     transition={{ duration: 0.2 }}
                                     className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
                                 >
-                                    <Planner stats={userStats} />
+                                    <Planner stats={userStats} onPlanChanged={refreshData} />
                                 </motion.div>
                             )}
                             {view === AppView.RECIPES && (
@@ -566,6 +571,7 @@ const TrackerApp: React.FC = () => {
                                         fastingConfig={fastingState.config}
                                         onUpdateFastingConfig={handleUpdateFastingConfig}
                                         onTestOnboarding={() => setShowOnboarding(true)}
+                                        onTriggerSundayReset={() => setIsSundayResetOpen(true)}
                                     />
                                 </motion.div>
                             )}
@@ -602,6 +608,12 @@ const TrackerApp: React.FC = () => {
                     onClose={() => setIsWeightModalOpen(false)}
                     currentWeight={userStats.currentWeight}
                     onSave={handleUpdateWeight}
+                />
+
+                <BatchPlannerModal
+                    isOpen={isSundayResetOpen}
+                    onClose={() => setIsSundayResetOpen(false)}
+                    mode="sunday_reset"
                 />
             </div>
         </div>

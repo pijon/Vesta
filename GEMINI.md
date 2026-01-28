@@ -24,9 +24,9 @@ These rules are strictly enforced. Deviations will be rejected by the user.
     -   **Text:** `Charcoal` (#3D405B) - Softer than black.
     -   **Secondary:** `Sage Green` (#81B29A) for health/balance, `Eternal Flame` (#F2CC8F) for active states/streaks.
 2.  **Color System (Strict HSL/Semantic Tokens):**
-    -   **Do NOT** use cold clinical colors (standard blues, stark grays).
-    -   **Do NOT** use aggressive "alert" reds for going over limits. Use soft warnings or neutral tones.
-    -   **USE** semantic tokens defined in `index.css` tailored to the Hearth palette.
+    -   **CRITICAL SOURCE OF TRUTH:** You must *ALWAYS* check `.agent/knowledge/design_system.md` before applying styles.
+    -   **PROHIBITED:** Standard Tailwind colors (e.g., `blue-*`, `red-*`) are generally **BANNED** unless explicitly allowed by the current Design System.
+    -   **MANDATE:** Refer to `.agent/knowledge/design_system.md` for the meaningful semantic tokens (e.g., `hearth`, `flame`, `ocean`) and their usage rules. **Do not guess mappings.**
 3.  **Spacing & Layout:**
     -   **Card-Based:** Use soft-cornered cards (`rounded-xl` to `rounded-2xl`) with soft drop shadows.
     -   **Generous Spacing:** Maintain an airy, uncluttered feel.

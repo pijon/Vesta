@@ -23,7 +23,7 @@ export const DEFAULT_USER_STATS = {
 };
 
 export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {
-  // No flags currently active
+  forceSundayReset: false
 };
 
 export const DEFAULT_DEV_SETTINGS: import('./types').DevSettings = {

@@ -12,6 +12,7 @@ interface SettingsViewProps {
     fastingConfig: FastingConfig;
     onUpdateFastingConfig: (config: FastingConfig) => Promise<void>;
     onTestOnboarding: () => void;
+    onTriggerSundayReset?: () => void;
 }
 
 
@@ -20,7 +21,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateStats,
     fastingConfig,
     onUpdateFastingConfig,
-    onTestOnboarding
+    onTestOnboarding,
+    onTriggerSundayReset
 }) => {
 
     const [formStats, setFormStats] = useState(stats);
@@ -382,6 +384,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         Preview Intro
                                     </button>
                                 </div>
+
+                                <button
+                                    onClick={onTriggerSundayReset}
+                                    className="w-full py-2 px-3 bg-orange-50 text-orange-700 border border-orange-200 text-sm font-bold rounded-lg hover:bg-orange-100 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M2 12h20"></path></svg>
+                                    Test Sunday Reset
+                                </button>
 
                                 {showDebug && (
                                     <div className="bg-stone-50 dark:bg-[#1A1714] p-4 rounded-xl border border-border space-y-2 animate-fade-in">
