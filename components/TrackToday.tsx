@@ -269,6 +269,23 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           onAddWeight={onOpenWeightModal}
           size="sm"
         />
+        <FastingCard
+          elapsedString={formatFastingTime(elapsedFastingHours)}
+          startTime={fastingState.lastAteTime ? new Date(fastingState.lastAteTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+          isFasting={!!fastingState.lastAteTime}
+          progressPercent={Math.min((elapsedFastingHours / fastingState.config.targetFastHours) * 100, 100)}
+          size="sm"
+        />
+        <HearthWidget
+          caloriesRemaining={dailyTarget - consumed + caloriesBurned}
+          caloriesTotal={consumed}
+          caloriesGoal={dailyTarget}
+          waterLiters={hydration / 1000}
+          waterGoal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
+          fastingHours={elapsedFastingHours}
+          fastingGoal={fastingState.config.targetFastHours}
+          size="sm"
+        />
       </div>
 
       {/* Desktop: Hero Stats - Unified Bento Grid */}

@@ -29,12 +29,35 @@ const TrackerApp: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     // const [isSettingsOpen, setIsSettingsOpen] = useState(false); // Removed modal state
-    const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
-    const [tomorrowDate] = useState(() => {
+    const [todayDate, setTodayDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [tomorrowDate, setTomorrowDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
         return d.toISOString().split('T')[0];
     });
+
+    // Check for date change on focus/visibility change
+    useEffect(() => {
+        const checkDate = () => {
+            const now = new Date().toISOString().split('T')[0];
+            if (now !== todayDate) {
+                console.log("Date changed, updating...", now);
+                setTodayDate(now);
+                const tom = new Date();
+                tom.setDate(tom.getDate() + 1);
+                setTomorrowDate(tom.toISOString().split('T')[0]);
+            }
+        };
+
+        // Check when window gets focus or becomes visible
+        window.addEventListener('focus', checkDate);
+        document.addEventListener('visibilitychange', checkDate);
+
+        return () => {
+            window.removeEventListener('focus', checkDate);
+            document.removeEventListener('visibilitychange', checkDate);
+        };
+    }, [todayDate]);
 
     // Derive current view from URL
     const getCurrentView = (): AppView => {

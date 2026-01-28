@@ -54,18 +54,25 @@ export const FastingCard: React.FC<{ elapsedString: string; startTime: string; p
     elapsedString, startTime, isFasting, size = 'md'
 }) => {
     return (
-        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'}`}>
-            <div className="relative z-10">
+        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} relative overflow-hidden group hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300`}>
+            <div className="relative z-10 w-full flex justify-between items-start">
                 <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Fasting</h3>
+                {isFasting && (
+                    <div className="flex items-center gap-1.5 bg-hearth/10 dark:bg-hearth/20 px-2 py-1 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-hearth animate-pulse"></div>
+                        <span className="text-[10px] font-bold text-hearth">Active</span>
+                    </div>
+                )}
             </div>
-            <div className="absolute inset-0 z-0 flex flex-col justify-center items-center text-center">
-                <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-4xl'} text-hearth dark:text-flame mb-1 transition-colors`}>{elapsedString}</p>
-                <p className="text-xs font-bold text-charcoal/40 dark:text-stone-400 uppercase tracking-wide">
-                    {isFasting ? `Since ${startTime}` : 'Eating Window'}
+
+            <div className="absolute inset-0 z-0 flex flex-col items-center justify-center">
+                <p className={`font-serif ${size === 'sm' ? 'text-3xl' : 'text-5xl'} text-charcoal dark:text-stone-100 transition-colors`}>
+                    {elapsedString}
+                </p>
+                <p className="text-xs font-bold text-charcoal/40 dark:text-stone-500 uppercase tracking-wide mt-1">
+                    {isFasting ? `Started ${startTime}` : 'Eating Window'}
                 </p>
             </div>
-            {/* Visual anchor bar (static) */}
-            <div className="relative z-10 h-1.5 w-8 bg-hearth rounded-full opacity-80 mt-auto"></div>
         </div>
     );
 };
