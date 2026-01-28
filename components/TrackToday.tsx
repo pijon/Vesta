@@ -9,7 +9,8 @@ import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard, CaloriesRemainingCard } from './BentoGrid';
 // import { MobileActionCards } from './MobileActionCards';
-import { RecipeLibrary } from './RecipeLibrary';
+// Lazy load RecipeLibrary
+const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Portal } from './Portal';
 import { useAchievements } from '../hooks/useAchievements';
 import { analyzeWeightTrends } from '../utils/analytics';
@@ -431,7 +432,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-6">
-                <RecipeLibrary onSelect={handleMealSelected} />
+                <React.Suspense fallback={<div className="p-8 text-center">Loading recipes...</div>}>
+                  <RecipeLibrary onSelect={handleMealSelected} />
+                </React.Suspense>
               </div>
             </div>
           </div>

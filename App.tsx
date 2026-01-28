@@ -3,12 +3,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
+// Lazy load non-critical components for performance
+const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
+const Planner = React.lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
+const RecipeLibrary = React.lazy(() => import('./components/RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
+const ShoppingList = React.lazy(() => import('./components/ShoppingList').then(module => ({ default: module.ShoppingList })));
+const FamilySettings = React.lazy(() => import('./components/FamilySettings').then(module => ({ default: module.FamilySettings })));
+const SettingsView = React.lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
+
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
-import { TrackAnalytics } from './components/TrackAnalytics';
-import { Planner } from './components/Planner';
-import { RecipeLibrary } from './components/RecipeLibrary';
-import { ShoppingList } from './components/ShoppingList';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { APP_NAME, DEFAULT_USER_STATS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -19,10 +23,6 @@ import { FoodEntryModal } from './components/FoodEntryModal';
 import { WorkoutEntryModal } from './components/WorkoutEntryModal';
 import { WeightEntryModal } from './components/WeightEntryModal';
 import { LoadingScreen } from './components/LoadingScreen';
-
-
-import { FamilySettings } from './components/FamilySettings';
-import { SettingsView } from './components/SettingsView';
 
 
 const TrackerApp: React.FC = () => {
@@ -488,87 +488,88 @@ const TrackerApp: React.FC = () => {
                             onNavigate={handleNavigate}
                         />
                     </div>
-                    <AnimatePresence mode="wait">
-                        {view === AppView.TODAY && (
-                            <motion.div
-                                key="today"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                            >
-                                <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
-                            </motion.div>
-                        )}
-                        {view === AppView.ANALYTICS && (
-                            <motion.div
-                                key="analytics"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                            >
-                                <TrackAnalytics {...trackProps} />
-                            </motion.div>
-                        )}
-                        {view === AppView.PLANNER && (
-                            <motion.div
-                                key="planner"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                            >
-                                <Planner stats={userStats} />
-                            </motion.div>
-                        )}
-                        {view === AppView.RECIPES && (
-                            <motion.div
-                                key="recipes"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                            >
-                                <RecipeLibrary />
-                            </motion.div>
-                        )}
-                        {view === AppView.SHOPPING && (
-                            <motion.div
-                                key="shopping"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                            >
-                                <ShoppingList />
-                            </motion.div>
-                        )}
-                        {view === AppView.SETTINGS && (
-                            <motion.div
-                                key="settings"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                            >
-                                <SettingsView
-                                    stats={userStats}
-                                    onUpdateStats={handleUpdateStats}
-                                    fastingConfig={fastingState.config}
-                                    onUpdateFastingConfig={handleUpdateFastingConfig}
-                                    onTestOnboarding={() => setShowOnboarding(true)}
-                                />
-
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    <React.Suspense fallback={<LoadingScreen />}>
+                        <AnimatePresence mode="wait">
+                            {view === AppView.TODAY && (
+                                <motion.div
+                                    key="today"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
+                                >
+                                    <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
+                                </motion.div>
+                            )}
+                            {view === AppView.ANALYTICS && (
+                                <motion.div
+                                    key="analytics"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
+                                >
+                                    <TrackAnalytics {...trackProps} />
+                                </motion.div>
+                            )}
+                            {view === AppView.PLANNER && (
+                                <motion.div
+                                    key="planner"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
+                                >
+                                    <Planner stats={userStats} />
+                                </motion.div>
+                            )}
+                            {view === AppView.RECIPES && (
+                                <motion.div
+                                    key="recipes"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
+                                >
+                                    <RecipeLibrary />
+                                </motion.div>
+                            )}
+                            {view === AppView.SHOPPING && (
+                                <motion.div
+                                    key="shopping"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
+                                >
+                                    <ShoppingList />
+                                </motion.div>
+                            )}
+                            {view === AppView.SETTINGS && (
+                                <motion.div
+                                    key="settings"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
+                                >
+                                    <SettingsView
+                                        stats={userStats}
+                                        onUpdateStats={handleUpdateStats}
+                                        fastingConfig={fastingState.config}
+                                        onUpdateFastingConfig={handleUpdateFastingConfig}
+                                        onTestOnboarding={() => setShowOnboarding(true)}
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </React.Suspense>
                 </main>
 
                 {/* Mobile Bottom Navigation */}
