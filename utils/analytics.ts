@@ -13,6 +13,12 @@ export interface WeightAnalysis {
   daysToGoal: number | null;
   trend: 'losing' | 'maintaining' | 'gaining' | 'insufficient-data';
   projectedDailyRate: number; // kg per day (positive = losing in this context, or maybe handle sign consistently)
+  regression?: {
+    slope: number;
+    intercept: number;
+    rSquared: number;
+    referenceDate: number; // timestamp of "day 0" for x-axis
+  };
 }
 
 /**
@@ -105,6 +111,7 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
   let projectedGoalDate: string | null = null;
   let daysToGoal: number | null = null;
   let projectedDailyRate = 0;
+  let regressionData: WeightAnalysis['regression'] | undefined;
 
   if (weightHistory && weightHistory.length >= 2) {
     // Sort by date
@@ -140,13 +147,16 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
       }
 
       // Use linear regression for more accurate trend
-      const { slope, rSquared } = linearRegression(usedHistory);
+      const { slope, intercept, rSquared } = linearRegression(usedHistory);
+
+      regressionData = {
+        slope,
+        intercept,
+        rSquared,
+        referenceDate: new Date(usedHistory[0].date).getTime()
+      };
 
       // slope is in kg per day, convert to kg per week
-      avgWeeklyLoss = -slope * 7; // Negative slope means weight going down (losing)
-
-      // Cap at realistic maximum (1kg/week is aggressive but achievable)
-      // This prevents unrealistic projections from initial water weight loss
       avgWeeklyLoss = -slope * 7; // Negative slope means weight going down (losing)
 
       // Cap at realistic maximum (1.5kg/week is aggressive but achievable)
@@ -189,7 +199,8 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
     projectedGoalDate,
     daysToGoal,
     trend,
-    projectedDailyRate
+    projectedDailyRate,
+    regression: regressionData
   };
 }
 

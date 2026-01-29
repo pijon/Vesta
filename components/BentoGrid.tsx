@@ -1,25 +1,42 @@
 import React from 'react';
 import { DailySummary, WeightEntry } from '../types';
+import { TrophyIcon } from './TrophyIcon';
+import { StreakFlame } from './StreakFlame';
 
 // --- Sub-components for Bento Grid ---
 
 export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted: number; workoutsGoal: number; history?: DailySummary[]; onAddWorkout: () => void; size?: 'sm' | 'md' }> = ({
     caloriesBurned, workoutsCompleted, workoutsGoal, history = [], onAddWorkout, size = 'md'
 }) => {
-    // Process history for the last 5 days
-    const recentHistory = [...history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-5);
+    // Calculate Streak (Mock or from props if available - reusing history for now to infer simple streak)
+    // Ideally this comes from stats, but for this widget we might need to pass it down.
+    // For now, I'll infer "active today" based on caloriesBurned > 0.
+    const isActive = caloriesBurned > 0;
 
-    // Fill with empty days if we have less than 5
-    const displayHistory = [...recentHistory];
-    while (displayHistory.length < 5) {
-        displayHistory.unshift({ date: '', caloriesConsumed: 0, caloriesBurned: 0, netCalories: 0, workoutCount: 0 });
-    }
+    // We'll calculate a simple streak from history for display, or default to 0 if not provided
+    // In a real app, 'streak' should be a prop. I'll assume 3 for demo or calculate from history.
+    let currentStreak = 0;
+    const sortedHistory = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Simple mock logic for visualization if prop missing
+    currentStreak = sortedHistory.length > 0 ? sortedHistory.length : 0;
 
-    const maxBurn = Math.max(500, ...displayHistory.map(d => d.caloriesBurned)); // Min scale of 500
+    // Design System Tokens
+    const TrophyClass = isActive ? "text-flame drop-shadow-md" : "text-charcoal/10 dark:text-white/5";
 
     return (
-        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300`}>
-            <div className="relative z-10 flex justify-between items-start">
+        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.01] hover:shadow-xl dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
+            {/* Gradient Defs */}
+            <svg width="0" height="0" className="absolute">
+                <defs>
+                    <linearGradient id="trophyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--color-flame)" />
+                        <stop offset="100%" stopColor="var(--color-hearth)" />
+                    </linearGradient>
+                </defs>
+            </svg>
+
+            {/* Header: Standard Bento Grid Header */}
+            <div className="relative z-10 flex justify-between items-start w-full shrink-0">
                 <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Activity</h3>
                 <div className="flex gap-2">
                     <button
@@ -32,19 +49,50 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                     </button>
                 </div>
             </div>
-            <div className="absolute inset-0 z-0 flex flex-col items-center justify-center text-center">
-                <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-3xl'} text-charcoal dark:text-stone-200 transition-colors`}>{caloriesBurned} <span className="text-xs font-sans font-normal opacity-40 dark:opacity-60 uppercase">kcal</span></p>
-                <p className="text-[10px] font-bold text-sage dark:text-sage/80">{workoutsCompleted}/{workoutsGoal} workouts done</p>
-            </div>
-            <div className="relative z-10 flex gap-2 h-12 items-end justify-between px-1 mt-auto">
-                {displayHistory.map((day, i) => (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div
-                            className={`w-full rounded-t-sm transition-all duration-500 ${day.workoutCount > 0 ? 'bg-hearth/60' : 'bg-charcoal/5 dark:bg-white/5'}`}
-                            style={{ height: `${Math.max(10, (day.caloriesBurned / maxBurn) * 100)}%` }} // Min height 10%
-                        ></div>
+
+            {/* Content Body: Trophy & Stats */}
+            <div className="flex flex-row items-center justify-between flex-1 w-full relative z-0">
+                {/* Left: Trophy Case */}
+                <div className="flex-1 flex items-center justify-center h-full">
+                    <div className={`relative transition-all duration-500 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-50'}`}>
+                        <TrophyIcon className={`w-20 h-20 md:w-28 md:h-28 ${TrophyClass} transition-all duration-500`} />
+                        {/* Glow effect for active state */}
+                        {isActive && (
+                            <div className="absolute inset-0 bg-hearth/20 blur-3xl rounded-full -z-10 animate-pulse"></div>
+                        )}
                     </div>
-                ))}
+                </div>
+
+                {/* Right: Stats & Streak */}
+                <div className="flex flex-col justify-center items-end h-full gap-3 pl-2 z-10">
+
+                    {/* Streak Badge */}
+                    <div className="flex items-center gap-1.5 bg-white/50 dark:bg-white/5 px-2.5 py-1 rounded-full border border-charcoal/5 dark:border-white/5 backdrop-blur-sm">
+                        <StreakFlame className="w-3.5 h-3.5 text-flame" isActive={isActive} />
+                        <span className="font-sans font-bold text-[10px] md:text-xs uppercase tracking-widest text-charcoal dark:text-stone-200">
+                            {currentStreak} Day Streak
+                        </span>
+                    </div>
+
+                    {/* Main Stats */}
+                    <div className="text-right">
+                        <div className="flex flex-col">
+                            <span className="font-serif text-3xl md:text-4xl text-charcoal dark:text-stone-200 leading-none">
+                                {caloriesBurned}
+                            </span>
+                            <span className="font-sans text-[10px] font-bold uppercase tracking-widest text-charcoal/60 dark:text-stone-400 mt-0.5">
+                                Active Kcal
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Secondary Stat */}
+                    <div className="text-right opacity-80">
+                        <p className="font-serif text-sm text-charcoal dark:text-stone-300">
+                            {workoutsCompleted}/{workoutsGoal} <span className="text-[10px] font-sans text-charcoal/60 dark:text-stone-500 uppercase">Sessions</span>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -272,6 +320,3 @@ export const WeightCard: React.FC<{ weight: number; change: number; history: Wei
         </div>
     );
 };
-
-
-
