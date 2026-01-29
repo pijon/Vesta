@@ -23,6 +23,7 @@ import { FoodEntryModal } from './components/FoodEntryModal';
 import { WorkoutEntryModal } from './components/WorkoutEntryModal';
 import { WeightEntryModal } from './components/WeightEntryModal';
 import { LoadingScreen } from './components/LoadingScreen';
+import { ViewSkeleton } from './components/ViewSkeleton';
 
 
 
@@ -107,7 +108,10 @@ const TrackerApp: React.FC = () => {
 
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('fast800_darkMode');
-        return saved ? JSON.parse(saved) : false;
+        if (saved !== null) {
+            return JSON.parse(saved);
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
     });
 
     const [fastingState, setFastingState] = useState<FastingState>({
@@ -494,7 +498,7 @@ const TrackerApp: React.FC = () => {
                             onNavigate={handleNavigate}
                         />
                     </div>
-                    <React.Suspense fallback={<LoadingScreen />}>
+                    <React.Suspense fallback={<ViewSkeleton />}>
                         <AnimatePresence mode="wait">
                             {view === AppView.TODAY && (
                                 <motion.div
@@ -572,6 +576,7 @@ const TrackerApp: React.FC = () => {
                                         onUpdateFastingConfig={handleUpdateFastingConfig}
                                         onTestOnboarding={() => setShowOnboarding(true)}
                                         onTriggerSundayReset={() => setIsSundayResetOpen(true)}
+                                        onRefreshData={refreshData}
                                     />
                                 </motion.div>
                             )}
@@ -637,6 +642,20 @@ const AuthGuard: React.FC = () => {
 import { ReloadPrompt } from './components/ReloadPrompt';
 
 export const App: React.FC = () => {
+    // Smooth handoff: Fade out the HTML initial loader when React mounts
+    useEffect(() => {
+        const initialLoader = document.getElementById('initial-loader');
+        if (initialLoader) {
+            // Add fade-out class for smooth transition
+            initialLoader.classList.add('fade-out');
+            // Remove from DOM after animation completes
+            const timer = setTimeout(() => {
+                initialLoader.remove();
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, []);
+
     return (
         <AuthProvider>
             <DevModeProvider>

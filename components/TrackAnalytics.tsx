@@ -19,6 +19,7 @@ interface TrackAnalyticsProps {
 export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog }) => {
     const [dailySummaries, setDailySummaries] = useState<any[]>([]);
     const [dayTypes, setDayTypes] = useState<Record<string, string>>({});
+    const [weightTimeRange, setWeightTimeRange] = useState<'7d' | '30d'>('7d');
 
     useEffect(() => {
         getAllDailySummaries().then(setDailySummaries);
@@ -58,12 +59,13 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
         });
     }
 
-    // Filter to show only last 7 days of weight data
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Filter weight data based on selected time range
+    const daysToShow = weightTimeRange === '30d' ? 30 : 7;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToShow);
 
     const weightChartData = allWeightData
-        .filter(entry => new Date(entry.date) >= sevenDaysAgo)
+        .filter(entry => new Date(entry.date) >= cutoffDate)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Combine actual and projected data
@@ -104,7 +106,29 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
                 <div className="space-y-6">
                     {/* Weight Trends */}
                     <div className="">
-                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Weight Trend</h4>
+                        <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200">Weight Trend</h4>
+                            <div className="inline-flex rounded-full bg-charcoal/5 dark:bg-white/5 p-1">
+                                <button
+                                    onClick={() => setWeightTimeRange('7d')}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${weightTimeRange === '7d'
+                                            ? 'bg-hearth text-white shadow-sm'
+                                            : 'text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:hover:text-stone-200'
+                                        }`}
+                                >
+                                    7 Days
+                                </button>
+                                <button
+                                    onClick={() => setWeightTimeRange('30d')}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${weightTimeRange === '30d'
+                                            ? 'bg-hearth text-white shadow-sm'
+                                            : 'text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:hover:text-stone-200'
+                                        }`}
+                                >
+                                    30 Days
+                                </button>
+                            </div>
+                        </div>
                         {formattedWeightData.length === 0 ? (
                             <div className="h-48 md:h-56 flex flex-col items-center justify-center gap-2">
                                 <span className="text-3xl">⚖️</span>

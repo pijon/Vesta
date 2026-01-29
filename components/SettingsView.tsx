@@ -13,6 +13,7 @@ interface SettingsViewProps {
     onUpdateFastingConfig: (config: FastingConfig) => Promise<void>;
     onTestOnboarding: () => void;
     onTriggerSundayReset?: () => void;
+    onRefreshData?: () => Promise<void>;
 }
 
 
@@ -22,7 +23,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     fastingConfig,
     onUpdateFastingConfig,
     onTestOnboarding,
-    onTriggerSundayReset
+    onTriggerSundayReset,
+    onRefreshData
 }) => {
 
     const [formStats, setFormStats] = useState(stats);
@@ -316,110 +318,129 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 </button>
                             </div>
                         </div>
-
                     </div>
-                </div>
-            </div>
 
-            {/* WIDGET 5: Developer Mode (Only visible to verified developers) */}
-            {isDevMode && (
-                <div className="bg-[var(--card-bg)] rounded-2xl shadow-sm border border-border/50 overflow-hidden h-full flex flex-col lg:col-span-2">
-                    <div className="p-6 border-b border-border/30 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-warning-bg" style={{ color: 'var(--warning)' }}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-                                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-                                    <path d="M2 2l7.586 7.586"></path>
-                                    <circle cx="11" cy="11" r="2"></circle>
-                                </svg>
-                            </div>
-                            <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--warning)' }}>Developer Mode</h3>
-                            <span className="ml-2 badge-amber">VERIFIED</span>
-                        </div>
+                    <div className="pt-3 border-t border-border/50">
                         <button
-                            onClick={resetFlags}
-                            className="text-xs hover:text-charcoal dark:text-stone-200 underline"
-                            style={{ color: 'var(--warning)' }}
+                            onClick={async () => {
+                                if (onRefreshData) {
+                                    await onRefreshData();
+                                    alert("Data refreshed from cloud.");
+                                }
+                            }}
+                            className="w-full py-2 px-3 bg-stone-100 dark:bg-white/5 text-charcoal dark:text-stone-200 border border-border text-sm font-bold rounded-lg hover:bg-stone-200 dark:hover:bg-white/10 transition-all flex items-center justify-center gap-2"
                         >
-                            Reset Flags
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                            Refresh Data
                         </button>
                     </div>
 
-                    <div className="p-6 space-y-6 flex-1">
-                        <div className="space-y-1">
-                            <p className="text-xs text-charcoal/60 dark:text-stone-400">Your account has developer access. Feature flags below allow testing unreleased features.</p>
+                </div>
+            </div>
+
+
+            {/* WIDGET 5: Developer Mode (Only visible to verified developers) */}
+            {
+                isDevMode && (
+                    <div className="bg-[var(--card-bg)] rounded-2xl shadow-sm border border-border/50 overflow-hidden h-full flex flex-col lg:col-span-2">
+                        <div className="p-6 border-b border-border/30 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-warning-bg" style={{ color: 'var(--warning)' }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                                        <path d="M2 2l7.586 7.586"></path>
+                                        <circle cx="11" cy="11" r="2"></circle>
+                                    </svg>
+                                </div>
+                                <h3 className="font-medium text-lg font-serif" style={{ color: 'var(--warning)' }}>Developer Mode</h3>
+                                <span className="ml-2 badge-amber">VERIFIED</span>
+                            </div>
+                            <button
+                                onClick={resetFlags}
+                                className="text-xs hover:text-charcoal dark:text-stone-200 underline"
+                                style={{ color: 'var(--warning)' }}
+                            >
+                                Reset Flags
+                            </button>
                         </div>
 
-                        <div className="space-y-4">
-                            <div className="pt-4">
-                                <p className="text-xs text-charcoal/60 dark:text-stone-400 italic">No active feature flags available.</p>
+                        <div className="p-6 space-y-6 flex-1">
+                            <div className="space-y-1">
+                                <p className="text-xs text-charcoal/60 dark:text-stone-400">Your account has developer access. Feature flags below allow testing unreleased features.</p>
                             </div>
 
-                            {/* Recovery Tools (New Location) */}
-                            <div className="space-y-4 pt-4 border-t border-border">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">Recovery Tools</h4>
-                                    <button
-                                        onClick={() => setShowDebug(!showDebug)}
-                                        className="text-xs text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 underline"
-                                    >
-                                        {showDebug ? "Hide Debug Info" : "Show Debug Info"}
-                                    </button>
+                            <div className="space-y-4">
+                                <div className="pt-4">
+                                    <p className="text-xs text-charcoal/60 dark:text-stone-400 italic">No active feature flags available.</p>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <button
-                                        onClick={handleForceSync}
-                                        className="w-full py-2 px-3 bg-calories-bg/50 text-[var(--calories)] border border-calories-border/50 text-sm font-bold rounded-lg hover:bg-calories-bg hover:border-calories-border transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>
-                                        Force Sync
-                                    </button>
-                                    <button
-                                        onClick={handleTestOnboarding}
-                                        className="w-full py-2 px-3 bg-water-bg/50 text-[var(--water)] border border-water-border/50 text-sm font-bold rounded-lg hover:bg-water-bg hover:border-water-border transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
-                                        Preview Intro
-                                    </button>
-                                </div>
-
-                                <button
-                                    onClick={onTriggerSundayReset}
-                                    className="w-full py-2 px-3 bg-orange-50 text-orange-700 border border-orange-200 text-sm font-bold rounded-lg hover:bg-orange-100 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M2 12h20"></path></svg>
-                                    Test Sunday Reset
-                                </button>
-
-                                {showDebug && (
-                                    <div className="bg-stone-50 dark:bg-[#1A1714] p-4 rounded-xl border border-border space-y-2 animate-fade-in">
-                                        <h4 className="text-xs font-bold text-charcoal dark:text-stone-200 mb-2">Local Storage Debug</h4>
-                                        <div className="space-y-1">
-                                            {Object.entries(debugInfo).map(([key, value]) => (
-                                                <div key={key} className="flex justify-between text-xs">
-                                                    <span className="text-charcoal/60 dark:text-stone-400 font-mono">{key.replace('fast800_', '')}</span>
-                                                    <span className={(value as string).includes('Found') ? "text-primary font-bold" : "text-charcoal/60 dark:text-stone-400"}>{value}</span>
-                                                </div>
-                                            ))}
-                                            {Object.keys(debugInfo).length === 0 && (
-                                                <p className="text-xs text-charcoal/60 dark:text-stone-400 italic">No debug info available (or loading...)</p>
-                                            )}
-                                        </div>
+                                {/* Recovery Tools (New Location) */}
+                                <div className="space-y-4 pt-4 border-t border-border">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">Recovery Tools</h4>
+                                        <button
+                                            onClick={() => setShowDebug(!showDebug)}
+                                            className="text-xs text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 underline"
+                                        >
+                                            {showDebug ? "Hide Debug Info" : "Show Debug Info"}
+                                        </button>
                                     </div>
-                                )}
-                            </div>
 
-                            <div className="pt-4 border-t border-border">
-                                <p className="text-xs text-charcoal/60 dark:text-stone-400">
-                                    Developer access is granted via Firebase custom claims. Contact an admin to request access.
-                                </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <button
+                                            onClick={handleForceSync}
+                                            className="w-full py-2 px-3 bg-calories-bg/50 text-[var(--calories)] border border-calories-border/50 text-sm font-bold rounded-lg hover:bg-calories-bg hover:border-calories-border transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>
+                                            Force Sync
+                                        </button>
+                                        <button
+                                            onClick={handleTestOnboarding}
+                                            className="w-full py-2 px-3 bg-water-bg/50 text-[var(--water)] border border-water-border/50 text-sm font-bold rounded-lg hover:bg-water-bg hover:border-water-border transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                                            Preview Intro
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        onClick={onTriggerSundayReset}
+                                        className="w-full py-2 px-3 bg-orange-50 text-orange-700 border border-orange-200 text-sm font-bold rounded-lg hover:bg-orange-100 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M2 12h20"></path></svg>
+                                        Test Sunday Reset
+                                    </button>
+
+                                    {showDebug && (
+                                        <div className="bg-stone-50 dark:bg-[#1A1714] p-4 rounded-xl border border-border space-y-2 animate-fade-in">
+                                            <h4 className="text-xs font-bold text-charcoal dark:text-stone-200 mb-2">Local Storage Debug</h4>
+                                            <div className="space-y-1">
+                                                {Object.entries(debugInfo).map(([key, value]) => (
+                                                    <div key={key} className="flex justify-between text-xs">
+                                                        <span className="text-charcoal/60 dark:text-stone-400 font-mono">{key.replace('fast800_', '')}</span>
+                                                        <span className={(value as string).includes('Found') ? "text-primary font-bold" : "text-charcoal/60 dark:text-stone-400"}>{value}</span>
+                                                    </div>
+                                                ))}
+                                                {Object.keys(debugInfo).length === 0 && (
+                                                    <p className="text-xs text-charcoal/60 dark:text-stone-400 italic">No debug info available (or loading...)</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+
+                                <div className="pt-4 border-t border-border">
+                                    <p className="text-xs text-charcoal/60 dark:text-stone-400">
+                                        Developer access is granted via Firebase custom claims. Contact an admin to request access.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };

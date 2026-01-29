@@ -81,8 +81,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   // useEffect for recent workouts moved to App.tsx
 
-  // Hydration state
-  const [hydration, setHydration] = useState(dailyLog.waterIntake || 0);
+  // Hydration state removed - using dailyLog.waterIntake directly
+  // const [hydration, setHydration] = useState(dailyLog.waterIntake || 0);
   const [activityHistory, setActivityHistory] = useState<DailySummary[]>([]);
 
   // Fasting Live Timer State
@@ -125,9 +125,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     setQuickWeightInput(stats.currentWeight.toString());
   }, [stats.currentWeight]);
 
-  useEffect(() => {
-    setHydration(dailyLog.waterIntake || 0);
-  }, [dailyLog.waterIntake]);
+  // useEffect syncing hydration removed - relying on dailyLog prop
+
 
   // Achievements Hook - kept for streak calculation logic mainly, though DailyGoalsWidget is gone
   // We can use the progress object if needed for advanced badges in future
@@ -166,8 +165,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const dailyTarget = isNonFastDay ? (stats.nonFastDayCalories || 2000) : stats.dailyCalorieGoal;
 
   const handleAddWaterClick = (amount: number) => {
-    // Local optimisitic update if needed, but App.tsx handles persist
-    setHydration(hydration + amount);
+    // Direct prop call - Parent updates dailyLog which re-renders this component
     onAddWater(amount);
   };
 
@@ -259,7 +257,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           size="sm"
         />
         <HydrationCard
-          liters={hydration / 1000}
+          liters={(dailyLog.waterIntake || 0) / 1000}
           goal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
           onAddWater={(amount) => handleAddWaterClick(amount)}
           size="sm"
@@ -283,7 +281,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           caloriesRemaining={dailyTarget - consumed + caloriesBurned}
           caloriesTotal={consumed}
           caloriesGoal={dailyTarget}
-          waterLiters={hydration / 1000}
+          waterLiters={(dailyLog.waterIntake || 0) / 1000}
           waterGoal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
           fastingHours={elapsedFastingHours}
           fastingGoal={fastingState.config.targetFastHours}
@@ -302,7 +300,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               caloriesRemaining={dailyTarget - consumed + caloriesBurned}
               caloriesTotal={consumed}
               caloriesGoal={dailyTarget}
-              waterLiters={hydration / 1000}
+              waterLiters={(dailyLog.waterIntake || 0) / 1000}
               waterGoal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
               fastingHours={elapsedFastingHours}
               fastingGoal={fastingState.config.targetFastHours}
@@ -336,7 +334,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
               />
             </div>
             <HydrationCard
-              liters={hydration / 1000}
+              liters={(dailyLog.waterIntake || 0) / 1000}
               goal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
               onAddWater={(amount) => handleAddWaterClick(amount)}
             />

@@ -33,6 +33,7 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
     const CIRCLE_3 = 2 * Math.PI * 80;  // ~502
 
     const isSmall = size === 'sm';
+    const gradientId = `hearth-grad-${Math.random().toString(36).substr(2, 9)}`;
 
     return (
         <GlassCard className={`relative flex flex-col items-center justify-center overflow-hidden ${isSmall ? 'p-4 min-h-[160px]' : 'py-12 px-4'}`}>
@@ -40,7 +41,7 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
             <div className={`relative flex items-center justify-center ${isSmall ? 'w-32 h-32 mb-1' : 'w-72 h-72'}`}>
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 288 288">
                     <defs>
-                        <linearGradient id="hearth-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" style={{ stopColor: 'var(--color-hearth)' }} />
                             <stop offset="100%" style={{ stopColor: 'var(--color-flame)' }} />
                         </linearGradient>
@@ -55,7 +56,7 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
                     {/* Calories (Hearth) */}
                     <circle
                         cx="144" cy="144" r="120"
-                        stroke="url(#hearth-grad)"
+                        stroke={`url(#${gradientId})`}
                         strokeWidth="14"
                         fill="transparent"
                         strokeDasharray={CIRCLE_1}
