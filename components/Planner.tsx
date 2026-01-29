@@ -396,12 +396,12 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                 </div>
                             ) : (
                                 dayPlan.meals.map((meal, index) => (
-                                    <div key={index} className="group relative bg-white dark:bg-white/5 hover:bg-stone-50 dark:hover:bg-white/10 rounded-3xl p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-stone-200 dark:border-white/5 flex gap-6 items-center">
+                                    <div key={index} className="group relative bg-white dark:bg-white/5 hover:bg-stone-50 dark:hover:bg-white/10 rounded-3xl p-5 md:p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-stone-200 dark:border-white/5 flex gap-6 items-center">
                                         {/* Time / Type Indicator */}
 
 
                                         {/* Image */}
-                                        <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 bg-stone dark:bg-stone-800">
+                                        <div className="w-28 h-28 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 bg-stone dark:bg-stone-800">
                                             {meal.image ? (
                                                 <img src={meal.image} alt={meal.name} className="w-full h-full object-cover" />
                                             ) : (
@@ -413,7 +413,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="text-xl font-serif text-charcoal dark:text-stone-200 truncate">{meal.name}</h3>
+                                            <h3 className="text-xl font-serif text-charcoal dark:text-stone-200 line-clamp-2">{meal.name}</h3>
                                             <div className="flex flex-wrap gap-2 mt-2">
                                                 <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -454,14 +454,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => setCookingModeRecipe(meal)}
-                                                className="w-10 h-10 rounded-full bg-hearth/10 dark:bg-white/5 text-hearth dark:text-stone-300 flex items-center justify-center hover:bg-hearth hover:text-white dark:hover:bg-hearth dark:hover:text-white transition-all shadow-sm"
+                                                className="w-11 h-11 rounded-full bg-hearth/10 dark:bg-white/5 text-hearth dark:text-stone-300 flex items-center justify-center hover:bg-hearth hover:text-white dark:hover:bg-hearth dark:hover:text-white transition-all shadow-sm"
                                                 title="Start Cooking Mode"
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); togglePacked(index); }}
-                                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-[var(--color-ocean)]/10 text-[var(--color-ocean)] dark:bg-[var(--color-ocean)]/20' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 hover:bg-[var(--color-ocean)]/10 hover:text-[var(--color-ocean)]'} `}
+                                                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-[var(--color-ocean)]/10 text-[var(--color-ocean)] dark:bg-[var(--color-ocean)]/20' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 hover:bg-[var(--color-ocean)]/10 hover:text-[var(--color-ocean)]'} `}
                                                 title="Toggle Packed Lunch"
                                             >
                                                 <svg width="18" height="18" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -473,7 +473,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                             </button>
                                             <button
                                                 onClick={() => removeMeal(index)}
-                                                className="w-10 h-10 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
+                                                className="w-11 h-11 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                             </button>

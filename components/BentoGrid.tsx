@@ -24,7 +24,7 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
     const TrophyClass = isActive ? "text-flame drop-shadow-md" : "text-charcoal/10 dark:text-white/5";
 
     return (
-        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.01] hover:shadow-xl dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
+        <div className={`glass-card p-5 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.01] hover:shadow-xl dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
             {/* Gradient Defs */}
             <svg width="0" height="0" className="absolute">
                 <defs>
@@ -55,7 +55,7 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                 {/* Left: Trophy Case */}
                 <div className="flex-1 flex items-center justify-center h-full">
                     <div className={`relative transition-all duration-500 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-50'}`}>
-                        <TrophyIcon className={`w-20 h-20 md:w-28 md:h-28 ${TrophyClass} transition-all duration-500`} />
+                        <TrophyIcon className={`w-24 h-24 md:w-28 md:h-28 ${TrophyClass} transition-all duration-500`} />
                         {/* Glow effect for active state */}
                         {isActive && (
                             <div className="absolute inset-0 bg-hearth/20 blur-3xl rounded-full -z-10 animate-pulse"></div>
@@ -64,7 +64,7 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                 </div>
 
                 {/* Right: Stats & Streak */}
-                <div className="flex flex-col justify-center items-end h-full gap-3 pl-2 z-10">
+                <div className="flex flex-col justify-center items-end h-full gap-4 pl-2 z-10">
 
                     {/* Streak Badge */}
                     <div className="flex items-center gap-1.5 bg-white/50 dark:bg-white/5 px-2.5 py-1 rounded-full border border-charcoal/5 dark:border-white/5 backdrop-blur-sm">
@@ -77,7 +77,7 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                     {/* Main Stats */}
                     <div className="text-right">
                         <div className="flex flex-col">
-                            <span className="font-serif text-3xl md:text-4xl text-charcoal dark:text-stone-200 leading-none">
+                            <span className="font-serif text-4xl md:text-5xl text-charcoal dark:text-stone-200 leading-none">
                                 {caloriesBurned}
                             </span>
                             <span className="font-sans text-[10px] font-bold uppercase tracking-widest text-charcoal/60 dark:text-stone-400 mt-0.5">
