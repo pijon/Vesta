@@ -185,6 +185,85 @@ export const getRecipe = async (id: string): Promise<Recipe | null> => {
   }
 };
 
+/**
+ * Hydrates PlannedMeal[] (from Firestore) back to Recipe[] (for UI display).
+ * Handles both RecipeReference and CustomMealInstance types.
+ */
+const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[]> => {
+  if (!plannedMeals || plannedMeals.length === 0) return [];
+
+  const hydrated: Recipe[] = [];
+
+  // Group by type for efficient batch fetching
+  const references: RecipeReference[] = [];
+  const customs: CustomMealInstance[] = [];
+
+  plannedMeals.forEach(meal => {
+    if (meal.type === 'reference') {
+      references.push(meal);
+    } else {
+      customs.push(meal);
+    }
+  });
+
+  // Fetch all referenced recipes in parallel
+  const recipeIds = [...new Set(references.map(r => r.recipeId))];
+  const fetchedRecipes = await Promise.all(
+    recipeIds.map(id => getRecipe(id))
+  );
+  const recipeMap = new Map(fetchedRecipes.filter(r => r !== null).map(r => [r!.id, r!]));
+
+  // Hydrate each meal in order
+  for (const meal of plannedMeals) {
+    if (meal.type === 'reference') {
+      const original = recipeMap.get(meal.recipeId);
+      if (original) {
+        // Merge original recipe with any overrides
+        const hydratedRecipe: Recipe = {
+          ...original,
+          servings: meal.servings || original.servings,
+          ...(meal.overrides || {})
+        };
+        hydrated.push(hydratedRecipe);
+      } else {
+        console.warn(`Recipe ${meal.recipeId} not found in library`);
+        // Create placeholder
+        hydrated.push({
+          id: meal.recipeId,
+          name: 'Recipe Not Found',
+          description: 'This recipe may have been deleted',
+          calories: 0,
+          protein: 0,
+          fat: 0,
+          carbs: 0,
+          ingredients: [],
+          instructions: [],
+          tags: [],
+          servings: meal.servings || 1
+        });
+      }
+    } else {
+      // CustomMealInstance - convert to Recipe
+      const recipe: Recipe = {
+        id: meal.id,
+        name: meal.name,
+        description: 'Eat Out / Custom Meal',
+        calories: meal.calories,
+        protein: meal.protein || 0,
+        fat: meal.fat || 0,
+        carbs: meal.carbs || 0,
+        ingredients: [],
+        instructions: [],
+        tags: meal.tags || [],
+        servings: meal.servings || 1
+      };
+      hydrated.push(recipe);
+    }
+  }
+
+  return hydrated;
+};
+
 // Helper to re-attach fields from library
 const hydrateMeals = async (meals: Recipe[]): Promise<Recipe[]> => {
   if (!meals || meals.length === 0) return [];
@@ -257,15 +336,15 @@ export const getDayPlan = async (date: string): Promise<DayPlan> => {
     const dayDoc = await getDoc(docRef);
 
     if (dayDoc.exists()) {
-      const storedPlan = dayDoc.data() as DayPlan;
+      const storedPlan = dayDoc.data() as { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' };
 
       // Hydrate PlannedMeal[] to Recipe[] for UI
-      const hydratedMeals = storedPlan.meals ? await hydrateMeals(storedPlan.meals) : [];
+      const hydratedMeals = storedPlan.meals ? await hydratePlannedMeals(storedPlan.meals) : [];
 
       // Return plan with hydrated meals
       return {
         ...storedPlan,
-        meals: hydratedMeals as any  // Temporary cast - UI expects Recipe[]
+        meals: hydratedMeals
       };
     }
 
@@ -452,7 +531,6 @@ export const getUpcomingPlan = async (days: number = 7): Promise<Record<string, 
 // Helper to get plan for a range of dates (efficient batch fetch)
 export const getDayPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
   try {
-    const plans: Record<string, DayPlan> = {};
     const q = query(
       getCollectionRef('days'),
       where('date', '>=', startDate),
@@ -460,56 +538,24 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
     );
 
     const snapshot = await getDocs(q);
+    const rawPlans: Record<string, { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' }> = {};
+
     snapshot.forEach(doc => {
-      const plan = doc.data() as DayPlan;
-      plans[plan.date] = plan;
+      const planData = doc.data() as { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' };
+      rawPlans[planData.date] = planData;
     });
 
-    // Bulk Hydration - Optimization
-    // Instead of hydrating each isolated plan (which might re-fetch recipes N times),
-    // we could collect all meals and hydrate once. 
-    // However, for simplicity and since getRecipes likely caches/uses Firestore SDK cache, we will simply iterate.
-    // NOTE: getDayPlan above handles single day hydration. Here we loaded raw data from query.
-    // We MUST hydrate these plans.
-
-    // Gather all all meals from all plans
-    const allMeals: Recipe[] = [];
-    Object.values(plans).forEach(p => {
-      if (p.meals) allMeals.push(...p.meals);
-    });
-
-    // If we have any meals, let's pre-fetch library once to be efficient
-    let allRecipes: Recipe[] = [];
-    if (allMeals.length > 0) {
-      try {
-        allRecipes = await getRecipes();
-      } catch (e) { console.warn("Hydration pre-fetch failed", e); }
+    // Hydrate all PlannedMeal[] arrays to Recipe[] for UI
+    const hydratedPlans: Record<string, DayPlan> = {};
+    for (const [date, rawPlan] of Object.entries(rawPlans)) {
+      const hydratedMeals = rawPlan.meals ? await hydratePlannedMeals(rawPlan.meals) : [];
+      hydratedPlans[date] = {
+        ...rawPlan,
+        meals: hydratedMeals
+      };
     }
-    const recipeMap = new Map(allRecipes.map(r => [r.id, r]));
 
-    // Now hydrate in memory using the map directly to avoid N calls
-    Object.values(plans).forEach(p => {
-      if (p.meals) {
-        p.meals = p.meals.map(meal => {
-          if (meal.instructions && meal.instructions.length > 0) return meal;
-          if (meal.description === 'Eat Out / Custom Meal') return meal;
-
-          const lookupId = meal.originalRecipeId || meal.id;
-          const original = recipeMap.get(lookupId);
-          if (original) {
-            return {
-              ...original,
-              ...meal,
-              ingredients: original.ingredients,
-              instructions: original.instructions,
-              image: original.image, // Ensure image is restored
-              description: original.description
-            };
-          }
-          return meal;
-        });
-      }
-    });
+    const plans = hydratedPlans;
 
     // Fallback: Check legacy plan doc for missing dates in range
     // This ensures users with unmigrated data still see correct Day Types

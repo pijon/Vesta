@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GEMINI_TEXT_MODEL } from "../constants";
+import { GEMINI_TEXT_MODEL, GEMINI_FAST_MODEL } from "../constants";
 import { Recipe, DayPlan, FoodLogItem, PurchasableItem } from "../types";
 
 const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY;
@@ -229,66 +229,35 @@ const foodItemsSchema: Schema = {
 export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
   if (!apiKey) throw new Error("API Key not found");
 
+  const startTime = performance.now();
+
   const prompt = `
-    You are a professional nutritionist helping users track their food intake for their daily nutrition goals.
+    You are a nutritionist analyzing food intake. Identify ALL food/drink items with accurate calorie estimates.
 
-    TASK: Analyze the text below and identify ALL food and drink items consumed with accurate calorie estimates.
+    PORTION SIZE DEFAULTS (when not specified):
+    - Apple/Banana → ~100 kcal
+    - Bread slice → 80 kcal
+    - Sandwich → 300-400 kcal
+    - Coffee (with milk) → 20 kcal
+    - Handful nuts → 170 kcal
+    - Chicken breast (150g) → 250 kcal
 
-    ACCURACY REQUIREMENTS:
-    - Use standard portion sizes from nutritional databases (USDA, NHS, etc.)
-    - For specific quantities (e.g., "2 eggs", "100g chicken"), calculate exact calories
-    - For vague quantities (e.g., "a sandwich", "some chips"), use typical serving sizes
-    - Be conservative: When in doubt, estimate on the HIGHER side to help users stay within their 800 kcal limit
-    - Round to nearest 5 calories for clarity
-
-    PORTION SIZE ASSUMPTIONS (when not specified):
-    - "An apple" → medium apple (182g) ≈ 95 kcal
-    - "A banana" → medium banana (118g) ≈ 105 kcal
-    - "A slice of bread" → one slice (30g) ≈ 80 kcal
-    - "A sandwich" → 2 slices bread + filling ≈ 300-400 kcal (estimate based on filling)
-    - "A cup of coffee" → black coffee ≈ 5 kcal, with milk ≈ 20 kcal
-    - "A handful of nuts" → 30g ≈ 170 kcal
-    - "A bowl of rice" → 1 cup cooked (195g) ≈ 200 kcal
-    - "Chicken breast" → 150g ≈ 250 kcal
-    - "A snack bag of chips" → 25g ≈ 130 kcal
-
-    PARSING RULES:
+    RULES:
     - Split combined items: "coffee and toast" → ["coffee", "toast"]
-    - Identify implicit foods: "had breakfast" is too vague - ask for specifics, but if clear context like "scrambled eggs breakfast", include it
-    - Include condiments/toppings if mentioned: "toast with butter" → ["toast", "butter"]
-    - Include cooking methods in calorie calculation: "fried" adds oil calories, "grilled" doesn't
-    - Recognize drinks: coffee, tea, juice, soda, alcohol (these all have calories!)
-    - Handle meal descriptions: "chicken salad" → estimate chicken portion + salad vegetables + likely dressing
-
-    COMMON PITFALLS TO AVOID:
-    - Don't ignore "small" items like milk in coffee, butter on toast, oil in cooking
-    - Don't forget drinks - they can be high calorie (juice, soda, alcohol)
-    - Don't underestimate restaurant/takeaway portions (they're usually larger)
-    - Don't miss cooking fats (1 tbsp oil = 120 kcal)
+    - Include condiments if mentioned: "toast with butter" → ["toast", "butter"]
+    - Account for cooking method: "fried" adds oil calories
+    - Be conservative: estimate on HIGHER side for 800 kcal goal
+    - Round to nearest 5 calories
 
     EXAMPLES:
-    Input: "2 scrambled eggs with cheese and a slice of toast"
-    Output: [
+    "2 scrambled eggs with cheese and toast" → [
       {name: "2 scrambled eggs with cheese", calories: 280},
       {name: "1 slice toast", calories: 80}
     ]
 
-    Input: "Grilled chicken salad with olive oil dressing"
-    Output: [
-      {name: "Grilled chicken breast (150g)", calories: 250},
-      {name: "Mixed salad vegetables", calories: 30},
-      {name: "Olive oil dressing (1 tbsp)", calories: 120}
-    ]
-
-    Input: "Coffee with milk and a biscuit"
-    Output: [
-      {name: "Coffee with milk", calories: 20},
-      {name: "Biscuit", calories: 70}
-    ]
-
     User Input: "${text}"
 
-    IMPORTANT: Only include items that are clearly identifiable as food or drink. If the text is too vague (like "had something"), return an empty array.
+    Return empty array if text is too vague to identify specific foods.
   `;
 
   try {
@@ -305,6 +274,9 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
     if (!output) throw new Error("No response from AI");
 
     const items = JSON.parse(output);
+    const endTime = performance.now();
+    console.log(`[Food Log] Analysis completed in ${((endTime - startTime) / 1000).toFixed(2)}s`);
+
     return items.map((item: any) => ({
       id: crypto.randomUUID(),
       name: item.name,
@@ -321,74 +293,46 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
 export const analyzeFoodImage = async (imageBase64: string, mimeType: string): Promise<FoodLogItem[]> => {
   if (!apiKey) throw new Error("API Key not found");
 
+  const startTime = performance.now();
+
   const prompt = `
-    You are a professional nutritionist analyzing food images for daily nutrition tracking.
+    You are a nutritionist analyzing food images. Identify all visible food/drink items with accurate calorie estimates.
 
-    TASK: Identify all visible food and drink items in this image and provide accurate calorie estimates.
+    VISUAL ANALYSIS:
+    1. Identify each distinct food item visible
+    2. Estimate portion size using visual cues (plate size, utensils, hands)
+       - Standard plate ≈ 25-27cm
+       - Adult fist ≈ 1 cup volume
+    3. Detect cooking method (fried foods have added oil calories)
+    4. Look for hidden calories (sauces, dressings, butter, oil)
 
-    VISUAL ANALYSIS APPROACH:
-    1. IDENTIFY each distinct food item visible
-    2. ESTIMATE portion size using visual cues:
-       - Compare to common objects (plate size, utensils, hands if visible)
-       - Standard plate diameter ≈ 25-27cm (10 inches)
-       - Standard coffee cup ≈ 240ml (8 oz)
-       - Adult fist ≈ 1 cup volume reference
-    3. ASSESS cooking method if visible (fried foods have added oil calories)
-    4. DETECT hidden calories (sauces, dressings, butter, oil on surface)
+    PORTION ESTIMATION:
+    - Small (¼ plate/fist-sized) → reduce calories accordingly
+    - Medium (⅓ plate/palm-sized) → standard serving
+    - Large (½ plate/2 fists) → 1.5-2x standard serving
+    - Protein (palm-size) ≈ 100-150g
+    - Grains/starches (fist-size) ≈ 1 cup ≈ 200 kcal
 
-    PORTION SIZE ESTIMATION:
-    - Small portion: ¼ of plate or fist-sized → estimate accordingly
-    - Medium portion: ⅓ of plate or palm-sized → standard serving
-    - Large portion: ½ of plate or 2 fists → 1.5-2x standard serving
-    - For proteins: Size of palm (thickness + area) ≈ 100-150g
-    - For grains/starches: Fist-sized portion ≈ 1 cup cooked ≈ 200 kcal
-    - For vegetables: Fill of plate matters less (low calorie density)
+    COMMON FOODS:
+    - Rice/Pasta (1 cup) → 200-220 kcal
+    - Chicken breast (150g) → 250 kcal
+    - Salmon (150g) → 280 kcal
+    - Fried foods → add 100-150 kcal for oil
+    - Bread slice → 80 kcal
 
-    CALORIE ESTIMATION RULES:
-    - Be CONSERVATIVE: Estimate on the HIGHER side for calorie goal adherence
-    - Account for cooking fats: Fried foods add 100-200 kcal from oil
-    - Include visible sauces/toppings: Creamy sauces ≈ 100 kcal per 2 tbsp
-    - Restaurant portions: Usually 30-50% larger than home portions
-    - Hidden calories: Butter on bread, oil on vegetables, sugar in drinks
-
-    COMMON FOODS REFERENCE:
-    - Rice (1 cup cooked): 200 kcal
-    - Pasta (1 cup cooked): 220 kcal
-    - Chicken breast (150g): 250 kcal
-    - Salmon (150g): 280 kcal
-    - Beef (150g): 300-400 kcal depending on fat
-    - Fried foods: Add 100-150 kcal for frying oil
-    - Cheese (30g slice): 110 kcal
-    - Bread (1 slice): 80 kcal
-    - Potato (medium baked): 160 kcal
-    - Fries (small serving): 220 kcal
-
-    OUTPUT FORMAT:
-    - Be specific with descriptions: "Grilled chicken breast (150g)" not just "chicken"
+    OUTPUT RULES:
+    - Be specific: "Grilled chicken breast (150g)" not just "chicken"
     - Include cooking method: "Fried rice" vs "Steamed rice"
-    - Mention visible toppings: "Toast with butter" not just "toast"
-    - Separate items: Don't combine "chicken and rice" into one item
-    - Use portion indicators: "Small bowl of soup" or "2 eggs"
+    - Separate items: Don't combine "chicken and rice" into one
+    - Be conservative: estimate HIGHER for 800 kcal goal
+    - If image unclear or no food visible, return empty array
 
-    EXAMPLES:
-    Image of breakfast plate → [
+    EXAMPLE:
+    Breakfast plate → [
       {name: "2 scrambled eggs", calories: 180},
       {name: "2 slices toast with butter", calories: 200},
       {name: "Coffee with milk", calories: 20}
     ]
-
-    Image of salad bowl → [
-      {name: "Grilled chicken breast (150g)", calories: 250},
-      {name: "Mixed green salad (2 cups)", calories: 40},
-      {name: "Cherry tomatoes (10 pieces)", calories: 30},
-      {name: "Caesar dressing (2 tbsp)", calories: 150}
-    ]
-
-    IMPORTANT:
-    - If image is unclear or doesn't show food, return empty array
-    - Only estimate what you can actually see
-    - When uncertain about portion size, state it: "Rice (estimated 1 cup)"
-    - Conservative estimates help users avoid exceeding their 800 kcal daily goal
   `;
 
   try {
@@ -417,6 +361,9 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
     if (!output) throw new Error("No response from AI");
 
     const items = JSON.parse(output);
+    const endTime = performance.now();
+    console.log(`[Food Image] Analysis completed in ${((endTime - startTime) / 1000).toFixed(2)}s`);
+
     return items.map((item: any) => ({
       id: crypto.randomUUID(),
       name: item.name,

@@ -5,6 +5,8 @@ export const MAX_FAMILY_GROUP_SIZE = 10;
 // Using the recommended models from the coding guidelines
 export const GEMINI_TEXT_MODEL = 'gemini-3-flash-preview';
 export const GEMINI_THINKING_MODEL = 'gemini-3-pro-preview';
+// Fast model for simple, latency-sensitive operations (food logging, quick analysis)
+export const GEMINI_FAST_MODEL = 'gemini-2.0-flash-exp';
 
 export const PLACEHOLDER_IMAGE = "https://picsum.photos/400/300";
 
