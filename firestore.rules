@@ -37,6 +37,18 @@ service cloud.firestore {
       match /days/{document=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+      match /summaries/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /pantry/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /shopping/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /fasting/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Groups: Shared Data

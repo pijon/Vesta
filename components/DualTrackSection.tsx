@@ -191,11 +191,26 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                       <p className="font-medium truncate line-through text-charcoal/60 dark:text-stone-500" style={{ color: 'var(--calories)' }}>
                         {meal.name}
                       </p>
-                      <div className="flex gap-2 items-center mt-1">
-                        <span className="text-[10px] font-bold bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ color: 'var(--calories)' }}>
-                          {meal.type}
+                      <div className="flex gap-2 flex-wrap items-center mt-1">
+                        <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                          {(meal.tags?.[0] || 'meal').toLowerCase()}
                         </span>
-                        <span className="text-xs text-charcoal/60 dark:text-stone-500">{meal.calories} kcal</span>
+                        <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>
+                          {meal.calories} kcal
+                        </span>
+                        {meal.isLeftover && (
+                          <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Leftover from previous day">
+                            <span className="text-[10px]">♻️</span> leftover
+                          </span>
+                        )}
+                        {meal.isPacked && (
+                          <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Packed Lunch">
+                            <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><g transform="translate(1.000000, 2.000000)"><rect x="0" y="0" width="16" height="2" /><path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" /></g></svg>
+                            packed
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -229,11 +244,26 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     <p className="font-medium truncate text-charcoal dark:text-stone-200">
                       {meal.name}
                     </p>
-                    <div className="flex gap-2 items-center mt-1">
-                      <span className="text-[10px] font-bold bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ color: 'var(--calories)' }}>
-                        {meal.type}
+                    <div className="flex gap-2 flex-wrap items-center mt-1">
+                      <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        {(meal.tags?.[0] || 'meal').toLowerCase()}
                       </span>
-                      <span className="text-xs text-charcoal/60 dark:text-stone-400">{meal.calories} kcal</span>
+                      <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>
+                        {meal.calories} kcal
+                      </span>
+                      {meal.isLeftover && (
+                        <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Leftover from previous day">
+                          <span className="text-[10px]">♻️</span> leftover
+                        </span>
+                      )}
+                      {meal.isPacked && (
+                        <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Packed Lunch">
+                          <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><g transform="translate(1.000000, 2.000000)"><rect x="0" y="0" width="16" height="2" /><path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" /></g></svg>
+                          packed
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -304,11 +334,34 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-charcoal dark:text-stone-200 truncate">{item.name}</p>
-                      <div className="flex gap-2 items-center mt-1">
+                      <div className="flex gap-2 flex-wrap items-center mt-1">
                         <span className="text-xs text-charcoal/60 dark:text-stone-400 dark:text-stone-400">
                           {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="text-xs font-bold text-hearth">{item.calories} kcal</span>
+
+                        {/* Type Tag */}
+                        {(item.type || item.tags?.[0]) && (
+                          <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            {(item.type || item.tags?.[0] || '').toLowerCase()}
+                          </span>
+                        )}
+
+                        {/* Leftover Tag */}
+                        {item.isLeftover && (
+                          <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Leftover from previous day">
+                            <span className="text-[10px]">♻️</span> leftover
+                          </span>
+                        )}
+
+                        {/* Packed Tag */}
+                        {item.isPacked && (
+                          <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Packed Lunch">
+                            <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><g transform="translate(1.000000, 2.000000)"><rect x="0" y="0" width="16" height="2" /><path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" /></g></svg>
+                            packed
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

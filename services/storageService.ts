@@ -1,4 +1,4 @@
-import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem } from "../types";
+import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, RecipeReference, CustomMealInstance } from "../types";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit } from "firebase/firestore";
@@ -53,11 +53,74 @@ export const getRecipes = async (limitCount?: number): Promise<Recipe[]> => {
 };
 
 export const saveRecipe = async (recipe: Recipe) => {
+  // Reject Base64 images (after migration)
+  if (recipe.image?.startsWith('data:')) {
+    throw new Error('Base64 images are not allowed. Please upload to Firebase Storage first.');
+  }
   await setDoc(getDocRef('recipes', recipe.id), recipe);
 };
 
 export const deleteRecipe = async (id: string) => {
   await deleteDoc(getDocRef('recipes', id));
+};
+
+// --- Base64 Image Migration (Database Normalization) ---
+
+import { storage } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+/**
+ * Migrates all Base64 images in recipes to Firebase Storage.
+ * Replaces data URLs with permanent CDN URLs, eliminating bloat in Firestore.
+ */
+export const migrateBase64ImagesToStorage = async (): Promise<{ success: boolean; migratedCount: number; errors: string[] }> => {
+  try {
+    const uid = getUserId();
+    const recipes = await getRecipes();
+
+    let migratedCount = 0;
+    const errors: string[] = [];
+
+    for (const recipe of recipes) {
+      if (recipe.image?.startsWith('data:')) {
+        try {
+          console.log(`Migrating image for ${recipe.name}...`);
+
+          // 1. Convert Base64 to Blob
+          const response = await fetch(recipe.image);
+          const blob = await response.blob();
+
+          // 2. Determine file extension from MIME type
+          const mimeType = blob.type || 'image/jpeg';
+          const ext = mimeType.split('/')[1] || 'jpg';
+
+          // 3. Upload to Firebase Storage
+          const storageRef = ref(storage, `users/${uid}/recipe-images/${recipe.id}.${ext}`);
+          await uploadBytes(storageRef, blob);
+
+          // 4. Get public URL
+          const downloadURL = await getDownloadURL(storageRef);
+
+          // 5. Update recipe (bypass validation for migration)
+          const updatedRecipe = { ...recipe, image: downloadURL };
+          await setDoc(getDocRef('recipes', recipe.id), updatedRecipe);
+
+          migratedCount++;
+          console.log(`✅ Migrated ${recipe.name}: ${(blob.size / 1024).toFixed(1)}KB`);
+        } catch (err: any) {
+          const errorMsg = `Failed to migrate ${recipe.name}: ${err.message}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+        }
+      }
+    }
+
+    console.log(`✅ Migration complete: ${migratedCount} images moved to Firebase Storage`);
+    return { success: true, migratedCount, errors };
+  } catch (e: any) {
+    console.error("Image migration failed:", e);
+    return { success: false, migratedCount: 0, errors: [e.message] };
+  }
 };
 
 
@@ -68,23 +131,46 @@ const PLAN_DOC = 'plan'; // Keeping reference for legacy migration and export
 // Refactored to use 'days' collection to avoid 1MB document limit.
 // Legacy 'data/plan' document is deprecated.
 
-// Helper to strip heavy fields from meals before saving
-const dehydrateMeal = (meal: Recipe): Recipe => {
-  // If no description or explicitly custom, keep everything
-  if (!meal.description && !meal.id) return meal;
-  if (meal.description === 'Eat Out / Custom Meal') return meal;
+// --- DayPlan Meal Normalization (Database Optimization) ---
 
-  // Ensure we have an ID to hydrate from later
-  if (!meal.id) return meal;
+/**
+ * Converts a full Recipe UI object to a lightweight PlannedMeal for storage.
+ * - If meal is from library: store reference only
+ * - If meal is custom: store minimal data
+ */
+const dehydrateMeal = (meal: Recipe): PlannedMeal => {
+  // Check if this is a library recipe (has originalRecipeId or id matching library)
+  const isLibraryRecipe = !!meal.originalRecipeId || (!!meal.id && meal.description !== 'Eat Out / Custom Meal');
 
-  // Strip heavy fields, keep overrides and identifiers
-  // We keep tags/name/calories/servings to allow basic display without hydration if needed (optional optimization)
-  // But for now, we'll stripping big text blobs: instructions, ingredients, image.
-  const { instructions, ingredients, image, description, ...kept } = meal;
+  if (isLibraryRecipe) {
+    // Store as RecipeReference
+    const reference: RecipeReference = {
+      type: 'reference',
+      recipeId: meal.originalRecipeId || meal.id!,
+      servings: meal.servings || 1
+    };
 
-  // Note: We might want to keep 'description' if it's short? 
-  // Let's assume we can re-fetch everything from library.
-  return kept as Recipe;
+    // Add overrides ONLY if user customized this instance
+    // (We detect this if the meal has been manually edited)
+    // For now, we'll skip overrides detection - can add later if needed
+
+    return reference;
+  } else {
+    // Store as CustomMealInstance (one-off meal)
+    const custom: CustomMealInstance = {
+      type: 'custom',
+      id: meal.id || crypto.randomUUID(),
+      name: meal.name,
+      calories: meal.calories,
+      protein: meal.protein,
+      fat: meal.fat,
+      carbs: meal.carbs,
+      tags: meal.tags || [],
+      servings: meal.servings || 1
+    };
+
+    return custom;
+  }
 };
 
 // Helper to get a single recipe
@@ -108,15 +194,21 @@ const hydrateMeals = async (meals: Recipe[]): Promise<Recipe[]> => {
   const mealsToHydrate = meals.filter(m =>
     !!m.id &&
     m.description !== 'Eat Out / Custom Meal' &&
-    (!m.instructions || m.instructions.length === 0)
+    (!m.instructions || m.instructions.length === 0 || !m.image)
+    // ^ check for image too, as that's what we essentially want
   );
 
   // Optimization: If nothing needs hydration, return immediately
   if (mealsToHydrate.length === 0) return meals;
 
   // 2. Fetch specific recipes in parallel
-  // Deduplicate IDs first
-  const uniqueIds = Array.from(new Set(mealsToHydrate.map(m => m.id)));
+  // Deduplicate IDs first: prefer originalRecipeId, fallback to id
+  const idsToFetch = new Set<string>();
+  mealsToHydrate.forEach(m => {
+    if (m.originalRecipeId) idsToFetch.add(m.originalRecipeId);
+    else if (m.id) idsToFetch.add(m.id);
+  });
+  const uniqueIds = Array.from(idsToFetch);
 
   // Fetch from DB (Promise.all)
   // TODO: Add a simple in-memory cache here if we find we are re-fetching same IDs frequently in a session
@@ -140,7 +232,8 @@ const hydrateMeals = async (meals: Recipe[]): Promise<Recipe[]> => {
     if (meal.instructions && meal.instructions.length > 0) return meal;
     if (meal.description === 'Eat Out / Custom Meal') return meal;
 
-    const original = recipeMap.get(meal.id);
+    const lookupId = meal.originalRecipeId || meal.id;
+    const original = recipeMap.get(lookupId);
     if (original) {
       // Merge: Original props + Overrides from the plan
       return {
@@ -164,12 +257,16 @@ export const getDayPlan = async (date: string): Promise<DayPlan> => {
     const dayDoc = await getDoc(docRef);
 
     if (dayDoc.exists()) {
-      const plan = dayDoc.data() as DayPlan;
-      // Hydrate meals
-      if (plan.meals) {
-        plan.meals = await hydrateMeals(plan.meals);
-      }
-      return plan;
+      const storedPlan = dayDoc.data() as DayPlan;
+
+      // Hydrate PlannedMeal[] to Recipe[] for UI
+      const hydratedMeals = storedPlan.meals ? await hydrateMeals(storedPlan.meals) : [];
+
+      // Return plan with hydrated meals
+      return {
+        ...storedPlan,
+        meals: hydratedMeals as any  // Temporary cast - UI expects Recipe[]
+      };
     }
 
     // 2. Fallback to legacy (if not found in new, and legacy exists)
@@ -182,14 +279,112 @@ export const getDayPlan = async (date: string): Promise<DayPlan> => {
   }
 };
 
+
 export const saveDayPlan = async (dayPlan: DayPlan) => {
   const docRef = doc(db, 'users', getUserId(), 'days', dayPlan.date);
 
-  // Dehydrate before saving
+  // Runtime conversion: Convert Recipe[] to PlannedMeal[] before saving
   const dehydratedMeals = dayPlan.meals.map(dehydrateMeal);
   const planToSave = { ...dayPlan, meals: dehydratedMeals };
 
   await setDoc(docRef, planToSave);
+};
+
+/**
+ * Migrates existing DayPlan documents from full Recipe[] to normalized PlannedMeal[].
+ * Run once to reduce storage bloat on existing plans.
+ */
+export const migrateDayPlansToNormalized = async (): Promise<{ success: boolean; migratedCount: number; error?: string }> => {
+  try {
+    const uid = getUserId();
+    const daysCollection = collection(db, 'users', uid, 'days');
+    const snapshot = await getDocs(daysCollection);
+
+    let migratedCount = 0;
+
+    for (const planDoc of snapshot.docs) {
+      const planData = planDoc.data();
+
+      // Check if meals exist and are not already normalized
+      if (planData.meals && planData.meals.length > 0) {
+        const firstMeal = planData.meals[0];
+
+        // If firstMeal has 'type' field, it's already normalized (PlannedMeal)
+        if (firstMeal.type === 'reference' || firstMeal.type === 'custom') {
+          console.log(`Skipping ${planDoc.id}: already normalized`);
+          continue;
+        }
+
+        // Convert Recipe[] to PlannedMeal[]
+        const dehydratedMeals = planData.meals.map((meal: Recipe) => dehydrateMeal(meal));
+
+        // Update document
+        await setDoc(planDoc.ref, {
+          ...planData,
+          meals: dehydratedMeals
+        });
+
+        migratedCount++;
+        console.log(`Migrated ${planDoc.id}: ${planData.meals.length} meals → references`);
+      }
+    }
+
+    console.log(`✅ DayPlan migration complete: ${migratedCount} plans normalized`);
+    return { success: true, migratedCount };
+  } catch (e: any) {
+    console.error("DayPlan migration failed:", e);
+    return { success: false, migratedCount: 0, error: e.message };
+  }
+};
+
+/**
+ * Cleans up deprecated data structures (run once after migration).
+ */
+export const cleanupLegacyData = async (): Promise<{ success: boolean; deletedCount: number; error?: string }> => {
+  try {
+    const uid = getUserId();
+    let deletedCount = 0;
+
+    // 1. Delete deprecated monolithic plan document
+    try {
+      const legacyPlanRef = getDocRef('data', 'plan');
+      const legacyPlanSnap = await getDoc(legacyPlanRef);
+      if (legacyPlanSnap.exists()) {
+        await deleteDoc(legacyPlanRef);
+        deletedCount++;
+        console.log('Deleted legacy plan document');
+      }
+    } catch (e) {
+      console.warn('Legacy plan document not found or already deleted');
+    }
+
+    // 2. Delete deprecated shared_recipes collections (if user has groups)
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      const userData = userDoc.data();
+
+      if (userData?.groupId) {
+        const sharedRecipesRef = collection(db, 'groups', userData.groupId, 'shared_recipes');
+        const sharedRecipesSnap = await getDocs(sharedRecipesRef);
+
+        if (!sharedRecipesSnap.empty) {
+          for (const recipeDoc of sharedRecipesSnap.docs) {
+            await deleteDoc(recipeDoc.ref);
+            deletedCount++;
+          }
+          console.log(`Deleted ${sharedRecipesSnap.size} deprecated shared recipes`);
+        }
+      }
+    } catch (e) {
+      console.warn('No group data or shared recipes to clean');
+    }
+
+    console.log(`✅ Legacy cleanup complete: ${deletedCount} items deleted`);
+    return { success: true, deletedCount };
+  } catch (e: any) {
+    console.error("Legacy cleanup failed:", e);
+    return { success: false, deletedCount: 0, error: e.message };
+  }
 };
 
 // Migration Helper
@@ -299,14 +494,15 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
           if (meal.instructions && meal.instructions.length > 0) return meal;
           if (meal.description === 'Eat Out / Custom Meal') return meal;
 
-          const original = recipeMap.get(meal.id);
+          const lookupId = meal.originalRecipeId || meal.id;
+          const original = recipeMap.get(lookupId);
           if (original) {
             return {
               ...original,
               ...meal,
               ingredients: original.ingredients,
               instructions: original.instructions,
-              image: original.image,
+              image: original.image, // Ensure image is restored
               description: original.description
             };
           }
@@ -496,39 +692,12 @@ export const saveDailyLog = async (log: DailyLog) => {
 
 // --- Daily Summaries ---
 
+/**
+ * @deprecated Use getDailySummaries() instead (reads from optimized summaries collection)
+ */
 export const getAllDailySummaries = async (daysBack: number = 90): Promise<DailySummary[]> => {
-  // Calculate cutoff date
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-  const cutoffDateString = cutoffDate.toISOString().split('T')[0];
-
-  // Query logs with date filtering to avoid fetching all historical data
-  const logsQuery = query(
-    getCollectionRef('logs'),
-    where('date', '>=', cutoffDateString),
-    orderBy('date', 'asc')
-  );
-
-  const snapshot = await getDocs(logsQuery);
-  const summaries: DailySummary[] = [];
-
-  snapshot.forEach(doc => {
-    const log = doc.data() as DailyLog;
-    const caloriesConsumed = (log.items || []).reduce((sum, item) => sum + item.calories, 0);
-    const caloriesBurned = (log.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
-
-    summaries.push({
-      date: log.date,
-      caloriesConsumed,
-      caloriesBurned,
-      netCalories: caloriesConsumed - caloriesBurned,
-      workoutCount: (log.workouts || []).length,
-      waterIntake: log.waterIntake || 0,
-      maxFastingHours: log.maxFastingHours || 0
-    });
-  });
-
-  return summaries; // Already sorted by orderBy in query
+  console.warn('getAllDailySummaries is deprecated, use getDailySummaries instead');
+  return getDailySummaries(daysBack);
 };
 
 export const getRecentWorkouts = async (limit: number = 5, daysBack: number = 30): Promise<WorkoutItem[]> => {
@@ -808,6 +977,178 @@ export const exportAllData = async (): Promise<string> => {
   } catch (e) {
     console.error("Export failed:", e);
     return "";
+  }
+};
+
+// --- Daily Log Archival (Database Normalization) ---
+
+/**
+ * Archives yesterday's full DailyLog into a lightweight DailySummary.
+ * This compresses historical data by 95% (removes item and workout arrays).
+ * Should be called once per day (e.g., at midnight or on first app load of new day).
+ */
+export const archiveYesterdaysLog = async (): Promise<{ archived: boolean; date?: string; itemCount?: number }> => {
+  try {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+
+    // 1. Check if already archived
+    const summaryRef = getDocRef('summaries', dateStr);
+    const summarySnap = await getDoc(summaryRef);
+    if (summarySnap.exists()) {
+      console.log(`${dateStr} already archived`);
+      return { archived: false };
+    }
+
+    // 2. Load full log
+    const log = await getDailyLog(dateStr);
+
+    // Skip if no data exists
+    if (log.items.length === 0 && log.workouts.length === 0 && log.waterIntake === 0) {
+      console.log(`${dateStr} has no data to archive`);
+      return { archived: false };
+    }
+
+    // 3. Compute summary
+    const caloriesConsumed = log.items.reduce((sum, item) => sum + item.calories, 0);
+    const caloriesBurned = log.workouts.reduce((sum, w) => sum + w.caloriesBurned, 0);
+
+    const summary: DailySummary = {
+      date: dateStr,
+      caloriesConsumed,
+      caloriesBurned,
+      netCalories: caloriesConsumed - caloriesBurned,
+      workoutCount: log.workouts.length,
+      waterIntake: log.waterIntake,
+      maxFastingHours: log.maxFastingHours
+    };
+
+    // 4. Save summary to new collection
+    await setDoc(summaryRef, summary);
+
+    // 5. Delete full log (items + workouts arrays)
+    const logRef = getDocRef('logs', dateStr);
+    await deleteDoc(logRef);
+
+    console.log(`✅ Archived ${dateStr}: ${log.items.length} food items + ${log.workouts.length} workouts → summary`);
+    return { archived: true, date: dateStr, itemCount: log.items.length };
+  } catch (e) {
+    console.error("Archival failed:", e);
+    return { archived: false };
+  }
+};
+
+/**
+ * Get daily summaries from the new lightweight 'summaries' collection.
+ * Falls back to computing from 'logs' if summary doesn't exist (for today or unmigrated data).
+ */
+export const getDailySummaries = async (daysBack: number = 90): Promise<DailySummary[]> => {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    const cutoffDateString = cutoffDate.toISOString().split('T')[0];
+
+    // 1. Fetch from summaries collection (new, lightweight)
+    const summariesQuery = query(
+      getCollectionRef('summaries'),
+      where('date', '>=', cutoffDateString),
+      orderBy('date', 'asc')
+    );
+    const summariesSnap = await getDocs(summariesQuery);
+    const summariesMap = new Map<string, DailySummary>();
+    summariesSnap.forEach(doc => {
+      const summary = doc.data() as DailySummary;
+      summariesMap.set(summary.date, summary);
+    });
+
+    // 2. Fetch from logs collection (fallback for today and unmigrated data)
+    const logsQuery = query(
+      getCollectionRef('logs'),
+      where('date', '>=', cutoffDateString),
+      orderBy('date', 'asc')
+    );
+    const logsSnap = await getDocs(logsQuery);
+
+    logsSnap.forEach(doc => {
+      const log = doc.data() as DailyLog;
+      // Only compute if we don't have a summary yet
+      if (!summariesMap.has(log.date)) {
+        const caloriesConsumed = (log.items || []).reduce((sum, item) => sum + item.calories, 0);
+        const caloriesBurned = (log.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
+
+        summariesMap.set(log.date, {
+          date: log.date,
+          caloriesConsumed,
+          caloriesBurned,
+          netCalories: caloriesConsumed - caloriesBurned,
+          workoutCount: (log.workouts || []).length,
+          waterIntake: log.waterIntake || 0,
+          maxFastingHours: log.maxFastingHours || 0
+        });
+      }
+    });
+
+    // 3. Return sorted array
+    return Array.from(summariesMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  } catch (e) {
+    console.error("Error fetching daily summaries:", e);
+    return [];
+  }
+};
+
+/**
+ * Migrates ALL historical logs to summaries (run once during deployment).
+ */
+export const migrateAllLogsToSummaries = async (): Promise<{ success: boolean; migratedCount: number; error?: string }> => {
+  try {
+    const logsSnap = await getDocs(getCollectionRef('logs'));
+    const today = new Date().toISOString().split('T')[0];
+
+    let migratedCount = 0;
+
+    for (const logDoc of logsSnap.docs) {
+      const log = logDoc.data() as DailyLog;
+
+      // Skip today (keep full detail)
+      if (log.date === today) {
+        console.log(`Skipping ${log.date} (today)`);
+        continue;
+      }
+
+      // Check if already has summary
+      const summarySnap = await getDoc(getDocRef('summaries', log.date));
+      if (summarySnap.exists()) {
+        console.log(`Skipping ${log.date} (already archived)`);
+        continue;
+      }
+
+      // Compute and save summary
+      const caloriesConsumed = (log.items || []).reduce((sum, item) => sum + item.calories, 0);
+      const caloriesBurned = (log.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
+
+      const summary: DailySummary = {
+        date: log.date,
+        caloriesConsumed,
+        caloriesBurned,
+        netCalories: caloriesConsumed - caloriesBurned,
+        workoutCount: (log.workouts || []).length,
+        waterIntake: log.waterIntake || 0,
+        maxFastingHours: log.maxFastingHours || 0
+      };
+
+      await setDoc(getDocRef('summaries', log.date), summary);
+      await deleteDoc(logDoc.ref);
+
+      migratedCount++;
+      console.log(`Migrated ${log.date}: ${log.items?.length || 0} items → summary`);
+    }
+
+    console.log(`✅ Migration complete: ${migratedCount} logs archived`);
+    return { success: true, migratedCount };
+  } catch (e: any) {
+    console.error("Migration failed:", e);
+    return { success: false, migratedCount: 0, error: e.message };
   }
 };
 

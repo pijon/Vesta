@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary } from '../types';
-import { saveDayPlan, saveDailyLog, getAllDailySummaries } from '../services/storageService';
+import { saveDayPlan, saveDailyLog, getDailySummaries } from '../services/storageService';
 import { FoodEntryModal } from './FoodEntryModal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { WorkoutEntryModal } from './WorkoutEntryModal';
@@ -112,7 +112,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const data = await getAllDailySummaries(7);
+        const data = await getDailySummaries(7);
         setActivityHistory(data);
       } catch (e) {
         console.error("Failed to load activity history", e);

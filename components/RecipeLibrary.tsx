@@ -42,6 +42,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   // Image upload state
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [newRecipeId, setNewRecipeId] = useState<string>(crypto.randomUUID()); // Generate ID upfront for Storage upload
 
   useEffect(() => {
     loadData(false);
@@ -139,11 +140,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   };
 
 
-  const handleImageSelect = (base64: string, mimeType: string) => {
+  const handleImageSelect = (downloadURL: string) => {
     setImageError(null);
-    // Store as data URL for display and storage
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-    setUploadedImage(dataUrl);
+    setUploadedImage(downloadURL);
   };
 
   const handleRemoveImage = () => {
@@ -157,7 +156,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       const partialRecipe = await parseRecipeText(inputText);
       if (partialRecipe) {
         const newRecipe: Recipe = {
-          id: crypto.randomUUID(),
+          id: newRecipeId, // Use pre-generated ID
           name: partialRecipe.name || 'Untitled Recipe',
           description: 'Imported from text',
           calories: partialRecipe.calories || 0,
@@ -181,6 +180,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         setInputText('');
         setUploadedImage(null);
         setImageError(null);
+        setNewRecipeId(crypto.randomUUID()); // Generate new ID for next recipe
 
         // Open the newly created recipe
         setSelectedRecipe(newRecipe);
@@ -374,6 +374,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
                 </div>
               ) : (
                 <ImageInput
+                  recipeId={newRecipeId}
                   onImageSelect={handleImageSelect}
                   onError={(err) => setImageError(err)}
                   disabled={isProcessing}

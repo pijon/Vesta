@@ -35,10 +35,9 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
         onSave(updatedRecipe);
     };
 
-    const handleImageSelect = (base64: string, mimeType: string) => {
+    const handleImageSelect = (downloadURL: string) => {
         setImageError(null);
-        const dataUrl = `data:${mimeType};base64,${base64}`;
-        setUploadedImage(dataUrl);
+        setUploadedImage(downloadURL);
     };
 
     const handleRemoveImage = () => {
@@ -113,6 +112,7 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                             ) : (
                                 <div className="bg-[var(--input-bg)] rounded-2xl border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/30 hover:bg-primary/5">
                                     <ImageInput
+                                        recipeId={recipe.id}
                                         onImageSelect={handleImageSelect}
                                         onError={(err) => setImageError(err)}
                                         className="w-full flex justify-center"

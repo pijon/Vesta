@@ -1,5 +1,5 @@
 import { DailySummary } from '../types';
-import { getFastingHistory, getUserStats, getAllDailySummaries } from './storageService';
+import { getFastingHistory, getUserStats, getDailySummaries } from './storageService';
 
 export interface AnalyticsDataPoint {
     date: string;
@@ -13,7 +13,7 @@ export const getAnalyticsData = async (): Promise<AnalyticsDataPoint[]> => {
     const [stats, fastingHistory, dailySummaries] = await Promise.all([
         getUserStats(),
         getFastingHistory(),
-        getAllDailySummaries()
+        getDailySummaries()
     ]);
 
     const dataMap = new Map<string, AnalyticsDataPoint>();

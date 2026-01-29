@@ -90,6 +90,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         // Create the meal object with the scaling override if provided
         const mealToAdd: Recipe = {
             ...recipe,
+            originalRecipeId: recipe.originalRecipeId || recipe.id,
             cookingServings: servingsOverride !== undefined ? servingsOverride : recipe.cookingServings
         };
 
@@ -414,10 +415,12 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-xl font-serif text-charcoal dark:text-stone-200 truncate">{meal.name}</h3>
                                             <div className="flex flex-wrap gap-2 mt-2">
-                                                <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 px-2 py-1 bg-charcoal/5 dark:bg-white/10 rounded-lg uppercase tracking-wide">
-                                                    {meal.tags?.[0] || 'Meal'}
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                                    {(meal.tags?.[0] || 'meal').toLowerCase()}
                                                 </span>
-                                                <span className="text-xs font-bold text-hearth dark:text-flame px-2 py-1 bg-hearth/10 dark:bg-flame/10 rounded-lg">
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>
                                                     {meal.calories} kcal
                                                 </span>
                                                 <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
@@ -429,19 +432,19 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                     {meal.cookingServings || meal.servings || 2} ppl
                                                 </span>
                                                 {meal.isLeftover && (
-                                                    <span className="text-xs font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-lg flex items-center gap-1" title="Leftover from previous day">
-                                                        ♻️ Leftover
+                                                    <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Leftover from previous day">
+                                                        <span className="text-[10px]">♻️</span> leftover
                                                     </span>
                                                 )}
                                                 {meal.isPacked && (
-                                                    <span className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-lg flex items-center gap-1" title="Packed Lunch">
+                                                    <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Packed Lunch">
                                                         <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                                                             <g transform="translate(1.000000, 2.000000)">
                                                                 <rect x="0" y="0" width="16" height="2" />
                                                                 <path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" />
                                                             </g>
                                                         </svg>
-                                                        Packed
+                                                        packed
                                                     </span>
                                                 )}
                                             </div>
@@ -458,7 +461,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); togglePacked(index); }}
-                                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 hover:bg-blue-50 hover:text-blue-500'} `}
+                                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-[var(--color-ocean)]/10 text-[var(--color-ocean)] dark:bg-[var(--color-ocean)]/20' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 hover:bg-[var(--color-ocean)]/10 hover:text-[var(--color-ocean)]'} `}
                                                 title="Toggle Packed Lunch"
                                             >
                                                 <svg width="18" height="18" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -693,7 +696,12 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                 leftoverCandidates.map(({ date, recipe }, idx) => (
                                                     <button
                                                         key={`${date} -${recipe.id} -${idx} `}
-                                                        onClick={() => executeAddMeal({ ...recipe, isLeftover: true, id: crypto.randomUUID() })}
+                                                        onClick={() => executeAddMeal({
+                                                            ...recipe,
+                                                            isLeftover: true,
+                                                            originalRecipeId: recipe.originalRecipeId || recipe.id,
+                                                            id: crypto.randomUUID()
+                                                        })}
                                                         className="flex items-center gap-5 p-3 rounded-xl bg-[var(--card-bg)] border border-border hover:border-primary hover:shadow-md transition-all text-left group w-full overflow-hidden"
                                                     >
                                                         <div className={`w - 20 h - 20 rounded - lg overflow - hidden flex - shrink - 0 relative flex items - center justify - center ${getRecipeTheme(recipe.tags).bg} `}>

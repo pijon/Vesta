@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, BarChart, Bar, ComposedChart, ReferenceLine } from 'recharts';
 import { DayPlan, UserStats, DailyLog } from '../types';
-import { getAllDailySummaries, getDayPlansInRange } from '../services/storageService';
+import { getDailySummaries, getDayPlansInRange } from '../services/storageService';
 import { analyzeWeightTrends } from '../utils/analytics';
 
 
@@ -23,7 +23,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog 
     const [showProjection, setShowProjection] = useState(false);
 
     useEffect(() => {
-        getAllDailySummaries().then(setDailySummaries);
+        getDailySummaries().then(setDailySummaries);
 
         // Fetch day types for the analytical period (last 90 days)
         const fetchDayTypes = async () => {

@@ -10,6 +10,7 @@ const RecipeLibrary = React.lazy(() => import('./components/RecipeLibrary').then
 const ShoppingList = React.lazy(() => import('./components/ShoppingList').then(module => ({ default: module.ShoppingList })));
 const FamilySettings = React.lazy(() => import('./components/FamilySettings').then(module => ({ default: module.FamilySettings })));
 const SettingsView = React.lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
+const MigrationRunner = React.lazy(() => import('./components/MigrationRunner').then(module => ({ default: module.MigrationRunner })));
 import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
@@ -265,7 +266,12 @@ const TrackerApp: React.FC = () => {
                 id: crypto.randomUUID(),
                 name: meal.name,
                 calories: meal.calories,
-                timestamp: now
+                timestamp: now,
+                // Persist metadata
+                tags: meal.tags,
+                isLeftover: meal.isLeftover,
+                isPacked: meal.isPacked,
+                type: meal.tags?.[0] // Helpful shortcut
             });
 
             // Check active fast duration before breaking it

@@ -201,14 +201,6 @@ export const HydrationCard: React.FC<{ liters: number; onAddWater: (amount: numb
             <div className={`relative z-10 p-4 md:p-6 flex flex-col justify-between h-full`}>
                 <div className="flex justify-between items-start">
                     <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Hydration</h3>
-                    <button
-                        onClick={() => onAddWater(0.25)}
-                        className="bg-white/50 dark:bg-white/10 p-1.5 rounded-full text-ocean dark:text-ocean/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                    </button>
                 </div>
 
                 <div className="text-center py-2">

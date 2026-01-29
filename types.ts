@@ -18,16 +18,47 @@ export interface Recipe {
   ownerId?: string;    // UID of recipe owner (set when viewing family recipes)
   ownerName?: string;  // Display name of owner (set when viewing family recipes)
   cookingServings?: number; // Override for shopping list calculations (how many people you are cooking for)
+  originalRecipeId?: string; // Reference to the original library recipe for hydration
   isLeftover?: boolean; // If true, this is a leftover from a previous meal
   isPacked?: boolean;   // If true, this is a packed lunch/meal
 }
 
 export type Meal = Recipe;
 
+// --- Normalized Meal Planning (Database Optimization) ---
+
+/** Lightweight reference to a library recipe */
+export interface RecipeReference {
+  type: 'reference';
+  recipeId: string;      // Points to users/{uid}/recipes/{id}
+  servings: number;      // User's planned servings for this meal
+
+  // OPTIONAL: Only present if user customized THIS specific meal instance
+  overrides?: {
+    calories?: number;   // If they manually adjusted
+    name?: string;       // If they renamed this instance
+  };
+}
+
+/** One-off custom meals not in the library */
+export interface CustomMealInstance {
+  type: 'custom';
+  id: string;            // Generated UUID
+  name: string;
+  calories: number;
+  protein?: number;
+  fat?: number;
+  carbs?: number;
+  tags: string[];
+  servings: number;
+}
+
+export type PlannedMeal = RecipeReference | CustomMealInstance;
+
 
 export interface DayPlan {
   date: string; // YYYY-MM-DD
-  meals: Recipe[];
+  meals: Recipe[]; // UI layer uses Recipe[], storage converts to PlannedMeal[]
   completedMealIds: string[]; // IDs of meals marked as eaten
   tips?: string;
   totalCalories?: number;
@@ -131,6 +162,10 @@ export interface FoodLogItem {
   name: string;
   calories: number;
   timestamp: number;
+  type?: string;        // e.g. "Breakfast", "Lunch"
+  tags?: string[];      // To capture ["Dinner"] etc if type isn't explicit
+  isLeftover?: boolean;
+  isPacked?: boolean;
 }
 
 export interface WorkoutItem {

@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { compressImage } from '../utils/imageUtils';
+import { uploadRecipeImage } from '../utils/storageUtils';
+import { auth } from '../services/firebase';
 
 interface ImageInputProps {
-  onImageSelect: (base64: string, mimeType: string) => void;
+  recipeId: string; // Required for unique file naming
+  onImageSelect: (downloadURL: string) => void; // Now returns Storage URL
   onError: (error: string) => void;
   disabled?: boolean;
   className?: string;
@@ -36,13 +38,14 @@ const CameraIcon: React.FC = () => (
 );
 
 export const ImageInput: React.FC<ImageInputProps> = ({
+  recipeId,
   onImageSelect,
   onError,
   disabled = false,
   className = ''
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,19 +63,25 @@ export const ImageInput: React.FC<ImageInputProps> = ({
       return;
     }
 
-    setIsCompressing(true);
-    try {
-      // Compress and resize the image
-      // Target 800x800 and 0.7 quality to keep size well under 1MB
-      const base64 = await compressImage(file, 800, 800, 0.7);
+    // Check authentication
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      onError('You must be logged in to upload images.');
+      return;
+    }
 
-      // We always convert to JPEG in the compression utility
-      onImageSelect(base64, 'image/jpeg');
+    setIsUploading(true);
+    try {
+      // Upload compressed image to Firebase Storage
+      const downloadURL = await uploadRecipeImage(file, userId, recipeId, 800, 800, 0.7);
+
+      // Return the Storage URL
+      onImageSelect(downloadURL);
     } catch (err) {
-      console.error('Error processing image:', err);
-      onError('Failed to process image. Please try again.');
+      console.error('Error uploading image:', err);
+      onError('Failed to upload image. Please try again.');
     } finally {
-      setIsCompressing(false);
+      setIsUploading(false);
       // Clear input so same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -80,7 +89,7 @@ export const ImageInput: React.FC<ImageInputProps> = ({
     }
   };
 
-  const isDisabled = disabled || isCompressing;
+  const isDisabled = disabled || isUploading;
 
   return (
     <div className={className}>
@@ -102,7 +111,7 @@ export const ImageInput: React.FC<ImageInputProps> = ({
           : 'bg-primary hover:bg-primary-hover active:scale-95'
           }`}
       >
-        {isCompressing ? (
+        {isUploading ? (
           <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -111,8 +120,8 @@ export const ImageInput: React.FC<ImageInputProps> = ({
           <CameraIcon />
         )}
         <span>
-          {isCompressing
-            ? 'Optimizing Image...'
+          {isUploading
+            ? 'Uploading to Cloud...'
             : disabled
               ? 'Analyzing...'
               : 'Take or Upload Photo'}
