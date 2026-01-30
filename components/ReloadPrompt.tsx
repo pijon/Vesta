@@ -50,7 +50,7 @@ export function ReloadPrompt() {
     return (
         <div className="ReloadPrompt-container">
             {needRefresh && (
-                <div className="fixed bottom-4 right-4 p-4 bg-charcoal text-stone rounded-xl shadow-lg z-50 flex flex-col gap-2 border border-hearth/50">
+                <div className="fixed top-20 right-4 p-4 bg-charcoal text-stone rounded-xl shadow-lg z-[100] flex flex-col gap-2 border border-hearth/50 animate-in fade-in slide-in-from-top-2">
                     <div className="text-sm font-bold">New version available!</div>
                     <div className="text-xs opacity-80">Reload to update Vesta.</div>
                     <div className="flex gap-2 mt-1">
