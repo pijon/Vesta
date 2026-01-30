@@ -662,6 +662,54 @@ export const App: React.FC = () => {
         }
     }, []);
 
+
+    // Hard Version Check
+    useEffect(() => {
+        const checkVersion = async () => {
+            // Only run in production
+            if (import.meta.env.DEV) return;
+
+            try {
+                // Fetch the version.json with a cache-busting timestamp
+                const res = await fetch(`/version.json?t=${Date.now()}`);
+                if (!res.ok) return;
+
+                const remoteVersion = await res.json();
+                const localVersion = localStorage.getItem('vesta_version');
+
+                if (localVersion && JSON.parse(localVersion).hash !== remoteVersion.hash) {
+                    console.log('New version detected. Reloading...');
+                    localStorage.setItem('vesta_version', JSON.stringify(remoteVersion));
+
+                    // Unregister service workers 
+                    if ('serviceWorker' in navigator) {
+                        const registations = await navigator.serviceWorker.getRegistrations();
+                        for (let registration of registations) {
+                            await registration.unregister();
+                        }
+                    }
+
+                    // Force hard reload
+                    window.location.reload();
+                } else if (!localVersion) {
+                    // First run with versioning, just set it
+                    localStorage.setItem('vesta_version', JSON.stringify(remoteVersion));
+                }
+            } catch (err) {
+                console.error("Version check failed", err);
+            }
+        };
+
+        // Check on mount and on visibility change
+        checkVersion();
+        const handleVisibilityDetails = () => {
+            if (document.visibilityState === 'visible') checkVersion();
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityDetails);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityDetails);
+    }, []);
+
     return (
         <AuthProvider>
             <DevModeProvider>
