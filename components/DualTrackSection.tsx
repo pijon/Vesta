@@ -326,21 +326,24 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {displayedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center rounded-xl border border-charcoal/5 dark:border-white/5 bg-charcoal/5 dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group gap-3"
+                  className="p-4 flex gap-3 items-stretch rounded-xl border border-charcoal/5 dark:border-white/5 bg-charcoal/5 dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center flex-shrink-0 text-hearth">
-                      <svg width="18" height="18" viewBox="0 -4.83 52 52" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><g transform="translate(-788.946 -1785.428)"><path d="M814.946,1793.095a24,24,0,0,0-24,24h48A24,24,0,0,0,814.946,1793.095Z" /><line x2="48" transform="translate(790.946 1825.761)" /><line y2="5.667" transform="translate(814.946 1787.428)" /></g></svg>
+                  <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center flex-shrink-0 text-hearth mt-1">
+                    <svg width="18" height="18" viewBox="0 -4.83 52 52" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><g transform="translate(-788.946 -1785.428)"><path d="M814.946,1793.095a24,24,0,0,0-24,24h48A24,24,0,0,0,814.946,1793.095Z" /><line x2="48" transform="translate(790.946 1825.761)" /><line y2="5.667" transform="translate(814.946 1787.428)" /></g></svg>
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div className="flex justify-between items-start">
+                      <p className="font-medium text-charcoal dark:text-stone-200 truncate leading-tight">{item.name}</p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-charcoal dark:text-stone-200 truncate">{item.name}</p>
-                      <div className="flex gap-2 flex-wrap items-center mt-1">
+
+                    <div className="flex justify-between items-end mt-1 gap-2">
+                      <div className="flex gap-2 flex-wrap items-center">
                         <span className="text-xs text-charcoal/60 dark:text-stone-400">
                           {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="text-xs font-bold text-hearth">{item.calories} kcal</span>
 
-                        {/* Type Tag */}
                         {(item.type || item.tags?.[0]) && (
                           <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -348,45 +351,43 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                           </span>
                         )}
 
-                        {/* Leftover Tag */}
                         {item.isLeftover && (
                           <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Leftover from previous day">
-                            <span className="text-[10px]">♻️</span> leftover
+                            <span className="text-[10px]">♻️</span>
                           </span>
                         )}
 
-                        {/* Packed Tag */}
                         {item.isPacked && (
                           <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Packed Lunch">
                             <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><g transform="translate(1.000000, 2.000000)"><rect x="0" y="0" width="16" height="2" /><path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" /></g></svg>
-                            packed
                           </span>
                         )}
                       </div>
+
+                      {/* Actions */}
+                      <div className="flex justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleStartEditFood(item)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-charcoal/5 dark:hover:bg-white/10"
+                          title="Edit entry"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFood(item.id)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
+                          title="Delete entry"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  {/* Actions - Visible on mobile (bottom row), Hover on Desktop */}
-                  <div className="flex justify-end gap-1 mt-1 md:mt-0 py-1 md:py-0 border-t md:border-t-0 border-dashed border-charcoal/10 dark:border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleStartEditFood(item)}
-                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-charcoal/5 dark:hover:bg-white/10"
-                      title="Edit entry"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9"></path>
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFood(item.id)}
-                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
-                      title="Delete entry"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                    </button>
                   </div>
                 </div>
               ))}
@@ -395,49 +396,54 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {displayedWorkouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center rounded-xl border border-charcoal/5 dark:border-white/5 bg-charcoal/5 dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group gap-3"
+                  className="p-4 flex gap-3 items-stretch rounded-xl border border-charcoal/5 dark:border-white/5 bg-charcoal/5 dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group"
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-8 h-8 bg-workout-bg rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32" fill="currentColor" stroke="none" style={{ color: 'var(--workout)' }}>
-                        <path d="M24,13.5V10c0-4.4-3.6-8-8-8s-8,3.6-8,8v3.5c-1.9,2-3,4.6-3,7.5c0,3.5,1.6,6.7,4.4,8.8C9.6,29.9,9.8,30,10,30h12
-	c0.2,0,0.4-0.1,0.6-0.2c2.8-2.1,4.4-5.3,4.4-8.8C27,18.1,25.9,15.4,24,13.5z M10,11.8V10c0-3.3,2.7-6,6-6s6,2.7,6,6v1.8
-	c-1.7-1.1-3.8-1.8-6-1.8S11.7,10.7,10,11.8z M22,20.1c-0.1,0-0.2,0-0.3,0c-0.4,0-0.8-0.3-1-0.7c-0.3-1.1-1.1-2-2-2.6
-	c-0.5-0.3-0.6-0.9-0.3-1.4c0.3-0.5,0.9-0.6,1.4-0.3c1.3,0.9,2.3,2.2,2.8,3.7C22.8,19.4,22.5,19.9,22,20.1z"/>
-                      </svg>
-                    </div>
-                    <div>
+                  <div className="w-8 h-8 bg-workout-bg rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32" fill="currentColor" stroke="none" style={{ color: 'var(--workout)' }}>
+                      <path d="M24,13.5V10c0-4.4-3.6-8-8-8s-8,3.6-8,8v3.5c-1.9,2-3,4.6-3,7.5c0,3.5,1.6,6.7,4.4,8.8C9.6,29.9,9.8,30,10,30h12
+    c0.2,0,0.4-0.1,0.6-0.2c2.8-2.1,4.4-5.3,4.4-8.8C27,18.1,25.9,15.4,24,13.5z M10,11.8V10c0-3.3,2.7-6,6-6s6,2.7,6,6v1.8
+    c-1.7-1.1-3.8-1.8-6-1.8S11.7,10.7,10,11.8z M22,20.1c-0.1,0-0.2,0-0.3,0c-0.4,0-0.8-0.3-1-0.7c-0.3-1.1-1.1-2-2-2.6
+    c-0.5-0.3-0.6-0.9-0.3-1.4c0.3-0.5,0.9-0.6,1.4-0.3c1.3,0.9,2.3,2.2,2.8,3.7C22.8,19.4,22.5,19.9,22,20.1z"/>
+                    </svg>
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div className="flex justify-between items-start">
                       <p className="font-medium text-charcoal dark:text-stone-200">{workout.type}</p>
-                      <div className="flex gap-2 items-center mt-1">
+                    </div>
+
+                    <div className="flex justify-between items-end mt-1 gap-2">
+                      <div className="flex gap-2 items-center">
                         <span className="text-xs text-charcoal/60 dark:text-stone-400">
                           {new Date(workout.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="text-xs font-bold" style={{ color: 'var(--workout)' }}>-{workout.caloriesBurned} kcal</span>
                       </div>
+
+                      {/* Actions */}
+                      <div className="flex justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => onEditWorkout(workout)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-charcoal/5 dark:hover:bg-white/10"
+                          title="Edit workout"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteWorkout(workout.id)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
+                          title="Delete workout"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  {/* Actions */}
-                  <div className="flex justify-end gap-1 mt-1 md:mt-0 py-1 md:py-0 border-t md:border-t-0 border-dashed border-charcoal/10 dark:border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => onEditWorkout(workout)}
-                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-charcoal/5 dark:hover:bg-white/10"
-                      title="Edit workout"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9"></path>
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteWorkout(workout.id)}
-                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
-                      title="Delete workout"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                    </button>
                   </div>
                 </div>
               ))}
