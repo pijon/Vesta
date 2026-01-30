@@ -251,6 +251,22 @@
     /* #F2CC8F */
     --weight: var(--color-sage);
     --workout: var(--color-charcoal);
+    /* Explicitly define RGBA values for Light Mode Tints */
+    --calories-bg: rgba(224, 122, 95, 0.1);
+    /* Hearth/Terracotta tint */
+    --workout-bg: rgba(61, 64, 91, 0.08);
+    /* Charcoal tint (Plan items) */
+    --water-bg: rgba(123, 174, 188, 0.15);
+    /* Ocean tint */
+    --weight-bg: rgba(129, 178, 154, 0.15);
+    /* Sage tint */
+    --warning-bg: rgba(242, 204, 143, 0.15);
+    /* Amber/Flame tint */
+    --error-bg: rgba(224, 122, 95, 0.1);
+    /* Rose/Hearth tint */
+
+    --error: var(--color-rose-500);
+    --warning: var(--color-amber-500);
 
     --border: rgba(61, 64, 91, 0.1);
     --input-bg: #FFFFFF;
@@ -264,6 +280,15 @@
     --card-bg: rgba(255, 255, 255, 0.08);
     --border: rgba(255, 255, 255, 0.1);
     --input-bg: rgba(255, 255, 255, 0.05);
+
+    --calories-bg: rgba(224, 122, 95, 0.15);
+    --workout-bg: rgba(244, 241, 222, 0.1);
+    /* Stone/Charcoal tint */
+    --water-bg: rgba(123, 174, 188, 0.15);
+    --weight-bg: rgba(129, 178, 154, 0.15);
+    --warning-bg: rgba(242, 204, 143, 0.15);
+    --error-bg: rgba(224, 122, 95, 0.15);
+    /* Using Hearth/Rose */
 
     --text-main: var(--color-stone);
     --text-muted: rgba(244, 241, 222, 0.6);
@@ -306,7 +331,8 @@
 
   /* Glass Effect from Mockup */
   .glass-card {
-    background: var(--card-bg); /* Default, but overridable */
+    background: var(--card-bg);
+    /* Default, but overridable */
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.5);
     @apply shadow-soft;

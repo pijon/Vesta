@@ -35,7 +35,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       match /days/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (
+          request.auth.uid == userId ||
+          isFamilyMember(request.auth.uid, userId)
+        );
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
       match /summaries/{document=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -44,7 +48,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       match /shopping/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (
+          request.auth.uid == userId ||
+          isFamilyMember(request.auth.uid, userId)
+        );
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
       match /fasting/{document=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;

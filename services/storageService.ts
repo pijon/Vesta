@@ -1,4 +1,5 @@
 import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, RecipeReference, CustomMealInstance } from "../types";
+import { getUserGroup, getGroupMembersDetails } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit } from "firebase/firestore";
@@ -604,6 +605,121 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
   } catch (e) {
     console.error("Error fetching day plans in range:", e);
     return {};
+  }
+};
+
+/**
+ * Fetches DayPlans for all family members for a range of dates.
+ * Merges them into a single view (User's plan is base, others are added to meals array).
+ */
+export const getFamilyPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
+  const user = auth.currentUser;
+  if (!user) return {};
+
+  try {
+    // 1. Get Group & Members
+    const group = await getUserGroup();
+    if (!group) {
+      // Fallback to single user mode
+      return getDayPlansInRange(startDate, endDate);
+    }
+
+    // 2. Get Member Details (for names)
+    const memberDetails = await getGroupMembersDetails(group.memberIds);
+    const memberNameMap = new Map(memberDetails.map(m => [m.id, m.name]));
+
+    // 3. Fetch Plans for ALL members in parallel
+    const allMemberPlans: Record<string, DayPlan>[] = await Promise.all(
+      group.memberIds.map(async (memberId) => {
+        // We reuse logic similar to 'getDayPlansInRange' but targeted at a specific user
+        const q = query(
+          collection(db, 'users', memberId, 'days'),
+          where('date', '>=', startDate),
+          where('date', '<=', endDate)
+        );
+
+        const snapshot = await getDocs(q);
+        const memberPlans: Record<string, DayPlan> = {};
+
+        for (const doc of snapshot.docs) {
+          const rawPlan = doc.data() as { date: string; meals: PlannedMeal[] };
+
+          // Hydrate meals
+          const hydratedMeals = rawPlan.meals ? await hydratePlannedMeals(rawPlan.meals) : [];
+
+          // TAG MEALS WITH OWNER INFO
+          const taggedMeals = hydratedMeals.map(meal => ({
+            ...meal,
+            ownerId: memberId,
+            ownerName: memberNameMap.get(memberId) || 'Family Member',
+            isShared: memberId !== user.uid // Mark as shared if not mine
+          }));
+
+          memberPlans[rawPlan.date] = {
+            ...rawPlan,
+            meals: taggedMeals,
+            completedMealIds: (doc.data() as any).completedMealIds || []
+          } as DayPlan;
+        }
+
+        return memberPlans;
+      })
+    );
+
+    // 4. Merge Logic
+    // Base: Current User's Plan (to preserve their tips, type, etc.)
+    // We start with a constructed object of all dates in range to ensure continuity
+    const mergedPlans: Record<string, DayPlan> = {};
+
+    // Helper to initialize a date
+    const initDate = (date: string) => {
+      if (!mergedPlans[date]) {
+        mergedPlans[date] = { date, meals: [], completedMealIds: [] };
+      }
+    };
+
+    // Flatten all plans into mergedPlans
+    allMemberPlans.forEach(memberPlanMap => {
+      Object.entries(memberPlanMap).forEach(([date, plan]) => {
+        initDate(date);
+
+        // If it's the current user, lay down the foundation (type, tips, etc.)
+        const isCurrentUser = plan.meals.length > 0 && plan.meals[0].ownerId === user.uid;
+
+        if (isCurrentUser) {
+          // Preserve my metadata
+          if (!mergedPlans[date].type && plan.type) mergedPlans[date].type = plan.type;
+          if (!mergedPlans[date].tips && plan.tips) mergedPlans[date].tips = plan.tips;
+          if (!mergedPlans[date].totalCalories && plan.totalCalories) mergedPlans[date].totalCalories = plan.totalCalories;
+          mergedPlans[date].completedMealIds.push(...plan.completedMealIds);
+        }
+
+        // Aggregate meals
+        mergedPlans[date].meals.push(...plan.meals);
+      });
+    });
+
+    // 5. Fill gaps with defaults (like 'fast' day defaults) if needed
+    // (Reusing logic from getDayPlansInRange for specific defaults)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      if (!mergedPlans[dateStr]) {
+        // If no one has a plan, default to empty (or fast day logic if we want)
+        mergedPlans[dateStr] = { date: dateStr, meals: [], completedMealIds: [], type: 'fast' };
+      } else if (!mergedPlans[dateStr].type) {
+        // Default type
+        mergedPlans[dateStr].type = 'fast';
+      }
+    }
+
+    return mergedPlans;
+
+  } catch (e) {
+    console.error("Error fetching family plans:", e);
+    // Fallback safely
+    return getDayPlansInRange(startDate, endDate);
   }
 };
 

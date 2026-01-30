@@ -125,7 +125,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {auth.currentUser?.uid && (
                             <button
                                 onClick={handleCopyId}
-                                className="group flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-white/5/80 border border-border/50 hover:bg-white dark:bg-white/5 hover:border-calories-border/50 transition-all cursor-pointer"
+                                className="group flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-charcoal/5 dark:bg-white/5 border border-border/50 hover:bg-charcoal/10 dark:hover:bg-white/10 hover:border-calories-border/50 transition-all cursor-pointer"
                                 title="Click to copy User ID"
                             >
                                 <span className="text-[10px] uppercase font-bold text-charcoal/60 dark:text-stone-400 group-hover:text-charcoal dark:text-stone-200 transition-colors tracking-wider">

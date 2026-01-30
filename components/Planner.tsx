@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan, getUpcomingPlan, getDayPlansInRange } from '../services/storageService';
+import { getWeeklyPlan, saveDayPlan, getRecipes, getDayPlan, getUpcomingPlan, getDayPlansInRange, getFamilyPlansInRange } from '../services/storageService';
 
 import { Recipe, DayPlan } from '../types';
 
@@ -61,12 +61,21 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     }, []);
 
     useEffect(() => {
-        getDayPlan(selectedDate).then(plan => {
-            console.log("Planner loaded plan for", selectedDate, plan);
-            setDayPlan(plan);
+        // Refresh weekly plans (and current day) using Family Logic
+        const today = new Date().toISOString().split('T')[0];
+        const end = new Date();
+        end.setDate(end.getDate() + 14); // Fetch 2 weeks out to be safe
+        const endDate = end.toISOString().split('T')[0];
+
+        // Load the specific day (merged)
+        getFamilyPlansInRange(selectedDate, selectedDate).then(plans => {
+            const plan = plans[selectedDate];
+            console.log("Planner loaded family plan for", selectedDate, plan);
+            setDayPlan(plan || { date: selectedDate, meals: [], completedMealIds: [] });
         });
-        // Refresh weekly plans too, as saving a day affects the view
-        getUpcomingPlan(7).then(setWeekPlans);
+
+        // Refresh cache for scroll view
+        getFamilyPlansInRange(today, endDate).then(setWeekPlans);
     }, [selectedDate]);
 
     const handleRecipeSelect = (recipe: Recipe) => {
@@ -303,7 +312,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                         flex-shrink-0 w-[4.5rem] h-24 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 snap-center border
                                         ${isSelected
                                             ? 'bg-hearth text-white shadow-lg shadow-hearth/30 border-hearth transform -translate-y-1'
-                                            : 'bg-white dark:bg-white/5 border-stone-200 dark:border-white/5 text-charcoal/60 dark:text-stone-400 hover:border-hearth/50 hover:shadow-sm'
+                                            : 'bg-charcoal/5 dark:bg-white/5 border-charcoal/5 dark:border-white/5 text-charcoal/60 dark:text-stone-400 hover:border-hearth/50 hover:shadow-sm'
                                         }
                                         ${isFast && !isSelected ? 'bg-[var(--color-flame)]/10 dark:bg-[var(--color-flame)]/5 border-[var(--color-flame)]/30' : ''}
                                     `}
@@ -321,7 +330,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                             <div className="w-1.5 h-1.5 rounded-full bg-hearth/40" title="Today" />
                                         )}
                                         {hasMeals && (
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-sage-500'} `} />
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-sage'} `} />
                                         )}
                                         {isFast && !isSelected && (
                                             <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-flame)]" title="Fast Day" />
@@ -385,7 +394,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                         {/* Meals List */}
                         <div className="space-y-4">
                             {(!dayPlan || dayPlan.meals.length === 0) ? (
-                                <div className="text-center py-24 text-charcoal/40 dark:text-stone-500 border-2 border-dashed border-charcoal/5 dark:border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4">
+                                <div className="text-center py-24 text-charcoal/40 dark:text-stone-400 border-2 border-dashed border-charcoal/5 dark:border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4">
                                     <div className="w-16 h-16 rounded-full bg-stone-100 dark:bg-white/5 flex items-center justify-center text-3xl">
                                         🍽️
                                     </div>
@@ -396,7 +405,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                 </div>
                             ) : (
                                 dayPlan.meals.map((meal, index) => (
-                                    <div key={index} className="group relative bg-white dark:bg-white/5 hover:bg-stone-50 dark:hover:bg-white/10 rounded-3xl p-5 md:p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-stone-200 dark:border-white/5 flex gap-6 items-center">
+                                    <div key={index} className="group relative bg-charcoal/5 dark:bg-white/5 hover:bg-charcoal/10 dark:hover:bg-white/10 rounded-3xl p-5 md:p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-charcoal/5 dark:border-white/5 flex gap-6 items-center">
                                         {/* Time / Type Indicator */}
 
 
@@ -413,31 +422,38 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="text-xl font-serif text-charcoal dark:text-stone-200 line-clamp-2">{meal.name}</h3>
+                                            <div className="flex justify-between items-start">
+                                                <h3 className="text-xl font-serif text-charcoal dark:text-stone-200 line-clamp-2">{meal.name}</h3>
+                                                {meal.isShared && (
+                                                    <span className="ml-2 px-2 py-0.5 rounded-full bg-hearth/10 text-hearth dark:bg-hearth/20 dark:text-hearth-light text-[10px] font-bold uppercase tracking-wide border border-hearth/20 whitespace-nowrap">
+                                                        {meal.ownerName?.split(' ')[0] || 'Partner'}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex flex-wrap gap-2 mt-2">
-                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                                     {(meal.tags?.[0] || 'meal').toLowerCase()}
                                                 </span>
-                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>
                                                     {meal.calories} kcal
                                                 </span>
-                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                                     {meal.prepTime || 15}m
                                                 </span>
-                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1">
+                                                <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                                     {meal.cookingServings || meal.servings || 2} ppl
                                                 </span>
                                                 {meal.isLeftover && (
-                                                    <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Leftover from previous day">
+                                                    <span className="text-xs font-bold text-stone-500 dark:text-stone-400 flex items-center gap-1" title="Leftover from previous day">
                                                         <span className="text-[10px]">♻️</span> leftover
                                                     </span>
                                                 )}
                                                 {meal.isPacked && (
-                                                    <span className="text-xs font-bold text-charcoal/40 dark:text-stone-500 flex items-center gap-1" title="Packed Lunch">
+                                                    <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1" title="Packed Lunch">
                                                         <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                                                             <g transform="translate(1.000000, 2.000000)">
                                                                 <rect x="0" y="0" width="16" height="2" />
@@ -459,24 +475,30 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                             </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); togglePacked(index); }}
-                                                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-[var(--color-ocean)]/10 text-[var(--color-ocean)] dark:bg-[var(--color-ocean)]/20' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 hover:bg-[var(--color-ocean)]/10 hover:text-[var(--color-ocean)]'} `}
-                                                title="Toggle Packed Lunch"
-                                            >
-                                                <svg width="18" height="18" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                                    <g transform="translate(1.000000, 2.000000)">
-                                                        <rect x="0" y="0" width="16" height="2" />
-                                                        <path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" />
-                                                    </g>
-                                                </svg>
-                                            </button>
-                                            <button
-                                                onClick={() => removeMeal(index)}
-                                                className="w-11 h-11 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                            </button>
+
+                                            {/* Only show edit/delete actions if NOT shared */}
+                                            {!meal.isShared && (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); togglePacked(index); }}
+                                                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-[var(--color-ocean)]/10 text-[var(--color-ocean)] dark:bg-[var(--color-ocean)]/20' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-400 hover:bg-[var(--color-ocean)]/10 hover:text-[var(--color-ocean)]'} `}
+                                                        title="Toggle Packed Lunch"
+                                                    >
+                                                        <svg width="18" height="18" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                            <g transform="translate(1.000000, 2.000000)">
+                                                                <rect x="0" y="0" width="16" height="2" />
+                                                                <path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" />
+                                                            </g>
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => removeMeal(index)}
+                                                        className="w-11 h-11 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-400 flex items-center justify-center hover:bg-hearth/10 hover:text-hearth dark:hover:bg-hearth/20 dark:hover:text-hearth-light transition-colors"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 ))

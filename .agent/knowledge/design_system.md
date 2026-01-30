@@ -147,6 +147,16 @@ Use the pre-defined badge classes:
 - Light: `border-charcoal/5` or `border-charcoal/10`
 - Dark: `border-white/5` or `border-white/10`
 
+### 4.4 Semantic Backgrounds (Tints)
+Use these variables for icon backgrounds/areas needing brand color tint:
+- `--calories-bg` (Hearth tint)
+- `--workout-bg` (Stone tint)
+- `--water-bg` (Ocean tint)
+- `--weight-bg` (Sage tint)
+- `--warning-bg` (Amber tint)
+- `--error-bg` (Rose tint)
+These automatically adjust opacity/color for dark mode.
+
 ---
 
 ## 5. Motion & Interaction

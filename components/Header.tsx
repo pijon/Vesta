@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {/* Dark Mode Toggle */}
                 <button
                     onClick={onToggleDarkMode}
-                    className="w-10 h-10 rounded-full bg-white/50 dark:bg-white/10 border border-white/20 dark:border-white/5 flex items-center justify-center text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/20 hover:text-hearth transition-all shadow-sm"
+                    className="w-10 h-10 rounded-full bg-charcoal/5 dark:bg-white/5 border border-white/20 dark:border-white/5 flex items-center justify-center text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/20 hover:text-hearth transition-all shadow-sm"
                     title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
                 >
                     {isDarkMode ? (
@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {/* Settings Button */}
                 <button
                     onClick={() => onNavigate(AppView.SETTINGS)}
-                    className="w-10 h-10 rounded-full bg-white/50 dark:bg-white/10 border border-white/20 dark:border-white/5 flex items-center justify-center text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/20 hover:text-hearth transition-all shadow-sm"
+                    className="w-10 h-10 rounded-full bg-charcoal/5 dark:bg-white/5 border border-white/20 dark:border-white/5 flex items-center justify-center text-charcoal/60 dark:text-stone-400 hover:bg-white dark:hover:bg-white/20 hover:text-hearth transition-all shadow-sm"
                     title="Settings"
                 >
                     <svg width="20" height="20" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor">

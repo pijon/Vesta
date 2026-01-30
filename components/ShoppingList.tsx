@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import {
-  getUpcomingPlan,
+  getFamilyPlansInRange,
   getPantryInventory,
   addToPantry,
   removeFromPantry,
@@ -23,7 +23,10 @@ interface PlanMeal {
   ingredients: string[];
   servings?: number;
   cookingServings?: number;
+
   isLeftover?: boolean;
+  isShared?: boolean;
+  ownerName?: string;
 }
 
 export const ShoppingList: React.FC = () => {
@@ -108,7 +111,15 @@ export const ShoppingList: React.FC = () => {
       migrateShoppingState();
 
       // Extract meals from weekly plan
-      const plan = await getUpcomingPlan(14); // Get next 2 weeks
+      // Extract meals from weekly plan (Family View)
+      const today = new Date();
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 14); // 2 weeks out
+
+      const plan = await getFamilyPlansInRange(
+        today.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0]
+      );
       const meals = extractMealsFromPlan(plan);
       setAvailableMeals(meals);
 
@@ -184,7 +195,10 @@ export const ShoppingList: React.FC = () => {
             ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
             servings: meal.servings,
             cookingServings: meal.cookingServings,
-            isLeftover: meal.isLeftover
+
+            isLeftover: meal.isLeftover,
+            isShared: meal.isShared,
+            ownerName: meal.ownerName
           });
         });
       }
@@ -616,8 +630,13 @@ export const ShoppingList: React.FC = () => {
                             <div>
                               <div className={`font-medium text-lg ${isSelected ? 'text-primary' : 'text-charcoal dark:text-stone-200'}`}>
                                 {meal.name}
+                                {meal.isShared && (
+                                  <span className="ml-2 px-2 py-0.5 rounded-full bg-hearth/10 text-hearth text-[10px] font-bold uppercase tracking-wide border border-hearth/20 whitespace-nowrap">
+                                    {meal.ownerName?.split(' ')[0] || 'Partner'}
+                                  </span>
+                                )}
                                 {meal.isLeftover && (
-                                  <span className="ml-2 text-xs font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 align-middle" title="Leftover from previous day">
+                                  <span className="ml-2 text-xs font-bold text-stone-500 bg-stone-100 dark:bg-white/10 dark:text-stone-400 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 align-middle" title="Leftover from previous day">
                                     ♻️ Leftover
                                   </span>
                                 )}

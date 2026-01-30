@@ -24,7 +24,7 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
     const TrophyClass = isActive ? "text-flame drop-shadow-md" : "text-charcoal/10 dark:text-white/5";
 
     return (
-        <div className={`glass-card p-5 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.01] hover:shadow-xl dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
+        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.01] hover:shadow-xl dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
             {/* Gradient Defs */}
             <svg width="0" height="0" className="absolute">
                 <defs>
@@ -38,10 +38,17 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
             {/* Header: Standard Bento Grid Header */}
             <div className="relative z-10 flex justify-between items-start w-full shrink-0">
                 <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Activity</h3>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                    {/* Compact Header Streak Badge */}
+                    <div className={`flex items-center gap-1 bg-charcoal/5 dark:bg-white/5 px-2 py-1 rounded-full ${isActive ? 'opacity-100' : 'opacity-50'}`}>
+                        <StreakFlame className="w-3 h-3 text-flame" isActive={isActive} />
+                        <span className="font-sans font-bold text-[10px] text-charcoal dark:text-stone-200">
+                            {currentStreak}
+                        </span>
+                    </div>
                     <button
                         onClick={(e) => { e.stopPropagation(); onAddWorkout(); }}
-                        className="bg-white/50 dark:bg-white/10 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
+                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
@@ -53,9 +60,9 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
             {/* Content Body: Trophy & Stats */}
             <div className="flex flex-row items-center justify-between flex-1 w-full relative z-0">
                 {/* Left: Trophy Case */}
-                <div className="flex-1 flex items-center justify-center h-full">
+                <div className={`flex-1 flex items-center justify-center h-full ${size === 'sm' ? '-ml-2' : ''}`}>
                     <div className={`relative transition-all duration-500 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-50'}`}>
-                        <TrophyIcon className={`w-24 h-24 md:w-28 md:h-28 ${TrophyClass} transition-all duration-500`} />
+                        <TrophyIcon className={`w-12 h-12 md:w-28 md:h-28 ${TrophyClass} transition-all duration-500`} />
                         {/* Glow effect for active state */}
                         {isActive && (
                             <div className="absolute inset-0 bg-hearth/20 blur-3xl rounded-full -z-10 animate-pulse"></div>
@@ -66,18 +73,12 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                 {/* Right: Stats & Streak */}
                 <div className="flex flex-col justify-center items-end h-full gap-4 pl-2 z-10">
 
-                    {/* Streak Badge */}
-                    <div className="flex items-center gap-1.5 bg-white/50 dark:bg-white/5 px-2.5 py-1 rounded-full border border-charcoal/5 dark:border-white/5 backdrop-blur-sm">
-                        <StreakFlame className="w-3.5 h-3.5 text-flame" isActive={isActive} />
-                        <span className="font-sans font-bold text-[10px] md:text-xs uppercase tracking-widest text-charcoal dark:text-stone-200">
-                            {currentStreak} Day Streak
-                        </span>
-                    </div>
+
 
                     {/* Main Stats */}
                     <div className="text-right">
                         <div className="flex flex-col">
-                            <span className="font-serif text-4xl md:text-5xl text-charcoal dark:text-stone-200 leading-none">
+                            <span className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-4xl md:text-5xl'} text-charcoal dark:text-stone-200 leading-none`}>
                                 {caloriesBurned}
                             </span>
                             <span className="font-sans text-[10px] font-bold uppercase tracking-widest text-charcoal/60 dark:text-stone-400 mt-0.5">
@@ -86,12 +87,7 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                         </div>
                     </div>
 
-                    {/* Secondary Stat */}
-                    <div className="text-right opacity-80">
-                        <p className="font-serif text-sm text-charcoal dark:text-stone-300">
-                            {workoutsCompleted}/{workoutsGoal} <span className="text-[10px] font-sans text-charcoal/60 dark:text-stone-500 uppercase">Sessions</span>
-                        </p>
-                    </div>
+
                 </div>
             </div>
         </div>
@@ -157,7 +153,7 @@ export const CaloriesRemainingCard: React.FC<{
                 <div className="flex gap-2">
                     <button
                         onClick={(e) => { e.stopPropagation(); onLogFood(); }}
-                        className="bg-white/50 dark:bg-white/10 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
+                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
@@ -265,7 +261,7 @@ export const WeightCard: React.FC<{ weight: number; change: number; history: Wei
 
     return (
         <div className={`glass-card p-4 md:p-6 rounded-3xl ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
-            <div className="relative z-10 flex justify-between items-center mb-2">
+            <div className="relative z-10 flex justify-between items-start mb-2">
                 <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Weight</h3>
                 <div className="flex gap-2 items-center">
                     <span className={`text-[10px] font-bold ${change <= 0 ? 'text-sage' : 'text-flame'}`}>
@@ -273,7 +269,7 @@ export const WeightCard: React.FC<{ weight: number; change: number; history: Wei
                     </span>
                     <button
                         onClick={(e) => { e.stopPropagation(); onAddWeight(); }}
-                        className="bg-white/50 dark:bg-white/10 p-1.5 rounded-full text-sage dark:text-sage/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
+                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-sage dark:text-sage/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeWidth="3" d="M12 4v16m8-8H4"></path>

@@ -51,6 +51,7 @@ These rules are strictly enforced. Deviations will be rejected by the user.
 4.  **Identifiers:** Use `crypto.randomUUID()` for creating new IDs.
 5.  **Mobile-First:** Write `class="flex flex-col md:flex-row"`. Always assume mobile view first (approx 375px width).
 6.  **Components:** Functional components only. PascalCase. Keep components clear and focused.
+7.  **CSS Variables:** NEVER use a CSS variable (e.g. `var(--calories-bg)`) without FIRST verifying it is defined in `index.css` for both `:root` and `.dark`.
 
 ### C. Folder Structure
 -   `/` (Root) - Contains `App.tsx`, `index.tsx`, `vite.config.ts`, `types.ts`.
