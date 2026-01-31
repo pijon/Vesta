@@ -175,9 +175,10 @@ const dehydrateMeal = (meal: Recipe): PlannedMeal => {
 };
 
 // Helper to get a single recipe
-export const getRecipe = async (id: string): Promise<Recipe | null> => {
+export const getRecipe = async (id: string, userId?: string): Promise<Recipe | null> => {
   try {
-    const docSnap = await getDoc(getDocRef('recipes', id));
+    const targetUserId = userId || getUserId();
+    const docSnap = await getDoc(doc(db, 'users', targetUserId, 'recipes', id));
     if (docSnap.exists()) return docSnap.data() as Recipe;
     return null;
   } catch (e) {
@@ -190,7 +191,7 @@ export const getRecipe = async (id: string): Promise<Recipe | null> => {
  * Hydrates PlannedMeal[] (from Firestore) back to Recipe[] (for UI display).
  * Handles both RecipeReference and CustomMealInstance types.
  */
-const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[]> => {
+const hydratePlannedMeals = async (plannedMeals: PlannedMeal[], userId?: string): Promise<Recipe[]> => {
   if (!plannedMeals || plannedMeals.length === 0) return [];
 
   const hydrated: Recipe[] = [];
@@ -210,7 +211,7 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[
   // Fetch all referenced recipes in parallel
   const recipeIds = [...new Set(references.map(r => r.recipeId))];
   const fetchedRecipes = await Promise.all(
-    recipeIds.map(id => getRecipe(id))
+    recipeIds.map(id => getRecipe(id, userId))
   );
   const recipeMap = new Map(fetchedRecipes.filter(r => r !== null).map(r => [r!.id, r!]));
 
@@ -645,7 +646,7 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
           const rawPlan = doc.data() as { date: string; meals: PlannedMeal[] };
 
           // Hydrate meals
-          const hydratedMeals = rawPlan.meals ? await hydratePlannedMeals(rawPlan.meals) : [];
+          const hydratedMeals = rawPlan.meals ? await hydratePlannedMeals(rawPlan.meals, memberId) : [];
 
           // TAG MEALS WITH OWNER INFO
           const taggedMeals = hydratedMeals.map(meal => ({
