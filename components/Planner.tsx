@@ -405,7 +405,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                 </div>
                             ) : (
                                 dayPlan.meals.map((meal, index) => (
-                                    <div key={index} className="group relative bg-charcoal/5 dark:bg-white/5 hover:bg-charcoal/10 dark:hover:bg-white/10 rounded-3xl p-3 md:p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-charcoal/5 dark:border-white/5 flex gap-3 md:gap-6 items-stretch">
+                                    <div key={index}
+                                        onClick={() => setSelectedRecipe(meal)}
+                                        className="group relative bg-charcoal/5 dark:bg-white/5 hover:bg-charcoal/10 dark:hover:bg-white/10 rounded-3xl p-3 md:p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-charcoal/5 dark:border-white/5 flex gap-3 md:gap-6 items-stretch cursor-pointer"
+                                    >
                                         {/* Image */}
                                         <div className="w-16 h-16 md:w-28 md:h-28 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 bg-stone dark:bg-stone-800">
                                             {meal.image ? (
@@ -464,7 +467,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                 {/* Actions (Bottom Right) */}
                                                 <div className="flex gap-2 flex-shrink-0">
                                                     <button
-                                                        onClick={() => setCookingModeRecipe(meal)}
+                                                        onClick={(e) => { e.stopPropagation(); setCookingModeRecipe(meal); }}
                                                         className="w-8 h-8 md:w-11 md:h-11 rounded-full bg-hearth/10 dark:bg-white/5 text-hearth dark:text-stone-300 flex items-center justify-center hover:bg-hearth hover:text-white dark:hover:bg-hearth dark:hover:text-white transition-all shadow-sm"
                                                         title="Start Cooking Mode"
                                                     >
@@ -486,7 +489,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                                 </svg>
                                                             </button>
                                                             <button
-                                                                onClick={() => removeMeal(index)}
+                                                                onClick={(e) => { e.stopPropagation(); removeMeal(index); }}
                                                                 className="w-8 h-8 md:w-11 md:h-11 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-400 flex items-center justify-center hover:bg-hearth/10 hover:text-hearth dark:hover:bg-hearth/20 dark:hover:text-hearth-light transition-colors"
                                                             >
                                                                 <svg className="w-3.5 h-3.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
