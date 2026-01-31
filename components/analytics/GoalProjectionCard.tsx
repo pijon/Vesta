@@ -9,14 +9,16 @@ interface GoalProjectionCardProps {
   stats: UserStats;
 }
 
+import { WeightProjectionChart } from './WeightProjectionChart';
+
 export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAnalysis, stats }) => {
   const {
     totalLoss,
     remainingLoss,
     percentToGoal,
-    projectedGoalDate,
     daysToGoal,
-    trend
+    trend,
+    projectedDailyRate
   } = weightAnalysis;
 
   const getTrendColor = () => {
@@ -35,7 +37,8 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
   const getTrendMessage = () => {
     if (trend === 'losing' && daysToGoal) {
       if (remainingLoss <= 0) return 'Goal achieved! Maintaining healthy balance.';
-      return 'On track to reach your health goal!';
+      const ratePerWeek = (projectedDailyRate * 7).toFixed(1);
+      return `On track! Losing ~${ratePerWeek}kg / week`;
     } else if (trend === 'maintaining') {
       return 'Weight is stable. Consider adjusting your plan.';
     } else if (trend === 'gaining') {
@@ -56,7 +59,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-xl md:text-2xl font-serif font-normal text-charcoal dark:text-stone-200 mb-1">
-              {remainingLoss <= 0 ? 'Goal Achieved' : 'Goal Projection'}
+              {remainingLoss <= 0 ? 'Goal Achieved' : 'Journey Projection'}
             </h2>
             <p className="text-sm text-charcoal/60 dark:text-stone-400">{getTrendMessage()}</p>
           </div>
@@ -69,7 +72,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
         </div>
 
         {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-8">
           {/* Total Weight Lost */}
           <div className="bg-white dark:bg-white/5/80 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/10">
             <div className="flex items-start justify-between mb-3">
@@ -98,7 +101,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
           <div className="bg-white dark:bg-white/5/80 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/10">
             <div className="flex items-start justify-between mb-3">
               <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">
-                {remainingLoss <= 0 ? 'Status' : 'Days to Goal'}
+                {remainingLoss <= 0 ? 'Status' : 'Est. Time'}
               </div>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-weight">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -122,7 +125,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
               </>
             ) : (
               <div className="text-sm text-charcoal/60 dark:text-stone-400 mt-4">
-                Keep logging weight to see projection
+                Keep logging...
               </div>
             )}
           </div>
@@ -153,10 +156,15 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
           </div>
         </div>
 
+        {/* Projection Chart */}
+        <div className="mb-6">
+          <WeightProjectionChart stats={stats} />
+        </div>
+
         {/* Progress Bar */}
-        <div className="mt-8">
+        <div>
           <div className="flex justify-between text-sm text-charcoal/60 dark:text-stone-400 mb-3">
-            <span>Progress to Goal</span>
+            <span>Overall Progress</span>
             <span className="font-semibold" style={{ color: getTrendColor() }}>
               {percentToGoal.toFixed(1)}%
             </span>

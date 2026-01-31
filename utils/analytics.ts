@@ -25,8 +25,16 @@ export interface WeightAnalysis {
  * Calculate linear regression for weight data
  * Returns slope (kg per day) and intercept
  */
-function linearRegression(weightHistory: WeightEntry[]): { slope: number; intercept: number; rSquared: number } {
+/**
+ * Calculate linear regression for weight data
+ * Returns slope (kg per day), intercept, and R-squared
+ */
+export function calculateRegressionLine(weightHistory: WeightEntry[]): { slope: number; intercept: number; rSquared: number } {
   const n = weightHistory.length;
+
+  if (n === 0) {
+    return { slope: 0, intercept: 0, rSquared: 0 };
+  }
 
   // Convert dates to days since first entry
   const firstDate = new Date(weightHistory[0].date).getTime();
@@ -48,7 +56,7 @@ function linearRegression(weightHistory: WeightEntry[]): { slope: number; interc
     denominator += (point.x - meanX) ** 2;
   }
 
-  const slope = numerator / denominator;
+  const slope = denominator === 0 ? 0 : numerator / denominator;
   const intercept = meanY - slope * meanX;
 
   // Calculate R² (coefficient of determination)
@@ -61,7 +69,7 @@ function linearRegression(weightHistory: WeightEntry[]): { slope: number; interc
     ssTot += (point.y - meanY) ** 2;
   }
 
-  const rSquared = 1 - (ssRes / ssTot);
+  const rSquared = ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
 
   return { slope, intercept, rSquared };
 }
@@ -147,7 +155,7 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
       }
 
       // Use linear regression for more accurate trend
-      const { slope, intercept, rSquared } = linearRegression(usedHistory);
+      const { slope, intercept, rSquared } = calculateRegressionLine(usedHistory);
 
       regressionData = {
         slope,
