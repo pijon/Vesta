@@ -7,6 +7,7 @@ import {
   DEFAULT_FEATURE_FLAGS
 } from "../constants";
 import { Recipe, DayPlan, FoodLogItem, PurchasableItem, FeatureFlags } from "../types";
+import { scrubPII } from "../utils/piiScrubber";
 
 // Helper to determine active model
 const getModel = (): string => {
@@ -117,7 +118,7 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
        - Remove unnecessary text like "Step 1:", just use the instruction
        - Be clear and concise
 
-    Recipe Text: "${text}"
+    Recipe Text: "${scrubPII(text)}"
   `;
 
   try {
@@ -183,7 +184,7 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
 
     TARGET: Approximately 800 calories total for the entire day
 
-    DIETARY PREFERENCES: "${preferences}"
+    DIETARY PREFERENCES: "${scrubPII(preferences)}"
 
     MEAL STRUCTURE:
     - Generate 2-3 meals (breakfast + 1-2 main meals OR breakfast + main meal + light snack)
@@ -305,7 +306,7 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
       {name: "1 slice toast", calories: 80}
     ]
 
-    User Input: "${text}"
+    User Input: "${scrubPII(text)}"
 
     Return empty array if text is too vague to identify specific foods.
   `;
@@ -455,9 +456,9 @@ export const planSpecificDays = async (
     recipeMap.set(simpleId, r.id);
     return {
       id: simpleId,
-      name: r.name,
+      name: scrubPII(r.name),
       calories: r.calories,
-      tags: r.tags
+      tags: r.tags?.map(scrubPII)
     };
   });
 
@@ -619,7 +620,7 @@ EXAMPLES:
           - The output array MUST have the same length as the input array
 
         Ingredient strings:
-        ${JSON.stringify(chunk)}
+        ${JSON.stringify(chunk.map(scrubPII))}
 `;
 
         try {
@@ -746,7 +747,7 @@ Output: {
 }
 
     Ingredients to convert:
-    ${JSON.stringify(aggregatedIngredients)}
+    ${JSON.stringify(aggregatedIngredients.map(i => ({ ...i, name: scrubPII(i.name) })))}
 `;
 
   try {
@@ -780,7 +781,7 @@ export const generateRecipeFromIngredients = async (
   const prompt = `
     You are an expert nutritionist.Create a single recipe using the ingredients provided.
 
-  AVAILABLE INGREDIENTS: ${ingredients.join(', ')}
+  AVAILABLE INGREDIENTS: ${ingredients.map(scrubPII).join(', ')}
 
 TARGET: ${targetCalories} calories per serving
     MEAL TYPE: ${mealType}
@@ -856,7 +857,7 @@ export const suggestSideDishes = async (mainMealName: string, mainMealCalories: 
   if (!apiKey) throw new Error("API Key not found");
 
   const prompt = SIDE_DISH_PROMPT
-    .replace("{mainMealName}", mainMealName)
+    .replace("{mainMealName}", scrubPII(mainMealName))
     .replace("{mainMealCalories}", mainMealCalories.toString());
 
   try {
