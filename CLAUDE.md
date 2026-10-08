@@ -1,121 +1,70 @@
 # CLAUDE.md
 
-## Agent Configuration (.agent Directory)
-Fast800-Tracker uses a structured `.agent` directory.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-### 📚 Knowledge Base
-- **Design System:** [.agent/knowledge/design_system.md](file:///Users/jon/Development/github/vista/.agent/knowledge/design_system.md) ⭐
-- **Architecture:** [.agent/knowledge/architecture.md](file:///Users/jon/Development/github/vista/.agent/knowledge/architecture.md)
-- **Data Schema:** [.agent/knowledge/data_schema.md](file:///Users/jon/Development/github/vista/.agent/knowledge/data_schema.md)
-- **UI Colors:** [.agent/knowledge/ui_colors.md](file:///Users/jon/Development/github/vista/.agent/knowledge/ui_colors.md)
-- **UI Spacing:** [.agent/knowledge/ui_spacing.md](file:///Users/jon/Development/github/vista/.agent/knowledge/ui_spacing.md)
+**Vesta** is a family-centric nutrition and meal-planning PWA ("Digital Hearth"): meal plans, food/workout/weight/hydration logging, fasting, recipes, shopping lists and family groups. React 19 + Vite + TypeScript + Tailwind v4, backed by Firebase (Auth, Firestore, Storage, Hosting) with Google Gemini for AI features. `agents.md` holds the long-form agent persona and rules; this file summarizes what matters.
 
-### 🛠️ Skills
-- **Development Guide:** [.agent/skills/development-guide/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/development-guide/SKILL.md)
-- **Feature Switch:** [.agent/skills/feature-switch/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/feature-switch/SKILL.md)
-- **Firebase Ops:** [.agent/skills/firebase-ops/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/firebase-ops/SKILL.md)
-- **Frontend Design:** [.agent/skills/frontend-design/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/frontend-design/SKILL.md)
-- **Brainstorming:** [.agent/skills/brainstorming/SKILL.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/skills/brainstorming/SKILL.md)
-
-### ⏩ Workflows
-- **Feature Development (Vigorous):** [.agent/workflows/feature-vigorous.md](file:///Users/jon/Development/github/Fast800-Tracker/.agent/workflows/feature-vigorous.md)
-  - *Use this for all new features. Enforces research, design, and mental simulation.*
-
-
-## Project Structure
-The project uses a flat structure (no `src/` folder):
-
-- **Root:** `App.tsx`, `index.tsx`, `vite.config.ts`, `types.ts`, `constants.ts`
-- **Directories:**
-  - `components/`: UI Components.
-  - `services/`: Business logic (Firebase, LocalStorage).
-  - `contexts/`: React Contexts.
-  - `utils/`: Utility functions.
-  - `.agent/`: AI Agent configuration.
-
-## Quick Reference
-1. **Design:** "Rich Aesthetics" - Glassmorphism, Emerald Accents.
-2. **Mobile-First:** Always test mobile responsiveness.
-3. **Safety:** No `any`, use semantic tokens, use `crypto.randomUUID()`.
-## Code Exploration with dora
-
-This codebase uses dora for fast code intelligence and architectural analysis.
-
-### IMPORTANT: Use dora for code exploration
-
-**ALWAYS use dora commands for code exploration instead of Grep/Glob/Find.**
-
-### All Commands
-
-**Overview:**
-
-- `dora status` - Check index health, file/symbol counts, last indexed time
-- `dora map` - Show packages, file count, symbol count
-
-**Files & Symbols:**
-
-- `dora ls [directory] [--limit N] [--sort field]` - List files in directory with metadata (symbols, deps, rdeps). Default limit: 100
-- `dora file <path>` - Show file's symbols, dependencies, and dependents
-- `dora symbol <query> [--kind type] [--limit N]` - Find symbols by name across codebase. Default limit: 20
-- `dora refs <symbol> [--kind type] [--limit N]` - Find all references to a symbol
-- `dora exports <path>` - List exported symbols from a file
-- `dora imports <path>` - Show what a file imports
-
-**Dependencies:**
-
-- `dora deps <path> [--depth N]` - Show file dependencies (what this imports). Default depth: 1
-- `dora rdeps <path> [--depth N]` - Show reverse dependencies (what imports this). Default depth: 1
-- `dora adventure <from> <to>` - Find shortest dependency path between two files
-
-**Code Health:**
-
-- `dora leaves [--max-dependents N]` - Find files with few/no dependents. Default: 0
-- `dora lost [--limit N]` - Find unused exported symbols. Default limit: 50
-- `dora treasure [--limit N]` - Find most referenced files and files with most dependencies. Default: 10
-
-**Architecture Analysis:**
-
-- `dora cycles [--limit N]` - Detect circular dependencies. Empty = good. Default: 50
-- `dora coupling [--threshold N]` - Find bidirectionally dependent file pairs. Default threshold: 5
-- `dora complexity [--sort metric]` - Show file complexity metrics (sort by: complexity, symbols, stability). Default: complexity
-
-**Change Impact:**
-
-- `dora changes <ref>` - Show files changed since git ref and their impact
-- `dora graph <path> [--depth N] [--direction type]` - Generate dependency graph. Direction: deps, rdeps, both. Default: both, depth 1
-
-**Documentation:**
-
-- `dora docs [--type TYPE]` - List all documentation files. Use --type to filter by md or txt
-- `dora docs search <query> [--limit N]` - Search through documentation content. Default limit: 20
-- `dora docs show <path> [--content]` - Show document metadata and references. Use --content to include full text
-
-**Note:** To find where a symbol/file is documented, use `dora symbol` or `dora file` which show a `documented_in` field.
-
-**Database:**
-
-- `dora schema` - Show database schema (tables, columns, indexes)
-- `dora cookbook show [recipe]` - Query patterns with real examples (quickstart, methods, references, exports)
-- `dora query "<sql>"` - Execute read-only SQL query against the database
-
-### When to Use Other Tools
-
-- **Read**: For reading file source code
-- **Grep**: Only for non-code files or when dora fails
-- **Edit/Write**: For making changes
-- **Bash**: For running commands/tests
-
-### Quick Workflow
+## Commands
 
 ```bash
-dora status                      # Check index health
-dora treasure                    # Find core files
-dora file <path>                 # Understand a file
-dora deps/rdeps <path>           # Navigate dependencies
-dora symbol <query>              # Find symbols (shows documented_in)
-dora refs <symbol>               # Find references
-dora docs                        # List all documentation
-dora docs search <query>         # Search documentation content
+npm install
+npm run dev          # Vite dev server on http://localhost:3000
+npm run build        # writes public/version.json, then vite build → dist/
+npm run preview
+npx tsc --noEmit     # type check (there is no lint or test script)
+firebase deploy --only hosting            # serves dist/ (SPA rewrite to index.html)
+firebase deploy --only firestore:rules    # also firestore:indexes, storage
 ```
 
-For detailed usage and examples, refer to `./dora/docs/SKILL.md`.
+- `GEMINI_API_KEY` must be set in `.env.local`; `vite.config.ts` injects it as `process.env.API_KEY` / `process.env.GEMINI_API_KEY`.
+- There is no test runner. `scripts/test-recipe-parsing.ts` is an ad-hoc script.
+- Admin scripts in `scripts/` (`copyRecipes.cjs`, `setDeveloperClaim.cjs <uid>`) need `scripts/serviceAccountKey.json`, which is gitignored. See `scripts/README.md`.
+
+## Architecture
+
+Flat layout with no `src/`: `App.tsx`, `index.tsx`, `types.ts` and `constants.ts` live at the root, alongside `components/`, `services/`, `contexts/`, `hooks/` and `utils/`. The `@/` alias maps to the repo root.
+
+- **State lives in `App.tsx`.** It holds today's and tomorrow's `DayPlan`, `DailyLog`, `UserStats`, `FastingState`, dark mode and modal state, and passes them down as props. Do not add Redux or Zustand. Contexts exist only for auth (`AuthContext`) and dev-mode feature flags (`DevModeContext`).
+- **Views and routing:** the `AppView` enum in `types.ts` (TODAY, ANALYTICS, PLANNER, RECIPES, SHOPPING, SETTINGS) is mapped by hand to react-router paths in `App.tsx` (`/today`, `/mealplanner`, …). To add a view, update the enum, both path maps in `App.tsx`, `DesktopSidebar`/`MobileBottomNav` nav items and the `AnimatePresence` switch.
+- **Persistence (`services/storageService.ts`):** every Firestore read and write goes through this file, under `users/{uid}/…`. Collections include `recipes`, `days/{YYYY-MM-DD}`, `data/*` (stats, shopping, etc.), `summaries`, `pantry` and `fasting`.
+  - **Cache-first:** `utils/cacheService.ts` mirrors data in localStorage (`fast800_cache_*` keys, kept from the app's earlier Fast800 name). `App.tsx` initializes state from the cache, then refreshes from Firestore. Saves update the cache optimistically before writing.
+  - **Normalized day plans:** `DayPlan.meals` is stored as `PlannedMeal[]` (references) and hydrated into full `Recipe[]` on read (`hydratePlannedMeals` / `dehydrateMeal`). Never write full recipes into `days` docs.
+  - **Migrations run at read time,** or through the `migrate*` functions triggered by `components/MigrationRunner.tsx`. Legacy shapes still exist in production data.
+  - Recipe images go to Firebase Storage at `users/{uid}/recipe-images/`, not base64 in Firestore.
+- **Family groups (`services/groupService.ts`):** `groups/{groupId}` with `shared_recipes`. Users carry a `groupId`. Family plans and recipes are read across member uids, so check `firestore.rules` whenever you add a cross-user read.
+- **Security rules:** a new Firestore subcollection needs a matching `match` block in `firestore.rules`, or reads fail at runtime.
+- **AI (`services/geminiService.ts`):** uses `@google/genai` with JSON `responseSchema` structured output. Model IDs are in `constants.ts` (`GEMINI_TEXT_MODEL`, `GEMINI_FAST_MODEL`). Generate IDs locally with `crypto.randomUUID()`; never trust IDs returned by the AI.
+- **Feature flags:** `useDevMode().isFeatureEnabled('flag')` from `contexts/DevModeContext.tsx`. Dev status comes from a Firebase custom claim set by `scripts/setDeveloperClaim.cjs`. See `.agent/skills/feature-switch/SKILL.md`.
+- **Modals** render through `components/Portal.tsx`.
+
+## Rules
+
+- **Design system "Digital Hearth":** Hearth Orange `#E07A5F`, Sage `#81B29A`, Charcoal `#3D405B`, Stone `#F4F1DE`, Flame `#F2CC8F`, Ocean `#7BAEBC`. Read [.agent/knowledge/design_system.md](.agent/knowledge/design_system.md) before styling.
+  - Use semantic tokens. Stock Tailwind palette colors (`blue-*`, `red-*`, `emerald-*`) are banned unless the design system allows them.
+  - Avoid pure white backgrounds and red "shame" states for calories.
+- **Dark mode:** before using a CSS variable, confirm `index.css` defines it under both `:root` and `.dark`. Many recent fixes were dark-mode regressions.
+- **Mobile-first** (around 375px). Build layouts with `flex-col md:flex-row`.
+- **Types and IDs:** no `any`. Types go in `types.ts` or the component file. Store dates as `YYYY-MM-DD` strings. Create IDs with `crypto.randomUUID()`.
+- Functional components only, in PascalCase, in a flat `components/` folder (subfolders: `achievements/`, `analytics/`; `_archive/` is dead code).
+
+## Agent resources
+
+- **Knowledge:** [.agent/knowledge/](.agent/knowledge/) covers the design system, architecture, data schema, colors and spacing. The schema docs may lag the code; `storageService.ts` is authoritative. For example, `firebase-ops` still lists `plans`/`logs` collections where the code uses `days`.
+- **Skills** are in [.agent/skills/](.agent/skills/): `development-guide`, `feature-switch`, `firebase-ops`, `frontend-design`, `dark-mode-design`, `design-system-audit`, `brainstorming` and others.
+- **Workflows** are in [.agent/workflows/](.agent/workflows/), for example `create-feature.md` for new features and `bug-interactive.md` for bugs. Plans, PRDs and reports are kept in `.agent/plans`, `.agent/prds` and `.agent/reports`.
+
+## Code exploration with dora
+
+Use `dora` (installed globally) instead of Grep/Glob for code navigation. Use Grep only for non-code files or when dora fails. See `.agent/skills/dora/SKILL.md`.
+
+```bash
+dora status                       # index health
+dora file <path>                  # symbols, deps, dependents
+dora symbol <query>               # find symbols
+dora refs <symbol>                # find references
+dora deps|rdeps <path> [--depth N]
+dora changes <ref>                # impact of changes since a git ref
+dora treasure | lost | cycles     # hotspots, unused exports, cycles
+dora docs search <query>
+dora query "<sql>"                # read-only SQL over the index
+```

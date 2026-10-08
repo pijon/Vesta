@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import {
   GEMINI_TEXT_MODEL,
   GEMINI_FAST_MODEL,
-  GEMINI_MODEL_V3_PREVIEW,
+  GEMINI_MODEL_PRIMARY,
   GEMINI_MODEL_STABLE,
   DEFAULT_FEATURE_FLAGS
 } from "../constants";
@@ -14,11 +14,11 @@ const getModel = (): string => {
     const saved = localStorage.getItem('fast800_devFeatureFlags');
     const flags: FeatureFlags = saved ? JSON.parse(saved) : DEFAULT_FEATURE_FLAGS;
 
-    // Default to strict V3 if flag is on, or V2 Stable if off
-    // If flag is undefined (old config), fallback to default (true -> V3)
+    // Primary (3.8 Flash) if flag is on, lighter Flash-Lite if off
+    // If flag is undefined (old config), fallback to default (true -> primary)
     const useExperimental = flags.useGeminiExperimental ?? DEFAULT_FEATURE_FLAGS.useGeminiExperimental;
 
-    return useExperimental ? GEMINI_MODEL_V3_PREVIEW : GEMINI_MODEL_STABLE;
+    return useExperimental ? GEMINI_MODEL_PRIMARY : GEMINI_MODEL_STABLE;
   } catch (e) {
     console.warn("Failed to read feature flags for model selection, defaulting to stable", e);
     return GEMINI_MODEL_STABLE;

@@ -375,8 +375,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <div className="pt-2 space-y-3">
                                     <div className="flex items-center justify-between p-3 bg-stone-100 dark:bg-white/5 rounded-lg border border-border/50">
                                         <div>
-                                            <h5 className="text-sm font-bold text-charcoal dark:text-stone-200">Gemini 3.0 (Experimental)</h5>
-                                            <p className="text-xs text-charcoal/60 dark:text-stone-400">Use latest preview model (quota limited)</p>
+                                            <h5 className="text-sm font-bold text-charcoal dark:text-stone-200">Gemini 3.8 Flash</h5>
+                                            <p className="text-xs text-charcoal/60 dark:text-stone-400">Off uses Gemini 3.5 Flash-Lite (lighter model)</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input
