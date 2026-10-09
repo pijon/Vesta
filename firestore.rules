@@ -2,84 +2,139 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function - checks if two users share a groupId
-    function isFamilyMember(requesterId, targetUserId) {
-      let requesterGroup = get(/databases/$(database)/documents/users/$(requesterId)).data.groupId;
-      let targetGroup = get(/databases/$(database)/documents/users/$(targetUserId)).data.groupId;
-      return requesterGroup != null && requesterGroup == targetGroup;
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function groupPath(groupId) {
+      return /databases/$(database)/documents/groups/$(groupId);
+    }
+
+    // Family membership is proven by the group's memberIds, never by the
+    // self-reported users/{uid}.groupId (users can write that field freely).
+    function isFamilyMember(targetUserId) {
+      let groupId = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('groupId', null);
+      return groupId is string && sharesGroup(groupId, targetUserId);
+    }
+
+    function sharesGroup(groupId, targetUserId) {
+      let members = get(groupPath(groupId)).data.memberIds;
+      return request.auth.uid in members && targetUserId in members;
+    }
+
+    function canRead(userId) {
+      return isSignedIn() && (request.auth.uid == userId || isFamilyMember(userId));
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // User Data
     match /users/{userId} {
       // User profile document - owner only
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
 
-      // Recipes subcollection - readable by family members, writable by owner only
+      // Family-readable subcollections, writable by owner only
       match /recipes/{recipeId} {
-        allow read: if request.auth != null && (
-          request.auth.uid == userId ||
-          isFamilyMember(request.auth.uid, userId)
-        );
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read: if canRead(userId);
+        allow write: if isOwner(userId);
       }
-
-      // All other subcollections (data, logs, days) - owner only
       match /data/{document=**} {
-        allow read: if request.auth != null && (
-          request.auth.uid == userId || 
-          isFamilyMember(request.auth.uid, userId)
-        );
-        allow write: if request.auth != null && request.auth.uid == userId;
-      }
-      match /logs/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if canRead(userId);
+        allow write: if isOwner(userId);
       }
       match /days/{document=**} {
-        allow read: if request.auth != null && (
-          request.auth.uid == userId ||
-          isFamilyMember(request.auth.uid, userId)
-        );
-        allow write: if request.auth != null && request.auth.uid == userId;
-      }
-      match /summaries/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-      match /pantry/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if canRead(userId);
+        allow write: if isOwner(userId);
       }
       match /shopping/{document=**} {
-        allow read: if request.auth != null && (
-          request.auth.uid == userId ||
-          isFamilyMember(request.auth.uid, userId)
-        );
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read: if canRead(userId);
+        allow write: if isOwner(userId);
+      }
+
+      // Owner-only subcollections
+      match /logs/{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+      match /summaries/{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+      match /pantry/{document=**} {
+        allow read, write: if isOwner(userId);
       }
       match /fasting/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
 
     // Groups: Shared Data
     match /groups/{groupId} {
-      // Anyone can create a group
-      allow create: if request.auth != null;
+      function isMember() {
+        return request.auth.uid in resource.data.memberIds;
+      }
 
-      // Anyone can read (needed for 'find by invite code' queries)
-      allow read: if request.auth != null;
+      function changesOnly(keys) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      }
 
-      // Update: Must be a member OR joining (adding self)
-      allow update: if request.auth != null && (
-         request.auth.uid in resource.data.memberIds ||
-         request.auth.uid in request.resource.data.memberIds
+      // Adds exactly the requester to memberIds, within the size limit
+      // (MAX_FAMILY_GROUP_SIZE in constants.ts).
+      function isJoining() {
+        let before = resource.data.memberIds;
+        let after = request.resource.data.memberIds;
+        return !(request.auth.uid in before)
+          && request.auth.uid in after
+          && after.hasAll(before)
+          && after.size() == before.size() + 1
+          && after.size() <= 10;
+      }
+
+      // Removes exactly the requester from memberIds.
+      function isLeaving() {
+        let before = resource.data.memberIds;
+        let after = request.resource.data.memberIds;
+        return request.auth.uid in before
+          && !(request.auth.uid in after)
+          && before.hasAll(after)
+          && after.size() == before.size() - 1;
+      }
+
+      // Members only. No list: groups are found through groupInvites/{code}.
+      allow get: if isSignedIn() && isMember();
+
+      allow create: if isSignedIn()
+        && request.resource.data.id == groupId
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberIds == [request.auth.uid];
+
+      // Anyone holding the groupId may add or remove only themselves;
+      // members may rename the group or rotate its invite code.
+      allow update: if isSignedIn() && (
+        (changesOnly(['memberIds']) && (isJoining() || isLeaving())) ||
+        (isMember() && changesOnly(['name', 'inviteCode']))
       );
 
-      // Delete: Only the owner
-      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
 
-      // Subcollections (shared_recipes - legacy)
+      // Subcollections (shared_recipes - legacy) - members only
       match /{document=**} {
-        allow read, write: if request.auth != null;
+        allow read, write: if isSignedIn()
+          && request.auth.uid in get(groupPath(groupId)).data.memberIds;
       }
+    }
+
+    // Invite code -> groupId lookup. Readable by exact code only (no list),
+    // so codes cannot be enumerated through a query.
+    match /groupInvites/{code} {
+      allow get: if isSignedIn();
+
+      // A member publishes the group's current code (batched with the group
+      // write, hence getAfter).
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['groupId'])
+        && request.auth.uid in getAfter(groupPath(request.resource.data.groupId)).data.memberIds
+        && getAfter(groupPath(request.resource.data.groupId)).data.inviteCode == code;
     }
   }
 }

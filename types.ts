@@ -254,7 +254,7 @@ export interface Group {
   name: string;
   ownerId: string;
   createdAt: number;
-  inviteCode: string; // 6-digit code
+  inviteCode: string; // 8-char code, resolved through groupInvites/{code}
   memberIds: string[];
 }
 

@@ -6,24 +6,34 @@ import {
     collection,
     getDocs,
     deleteDoc,
-    query,
-    where,
     updateDoc,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    writeBatch
 } from "firebase/firestore";
 import { Group, Recipe, UserStats } from "../types";
 import { MAX_FAMILY_GROUP_SIZE } from "../constants";
 
 // --- Collection Refs ---
-const getGroupsRef = () => collection(db, "groups");
 const getGroupRef = (groupId: string) => doc(db, "groups", groupId);
 const getUserRef = (uid: string) => doc(db, "users", uid);
+const getInviteRef = (code: string) => doc(db, "groupInvites", code);
 
 // --- Helpers ---
+// No 0/O or 1/I/L, so codes are easy to read aloud and type.
+const INVITE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const INVITE_CODE_LENGTH = 8;
+
 const generateInviteCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    const bytes = crypto.getRandomValues(new Uint8Array(INVITE_CODE_LENGTH));
+    // 256 % 31 bias is negligible for an invite code.
+    return Array.from(bytes, b => INVITE_CODE_ALPHABET[b % INVITE_CODE_ALPHABET.length]).join("");
 };
+
+const normalizeInviteCode = (code: string) => code.trim().toUpperCase().replace(/[\s-]/g, "");
+
+const isCurrentInviteFormat = (code: string) =>
+    code.length === INVITE_CODE_LENGTH && [...code].every(c => INVITE_CODE_ALPHABET.includes(c));
 
 const getCurrentUser = () => {
     const user = auth.currentUser;
@@ -47,11 +57,13 @@ export const createGroup = async (groupName: string): Promise<string> => {
         memberIds: [user.uid]
     };
 
-    // 1. Create Group Doc
-    await setDoc(getGroupRef(groupId), group);
-
-    // 2. Update User Profile with groupId
-    await setDoc(getUserRef(user.uid), { groupId }, { merge: true });
+    // Group doc, invite lookup and profile in one batch: the groupInvites rule
+    // checks the group as it will be after this write.
+    const batch = writeBatch(db);
+    batch.set(getGroupRef(groupId), group);
+    batch.set(getInviteRef(inviteCode), { groupId });
+    batch.set(getUserRef(user.uid), { groupId }, { merge: true });
+    await batch.commit();
 
     return groupId;
 };
@@ -59,30 +71,45 @@ export const createGroup = async (groupName: string): Promise<string> => {
 export const joinGroup = async (inviteCode: string): Promise<Group> => {
     const user = getCurrentUser();
 
-    // 1. Find group by code
-    const q = query(getGroupsRef(), where("inviteCode", "==", inviteCode));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
+    // 1. Resolve the code. Groups themselves are readable by members only.
+    const inviteSnap = await getDoc(getInviteRef(normalizeInviteCode(inviteCode)));
+    if (!inviteSnap.exists()) {
         throw new Error("Invalid invite code");
     }
+    const { groupId } = inviteSnap.data() as { groupId: string };
 
-    const groupDoc = snapshot.docs[0];
-    const group = groupDoc.data() as Group;
-
-    if (group.memberIds.length >= MAX_FAMILY_GROUP_SIZE) {
-        throw new Error(`Group is full (max ${MAX_FAMILY_GROUP_SIZE} members)`);
+    // 2. Add user to memberIds. The rules reject this if the group is full.
+    try {
+        await updateDoc(getGroupRef(groupId), {
+            memberIds: arrayUnion(user.uid)
+        });
+    } catch {
+        throw new Error(`Could not join this family. It may be full (max ${MAX_FAMILY_GROUP_SIZE} members).`);
     }
 
-    // 2. Add user to memberIds
-    await updateDoc(groupDoc.ref, {
-        memberIds: arrayUnion(user.uid)
-    });
-
     // 3. Update User Profile
-    await setDoc(getUserRef(user.uid), { groupId: group.id }, { merge: true });
+    await setDoc(getUserRef(user.uid), { groupId }, { merge: true });
 
-    return { ...group, memberIds: [...group.memberIds, user.uid] };
+    const group = await getGroup(groupId);
+    if (!group) throw new Error("Group not found");
+    return group;
+};
+
+/**
+ * Gives a group created before groupInvites existed a code in the current
+ * format and publishes its lookup doc, so the code works for joining.
+ * Returns the group with its current code.
+ */
+export const ensureInviteCode = async (group: Group): Promise<Group> => {
+    if (isCurrentInviteFormat(group.inviteCode)) return group;
+
+    const inviteCode = generateInviteCode();
+    const batch = writeBatch(db);
+    batch.update(getGroupRef(group.id), { inviteCode });
+    batch.set(getInviteRef(inviteCode), { groupId: group.id });
+    await batch.commit();
+
+    return { ...group, inviteCode };
 };
 
 export const leaveGroup = async (groupId: string): Promise<void> => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Group } from '../types';
-import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails } from '../services/groupService';
+import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode } from '../services/groupService';
 import { auth } from '../services/firebase';
 
 export const FamilySettings: React.FC = () => {
@@ -18,7 +18,14 @@ export const FamilySettings: React.FC = () => {
     const loadGroup = async () => {
         setLoading(true);
         try {
-            const g = await getUserGroup();
+            let g = await getUserGroup();
+            if (g) {
+                try {
+                    g = await ensureInviteCode(g);
+                } catch (e) {
+                    console.error("Error updating invite code:", e);
+                }
+            }
             setGroup(g);
             if (g) {
                 const details = await getGroupMembersDetails(g.memberIds);
@@ -129,7 +136,7 @@ export const FamilySettings: React.FC = () => {
                         <div className="flex gap-2">
                             <input
                                 type="text"
-                                placeholder="6-digit Code"
+                                placeholder="Invite code"
                                 value={inviteCodeInput}
                                 onChange={e => setInviteCodeInput(e.target.value)}
                                 className="flex-1 px-4 py-2 rounded-xl bg-[var(--input-bg)] border-none focus:ring-2 focus:ring-primary/20 text-[var(--text-main)] placeholder-[var(--text-muted)]"
