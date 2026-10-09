@@ -38,7 +38,7 @@ export const LoginScreen: React.FC = () => {
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2">
+                    <div className="mb-6 p-3 bg-rose-50 text-rose-600 text-sm rounded-lg border border-rose-100 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                         {error}
                     </div>

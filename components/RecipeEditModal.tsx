@@ -118,7 +118,7 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                                     <button
                                         onClick={handleRemoveImage}
-                                        className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full shadow-lg transition-all transform hover:scale-110 active:scale-95"
+                                        className="absolute top-4 right-4 bg-rose-500 hover:bg-rose-600 text-white p-2.5 rounded-full shadow-lg transition-all transform hover:scale-110 active:scale-95"
                                         title="Remove image"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -136,7 +136,7 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                                 </div>
                             )}
                             {imageError && (
-                                <p className="text-red-500 text-sm font-medium flex items-center gap-1.5 animate-pulse">
+                                <p className="text-rose-600 text-sm font-medium flex items-center gap-1.5 animate-pulse">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                                     {imageError}
                                 </p>
@@ -203,7 +203,7 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                                     {(editForm.tags || []).filter(t => !['breakfast', 'main meal', 'snack', 'light meal'].includes(t)).map(tag => (
                                         <span key={tag} className="pl-2 pr-1 py-1 bg-[var(--card-bg)] border border-border rounded-md text-xs font-bold flex items-center gap-1 animate-scale-in text-[var(--text-main)]">
                                             {tag}
-                                            <button onClick={() => handleTagClick(tag)} className="hover:bg-red-100 hover:text-red-600 rounded p-0.5 transition-colors">
+                                            <button onClick={() => handleTagClick(tag)} className="hover:bg-rose-100 hover:text-rose-600 rounded p-0.5 transition-colors">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                             </button>
                                         </span>

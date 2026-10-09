@@ -8,22 +8,22 @@ export function getRecipeTheme(tags: string[] = []): { bg: string; text: string 
   const lowerTags = tags.map(t => t.toLowerCase());
 
   if (lowerTags.includes('breakfast')) {
-    // Warm, golden breakfast tones - deeper amber/orange
-    return { bg: 'bg-amber-200/80 dark:bg-amber-950/60', text: 'text-amber-800 dark:text-amber-200' };
+    // Warm, golden breakfast tones - amber clay
+    return { bg: 'bg-amber-200/80 dark:bg-amber-900/60', text: 'text-amber-800 dark:text-amber-200' };
   }
   if (lowerTags.includes('main meal') || lowerTags.includes('dinner') || lowerTags.includes('lunch')) {
-    // Rich, earthy emerald - deeper green
-    return { bg: 'bg-emerald-200/80 dark:bg-emerald-950/60', text: 'text-emerald-800 dark:text-emerald-200' };
+    // Earthy sage
+    return { bg: 'bg-sage-200/80 dark:bg-sage-900/60', text: 'text-sage-800 dark:text-sage-200' };
   }
   if (lowerTags.includes('snack')) {
-    // Deep, expressive purple - more sophisticated
-    return { bg: 'bg-purple-200/80 dark:bg-purple-950/60', text: 'text-purple-800 dark:text-purple-200' };
+    // Muted plum
+    return { bg: 'bg-plum-200/80 dark:bg-plum-900/60', text: 'text-plum-800 dark:text-plum-200' };
   }
   if (lowerTags.includes('light meal')) {
-    // Calm, deeper sky blue
-    return { bg: 'bg-sky-200/80 dark:bg-sky-950/60', text: 'text-sky-800 dark:text-sky-200' };
+    // Calm ocean
+    return { bg: 'bg-ocean-200/80 dark:bg-ocean-900/60', text: 'text-ocean-800 dark:text-ocean-200' };
   }
 
-  // Default: sophisticated slate with more depth
-  return { bg: 'bg-slate-200/80 dark:bg-slate-900/80', text: 'text-slate-800 dark:text-slate-200' };
+  // Default: warm stone
+  return { bg: 'bg-stone-200/80 dark:bg-stone-900/80', text: 'text-stone-800 dark:text-stone-200' };
 }

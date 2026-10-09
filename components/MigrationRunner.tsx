@@ -162,8 +162,8 @@ export const MigrationRunner: React.FC = () => {
                                         </div>
                                     )}
                                     {step.status === 'error' && (
-                                        <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                                            <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <div className="w-6 h-6 rounded-full bg-rose-100 dark:bg-rose-900/20 flex items-center justify-center">
+                                            <svg className="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                             </svg>
                                         </div>
@@ -184,7 +184,7 @@ export const MigrationRunner: React.FC = () => {
                                         </p>
                                     )}
                                     {step.error && (
-                                        <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+                                        <p className="text-sm text-rose-600 dark:text-rose-400 mt-2">
                                             Error: {step.error}
                                         </p>
                                     )}
@@ -229,8 +229,8 @@ export const MigrationRunner: React.FC = () => {
                 )}
 
                 {hasErrors && !isRunning && (
-                    <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
-                        <p className="text-sm text-red-600 dark:text-red-400">
+                    <div className="mt-4 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-800">
+                        <p className="text-sm text-rose-600 dark:text-rose-400">
                             Some migrations failed. Check the errors above and try again, or contact support.
                         </p>
                     </div>

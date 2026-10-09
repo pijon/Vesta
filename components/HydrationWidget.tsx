@@ -35,7 +35,7 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
             {/* Header */}
             <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between shrink-0 h-[60px]">
                 <h3 className="font-serif text-lg font-medium text-charcoal dark:text-stone-200">Hydration</h3>
-                {/* Badge - Increased contrast: text-sky-800 */}
+                {/* Badge - Increased contrast: text-ocean-800 */}
 
             </div>
 

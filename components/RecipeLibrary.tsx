@@ -417,7 +417,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
                   <img src={uploadedImage} alt="Recipe preview" className="w-full h-48 object-cover" />
                   <button
                     onClick={handleRemoveImage}
-                    className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all"
+                    className="absolute top-3 right-3 bg-rose-500 hover:bg-rose-600 text-white p-2 rounded-full shadow-lg transition-all"
                     title="Remove image"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -433,7 +433,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
                 />
               )}
               {imageError && (
-                <p className="text-red-600 text-sm mt-2">{imageError}</p>
+                <p className="text-rose-600 text-sm mt-2">{imageError}</p>
               )}
             </div>
 
@@ -538,8 +538,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           <button
             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
             className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border flex items-center gap-1.5 ${showFavoritesOnly
-              ? 'bg-red-500 text-white border-red-500 shadow-md transform scale-105'
-              : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-transparent hover:border-red-200 hover:bg-red-50/50 hover:text-red-500'
+              ? 'bg-hearth text-white border-hearth shadow-md transform scale-105'
+              : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-transparent hover:border-hearth/30 hover:bg-hearth/5 hover:text-hearth'
               }`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={showFavoritesOnly ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>

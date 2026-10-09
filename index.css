@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Only scan live code for classes: archived components and agent docs
+   still mention stock palette colours. */
+@source not "./components/_archive";
+@source not "./.agent";
+@source not "./.claude";
+@source not "./*.md";
+
 /* dark: utilities follow the in-app .dark class (set in App.tsx), not the OS setting */
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -19,71 +26,95 @@
   --color-sage: #81B29A;
   --color-ocean: #7BAEBC;
 
-  /* Terracotta (Primary Brand Color) - Hue 16° */
-  --color-terracotta-100: var(--terracotta-100);
-  --color-terracotta-200: var(--terracotta-200);
-  --color-terracotta-300: var(--terracotta-300);
-  --color-terracotta-400: var(--terracotta-400);
-  --color-terracotta-500: var(--terracotta-500);
-  --color-terracotta-600: var(--terracotta-600);
-  --color-terracotta-700: var(--terracotta-700);
-  --color-terracotta-800: var(--terracotta-800);
-  --color-terracotta-900: var(--terracotta-900);
+  /* Brand scales (50-900, brand colour at 500; stone-50 is the page
+     background). Tints mix toward warm white, shades toward the dark-mode
+     background. These replace Tailwind's stock palette: use terracotta for
+     orange, sage for green, ocean for blue, plum for purple, amber for
+     warnings, rose for errors and stone for greys.
+     Text on light backgrounds should use 700+ (600 for rose/plum). */
+  /* terracotta */
+  --color-terracotta-50: #FBF2EB;
+  --color-terracotta-100: #F8E7DF;
+  --color-terracotta-200: #F4D2C6;
+  --color-terracotta-300: #EEB8A8;
+  --color-terracotta-400: #E79A85;
+  --color-terracotta-500: #E07A5F;
+  --color-terracotta-600: #B86650;
+  --color-terracotta-700: #8D503F;
+  --color-terracotta-800: #6D4134;
+  --color-terracotta-900: #55352A;
 
-  /* Sage (Secondary Brand Color) - Hue 100° */
-  --color-sage-100: var(--sage-100);
-  --color-sage-200: var(--sage-200);
-  --color-sage-300: var(--sage-300);
-  --color-sage-400: var(--sage-400);
-  --color-sage-500: var(--sage-500);
-  --color-sage-600: var(--sage-600);
-  --color-sage-700: var(--sage-700);
+  /* sage */
+  --color-sage-50: #F3F6F0;
+  --color-sage-100: #E9F0E8;
+  --color-sage-200: #D5E4D9;
+  --color-sage-300: #BDD6C7;
+  --color-sage-400: #A0C4B1;
+  --color-sage-500: #81B29A;
+  --color-sage-600: #6C937F;
+  --color-sage-700: #567162;
+  --color-sage-800: #45584C;
+  --color-sage-900: #39463C;
 
-  /* Warm Stone Neutrals - Hue ~30° */
-  /* Warm Stone Neutrals - Hue ~30° */
-  --color-stone-50: var(--stone-50);
-  --color-stone-100: var(--stone-100);
-  --color-stone-200: var(--stone-200);
-  --color-stone-300: var(--stone-300);
-  --color-stone-400: var(--stone-400);
-  --color-stone-500: var(--stone-500);
-  --color-stone-700: var(--stone-700);
-  --color-stone-900: var(--stone-900);
+  /* ocean */
+  --color-ocean-50: #F3F6F2;
+  --color-ocean-100: #E8F0EE;
+  --color-ocean-200: #D3E3E4;
+  --color-ocean-300: #B9D3D8;
+  --color-ocean-400: #9CC2CB;
+  --color-ocean-500: #7BAEBC;
+  --color-ocean-600: #68909A;
+  --color-ocean-700: #526F75;
+  --color-ocean-800: #43565B;
+  --color-ocean-900: #374446;
 
-  /* Dusty Blue (Water/Hydration) */
-  --color-dusty-blue-100: var(--dusty-blue-100);
-  --color-dusty-blue-400: var(--dusty-blue-400);
-  --color-dusty-blue-500: var(--dusty-blue-500);
-  --color-dusty-blue-600: var(--dusty-blue-600);
-  --color-dusty-blue-800: var(--dusty-blue-800);
+  /* plum */
+  --color-plum-50: #F4F0EE;
+  --color-plum-100: #EBE5E6;
+  --color-plum-200: #D9CED4;
+  --color-plum-300: #C3B1BE;
+  --color-plum-400: #AA90A5;
+  --color-plum-500: #8E6C8A;
+  --color-plum-600: #775B72;
+  --color-plum-700: #5D4858;
+  --color-plum-800: #4B3B46;
+  --color-plum-900: #3D3037;
 
-  /* Warm Teal (Weight) */
-  --color-warm-teal-100: var(--warm-teal-100);
-  --color-warm-teal-400: var(--warm-teal-400);
-  --color-warm-teal-500: var(--warm-teal-500);
-  --color-warm-teal-600: var(--warm-teal-600);
-  --color-warm-teal-800: var(--warm-teal-800);
+  /* amber */
+  --color-amber-50: #FAF4E9;
+  --color-amber-100: #F6ECDC;
+  --color-amber-200: #EFDDC0;
+  --color-amber-300: #E7C99E;
+  --color-amber-400: #DDB277;
+  --color-amber-500: #D29A4C;
+  --color-amber-600: #AD8041;
+  --color-amber-700: #856334;
+  --color-amber-800: #674E2C;
+  --color-amber-900: #513E25;
 
-  /* Muted Plum (Workout) */
-  --color-plum-100: var(--plum-100);
-  --color-plum-400: var(--plum-400);
-  --color-plum-500: var(--plum-500);
-  --color-plum-600: var(--plum-600);
-  --color-plum-800: var(--plum-800);
+  /* rose */
+  --color-rose-50: #F9F0EC;
+  --color-rose-100: #F5E4E1;
+  --color-rose-200: #ECCCCA;
+  --color-rose-300: #E2ADAE;
+  --color-rose-400: #D68B8E;
+  --color-rose-500: #C9656B;
+  --color-rose-600: #A6555A;
+  --color-rose-700: #804446;
+  --color-rose-800: #643839;
+  --color-rose-900: #4E2E2E;
 
-  /* Error - Burnt Rose */
-  --color-rose-100: var(--rose-100);
-  --color-rose-400: var(--rose-400);
-  --color-rose-500: var(--rose-500);
-  --color-rose-600: var(--rose-600);
-  --color-rose-800: var(--rose-800);
-
-  /* Warning - Amber Clay */
-  --color-amber-100: var(--amber-100);
-  --color-amber-400: var(--amber-400);
-  --color-amber-500: var(--amber-500);
-  --color-amber-600: var(--amber-600);
-  --color-amber-800: var(--amber-800);
+  /* stone */
+  --color-stone-50: #F4F1DE;
+  --color-stone-100: #EAE6D3;
+  --color-stone-200: #DCD7C3;
+  --color-stone-300: #C5BFAA;
+  --color-stone-400: #A8A190;
+  --color-stone-500: #7F7969;
+  --color-stone-600: #666053;
+  --color-stone-700: #4F4B41;
+  --color-stone-800: #36332D;
+  --color-stone-900: #24211C;
 
   /* ============================================
      SEMANTIC TOKENS
@@ -268,8 +299,22 @@
     --error-bg: rgba(224, 122, 95, 0.1);
     /* Rose/Hearth tint */
 
-    --error: var(--color-rose-500);
-    --warning: var(--color-amber-500);
+    --error: var(--color-rose-600);
+    --warning: var(--color-amber-700);
+
+    --primary-hover: var(--color-terracotta-600);
+    --primary-light: var(--color-terracotta-100);
+    --secondary-foreground: #FFFFFF;
+    --secondary-hover: var(--color-sage-600);
+    --secondary-light: var(--color-sage-100);
+
+    --border-muted: rgba(61, 64, 91, 0.05);
+    --calories-border: rgba(224, 122, 95, 0.3);
+    --weight-border: rgba(129, 178, 154, 0.35);
+    --workout-border: rgba(61, 64, 91, 0.15);
+    --water-border: rgba(123, 174, 188, 0.35);
+    --warning-border: rgba(210, 154, 76, 0.35);
+    --error-border: rgba(201, 101, 107, 0.3);
 
     --border: rgba(61, 64, 91, 0.1);
     --input-bg: #FFFFFF;
@@ -295,6 +340,23 @@
 
     --text-main: var(--color-stone);
     --text-muted: rgba(244, 241, 222, 0.6);
+
+    --error: var(--color-rose-400);
+    --warning: var(--color-amber-400);
+
+    --primary-hover: var(--color-terracotta-400);
+    --primary-light: rgba(224, 122, 95, 0.15);
+    --secondary-foreground: #1A1714;
+    --secondary-hover: var(--color-sage-400);
+    --secondary-light: rgba(129, 178, 154, 0.15);
+
+    --border-muted: rgba(255, 255, 255, 0.05);
+    --calories-border: rgba(224, 122, 95, 0.3);
+    --weight-border: rgba(129, 178, 154, 0.3);
+    --workout-border: rgba(244, 241, 222, 0.15);
+    --water-border: rgba(123, 174, 188, 0.3);
+    --warning-border: rgba(210, 154, 76, 0.3);
+    --error-border: rgba(201, 101, 107, 0.3);
 
     --color-charcoal: #F4F1DE;
     /* Invert charcoal to stone for text in dark mode context */
@@ -445,62 +507,62 @@
   /* Badge color variants - Using CSS vars for brand colors */
   .badge-terracotta {
     background-color: hsl(16, 60%, 95%, 0.5);
-    color: var(--terracotta-700);
-    border-color: var(--terracotta-200);
+    color: var(--color-terracotta-700);
+    border-color: var(--color-terracotta-200);
   }
 
   .dark .badge-terracotta {
     background-color: hsl(16, 65%, 15%, 0.3);
-    color: var(--terracotta-300);
-    border-color: var(--terracotta-800);
+    color: var(--color-terracotta-300);
+    border-color: var(--color-terracotta-800);
   }
 
   .badge-sage {
     background-color: hsl(100, 25%, 92%, 0.5);
-    color: var(--sage-700);
-    border-color: var(--sage-200);
+    color: var(--color-sage-700);
+    border-color: var(--color-sage-200);
   }
 
   .dark .badge-sage {
     background-color: hsl(100, 28%, 22%, 0.3);
-    color: var(--sage-300);
-    border-color: var(--sage-700);
+    color: var(--color-sage-300);
+    border-color: var(--color-sage-700);
   }
 
   .badge-plum {
     background-color: hsl(330, 18%, 92%, 0.5);
-    color: var(--plum-600);
-    border-color: var(--plum-100);
+    color: var(--color-plum-600);
+    border-color: var(--color-plum-100);
   }
 
   .dark .badge-plum {
     background-color: hsl(330, 18%, 25%, 0.3);
-    color: var(--plum-400);
-    border-color: var(--plum-800);
+    color: var(--color-plum-400);
+    border-color: var(--color-plum-800);
   }
 
   .badge-teal {
     background-color: hsl(180, 28%, 92%, 0.5);
-    color: var(--warm-teal-600);
-    border-color: var(--warm-teal-100);
+    color: var(--color-sage-700);
+    border-color: var(--color-sage-100);
   }
 
   .dark .badge-teal {
     background-color: hsl(180, 30%, 22%, 0.3);
-    color: var(--warm-teal-400);
-    border-color: var(--warm-teal-800);
+    color: var(--color-sage-400);
+    border-color: var(--color-sage-800);
   }
 
   .badge-stone {
     background-color: hsl(32, 30%, 87%, 0.5);
-    color: var(--stone-700);
-    border-color: var(--stone-200);
+    color: var(--color-stone-700);
+    border-color: var(--color-stone-200);
   }
 
   .dark .badge-stone {
     background-color: hsl(30, 20%, 25%, 0.3);
-    color: var(--stone-300);
-    border-color: var(--stone-700);
+    color: var(--color-stone-300);
+    border-color: var(--color-stone-700);
   }
 
   /* --- INPUTS --- */
@@ -509,7 +571,7 @@
   }
 
   .input-error {
-    @apply border-red-500 focus:ring-red-500;
+    @apply border-error focus:ring-error;
   }
 
   /* --- HEADINGS (Responsive) --- */

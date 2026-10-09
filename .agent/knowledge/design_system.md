@@ -37,7 +37,24 @@ This guide is the single source of truth for implementing UI in Vesta. All new c
 --text-muted: rgba(244,241,222,0.6);
 ```
 
-### 1.4 Semantic Mapping (New Standard)
+### 1.4 Brand Scales (50–900)
+Defined as literal values in the `@theme` block of `index.css` (brand colour at 500, `stone-50` = page background). They replace Tailwind's stock palette, which must not be used:
+
+| Instead of | Use | Role |
+|------------|-----|------|
+| `orange-*` | `terracotta-*` (or `hearth`) | Primary, calories, favourites |
+| `green-*`, `emerald-*` | `sage-*` | Health, success, weight |
+| `blue-*`, `sky-*` | `ocean-*` | Hydration |
+| `purple-*`, `indigo-*` | `plum-*` | Workouts |
+| `yellow-*` | `amber-*` | Warnings, **over-limit states** |
+| `red-*` | `rose-*` (or `text-error`) | Errors and destructive actions only |
+| `slate-*`, `gray-*`, `neutral-*` | `stone-*` or `charcoal` | Neutrals |
+
+- Shades stop at 900; there is no 950.
+- Text on light backgrounds: use 700+ (600 is enough for `rose` and `plum`). Lighter shades are for backgrounds, borders and dark-mode text.
+- Over-limit calorie states use `text-amber-700 dark:text-amber-400` / `bg-amber-500`, never rose or red.
+
+### 1.5 Semantic Mapping (New Standard)
 Use these classes instead of legacy tokens:
 
 | Legacy Token | **Light Mode Replacement** | **Dark Mode Variant** |

@@ -128,7 +128,7 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, on
 
                 <button
                     onClick={onRemove}
-                    className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                    className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors"
                     title="Remove item"
                 >
                     <TrashIcon className="w-5 h-5" />

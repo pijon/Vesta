@@ -37,7 +37,7 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                     {/* Calories Left */}
                     <div className="bg-background/50 rounded-xl p-4 border border-border/50">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--terracotta-400)] to-calories flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-calories/30">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-terracotta-400)] to-calories flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-calories/30">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M12 2v20M2 12h20" />
                                 </svg>
@@ -56,7 +56,7 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                     {/* Weight */}
                     <div className="bg-background/50 rounded-xl p-4 border border-border/50">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--warm-teal-400)] to-weight flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-weight/30">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-sage-400)] to-weight flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-weight/30">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="m18 15-6-6-6 6" />
                                 </svg>
@@ -76,7 +76,7 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                     {/* Hydration */}
                     <div className="bg-background/50 rounded-xl p-4 border border-border/50">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--dusty-blue-400)] to-water flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-water/30">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-ocean-400)] to-water flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-water/30">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                                 </svg>
@@ -93,7 +93,7 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                     {/* Workouts */}
                     <div className="bg-background/50 rounded-xl p-4 border border-border/50">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--plum-400)] to-workout flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-workout/30">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-plum-400)] to-workout flex items-center justify-center shadow-none dark:shadow-lg dark:shadow-workout/30">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12.1 3A1.9 1.9 0 1 1 14 4.9 1.898 1.898 0 0 1 12.1 3zm2.568 4.893c.26-1.262-1.399-1.861-2.894-2.385L7.09 6.71l.577 4.154c0 .708 1.611.489 1.587-.049l-.39-2.71 2.628-.48-.998 4.92 3.602 4.179-1.469 4.463a.95.95 0 0 0 .39 1.294c.523.196 1.124-.207 1.486-.923.052-.104 1.904-5.127 1.904-5.127l-2.818-3.236 1.08-5.303zm-5.974 8.848l-3.234.528a1.033 1.033 0 0 0-.752 1.158c.035.539.737.88 1.315.802l3.36-.662 2.54-2.831-1.174-1.361zm8.605-7.74l-1.954.578-.374 1.837 2.865-.781a.881.881 0 0 0-.537-1.633z" />
                                 </svg>

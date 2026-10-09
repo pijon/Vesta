@@ -238,7 +238,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                         <button
                                             onClick={() => updateDayConfig(idx, { type: day.type === 'fast' ? 'non-fast' : 'fast' })}
                                             className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${day.type === 'fast'
-                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                                ? 'bg-ocean-100 dark:bg-ocean-900/30 text-ocean-700 dark:text-ocean-300'
                                                 : 'bg-sage-100 dark:bg-sage-900/30 text-sage-800 dark:text-sage-200'
                                                 }`}
                                         >
@@ -274,15 +274,15 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                     <div
                                         onClick={() => updateDayConfig(idx, { useLeftovers: !day.useLeftovers })}
                                         className={`cursor-pointer rounded-xl border p-2 flex items-center justify-between transition-all mt-[18px] ${day.useLeftovers
-                                            ? 'border-purple-200 dark:border-purple-800/50 bg-purple-50 dark:bg-purple-900/20'
+                                            ? 'border-plum-200 dark:border-plum-800/50 bg-plum-50 dark:bg-plum-900/20'
                                             : 'border-[var(--border)] bg-[var(--input-bg)] hover:bg-[var(--background)]'
                                             }`}
                                     >
                                         <div className="text-xs">
-                                            <div className={`font-bold ${day.useLeftovers ? 'text-purple-700 dark:text-purple-300' : 'text-[var(--text-muted)]'}`}>Leftovers</div>
+                                            <div className={`font-bold ${day.useLeftovers ? 'text-plum-700 dark:text-plum-300' : 'text-[var(--text-muted)]'}`}>Leftovers</div>
                                             <div className="text-[10px] text-[var(--text-muted)]">For lunch</div>
                                         </div>
-                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${day.useLeftovers ? 'bg-purple-500 border-purple-500' : 'border-[var(--border)]'}`}>
+                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${day.useLeftovers ? 'bg-plum-500 border-plum-500' : 'border-[var(--border)]'}`}>
                                             {day.useLeftovers && <Check size={10} className="text-white" />}
                                         </div>
                                     </div>
@@ -332,7 +332,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                 {new Date(day.date).toLocaleDateString('en-US', { weekday: 'long' })}
                             </span>
                             <span className={`text-[10px] px-2 py-1 rounded-lg font-bold uppercase tracking-wider ${day.type === 'fast'
-                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                ? 'bg-ocean-100 dark:bg-ocean-900/30 text-ocean-700 dark:text-ocean-300'
                                 : 'bg-sage-100 dark:bg-sage-900/30 text-sage-800 dark:text-sage-200'
                                 }`}>
                                 {day.type === 'fast' ? 'Fast Day' : 'Nourish'}

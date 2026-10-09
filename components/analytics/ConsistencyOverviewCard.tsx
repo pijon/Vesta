@@ -18,7 +18,7 @@ export const ConsistencyOverviewCard: React.FC<ConsistencyOverviewCardProps> = (
                 <div className="flex flex-col">
                     <div className="text-sm font-normal text-charcoal/60 dark:text-stone-400 mb-2">Goal Consistency</div>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-bold font-serif bg-gradient-to-br from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
+                        <span className="text-4xl font-bold font-serif bg-gradient-to-br from-sage-600 to-sage-400 bg-clip-text text-transparent">
                             {Math.round(streakAnalysis.complianceRate)}
                         </span>
                         <span className="text-xl font-semibold text-charcoal/60 dark:text-stone-400">%</span>
@@ -32,7 +32,7 @@ export const ConsistencyOverviewCard: React.FC<ConsistencyOverviewCardProps> = (
                 <div className="flex flex-col">
                     <div className="text-sm font-normal text-charcoal/60 dark:text-stone-400 mb-2">Current Streak</div>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-bold font-serif bg-gradient-to-br from-orange-600 to-orange-400 bg-clip-text text-transparent">
+                        <span className="text-4xl font-bold font-serif bg-gradient-to-br from-terracotta-600 to-terracotta-400 bg-clip-text text-transparent">
                             {streakAnalysis.currentStreak}
                         </span>
                         <span className="text-xl font-semibold text-charcoal/60 dark:text-stone-400">days</span>

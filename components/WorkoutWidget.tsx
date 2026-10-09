@@ -22,7 +22,7 @@ export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyCou
             {/* Header */}
             <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between shrink-0 h-[60px]">
                 <h3 className="font-serif text-lg font-medium text-charcoal dark:text-stone-200">Workouts</h3>
-                {/* Badge - Increased contrast: text-purple-800 */}
+                {/* Badge - Increased contrast: text-plum-800 */}
 
             </div>
 

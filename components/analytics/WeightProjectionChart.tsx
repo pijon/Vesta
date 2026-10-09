@@ -123,7 +123,7 @@ export const WeightProjectionChart: React.FC<WeightProjectionChartProps> = ({ st
                             fontSize: 10,
                             position: 'right'
                         }}
-                        stroke="var(--color-success)"
+                        stroke="var(--weight)"
                         strokeDasharray="3 3"
                         opacity={0.7}
                     />

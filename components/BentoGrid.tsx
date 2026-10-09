@@ -141,7 +141,7 @@ export const CaloriesRemainingCard: React.FC<{
         <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
             {/* Ember Glow Background */}
             <div
-                className={`absolute bottom-0 left-0 right-0 z-0 transition-all duration-1000 ease-out bg-gradient-to-t ${isOver ? 'from-red-500/20 via-red-500/5 to-transparent' : 'from-hearth/30 via-hearth/5 to-transparent'}`}
+                className={`absolute bottom-0 left-0 right-0 z-0 transition-all duration-1000 ease-out bg-gradient-to-t ${isOver ? 'from-amber-400/25 via-amber-400/5 to-transparent' : 'from-hearth/30 via-hearth/5 to-transparent'}`}
                 style={{ height: `${percentConsumed}%` }}
             ></div>
 
@@ -162,7 +162,7 @@ export const CaloriesRemainingCard: React.FC<{
             </div>
 
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center pointer-events-none">
-                <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-3xl'} ${isOver ? 'text-red-500' : 'text-charcoal dark:text-stone-200'} transition-colors`}>
+                <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-3xl'} ${isOver ? 'text-amber-700 dark:text-amber-400' : 'text-charcoal dark:text-stone-200'} transition-colors`}>
                     {absRemaining}
                     <span className="text-xs font-sans font-normal opacity-40 dark:opacity-60 uppercase ml-1">kcal</span>
                 </p>

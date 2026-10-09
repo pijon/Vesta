@@ -66,7 +66,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
           {/* Owner Badge (for family recipes) */}
           {/* Owner Badge (for family recipes) */}
           {!isOwned && ownerName && (
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 flex items-center gap-1.5">
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-plum-50 text-plum-600 dark:bg-plum-900/60 dark:text-plum-300 border border-plum-100 dark:border-plum-800 flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               {ownerName}
             </span>
@@ -92,7 +92,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
                 e.stopPropagation();
                 onCopyToLibrary(e);
               }}
-              className="p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 bg-black/30 text-white hover:bg-[var(--background)] hover:text-blue-600 hover:scale-110"
+              className="p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 bg-black/30 text-white hover:bg-[var(--background)] hover:text-ocean-700 hover:scale-110"
               title="Copy to My Recipes"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -107,8 +107,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
                 if (onToggleFavorite) onToggleFavorite(e);
               }}
               className={`p-2.5 rounded-full shadow-md backdrop-blur-md transition-all duration-300 ${meal.isFavorite
-                ? 'bg-[var(--background)]/90 text-red-500 hover:bg-[var(--background)] hover:scale-110'
-                : 'bg-black/30 text-white hover:bg-[var(--background)] hover:text-red-500 hover:scale-110'
+                ? 'bg-[var(--background)]/90 text-hearth hover:bg-[var(--background)] hover:scale-110'
+                : 'bg-black/30 text-white hover:bg-[var(--background)] hover:text-hearth hover:scale-110'
                 }`}
               title={meal.isFavorite ? "Remove from favourites" : "Add to favourites"}
             >

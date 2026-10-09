@@ -713,7 +713,7 @@ export const ShoppingList: React.FC = () => {
   if (error) {
     return (
       <div className="space-y-8 pb-20 animate-fade-in">
-        <div className="p-8 text-center text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-200 dark:border-red-900/20">
+        <div className="p-8 text-center text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-200 dark:border-rose-900/20">
           <div className="text-3xl mb-2">⚠️</div>
           <p className="font-medium mb-2">Error</p>
           <p className="text-sm">{error}</p>

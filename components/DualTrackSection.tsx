@@ -156,7 +156,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 onClick={() => onNavigate(AppView.PLANNER)}
                 className="px-6 py-3 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
                 style={{ backgroundColor: 'var(--calories)' }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--calories-hover)'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--calories)'}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>

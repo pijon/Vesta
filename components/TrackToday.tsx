@@ -455,7 +455,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
       {isMealSelectorOpen && (
         <Portal>
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--stone-900)]/60 backdrop-blur-sm px-4 py-4 animate-fade-in" onClick={() => setIsMealSelectorOpen(false)}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm px-4 py-4 animate-fade-in" onClick={() => setIsMealSelectorOpen(false)}>
             <div className="bg-white dark:bg-white/5 w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center p-6 border-b border-border bg-white dark:bg-white/5 shrink-0">
                 <h2 className="text-2xl font-bold text-charcoal dark:text-stone-200 font-serif">Swap Meal</h2>

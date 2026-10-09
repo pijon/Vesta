@@ -41,9 +41,9 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
 
   if (balanceData.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700">
-        <h3 className="text-lg font-serif font-normal text-slate-800 dark:text-slate-200 mb-2">Daily Calorie Balance</h3>
-        <p className="text-slate-500 dark:text-slate-400 text-sm">
+      <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-sm p-6 border border-stone-100 dark:border-stone-700">
+        <h3 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-2">Daily Calorie Balance</h3>
+        <p className="text-charcoal/60 dark:text-stone-400 text-sm">
           No data available yet. Start logging meals to see your daily balance.
         </p>
       </div>
@@ -64,16 +64,16 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
               dataKey="displayDate"
-              tick={{ fill: 'var(--muted)', fontSize: 12 }}
+              tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
               stroke="var(--border)"
             />
             <YAxis
-              tick={{ fill: 'var(--muted)', fontSize: 12 }}
+              tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
               stroke="var(--border)"
-              label={{ value: 'kcal', angle: -90, position: 'insideLeft', fill: 'var(--muted)', fontSize: 12 }}
+              label={{ value: 'kcal', angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
             />
             <Tooltip
-              cursor={{ fill: 'var(--muted)', opacity: 0.1 }}
+              cursor={{ fill: 'var(--text-muted)', opacity: 0.1 }}
               contentStyle={{
                 backgroundColor: 'var(--surface)',
                 border: '1px solid var(--border)',
@@ -81,8 +81,8 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
                 padding: '12px',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
               }}
-              labelStyle={{ color: 'var(--main)', fontWeight: 'bold', marginBottom: '8px' }}
-              itemStyle={{ color: 'var(--main)' }}
+              labelStyle={{ color: 'var(--text-main)', fontWeight: 'bold', marginBottom: '8px' }}
+              itemStyle={{ color: 'var(--text-main)' }}
               formatter={(value: number, name: string, props: any) => {
                 const data = props.payload;
                 const isFast = data.dayType === 'fast';
@@ -107,7 +107,7 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
 
                 let fill = 'var(--error)';
                 if (entry.isCompliant) {
-                  fill = entry.dayType === 'fast' ? 'var(--calories)' : 'var(--neutral-600)'; // Use neutral for standard days
+                  fill = entry.dayType === 'fast' ? 'var(--calories)' : 'var(--color-stone-400)'; // Use neutral for standard days
                 }
 
                 return (

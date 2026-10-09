@@ -30,7 +30,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
       case 'gaining':
         return 'var(--error)';
       default:
-        return 'var(--muted)';
+        return 'var(--text-muted)';
     }
   };
 

@@ -11,7 +11,7 @@ export const RecipeIllustration: React.FC<RecipeIllustrationProps> = ({ classNam
   const secondaryColor = theme?.accent || '#B0D478';
 
   return (
-    <div className={`flex items-center justify-center ${theme?.bg || 'bg-emerald-50'} ${className}`}>
+    <div className={`flex items-center justify-center ${theme?.bg || 'bg-sage-50'} ${className}`}>
       <svg
         viewBox="0 0 512 512"
         className="w-4/5 h-4/5 drop-shadow-sm transition-all duration-500"
