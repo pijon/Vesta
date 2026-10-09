@@ -5,6 +5,7 @@ import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLoca
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { auth } from '../services/firebase';
+import { localDateString } from '../utils/dateUtils';
 
 interface SettingsViewProps {
     stats: UserStats;
@@ -99,7 +100,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `vesta-data-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `vesta-data-${localDateString()}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

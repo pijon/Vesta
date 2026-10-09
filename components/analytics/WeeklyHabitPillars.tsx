@@ -1,6 +1,7 @@
 import React from 'react';
 import { DailySummary, UserStats } from '../../types';
 import { motion } from 'framer-motion';
+import { localDateString } from '../../utils/dateUtils';
 
 interface WeeklyHabitPillarsProps {
     summaries: DailySummary[];
@@ -25,7 +26,7 @@ export const WeeklyHabitPillars: React.FC<WeeklyHabitPillarsProps> = ({ summarie
         for (let i = 6; i >= 0; i--) {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = localDateString(d);
             const summary = summaries.find(s => s.date === dateStr);
             days.push({
                 date: dateStr,

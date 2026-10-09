@@ -1,5 +1,6 @@
 import { UserStats, WeightEntry, DailyLog, DailySummary } from '../types';
 import { DAILY_CALORIE_LIMIT } from '../constants';
+import { localDateString, parseLocalDate } from './dateUtils';
 
 export interface WeightAnalysis {
   currentWeight: number;
@@ -191,7 +192,7 @@ export function analyzeWeightTrends(stats: UserStats): WeightAnalysis {
 
         const today = new Date();
         const goalDate = new Date(today.getTime() + daysToGoal * 24 * 60 * 60 * 1000);
-        projectedGoalDate = goalDate.toISOString().split('T')[0];
+        projectedGoalDate = localDateString(goalDate);
       }
     }
   }
@@ -320,7 +321,7 @@ export function analyzeActivityStreaks(summaries: DailySummary[]): StreakAnalysi
   // Logic: Streak includes today if active. If not, it continues from yesterday.
   let currentStreak = 0;
   let d = new Date();
-  let dStr = d.toISOString().split('T')[0];
+  let dStr = localDateString(d);
 
   // 1. Check Today
   if (activityMap.get(dStr)) {
@@ -331,7 +332,7 @@ export function analyzeActivityStreaks(summaries: DailySummary[]): StreakAnalysi
   d.setDate(d.getDate() - 1); // Move to yesterday
 
   while (true) {
-    dStr = d.toISOString().split('T')[0];
+    dStr = localDateString(d);
     if (activityMap.get(dStr)) {
       currentStreak++;
       d.setDate(d.getDate() - 1);
@@ -350,15 +351,15 @@ export function analyzeActivityStreaks(summaries: DailySummary[]): StreakAnalysi
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
-    const startDate = new Date(sorted[0].date);
-    const endDate = new Date(sorted[sorted.length - 1].date);
+    const startDate = parseLocalDate(sorted[0].date);
+    const endDate = parseLocalDate(sorted[sorted.length - 1].date);
 
     // We scan from start to end (or end to start, doesn't matter for max)
     let tempStreak = 0;
     const scanner = new Date(startDate);
 
     while (scanner <= endDate) {
-      const s = scanner.toISOString().split('T')[0];
+      const s = localDateString(scanner);
       if (activityMap.get(s)) {
         tempStreak++;
         longestStreak = Math.max(longestStreak, tempStreak);
@@ -430,8 +431,8 @@ export function getWeeklySummary(summaries: DailySummary[], dailyGoal?: number):
   if (weekData.length === 0) {
     return {
       period: 'week',
-      startDate: weekAgo.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0],
+      startDate: localDateString(weekAgo),
+      endDate: localDateString(today),
       daysLogged: 0,
       avgCalories: 0,
       avgNetCalories: 0,
@@ -450,8 +451,8 @@ export function getWeeklySummary(summaries: DailySummary[], dailyGoal?: number):
 
   return {
     period: 'week',
-    startDate: weekAgo.toISOString().split('T')[0],
-    endDate: today.toISOString().split('T')[0],
+    startDate: localDateString(weekAgo),
+    endDate: localDateString(today),
     daysLogged: weekData.length,
     avgCalories: totalCalories / weekData.length,
     avgNetCalories: totalNetCalories / weekData.length,
@@ -479,8 +480,8 @@ export function getMonthlySummary(summaries: DailySummary[], dailyGoal?: number)
   if (monthData.length === 0) {
     return {
       period: 'month',
-      startDate: monthAgo.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0],
+      startDate: localDateString(monthAgo),
+      endDate: localDateString(today),
       daysLogged: 0,
       avgCalories: 0,
       avgNetCalories: 0,
@@ -499,8 +500,8 @@ export function getMonthlySummary(summaries: DailySummary[], dailyGoal?: number)
 
   return {
     period: 'month',
-    startDate: monthAgo.toISOString().split('T')[0],
-    endDate: today.toISOString().split('T')[0],
+    startDate: localDateString(monthAgo),
+    endDate: localDateString(today),
     daysLogged: monthData.length,
     avgCalories: totalCalories / monthData.length,
     avgNetCalories: totalNetCalories / monthData.length,

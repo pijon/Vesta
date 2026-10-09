@@ -1,4 +1,5 @@
 import { DailyLog, FastingState, UserStats, DailyProgress } from '../types';
+import { localDateString } from '../utils/dateUtils';
 
 /**
  * Calculates the progress for the 3 daily rings: Calories, Water, Fasting.
@@ -94,7 +95,7 @@ export const updateStreak = (
 ): UserStats => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = localDateString(yesterday);
 
     // Helper to update a single streak category
     const updateCategory = (

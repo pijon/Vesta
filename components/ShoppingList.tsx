@@ -13,6 +13,7 @@ import { parseIngredients, convertToPurchasableQuantities } from '../services/ge
 import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../types';
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
+import { localDateString } from '../utils/dateUtils';
 
 type Phase = 'selection' | 'requirements' | 'shopping';
 
@@ -117,8 +118,8 @@ export const ShoppingList: React.FC = () => {
       endDate.setDate(endDate.getDate() + 14); // 2 weeks out
 
       const plan = await getFamilyPlansInRange(
-        today.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
+        localDateString(today),
+        localDateString(endDate)
       );
       const meals = extractMealsFromPlan(plan);
       setAvailableMeals(meals);
@@ -411,7 +412,7 @@ export const ShoppingList: React.FC = () => {
       setPurchasableItems(purchasable);
 
       // Cache results
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateString();
       const newState = {
         ...shoppingState,
         lastGeneratedDate: today,

@@ -17,6 +17,7 @@ import { useAchievements } from '../hooks/useAchievements';
 import { analyzeWeightTrends, analyzeActivityStreaks } from '../utils/analytics';
 
 import { saveUserStats } from '../services/storageService';
+import { localDateString } from '../utils/dateUtils';
 
 interface TrackTodayProps {
   todayPlan: DayPlan;
@@ -123,7 +124,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   // Merge current dailyLog into activityHistory for accurate real-time streak
   const effectiveHistory = React.useMemo(() => {
     // Create a map from history for easy lookup/override
-    const historyMap = new Map(activityHistory.map(s => [s.date, s]));
+    const historyMap = new Map<string, DailySummary>(activityHistory.map(s => [s.date, s]));
 
     // Create summary from current dailyLog to ensure "Today" is up to date
     const todaySummary: DailySummary = {
@@ -251,7 +252,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   };
 
   // Check if weight was logged today
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateString();
   const weightLoggedToday = stats.weightHistory.some(entry => entry.date === today);
 
   // Helper to format hours into string

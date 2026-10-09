@@ -1,6 +1,7 @@
 import { DailySummary } from '../types';
 import { getFastingHistory, getUserStats, getDailySummaries } from './storageService';
 import { calculateRegressionLine } from '../utils/analytics';
+import { localDateString } from '../utils/dateUtils';
 
 export interface AnalyticsDataPoint {
     date: string;
@@ -33,7 +34,7 @@ export const getAnalyticsData = async (): Promise<AnalyticsDataPoint[]> => {
     // 2. Merge Fasting History
     fastingHistory.forEach(entry => {
         // Fasting entries happen at a specific timestamp. We'll attribute it to the "End Time" date.
-        const date = new Date(entry.endTime).toISOString().split('T')[0];
+        const date = localDateString(new Date(entry.endTime));
 
         const existing = dataMap.get(date) || {
             date,
@@ -101,7 +102,7 @@ export const getGoalProjection = async (): Promise<{ daysRemaining: number, proj
     if (remainingWeight <= 0) {
         return {
             daysRemaining: 0,
-            projectedDate: new Date().toISOString().split('T')[0],
+            projectedDate: localDateString(),
             ratePerWeek: ratePerDay * 7
         };
     }
@@ -113,7 +114,7 @@ export const getGoalProjection = async (): Promise<{ daysRemaining: number, proj
 
     return {
         daysRemaining,
-        projectedDate: projectedDateObj.toISOString().split('T')[0],
+        projectedDate: localDateString(projectedDateObj),
         ratePerWeek: ratePerDay * 7
     };
 };

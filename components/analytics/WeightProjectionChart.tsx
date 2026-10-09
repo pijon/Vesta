@@ -2,6 +2,7 @@ import React from 'react';
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Legend, Area } from 'recharts';
 import { UserStats } from '../../types';
 import { calculateRegressionLine } from '../../utils/analytics';
+import { localDateString, parseLocalDate } from '../../utils/dateUtils';
 
 interface WeightProjectionChartProps {
     stats: UserStats;
@@ -51,7 +52,7 @@ export const WeightProjectionChart: React.FC<WeightProjectionChartProps> = ({ st
             const daysToShow = Math.min(daysToGoal, 90);
 
             const lastEntry = sortedHistory[sortedHistory.length - 1];
-            const lastDate = new Date(lastEntry.date);
+            const lastDate = parseLocalDate(lastEntry.date);
 
             // Add point for today/start of projection
             data[data.length - 1].projected = lastEntry.weight;
@@ -63,7 +64,7 @@ export const WeightProjectionChart: React.FC<WeightProjectionChartProps> = ({ st
             const projectedWeight = lastEntry.weight - (kgPerDay * daysToShow);
 
             data.push({
-                date: targetDate.toISOString().split('T')[0],
+                date: localDateString(targetDate),
                 displayDate: targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                 weight: null as any,
                 projected: Number(projectedWeight.toFixed(1))

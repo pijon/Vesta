@@ -3,7 +3,7 @@ import { getCacheKey, saveToCache, getFromCache, getCachedDayPlan, getCachedDail
 import { getUserGroup, getGroupMembersDetails } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
 
 // Helper to get current user ID or throw
 const getUserId = () => {
@@ -81,6 +81,7 @@ export const deleteRecipe = async (id: string) => {
 
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { localDateString, parseLocalDate } from '../utils/dateUtils';
 
 /**
  * Migrates all Base64 images in recipes to Firebase Storage.
@@ -535,7 +536,7 @@ export const getUpcomingPlan = async (days: number = 7): Promise<Record<string, 
   for (let i = 0; i < days; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    dates.push(d.toISOString().split('T')[0]);
+    dates.push(localDateString(d));
   }
 
   // Fetch in parallel
@@ -585,11 +586,11 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
       const legacyDoc = await getDoc(doc(db, 'users', getUserId(), 'data', 'plan'));
       if (legacyDoc.exists()) {
         const legacyData = legacyDoc.data();
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = parseLocalDate(startDate);
+        const end = parseLocalDate(endDate);
 
         for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-          const dateStr = d.toISOString().split('T')[0];
+          const dateStr = localDateString(d);
           // Only use legacy if we don't have a new plan AND legacy has data
           if (!plans[dateStr] && legacyData[dateStr]) {
             plans[dateStr] = legacyData[dateStr] as DayPlan;
@@ -602,11 +603,11 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
 
     // Fallback: Default to 'fast' day if no data exists
     // Policy: "Default is a fast day"
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseLocalDate(startDate);
+    const end = parseLocalDate(endDate);
 
     for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = localDateString(d);
 
       if (!plans[dateStr]) {
         // No plan exists -> Default to Fast Day
@@ -632,12 +633,12 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
 // Purely local helper to stitch together a range from existing cache
 export const getCachedPlansInRange = (startDate: string, endDate: string): Record<string, DayPlan> | null => {
   const plans: Record<string, DayPlan> = {};
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
   let allFound = false; // We can be partial, it's better than nothing. SWR will update.
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = localDateString(d);
     const cachedDay = getCachedDayPlan(dateStr);
     if (cachedDay) {
       plans[dateStr] = cachedDay;
@@ -742,10 +743,10 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
 
     // 5. Fill gaps with defaults (like 'fast' day defaults) if needed
     // (Reusing logic from getDayPlansInRange for specific defaults)
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseLocalDate(startDate);
+    const end = parseLocalDate(endDate);
     for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = localDateString(d);
       if (!mergedPlans[dateStr]) {
         // If no one has a plan, default to empty (or fast day logic if we want)
         mergedPlans[dateStr] = { date: dateStr, meals: [], completedMealIds: [], type: 'fast' };
@@ -937,7 +938,7 @@ export const getRecentWorkouts = async (limitCount: number = 5, daysBack: number
   // Only fetch recent logs to avoid loading all historical data
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-  const cutoffDateString = cutoffDate.toISOString().split('T')[0];
+  const cutoffDateString = localDateString(cutoffDate);
 
   const logsQuery = query(
     getCollectionRef('logs'),
@@ -1184,48 +1185,42 @@ export const migrateFromLocalStorage = async (force: boolean = false): Promise<{
   }
 };
 
+// Every doc in one of the user's collections, keyed by doc id (dates for
+// days, logs and summaries).
+const getCollectionDocs = async (name: string): Promise<Record<string, DocumentData>> => {
+  const snapshot = await getDocs(getCollectionRef(name));
+  const docs: Record<string, DocumentData> = {};
+  snapshot.forEach(d => { docs[d.id] = d.data(); });
+  return docs;
+};
+
 export const exportAllData = async (): Promise<string> => {
   try {
-    const stats = await getUserStats();
-
-    // Fetch Recipes
-    const recipesSnapshot = await getDocs(collection(db, `users/${auth.currentUser?.uid}/recipes`));
-    const recipes = recipesSnapshot.docs.map(d => d.data());
-
-    // Fetch Plan (Single Doc)
-    const planRef = getDocRef('data', PLAN_DOC);
-    const planSnapshot = await getDoc(planRef);
-    const plan = planSnapshot.exists() ? planSnapshot.data() : {};
-
-    // Fetch Logs (Collection)
-    const logsSnapshot = await getDocs(collection(db, `users/${auth.currentUser?.uid}/daily_logs`));
-    const logs: Record<string, any> = {};
-    logsSnapshot.forEach(d => { logs[d.id] = d.data(); });
-
-    // Fetch Shopping State
-    const shoppingRef = getDocRef('data', SHOPPING_DOC);
-    const shoppingSnapshot = await getDoc(shoppingRef);
-    const shopping = shoppingSnapshot.exists() ? shoppingSnapshot.data() : null;
-
-    // Fetch Pantry
-    const pantryRef = getDocRef('data', PANTRY_DOC);
-    const pantrySnapshot = await getDoc(pantryRef);
-    const pantry = pantrySnapshot.exists() ? pantrySnapshot.data() : [];
-
-    // Fetch Fasting
-    const fastingRef = getDocRef('data', FASTING_DOC);
-    const fastingSnapshot = await getDoc(fastingRef);
-    const fasting = fastingSnapshot.exists() ? fastingSnapshot.data() : null;
+    const [stats, recipes, days, logs, summaries, shopping, pantry, fasting, fastingHistory] = await Promise.all([
+      getUserStats(),
+      getCollectionDocs('recipes').then(docs => Object.values(docs)),
+      // Stored as-is (PlannedMeal references); the recipes above resolve them.
+      getCollectionDocs('days'),
+      // Full logs exist only for days not yet archived into summaries.
+      getCollectionDocs('logs'),
+      getCollectionDocs('summaries'),
+      getDoc(getDocRef('data', SHOPPING_DOC)).then(d => d.exists() ? d.data() : null),
+      getDoc(getDocRef('data', PANTRY_DOC)).then(d => d.exists() ? d.data() : null),
+      getDoc(getDocRef('data', FASTING_DOC)).then(d => d.exists() ? d.data() : null),
+      getFastingHistory(),
+    ]);
 
     const exportData = {
       stats,
       recipes,
-      plan,
+      days,
       logs,
+      summaries,
       shopping,
       pantry,
       fasting,
-      version: 1,
+      fastingHistory,
+      version: 2,
       exportedAt: new Date().toISOString()
     };
 
@@ -1247,7 +1242,7 @@ export const archiveYesterdaysLog = async (): Promise<{ archived: boolean; date?
   try {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
+    const dateStr = localDateString(yesterday);
 
     // 1. Check if already archived
     const summaryRef = getDocRef('summaries', dateStr);
@@ -1305,7 +1300,7 @@ export const getDailySummaries = async (daysBack: number = 90): Promise<DailySum
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-    const cutoffDateString = cutoffDate.toISOString().split('T')[0];
+    const cutoffDateString = localDateString(cutoffDate);
 
     // 1. Fetch from summaries collection (new, lightweight)
     const summariesQuery = query(
@@ -1363,7 +1358,7 @@ export const getDailySummaries = async (daysBack: number = 90): Promise<DailySum
 export const migrateAllLogsToSummaries = async (): Promise<{ success: boolean; migratedCount: number; error?: string }> => {
   try {
     const logsSnap = await getDocs(getCollectionRef('logs'));
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateString();
 
     let migratedCount = 0;
 
@@ -1431,8 +1426,15 @@ export const importAllData = async (jsonString: string): Promise<{ success: bool
       }
     }
 
+    // Version 1 backups: legacy single plan doc
     if (data.plan) {
       await setDoc(getDocRef('data', PLAN_DOC), data.plan);
+    }
+
+    if (data.days) {
+      for (const date in data.days) {
+        await setDoc(getDocRef('days', date), data.days[date]);
+      }
     }
 
     if (data.logs) {
@@ -1441,9 +1443,18 @@ export const importAllData = async (jsonString: string): Promise<{ success: bool
       }
     }
 
+    if (data.summaries) {
+      for (const date in data.summaries) {
+        await setDoc(getDocRef('summaries', date), data.summaries[date]);
+      }
+    }
+
     if (data.shopping) await saveEnhancedShoppingState(data.shopping);
     if (data.pantry) await savePantryInventory(data.pantry);
     if (data.fasting) await saveFastingState(data.fasting);
+    if (Array.isArray(data.fastingHistory)) {
+      await setDoc(getDocRef('data', FASTING_HISTORY_DOC), { entries: data.fastingHistory });
+    }
 
     console.log("Import complete");
     return { success: true };

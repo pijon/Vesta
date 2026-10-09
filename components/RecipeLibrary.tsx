@@ -11,6 +11,7 @@ import { ImageInput } from './ImageInput';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
 import { GlassCard } from './GlassCard';
+import { localDateString } from '../utils/dateUtils';
 
 
 
@@ -311,7 +312,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `vesta_recipes_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `vesta_recipes_${localDateString()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -593,7 +594,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               onAddToPlan={async (e) => {
                 e.stopPropagation();
                 if (!confirm(`Add "${recipe.name}" to today's plan?`)) return;
-                const today = new Date().toISOString().split('T')[0];
+                const today = localDateString();
                 const plan = await getDayPlan(today);
                 // Determine next slot? Or simply append. Appending for now.
                 // We don't have "Breakfast/Lunch" slots strongly typed yet, it's just a list.

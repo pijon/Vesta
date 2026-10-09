@@ -37,24 +37,24 @@ const TrackerApp: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     // const [isSettingsOpen, setIsSettingsOpen] = useState(false); // Removed modal state
-    const [todayDate, setTodayDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [todayDate, setTodayDate] = useState(() => localDateString());
     const [tomorrowDate, setTomorrowDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
-        return d.toISOString().split('T')[0];
+        return localDateString(d);
     });
 
     // Check for date change on focus/visibility change
     useEffect(() => {
         console.log("Vesta PWA 1.0.2 - Enhanced Update Check");
         const checkDate = () => {
-            const now = new Date().toISOString().split('T')[0];
+            const now = localDateString();
             if (now !== todayDate) {
                 console.log("Date changed, updating...", now);
                 setTodayDate(now);
                 const tom = new Date();
                 tom.setDate(tom.getDate() + 1);
-                setTomorrowDate(tom.toISOString().split('T')[0]);
+                setTomorrowDate(localDateString(tom));
             }
         };
 
@@ -96,13 +96,13 @@ const TrackerApp: React.FC = () => {
     };
 
     const [todayPlan, setTodayPlan] = useState<DayPlan>(() => {
-        const date = new Date().toISOString().split('T')[0];
+        const date = localDateString();
         return cache.getCachedDayPlan(date) || { date, meals: [], completedMealIds: [] };
     });
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
-        const date = d.toISOString().split('T')[0];
+        const date = localDateString(d);
         return cache.getCachedDayPlan(date) || { date, meals: [], completedMealIds: [] };
     });
 
@@ -145,7 +145,7 @@ const TrackerApp: React.FC = () => {
     const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
     const [dailyLog, setDailyLog] = useState<DailyLog>(() => {
-        const date = new Date().toISOString().split('T')[0];
+        const date = localDateString();
         const cached = cache.getCachedDailyLog(date);
         const merged: DailyLog = {
             date,
@@ -245,7 +245,7 @@ const TrackerApp: React.FC = () => {
     }, [todayDate, tomorrowDate]);
 
     const handleUpdateStats = async (newStats: UserStats) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateString();
         let history = [...(newStats.weightHistory || [])];
         const existingIndex = history.findIndex(h => h.date === today);
 
@@ -692,6 +692,7 @@ const AuthGuard: React.FC = () => {
 };
 
 import { ReloadPrompt } from './components/ReloadPrompt';
+import { localDateString } from './utils/dateUtils';
 
 export const App: React.FC = () => {
     // Smooth handoff: Fade out the HTML initial loader when React mounts

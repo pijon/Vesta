@@ -9,6 +9,7 @@ import { GoalsHistoryChart } from './analytics/GoalsHistoryChart';
 
 import { AnalyticsSection } from './AnalyticsSection';
 import { WeeklyHabitPillars } from './analytics/WeeklyHabitPillars';
+import { localDateString } from '../utils/dateUtils';
 
 interface TrackAnalyticsProps {
     todayPlan: DayPlan;
@@ -32,8 +33,8 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
             const pastDate = new Date();
             pastDate.setDate(today.getDate() - 95); // Buffer slightly more than 90
 
-            const startStr = pastDate.toISOString().split('T')[0];
-            const endStr = today.toISOString().split('T')[0];
+            const startStr = localDateString(pastDate);
+            const endStr = localDateString(today);
 
             const plans = await getDayPlansInRange(startStr, endStr);
             const mapping: Record<string, string> = {};
@@ -59,7 +60,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         let allWeightData = stats.weightHistory ? [...stats.weightHistory] : [];
         if (allWeightData.length === 0) {
             allWeightData.push({
-                date: new Date().toISOString().split('T')[0],
+                date: localDateString(),
                 weight: stats.startWeight
             });
         }
@@ -126,7 +127,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
 
 
     // Calorie chart data (exclude today's incomplete data)
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateString();
     const formattedCalorieData = dailySummaries
         .filter(entry => entry.date !== today)
         .map(entry => ({

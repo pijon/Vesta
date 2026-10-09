@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* dark: utilities follow the in-app .dark class (set in App.tsx), not the OS setting */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Nunito', sans-serif;
   --font-serif: 'Merriweather', serif;

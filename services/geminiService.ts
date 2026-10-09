@@ -8,6 +8,7 @@ import {
 } from "../constants";
 import { Recipe, DayPlan, FoodLogItem, PurchasableItem, FeatureFlags } from "../types";
 import { scrubPII } from "../utils/piiScrubber";
+import { localDateString } from '../utils/dateUtils';
 
 // Helper to determine active model
 const getModel = (): string => {
@@ -265,7 +266,7 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
     }));
 
     return {
-      date: new Date().toISOString().split('T')[0],
+      date: localDateString(),
       meals: mealsWithIds,
       completedMealIds: [],
       tips: data.tips || "Stay hydrated!",

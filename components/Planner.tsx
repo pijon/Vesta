@@ -13,9 +13,10 @@ import { CookingMode } from './CookingMode';
 import BatchPlannerModal from './BatchPlannerModal';
 
 import { UserStats } from '../types';
+import { localDateString, parseLocalDate } from '../utils/dateUtils';
 
 export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<string>(localDateString());
     const [weekDates, setWeekDates] = useState<string[]>([]);
     const [weekPlans, setWeekPlans] = useState<Record<string, DayPlan>>({});
     // const [dayPlan, setDayPlan] = useState<DayPlan | null>(null); // Removed - Derived from weekPlans
@@ -55,10 +56,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
     // Data Loading
     const loadData = async () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateString();
         const end = new Date();
         end.setDate(end.getDate() + 14); // Fetch 2 weeks out
-        const endDate = end.toISOString().split('T')[0];
+        const endDate = localDateString(end);
 
         // SWR: Load from cache first
         // Need to import dynamically or use the ones from storageService if available
@@ -97,7 +98,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         for (let i = 0; i < 7; i++) {
             const d = new Date(today);
             d.setDate(today.getDate() + i);
-            dates.push(d.toISOString().split('T')[0]);
+            dates.push(localDateString(d));
         }
         setWeekDates(dates);
 
@@ -272,22 +273,22 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         setShowAddModal(true);
 
         // Fetch last 3 days for Leftovers tab
-        const endD = new Date(selectedDate);
+        const endD = parseLocalDate(selectedDate);
         endD.setDate(endD.getDate() - 1);
-        const endDate = endD.toISOString().split('T')[0];
+        const endDate = localDateString(endD);
 
-        const startD = new Date(selectedDate);
+        const startD = parseLocalDate(selectedDate);
         startD.setDate(startD.getDate() - 3);
-        const startDate = startD.toISOString().split('T')[0];
+        const startDate = localDateString(startD);
 
         getDayPlansInRange(startDate, endDate).then(plans => {
             const candidates: { date: string; recipe: Recipe }[] = [];
 
             // Iterate from yesterday backwards
             for (let i = 1; i <= 3; i++) {
-                const d = new Date(selectedDate);
+                const d = parseLocalDate(selectedDate);
                 d.setDate(d.getDate() - i);
-                const dateStr = d.toISOString().split('T')[0];
+                const dateStr = localDateString(d);
                 const plan = plans[dateStr];
 
                 if (plan && plan.meals) {
@@ -407,13 +408,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
                     <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar snap-x">
                         {weekDates.map(date => {
-                            const d = new Date(date);
+                            const d = parseLocalDate(date);
                             const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
                             const dayNum = d.getDate();
                             const isSelected = date === selectedDate;
                             const plan = weekPlans[date];
                             const hasMeals = plan?.meals && plan.meals.length > 0;
-                            const isToday = new Date().toISOString().split('T')[0] === date;
+                            const isToday = localDateString() === date;
                             const isFast = plan?.type === 'fast';
 
                             return (
@@ -463,7 +464,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                         {/* Header Actions */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                             <div>
-                                <h2 className="text-3xl font-serif text-charcoal dark:text-stone-200">{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}'s Menu</h2>
+                                <h2 className="text-3xl font-serif text-charcoal dark:text-stone-200">{parseLocalDate(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}'s Menu</h2>
                                 <p className="text-charcoal/60 dark:text-stone-400">
                                     {dayPlan?.meals.length || 0} meals planned • {dayPlan?.totalCalories || 0} kcal total
                                 </p>

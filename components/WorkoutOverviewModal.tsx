@@ -2,6 +2,7 @@ import React from 'react';
 import { DailySummary, WorkoutItem } from '../types';
 import { Portal } from './Portal';
 import { StreakFlame } from './StreakFlame';
+import { localDateString } from '../utils/dateUtils';
 // Actually StreakFlame is likely not exported from BentoGrid based on previous reads. 
 // I should check if StreakFlame is exported or just inline.
 // It was imported in BentoGrid: import { StreakFlame } from './StreakFlame'; 
@@ -161,7 +162,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
                                     </div>
                                 ) : (
                                     activeDays.map((summary) => {
-                                        const isToday = summary.date === new Date().toISOString().split('T')[0];
+                                        const isToday = summary.date === localDateString();
                                         if (isToday) return null; // Already showed detailed view
 
                                         return (

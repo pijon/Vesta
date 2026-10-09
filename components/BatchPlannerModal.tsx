@@ -6,6 +6,7 @@ import { planSpecificDays, DayConfig } from '../services/geminiService';
 import { getRecipes, saveDayPlan } from '../services/storageService';
 import { Recipe, DayPlan } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { localDateString } from '../utils/dateUtils';
 
 interface BatchPlannerModalProps {
     isOpen: boolean;
@@ -54,7 +55,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                     const d = new Date(today);
                     d.setDate(today.getDate() + 1 + i); // Start from tomorrow
                     days.push({
-                        date: d.toISOString().split('T')[0],
+                        date: localDateString(d),
                         type: 'non-fast',
                         meals: 3,
                         useLeftovers: false,
