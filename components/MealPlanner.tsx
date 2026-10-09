@@ -33,7 +33,7 @@ export const MealPlanner: React.FC<MealPlannerProps> = ({ onAddMeal }) => {
         <p className="text-charcoal/60">Generate an 800-calorie compliant meal plan tailored to your taste.</p>
       </header>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
+      <div className="bg-white/60 p-6 rounded-2xl shadow-sm border border-stone-100">
         <label className="block text-sm font-medium text-charcoal mb-2">Dietary Preferences / Restrictions</label>
         <textarea 
           className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl text-charcoal placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-sage-500 transition-all resize-none"
@@ -66,7 +66,7 @@ export const MealPlanner: React.FC<MealPlannerProps> = ({ onAddMeal }) => {
         <div className="animate-fade-in space-y-6">
            <div className="bg-sage-50 p-4 rounded-xl border border-sage-100">
              <div className="flex items-start gap-3">
-                <div className="bg-white p-2 rounded-full shadow-sm text-sage-700">
+                <div className="bg-white/60 p-2 rounded-full shadow-sm text-sage-700">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-2.21-.79-4.3-2.23-5.91A10 10 0 0 0 12 2z"/></svg>
                 </div>
                 <div>

@@ -317,7 +317,7 @@
     --error-border: rgba(201, 101, 107, 0.3);
 
     --border: rgba(61, 64, 91, 0.1);
-    --input-bg: #FFFFFF;
+    --input-bg: rgba(255, 255, 255, 0.7);
   }
 
   .dark {

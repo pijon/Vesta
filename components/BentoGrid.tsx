@@ -47,7 +47,7 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                     </div>
                     <button
                         onClick={(e) => { e.stopPropagation(); onAddWorkout(); }}
-                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
+                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white/80 dark:hover:bg-white/20 hover:shadow-sm transition-all"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
@@ -152,7 +152,7 @@ export const CaloriesRemainingCard: React.FC<{
                 <div className="flex gap-2">
                     <button
                         onClick={(e) => { e.stopPropagation(); onLogFood(); }}
-                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
+                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white/80 dark:hover:bg-white/20 hover:shadow-sm transition-all"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
@@ -271,7 +271,7 @@ export const WeightCard: React.FC<{ weight: number; change: number; history: Wei
                     </span>
                     <button
                         onClick={(e) => { e.stopPropagation(); onAddWeight(); }}
-                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-sage dark:text-sage/90 hover:bg-white dark:hover:bg-white/20 hover:shadow-sm transition-all"
+                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-sage dark:text-sage/90 hover:bg-white/80 dark:hover:bg-white/20 hover:shadow-sm transition-all"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeWidth="3" d="M12 4v16m8-8H4"></path>

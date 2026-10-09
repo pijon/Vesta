@@ -172,7 +172,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                 >
                                     <span>Projection</span>
                                     <div className={`w-8 h-4 rounded-full relative transition-colors ${showProjection ? 'bg-hearth' : 'bg-stone-300 dark:bg-stone-600'}`}>
-                                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${showProjection ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-stone-50 rounded-full shadow-sm transition-transform ${showProjection ? 'translate-x-4' : 'translate-x-0'}`} />
                                     </div>
                                 </button>
 

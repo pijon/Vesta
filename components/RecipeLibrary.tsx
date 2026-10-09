@@ -440,7 +440,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="w-full input min-h-[160px] mb-4 bg-white dark:bg-black/20 text-charcoal dark:text-stone-200 border-border dark:border-white/10"
+              className="w-full input min-h-[160px] mb-4 bg-white/60 dark:bg-black/20 text-charcoal dark:text-stone-200 border-border dark:border-white/10"
               placeholder="Paste your recipe here... e.g. 'Chicken Stir Fry, serves 4. Ingredients: 500g chicken breast...'"
             />
             <button

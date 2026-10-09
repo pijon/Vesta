@@ -74,7 +74,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-8">
           {/* Total Weight Lost */}
-          <div className="bg-white dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
+          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
             <div className="flex items-start justify-between mb-3">
               <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">
                 Total Lost
@@ -98,7 +98,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
           </div>
 
           {/* Days to Goal */}
-          <div className="bg-white dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
+          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
             <div className="flex items-start justify-between mb-3">
               <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">
                 {remainingLoss <= 0 ? 'Status' : 'Est. Time'}
@@ -131,7 +131,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
           </div>
 
           {/* Remaining to Goal */}
-          <div className="bg-white dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
+          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
             <div className="flex items-start justify-between mb-3">
               <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">
                 {remainingLoss <= 0 ? 'Current Status' : 'Remaining'}

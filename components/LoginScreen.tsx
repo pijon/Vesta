@@ -29,7 +29,7 @@ export const LoginScreen: React.FC = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md bg-white dark:bg-white/5 p-8 rounded-2xl shadow-xl border border-border"
+                className="w-full max-w-md bg-white/60 dark:bg-white/5 p-8 rounded-2xl shadow-xl border border-border"
             >
                 <div className="text-center mb-8">
                     <img src="/resources/logo_light.png" alt="Vesta Logo" className="h-12 w-auto mx-auto mb-4" />

@@ -139,7 +139,7 @@ export const MigrationRunner: React.FC = () => {
                     {steps.map((step, index) => (
                         <div
                             key={step.id}
-                            className="bg-white dark:bg-stone-800 rounded-xl p-4 border border-stone-200 dark:border-stone-700"
+                            className="bg-white/60 dark:bg-stone-800 rounded-xl p-4 border border-stone-200 dark:border-stone-700"
                         >
                             <div className="flex items-start gap-3">
                                 {/* Status Icon */}

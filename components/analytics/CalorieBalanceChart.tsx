@@ -41,7 +41,7 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
 
   if (balanceData.length === 0) {
     return (
-      <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-sm p-6 border border-stone-100 dark:border-stone-700">
+      <div className="bg-white/60 dark:bg-stone-800 rounded-2xl shadow-sm p-6 border border-stone-100 dark:border-stone-700">
         <h3 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-2">Daily Calorie Balance</h3>
         <p className="text-charcoal/60 dark:text-stone-400 text-sm">
           No data available yet. Start logging meals to see your daily balance.

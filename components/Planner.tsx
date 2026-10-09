@@ -443,13 +443,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                             <div className="w-1.5 h-1.5 rounded-full bg-hearth/40" title="Today" />
                                         )}
                                         {hasMeals && (
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-sage'} `} />
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-stone-50' : 'bg-sage'} `} />
                                         )}
                                         {isFast && !isSelected && (
                                             <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-flame)]" title="Fast Day" />
                                         )}
                                         {isFast && isSelected && (
-                                            <div className="w-1.5 h-1.5 rounded-full bg-white" title="Fast Day" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-stone-50" title="Fast Day" />
                                         )}
                                     </div>
                                 </button>

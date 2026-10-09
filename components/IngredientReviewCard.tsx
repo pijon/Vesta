@@ -35,7 +35,7 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
           onClick={() => onTogglePantry(ingredient.name, !inPantry)}
           className={`btn-sm transition-all rounded-lg font-bold ${inPantry
             ? 'bg-sage text-white shadow-sm'
-            : 'bg-white dark:bg-white/5 border border-border text-charcoal/60 dark:text-stone-400 hover:border-charcoal/20 dark:hover:border-white/20'
+            : 'bg-white/60 dark:bg-white/5 border border-border text-charcoal/60 dark:text-stone-400 hover:border-charcoal/20 dark:hover:border-white/20'
             }`}
         >
           {inPantry ? '✓ Have This' : 'Need to Buy'}

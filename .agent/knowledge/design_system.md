@@ -61,7 +61,7 @@ Use these classes instead of legacy tokens:
 |--------------|----------------------------|----------------------|
 | `text-main` | `text-charcoal` | `dark:text-stone-200` |
 | `text-muted` | `text-charcoal/60` | `dark:text-stone-400` |
-| `bg-surface` | `bg-white` | `dark:bg-white/5` |
+| `bg-surface` | `bg-white/60` | `dark:bg-white/5` |
 | `bg-background` | `bg-stone-50` | `dark:bg-[#1A1714]` |
 
 ---
@@ -91,7 +91,7 @@ Use these classes instead of legacy tokens:
 ### 3.1 Cards
 **Standard Card:**
 ```html
-<div class="bg-white dark:bg-white/5 border border-charcoal/5 dark:border-white/5 rounded-3xl shadow-sm p-6">
+<div class="bg-white/60 dark:bg-white/5 border border-charcoal/5 dark:border-white/5 rounded-3xl shadow-sm p-6">
 ```
 
 **Glass Card (for overlays/search bars):**
@@ -136,7 +136,7 @@ Use the pre-defined badge classes:
 <div class="fixed inset-0 bg-stone-900/60 backdrop-blur-sm">
   <!-- Modal Container -->
   <div class="bg-stone-50 dark:bg-[#1A1714] rounded-[2.5rem] border border-white/50 dark:border-white/5">
-    <!-- Content uses bg-white dark:bg-white/5 for inner cards -->
+    <!-- Content uses bg-white/60 dark:bg-white/5 for inner cards -->
   </div>
 </div>
 ```
@@ -149,9 +149,9 @@ Use the pre-defined badge classes:
 | Level | Light Mode | Dark Mode |
 |-------|------------|-----------|
 | Page | `bg-stone-50` / `#F4F1DE` | `bg-[#1A1714]` |
-| Card Surface | `bg-white` | `bg-white/5` |
+| Card Surface | `bg-white/60` | `bg-white/5` |
 | Inner Card | `bg-charcoal/5` | `bg-white/5` |
-| Elevated | `bg-white` + `shadow-sm` | `bg-white/10` |
+| Elevated | `bg-white/80` + `shadow-sm` | `bg-white/10` |
 
 ### 4.2 Text Contrast
 | Usage | Light Mode | Dark Mode |
@@ -200,7 +200,7 @@ These automatically adjust opacity/color for dark mode.
 - Use warm shadows with `hsla(25, 40%, 25%, 0.08)`
 
 ### ❌ DON'T
-- Use pure black (`#000`) or pure white (`#FFF`) for large areas
+- Use pure black (`#000`) or solid white (`bg-white`, `#FFF`) for any surface. Cards use translucent white (`bg-white/60`, hover `bg-white/80`) over the stone background; modals use opaque `bg-stone-50 dark:bg-[#1A1714]`; small dots and toggle knobs use `bg-stone-50`
 - Use clinical colors (bright blue, stark gray)
 - Use sharp corners (`rounded-sm`, `rounded-md`)
 - Use aggressive red for "over limit" states (use soft warnings)
@@ -213,7 +213,7 @@ These automatically adjust opacity/color for dark mode.
 When refactoring a component:
 - [ ] Replace `text-muted` → `text-charcoal/60 dark:text-stone-400`
 - [ ] Replace `text-main` → `text-charcoal dark:text-stone-200`
-- [ ] Replace `bg-surface` → `bg-white dark:bg-white/5`
+- [ ] Replace `bg-surface` → `bg-white/60 dark:bg-white/5`
 - [ ] Replace `bg-background` → Use specific color or `bg-stone-50 dark:bg-[#1A1714]`
 - [ ] Ensure all headings use `font-serif`
 - [ ] Verify contrast in both light and dark mode

@@ -33,7 +33,7 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
       {/* Food Card - Primary Action */}
       <button
         onClick={onOpenFoodModal}
-        className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-calories-border p-4 text-left active:scale-[0.98] transition-transform"
+        className="bg-white/60 dark:bg-white/5 rounded-2xl shadow-sm border border-calories-border p-4 text-left active:scale-[0.98] transition-transform"
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -78,7 +78,7 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
       {/* Water Card - Primary Action */}
       <button
         onClick={() => onAddWater(250)}
-        className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-water-border p-4 text-left active:scale-[0.98] transition-transform"
+        className="bg-white/60 dark:bg-white/5 rounded-2xl shadow-sm border border-water-border p-4 text-left active:scale-[0.98] transition-transform"
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">

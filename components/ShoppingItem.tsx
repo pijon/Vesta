@@ -88,7 +88,7 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, on
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onBlur={submitEdit}
                                 onKeyDown={(e) => e.key === 'Enter' && submitEdit()}
-                                className="bg-white dark:bg-white/5 border border-border rounded-lg px-2 py-1 text-lg font-bold text-hearth min-w-[60px] max-w-[120px] focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all"
+                                className="bg-white/60 dark:bg-white/5 border border-border rounded-lg px-2 py-1 text-lg font-bold text-hearth min-w-[60px] max-w-[120px] focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all"
                             />
                         ) : (
                             <span

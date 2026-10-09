@@ -456,12 +456,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       {isMealSelectorOpen && (
         <Portal>
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm px-4 py-4 animate-fade-in" onClick={() => setIsMealSelectorOpen(false)}>
-            <div className="bg-white dark:bg-white/5 w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center p-6 border-b border-border bg-white dark:bg-white/5 shrink-0">
+            <div className="bg-stone-50 dark:bg-[#1A1714] w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center p-6 border-b border-border bg-white/60 dark:bg-white/5 shrink-0">
                 <h2 className="text-2xl font-bold text-charcoal dark:text-stone-200 font-serif">Swap Meal</h2>
                 <button
                   onClick={() => setIsMealSelectorOpen(false)}
-                  className="p-2 bg-white dark:bg-white/5 border border-border rounded-full text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 transition-colors"
+                  className="p-2 bg-white/60 dark:bg-white/5 border border-border rounded-full text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>

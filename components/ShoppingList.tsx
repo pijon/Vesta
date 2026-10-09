@@ -569,7 +569,7 @@ export const ShoppingList: React.FC = () => {
       <div className="space-y-8 pb-20 animate-fade-in">
         {/* Info Card */}
         {availableMeals.length === 0 ? (
-          <div className="p-12 text-center text-charcoal/60 dark:text-stone-400 bg-white dark:bg-white/5 rounded-2xl border border-dashed border-border">
+          <div className="p-12 text-center text-charcoal/60 dark:text-stone-400 bg-white/60 dark:bg-white/5 rounded-2xl border border-dashed border-border">
             <div className="text-4xl mb-4">🍽️</div>
             <p className="text-lg font-medium text-charcoal dark:text-stone-200 mb-2">No meals found</p>
             <p className="text-sm">Go to the Planner to add meals for the upcoming week.</p>
@@ -612,7 +612,7 @@ export const ShoppingList: React.FC = () => {
                                         group flex items-center justify-between p-5 rounded-xl border cursor-pointer transition-all duration-200
                                         ${isSelected
                               ? 'bg-hearth/5 border-hearth shadow-sm'
-                              : 'bg-white dark:bg-white/5 border-border hover:border-hearth/50 hover:shadow-md'
+                              : 'bg-white/60 dark:bg-white/5 border-border hover:border-hearth/50 hover:shadow-md'
                             }
                                       `}
                         >
@@ -662,7 +662,7 @@ export const ShoppingList: React.FC = () => {
 
             {/* Generate Button */}
             <div className="sticky bottom-6 flex justify-center pt-8 pb-4 z-20 pointer-events-none">
-              <div className="bg-white dark:bg-white/5/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/10 pointer-events-auto">
+              <div className="bg-white/80 dark:bg-white/10 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/10 pointer-events-auto">
                 <button
                   onClick={handleAnalyzeIngredients}
                   disabled={isProcessing || selectedMealIds.size === 0}
@@ -736,7 +736,7 @@ export const ShoppingList: React.FC = () => {
         <div className="flex justify-end mb-4">
           <button
             onClick={handleResetList}
-            className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors shadow-sm"
+            className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white/60 dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors shadow-sm"
           >
             Reset All
           </button>
@@ -792,13 +792,13 @@ export const ShoppingList: React.FC = () => {
       <div className="flex justify-end gap-2 mb-4">
         <button
           onClick={() => setPhase('requirements')}
-          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
+          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white/60 dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
         >
           ← Back to Review
         </button>
         <button
           onClick={handleResetList}
-          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
+          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white/60 dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
         >
           Reset
         </button>
@@ -812,7 +812,7 @@ export const ShoppingList: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="bg-white dark:bg-white/5 rounded-3xl shadow-sm border border-border overflow-hidden p-6">
+          <div className="bg-white/60 dark:bg-white/5 rounded-3xl shadow-sm border border-border overflow-hidden p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-normal text-charcoal dark:text-stone-200 font-serif text-lg">Items to Purchase ({purchasableItems.length})</h3>
             </div>

@@ -527,7 +527,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               <div className="p-6 pt-0 flex gap-3">
                 <button
                   onClick={handleCancelEditFood}
-                  className="flex-1 py-3 bg-white/50 dark:bg-white/5 text-charcoal dark:text-stone-200 font-bold rounded-2xl border border-white/20 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 transition-colors"
+                  className="flex-1 py-3 bg-white/50 dark:bg-white/5 text-charcoal dark:text-stone-200 font-bold rounded-2xl border border-white/20 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
                 >
                   Cancel
                 </button>
