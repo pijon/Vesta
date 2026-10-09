@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type, Schema, ApiError, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import {
   GEMINI_TEXT_MODEL,
   GEMINI_FAST_MODEL,
@@ -47,6 +47,19 @@ const SIDE_DISH_PROMPT = `
 
 const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey });
+
+// The free tier often answers 3.8 Flash requests with 503 (overloaded) or 429 (rate
+// limited). Retry those once on Flash-Lite so the user gets an answer instead of an error.
+const generateWithFallback = async (params: GenerateContentParameters): Promise<GenerateContentResponse> => {
+  try {
+    return await ai.models.generateContent(params);
+  } catch (error) {
+    const overloaded = error instanceof ApiError && (error.status === 503 || error.status === 429);
+    if (!overloaded || params.model === GEMINI_MODEL_STABLE) throw error;
+    console.warn(`[Gemini] ${params.model} unavailable (${error.status}), retrying on ${GEMINI_MODEL_STABLE}`);
+    return ai.models.generateContent({ ...params, model: GEMINI_MODEL_STABLE });
+  }
+};
 
 const recipeSchema: Schema = {
   type: Type.OBJECT,
@@ -125,7 +138,7 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
     const activeModel = getModel();
     console.log(`[Gemini Service] Using Model: ${activeModel}`);
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithFallback({
       model: activeModel,
       contents: prompt,
       config: {
@@ -228,7 +241,7 @@ export const generateMealPlan = async (preferences: string): Promise<DayPlan> =>
     const activeModel = getModel();
     console.log(`[Gemini Service] generateMealPlan using: ${activeModel}`);
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithFallback({
       model: activeModel,
       contents: prompt,
       config: {
@@ -312,9 +325,8 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
   `;
 
   try {
-    const activeModel = getModel();
-    const response = await ai.models.generateContent({
-      model: activeModel,
+    const response = await generateWithFallback({
+      model: GEMINI_FAST_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -389,7 +401,7 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
 
   try {
     const activeModel = getModel();
-    const response = await ai.models.generateContent({
+    const response = await generateWithFallback({
       model: activeModel,
       contents: [
         {
@@ -492,7 +504,7 @@ export const planSpecificDays = async (
 
   try {
     const activeModel = getModel();
-    const response = await ai.models.generateContent({
+    const response = await generateWithFallback({
       model: activeModel,
       contents: prompt,
       config: {
@@ -625,7 +637,7 @@ EXAMPLES:
 
         try {
           const activeModel = getModel();
-          const response = await ai.models.generateContent({
+          const response = await generateWithFallback({
             model: activeModel,
             contents: prompt,
             config: {
@@ -752,7 +764,7 @@ Output: {
 
   try {
     const activeModel = getModel();
-    const response = await ai.models.generateContent({
+    const response = await generateWithFallback({
       model: activeModel,
       contents: prompt,
       config: {
@@ -829,7 +841,7 @@ OUTPUT: Complete recipe with name, ingredients list with quantities, instruction
 
   try {
     const activeModel = getModel();
-    const response = await ai.models.generateContent({
+    const response = await generateWithFallback({
       model: activeModel,
       contents: prompt,
       config: {
@@ -862,7 +874,7 @@ export const suggestSideDishes = async (mainMealName: string, mainMealCalories: 
 
   try {
     const activeModel = getModel();
-    const response = await ai.models.generateContent({
+    const response = await generateWithFallback({
       model: activeModel,
       contents: prompt,
       config: {

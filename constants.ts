@@ -9,7 +9,7 @@ export const GEMINI_MODEL_STABLE = 'gemini-3.5-flash-lite';
 // Default to the primary model; the useGeminiExperimental flag toggles between the two
 export const GEMINI_TEXT_MODEL = GEMINI_MODEL_PRIMARY;
 // Fast model for simple, latency-sensitive operations (food logging, quick analysis)
-export const GEMINI_FAST_MODEL = GEMINI_MODEL_PRIMARY;
+export const GEMINI_FAST_MODEL = GEMINI_MODEL_STABLE;
 
 export const PLACEHOLDER_IMAGE = "https://picsum.photos/400/300";
 

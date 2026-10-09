@@ -48,6 +48,10 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
     setIsAnalyzing(true);
     try {
       const items = await analyzeFoodLog(input);
+      if (items.length === 0) {
+        alert("Couldn't recognize any food. Try adding a little more detail, e.g. \"protein shake with milk\".");
+        return;
+      }
       onAddItems(items);
       setInput('');
       onClose();
