@@ -5,8 +5,26 @@ import tailwindcss from '@tailwindcss/vite';
 
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(({ mode }) => {
+// Builds without these ship an app that dies on "Warming the Hearth..." (Firebase throws
+// auth/invalid-api-key before React mounts), so refuse to build instead.
+const REQUIRED_BUILD_ENV = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID',
+  'VITE_GOOGLE_GENAI_API_KEY',
+];
+
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, '.', '');
+  if (command === 'build') {
+    const missing = REQUIRED_BUILD_ENV.filter(key => !env[key]);
+    if (missing.length > 0) {
+      throw new Error(`Missing env vars in .env.local: ${missing.join(', ')}`);
+    }
+  }
   return {
     server: {
       port: 3000,

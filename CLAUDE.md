@@ -16,7 +16,7 @@ firebase deploy --only hosting            # serves dist/ (SPA rewrite to index.h
 firebase deploy --only firestore:rules    # also firestore:indexes, storage
 ```
 
-- `GEMINI_API_KEY` must be set in `.env.local`; `vite.config.ts` injects it as `process.env.API_KEY` / `process.env.GEMINI_API_KEY`.
+- `.env.local` (gitignored) must define `VITE_GOOGLE_GENAI_API_KEY` and the six `VITE_FIREBASE_*` keys; `npm run build` fails if any is missing. Recover the Firebase values with `npx firebase-tools apps:sdkconfig WEB`.
 - There is no test runner. `scripts/test-recipe-parsing.ts` is an ad-hoc script.
 - Admin scripts in `scripts/` (`copyRecipes.cjs`, `setDeveloperClaim.cjs <uid>`) need `scripts/serviceAccountKey.json`, which is gitignored. See `scripts/README.md`.
 
