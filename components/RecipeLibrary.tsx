@@ -9,6 +9,7 @@ import { RecipeCard } from './RecipeCard';
 import { Portal } from './Portal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
+import { importRecipeImageFromUrl } from '../utils/storageUtils';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
 import { localDateString } from '../utils/dateUtils';
@@ -202,6 +203,10 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     setImportError(null);
     try {
       const sourceUrl = getRecipeUrl(inputText);
+      // Copy the page's photo in parallel with reading the recipe; a user upload wins.
+      const pageImage = sourceUrl && !uploadedImage
+        ? importRecipeImageFromUrl(sourceUrl, newRecipeId)
+        : Promise.resolve(null);
       const recipeText = sourceUrl ? await fetchRecipeFromUrl(sourceUrl) : inputText;
       const partialRecipe = await parseRecipeText(recipeText);
       if (partialRecipe) {
@@ -219,8 +224,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           servings: partialRecipe.servings || 1,
         };
 
-        if (uploadedImage) {
-          newRecipe.image = uploadedImage;
+        const image = uploadedImage ?? await pageImage;
+        if (image) {
+          newRecipe.image = image;
         }
 
 

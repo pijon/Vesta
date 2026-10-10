@@ -3,7 +3,7 @@ import { motion, PanInfo } from 'framer-motion';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
 import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Dumbbell, Trash2, ChevronDown, Check, Shuffle } from 'lucide-react';
-import { mealVisualFor } from '../utils/mealVisual';
+import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
@@ -37,8 +37,10 @@ const periodFor = (timestamp: number) => {
   return PERIODS.find(p => hour >= p.from && hour < p.to) ?? PERIODS[4];
 };
 
-// Pick a food icon from the meal type when present, else from the time of day.
-const foodIconFor = (item: FoodLogItem) => {
+// Icon for what was eaten (from the name), else the meal type, else the time of day.
+const logIconFor = (item: FoodLogItem) => {
+  const food = foodIconFor(item);
+  if (food) return food;
   const kind = (item.type || item.tags?.[0] || '').toLowerCase();
   if (kind.includes('breakfast')) return Coffee;
   if (kind.includes('lunch')) return Salad;
@@ -330,7 +332,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     <ul>
                       {group.entries.map((entry) => {
                         const isFood = entry.kind === 'food';
-                        const Icon = isFood ? foodIconFor(entry.item) : Dumbbell;
+                        const Icon = isFood ? logIconFor(entry.item) : Dumbbell;
                         const name = isFood ? entry.item.name : entry.workout.type;
                         const kcal = isFood ? entry.item.calories : entry.workout.caloriesBurned;
                         return (

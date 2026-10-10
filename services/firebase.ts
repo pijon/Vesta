@@ -3,6 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -32,5 +33,6 @@ enableMultiTabIndexedDbPersistence(db).catch((err) => {
 });
 
 export const storage = getStorage(app);
+export const functions = getFunctions(app, 'europe-west1');
 
 export default app;

@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../services/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions, storage } from '../services/firebase';
 import { compressImageToBlob } from './imageCompression';
 
 /**
@@ -45,5 +46,26 @@ export const uploadRecipeImage = async (
     } catch (error) {
         console.error('Failed to upload recipe image:', error);
         throw new Error('Failed to upload image to Storage. Please try again.');
+    }
+};
+
+const importRecipeImageCallable = httpsCallable<{ pageUrl: string; recipeId: string }, { url: string }>(
+    functions,
+    'importRecipeImage',
+    { timeout: 30000 }
+);
+
+/**
+ * Copies the main image from a recipe web page into Firebase Storage.
+ * Runs in a Cloud Function because recipe sites block cross-origin reads.
+ * @returns The Storage download URL, or null if the page has no usable image
+ */
+export const importRecipeImageFromUrl = async (pageUrl: string, recipeId: string): Promise<string | null> => {
+    try {
+        const { data } = await importRecipeImageCallable({ pageUrl, recipeId });
+        return data.url;
+    } catch (error) {
+        console.warn('Could not import recipe image from page:', error);
+        return null;
     }
 };

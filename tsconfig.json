@@ -27,6 +27,7 @@
     "noEmit": true
   },
   "exclude": [
-    "**/_archive/**/*"
+    "**/_archive/**/*",
+    "functions"
   ]
 }
