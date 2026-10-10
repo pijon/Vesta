@@ -13,7 +13,7 @@ export const WeightProjectionChart: React.FC<WeightProjectionChartProps> = ({ st
 
     if (history.length < 3) {
         return (
-            <div className="h-64 flex items-center justify-center text-charcoal/60 dark:text-stone-400 text-sm italic">
+            <div className="h-64 flex items-center justify-center text-muted dark:text-muted text-sm italic">
                 Log at least 3 days of weight to see projection.
             </div>
         );

@@ -159,19 +159,19 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                     {/* Weight Trends */}
                     <div className="">
                         <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
-                            <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200">Weight Trend</h4>
+                            <h4 className="text-lg font-display font-extrabold text-charcoal dark:text-stone-200">Weight Trend</h4>
 
                             <div className="flex items-center gap-3">
                                 {/* Projection Toggle */}
                                 <button
                                     onClick={() => setShowProjection(!showProjection)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border ${showProjection
-                                        ? 'bg-hearth/10 border-hearth text-hearth'
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${showProjection
+                                        ? 'bg-hearth/10 border-primary text-primary'
                                         : 'bg-transparent border-transparent text-charcoal/40 hover:bg-stone-100 hover:text-charcoal/60 dark:text-stone-500'
                                         }`}
                                 >
                                     <span>Projection</span>
-                                    <div className={`w-8 h-4 rounded-full relative transition-colors ${showProjection ? 'bg-hearth' : 'bg-stone-300 dark:bg-stone-600'}`}>
+                                    <div className={`w-8 h-4 rounded-full relative transition-colors ${showProjection ? 'bg-primary' : 'bg-stone-300 dark:bg-stone-600'}`}>
                                         <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-stone-50 rounded-full shadow-sm transition-transform ${showProjection ? 'translate-x-4' : 'translate-x-0'}`} />
                                     </div>
                                 </button>
@@ -181,7 +181,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                     <button
                                         onClick={() => setWeightTimeRange('7d')}
                                         className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${weightTimeRange === '7d'
-                                            ? 'bg-hearth text-white shadow-sm'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
                                             : 'text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:hover:text-stone-200'
                                             }`}
                                     >
@@ -190,7 +190,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                     <button
                                         onClick={() => setWeightTimeRange('30d')}
                                         className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${weightTimeRange === '30d'
-                                            ? 'bg-hearth text-white shadow-sm'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
                                             : 'text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:hover:text-stone-200'
                                             }`}
                                     >
@@ -204,45 +204,45 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                         {showProjection && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                                 {/* Total Lost */}
-                                <div className="bg-white/50 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-charcoal/10 dark:border-white/10">
-                                    <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider mb-1">
+                                <div className="bg-surface dark:bg-white/5 rounded-2xl p-4 border border-charcoal/10 dark:border-white/10">
+                                    <div className="text-xs font-bold text-muted dark:text-muted mb-1">
                                         Total Lost
                                     </div>
                                     <div className="text-2xl font-bold text-primary">
-                                        {weightAnalysis.totalLoss > 0 ? weightAnalysis.totalLoss.toFixed(1) : '0.0'} <span className="text-sm font-normal text-charcoal/60 dark:text-stone-400">kg</span>
+                                        {weightAnalysis.totalLoss > 0 ? weightAnalysis.totalLoss.toFixed(1) : '0.0'} <span className="text-sm font-normal text-muted dark:text-muted">kg</span>
                                     </div>
                                 </div>
 
                                 {/* Est. Time */}
-                                <div className="bg-white/50 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-charcoal/10 dark:border-white/10">
-                                    <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider mb-1">
+                                <div className="bg-surface dark:bg-white/5 rounded-2xl p-4 border border-charcoal/10 dark:border-white/10">
+                                    <div className="text-xs font-bold text-muted dark:text-muted mb-1">
                                         {weightAnalysis.remainingLoss <= 0 ? 'Status' : 'Est. Time'}
                                     </div>
-                                    <div className="text-2xl font-bold text-hearth">
+                                    <div className="text-2xl font-bold text-primary">
                                         {weightAnalysis.remainingLoss <= 0 ? (
                                             <span className="text-secondary">Goal Met!</span>
                                         ) : (analysisDaysToGoal ? (
                                             <div className="flex flex-col">
                                                 <span>
-                                                    {analysisDaysToGoal} <span className="text-sm font-normal text-charcoal/60 dark:text-stone-400">days</span>
+                                                    {analysisDaysToGoal} <span className="text-sm font-normal text-muted dark:text-muted">days</span>
                                                 </span>
-                                                <span className="text-xs font-normal text-charcoal/40 dark:text-stone-500 mt-0.5">
+                                                <span className="text-xs font-normal text-muted dark:text-muted mt-0.5">
                                                     ~{(weightAnalysis.projectedDailyRate * 7).toFixed(1)} kg / week
                                                 </span>
                                             </div>
                                         ) : (
-                                            <span className="text-sm font-normal text-charcoal/60 dark:text-stone-400">Collecting data...</span>
+                                            <span className="text-sm font-normal text-muted dark:text-muted">Collecting data...</span>
                                         ))}
                                     </div>
                                 </div>
 
                                 {/* Remaining */}
-                                <div className="bg-white/50 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-charcoal/10 dark:border-white/10">
-                                    <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider mb-1">
+                                <div className="bg-surface dark:bg-white/5 rounded-2xl p-4 border border-charcoal/10 dark:border-white/10">
+                                    <div className="text-xs font-bold text-muted dark:text-muted mb-1">
                                         {weightAnalysis.remainingLoss <= 0 ? 'Current Status' : 'Remaining'}
                                     </div>
                                     <div className="text-2xl font-bold text-charcoal dark:text-stone-200">
-                                        {weightAnalysis.remainingLoss > 0 ? weightAnalysis.remainingLoss.toFixed(1) : '0.0'} <span className="text-sm font-normal text-charcoal/60 dark:text-stone-400">kg</span>
+                                        {weightAnalysis.remainingLoss > 0 ? weightAnalysis.remainingLoss.toFixed(1) : '0.0'} <span className="text-sm font-normal text-muted dark:text-muted">kg</span>
                                     </div>
                                 </div>
                             </div>
@@ -251,7 +251,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                         {weightChartData.length === 0 ? (
                             <div className="h-48 md:h-56 flex flex-col items-center justify-center gap-2">
                                 <span className="text-3xl">⚖️</span>
-                                <p className="text-sm text-charcoal/60 dark:text-stone-400">Track your weight to see trends</p>
+                                <p className="text-sm text-muted dark:text-muted">Track your weight to see trends</p>
                             </div>
                         ) : (
                             <div className="h-48 md:h-56 w-full">
@@ -342,17 +342,17 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
 
                     {/* Daily Goals History */}
                     <div className="">
-                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Daily Goals History</h4>
+                        <h4 className="text-lg font-display font-extrabold text-charcoal dark:text-stone-200 mb-4">Daily Goals History</h4>
                         <GoalsHistoryChart summaries={dailySummaries} stats={stats} fastingGoal={fastingState.config.targetFastHours} />
                     </div>
 
                     {/* Daily Calorie Tracking */}
                     <div className="">
-                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Daily Calorie Tracking</h4>
+                        <h4 className="text-lg font-display font-extrabold text-charcoal dark:text-stone-200 mb-4">Daily Calorie Tracking</h4>
                         {formattedCalorieData.length === 0 ? (
                             <div className="h-48 md:h-56 flex flex-col items-center justify-center gap-2">
                                 <span className="text-3xl">🍽️</span>
-                                <p className="text-sm text-charcoal/60 dark:text-stone-400">Log meals to track your calories</p>
+                                <p className="text-sm text-muted dark:text-muted">Log meals to track your calories</p>
                             </div>
                         ) : (
                             <div className="h-48 md:h-56 w-full">
@@ -422,11 +422,11 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
 
                     {/* Workout Activity Pattern */}
                     <div className="">
-                        <h4 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-4">Workout Activity Pattern</h4>
+                        <h4 className="text-lg font-display font-extrabold text-charcoal dark:text-stone-200 mb-4">Workout Activity Pattern</h4>
                         {formattedWorkoutData.length === 0 ? (
                             <div className="h-48 md:h-56 flex flex-col items-center justify-center gap-2">
                                 <span className="text-3xl">💪</span>
-                                <p className="text-sm text-charcoal/60 dark:text-stone-400">Add workouts to see your activity</p>
+                                <p className="text-sm text-muted dark:text-muted">Add workouts to see your activity</p>
                             </div>
                         ) : (
                             <div className="h-48 md:h-56 w-full">

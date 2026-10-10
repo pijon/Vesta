@@ -29,11 +29,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--background)]/80 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--background)]/80 p-4 animate-fade-in">
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-lg bg-[var(--surface)] border border-border/50 shadow-2xl rounded-[2.5rem] overflow-hidden p-8 md:p-12 relative"
+                className="w-full max-w-lg bg-[var(--surface)] border border-border/50 shadow-2xl rounded-[24px] overflow-hidden p-8 md:p-12 relative"
             >
                 {/* Decorative Background */}
                 <div className="absolute top-0 right-0 p-12 opacity-[0.03] text-[var(--text-main)] pointer-events-none transform translate-x-1/4 -translate-y-1/4">
@@ -49,7 +49,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                         <div className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center text-4xl shadow-sm animate-pulse-slow">
                             🔥
                         </div>
-                        <h1 className="text-3xl md:text-4xl font-serif font-bold text-[var(--text-main)] mb-3">Welcome to Vesta</h1>
+                        <h1 className="text-3xl md:text-4xl font-display font-extrabold text-[var(--text-main)] mb-3">Welcome to Vesta</h1>
                         <p className="text-xl text-[var(--text-secondary)] font-medium">Let's tend to your health.</p>
                     </motion.div>
 
@@ -60,7 +60,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                             transition={{ delay: 0.4 }}
                             className="space-y-2 text-left"
                         >
-                            <label className="block text-sm font-bold text-[var(--text-main)] uppercase tracking-wide ml-1">What should we call you?</label>
+                            <label className="block text-sm font-bold text-[var(--text-main)] ml-1">What should we call you?</label>
                             <input
                                 type="text"
                                 value={name}
@@ -78,7 +78,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                                 transition={{ delay: 0.5 }}
                                 className="space-y-2 text-left"
                             >
-                                <label className="block text-sm font-bold text-[var(--text-main)] uppercase tracking-wide ml-1">Current Weight</label>
+                                <label className="block text-sm font-bold text-[var(--text-main)] ml-1">Current Weight</label>
                                 <div className="relative">
                                     <input
                                         type="number"
@@ -98,7 +98,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                                 transition={{ delay: 0.6 }}
                                 className="space-y-2 text-left"
                             >
-                                <label className="block text-sm font-bold text-[var(--text-main)] uppercase tracking-wide ml-1">Goal Weight</label>
+                                <label className="block text-sm font-bold text-[var(--text-main)] ml-1">Goal Weight</label>
                                 <div className="relative">
                                     <input
                                         type="number"
@@ -124,7 +124,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                             onClick={handleSubmit}
                             disabled={!canProceed()}
                             className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 ${canProceed()
-                                ? 'bg-primary text-white hover:brightness-110 hover:shadow-primary/30'
+                                ? 'bg-primary text-primary-foreground hover:brightness-110 hover:shadow-primary/30'
                                 : 'bg-[var(--card-bg)] text-[var(--text-muted)] cursor-not-allowed'
                                 }`}
                         >

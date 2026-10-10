@@ -38,7 +38,7 @@ export const GoalsHistoryChart: React.FC<GoalsHistoryChartProps> = ({ summaries,
 
     if (chartData.length === 0) {
         return (
-            <div className="h-48 md:h-56 flex items-center justify-center text-charcoal/60 dark:text-stone-400 text-sm">
+            <div className="h-48 md:h-56 flex items-center justify-center text-muted dark:text-muted text-sm">
                 No goal data yet. Start logging to see your history.
             </div>
         );

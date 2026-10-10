@@ -41,9 +41,9 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
 
   if (balanceData.length === 0) {
     return (
-      <div className="bg-white/60 dark:bg-stone-800 rounded-2xl shadow-sm p-6 border border-stone-100 dark:border-stone-700">
-        <h3 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200 mb-2">Daily Calorie Balance</h3>
-        <p className="text-charcoal/60 dark:text-stone-400 text-sm">
+      <div className="bg-surface dark:bg-stone-800 rounded-2xl shadow-sm p-6 border border-stone-100 dark:border-stone-700">
+        <h3 className="text-lg font-display font-extrabold text-charcoal dark:text-stone-200 mb-2">Daily Calorie Balance</h3>
+        <p className="text-muted dark:text-muted text-sm">
           No data available yet. Start logging meals to see your daily balance.
         </p>
       </div>
@@ -53,7 +53,7 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
   return (
     <div className="w-full">
       <div className="flex justify-end mb-4">
-        <span className="text-xs text-charcoal/60 dark:text-stone-400 bg-stone-50 dark:bg-[#1A1714] px-3 py-1 rounded-full">
+        <span className="text-xs text-muted dark:text-muted bg-stone-50 dark:bg-background px-3 py-1 rounded-full">
           Last 30 days
         </span>
       </div>
@@ -126,22 +126,22 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-charcoal/10 dark:border-white/10">
         <div>
-          <h4 className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider mb-1">Avg Balance</h4>
+          <h4 className="text-xs font-bold text-muted dark:text-muted mb-1">Avg Balance</h4>
           <div className={`text-xl font-bold ${stats.avgBalance >= 0 ? 'text-calories' : 'text-error'}`}>
             {stats.avgBalance >= 0 ? '+' : ''}{stats.avgBalance.toFixed(0)} kcal
           </div>
-          <div className="text-xs text-charcoal/60 dark:text-stone-400 mt-1">
+          <div className="text-xs text-muted dark:text-muted mt-1">
             {stats.avgBalance >= 0 ? 'Under goal' : 'Over goal'}
           </div>
         </div>
 
         {stats.bestDay && (
           <div>
-            <div className="text-xs text-charcoal/60 dark:text-stone-400 mb-1">Best Day</div>
+            <div className="text-xs text-muted dark:text-muted mb-1">Best Day</div>
             <div className="text-xl font-bold text-calories">
               +{stats.bestDay.deficit.toFixed(0)} kcal
             </div>
-            <div className="text-xs text-charcoal/60 dark:text-stone-400">
+            <div className="text-xs text-muted dark:text-muted">
               {stats.bestDay.displayDate}
             </div>
           </div>
@@ -149,11 +149,11 @@ export const CalorieBalanceChart: React.FC<CalorieBalanceChartProps> = ({ summar
 
         {stats.worstDay && (
           <div>
-            <div className="text-xs text-charcoal/60 dark:text-stone-400 mb-1">Highest Surplus</div>
+            <div className="text-xs text-muted dark:text-muted mb-1">Highest Surplus</div>
             <div className="text-xl font-bold text-error">
               {stats.worstDay.deficit.toFixed(0)} kcal
             </div>
-            <div className="text-xs text-charcoal/60 dark:text-stone-400">
+            <div className="text-xs text-muted dark:text-muted">
               {stats.worstDay.displayDate}
             </div>
           </div>

@@ -14,6 +14,8 @@ import BatchPlannerModal from './BatchPlannerModal';
 
 import { UserStats } from '../types';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
+import { mealVisualFor } from '../utils/mealVisual';
+import { Flame, Sparkles, Plus, ChefHat, Package, Trash2, X, UtensilsCrossed } from 'lucide-react';
 
 export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
     const [selectedDate, setSelectedDate] = useState<string>(localDateString());
@@ -113,6 +115,28 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         completedMealIds: [],
         type: 'fast' // Default match storageService default
     };
+
+    // Calories planned for a day (stored total, else meals plus their sides)
+    const dayCalories = (plan?: DayPlan) => {
+        if (!plan) return 0;
+        if (plan.totalCalories) return plan.totalCalories;
+        return plan.meals.reduce((sum, m) => sum + (m.calories || 0) + (m.sides || []).reduce((s, side) => s + (side.calories || 0), 0), 0);
+    };
+    // Same rule as Today: fast days use the daily goal, other days the non-fast allowance
+    const targetFor = (plan?: DayPlan) =>
+        (plan?.type ?? 'fast') === 'non-fast' ? (stats.nonFastDayCalories || 2000) : stats.dailyCalorieGoal;
+
+    const selectedCalories = dayCalories(dayPlan);
+    const selectedTarget = targetFor(dayPlan);
+    const plannedDayCount = weekDates.filter(date => (weekPlans[date]?.meals.length ?? 0) > 0).length;
+    const weekRangeLabel = (() => {
+        if (weekDates.length === 0) return 'This week';
+        const start = parseLocalDate(weekDates[0]);
+        const end = parseLocalDate(weekDates[weekDates.length - 1]);
+        const startLabel = start.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        const endLabel = end.toLocaleDateString(undefined, { day: 'numeric', month: start.getMonth() === end.getMonth() ? undefined : 'short' });
+        return `${startLabel} – ${endLabel}`;
+    })();
 
     const handleRecipeSelect = (recipe: Recipe) => {
         // Skip config for custom manual entries (assumed "Eat Out" or simple logging)
@@ -381,294 +405,242 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         await saveDayPlan(updatedPlan);
     };
 
+    const isFastDay = dayPlan?.type === 'fast';
+    const isSelectedToday = selectedDate === localDateString();
+    const selectedDayDate = parseLocalDate(selectedDate);
+
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-6">
+            {/* Week strip: each day shows planned calories against its target */}
+            <section aria-label="Choose a day">
+                <div className="flex items-baseline justify-between mb-3 px-1">
+                    <h2 className="heading-2">{weekRangeLabel}</h2>
+                    <span className="text-sm text-muted">{plannedDayCount} of {weekDates.length} days planned</span>
+                </div>
+                <div className="grid grid-cols-7 gap-1.5 md:gap-3">
+                    {weekDates.map(date => {
+                        const d = parseLocalDate(date);
+                        const plan = weekPlans[date];
+                        const kcal = dayCalories(plan);
+                        const target = targetFor(plan);
+                        const fill = target > 0 ? Math.min(kcal / target, 1) : 0;
+                        const isSelected = date === selectedDate;
+                        const isToday = localDateString() === date;
+                        const isFast = (plan?.type ?? 'fast') === 'fast';
+                        return (
+                            <button
+                                key={date}
+                                onClick={() => setSelectedDate(date)}
+                                aria-pressed={isSelected}
+                                aria-label={`${d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}, ${kcal} of ${target} kcal planned${isFast ? ', fast day' : ''}`}
+                                className={`relative flex flex-col items-center gap-1 rounded-[14px] pt-2 pb-2.5 px-1 border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${isSelected
+                                    ? 'bg-ink text-on-ink border-transparent'
+                                    : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                            >
+                                <span className={`text-xs font-semibold ${isSelected ? '' : 'text-muted'}`}>
+                                    {isToday ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'short' })}
+                                </span>
+                                <span className="font-display font-extrabold text-xl md:text-2xl leading-none">{d.getDate()}</span>
+                                <span className={`w-full max-w-10 h-1 rounded-full overflow-hidden ${isSelected ? 'bg-on-ink/25' : 'bg-surface-sunken'}`}>
+                                    <span
+                                        className={`block h-full rounded-full ${isSelected ? 'bg-on-ink' : kcal > target ? 'bg-warning' : 'bg-primary'}`}
+                                        style={{ width: `${fill * 100}%` }}
+                                    />
+                                </span>
+                                {isFast && (
+                                    <span className={`absolute top-1 right-1 size-1.5 rounded-full ${isSelected ? 'bg-on-ink' : 'bg-fasting'}`} aria-hidden="true" />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+                <p className="flex items-center gap-1.5 text-xs text-muted mt-2 px-1">
+                    <span className="size-1.5 rounded-full bg-fasting" aria-hidden="true" /> Fast day
+                </p>
+            </section>
 
+            {/* Selected day */}
+            <section className="card">
+                <div className="p-5 md:p-6 pb-4 md:pb-5 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                        <div className="min-w-0">
+                            <p className="text-sm text-muted">
+                                {isSelectedToday ? 'Today' : selectedDayDate.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                            </p>
+                            <h2 className="heading-1">{selectedDayDate.toLocaleDateString(undefined, { weekday: 'long' })}</h2>
+                        </div>
 
-            {/* Main Content Grid - The Family Table Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Date Scroller - Top Bar */}
-                <div className="lg:col-span-12">
-                    {/* Month Header */}
-                    <div className="flex items-center justify-between mb-4 px-1">
-                        <h2 className="text-xl font-serif font-bold text-charcoal dark:text-stone-200">
-                            {(() => {
-                                if (weekDates.length === 0) return '';
-                                const start = new Date(weekDates[0]);
-                                const end = new Date(weekDates[weekDates.length - 1]);
-                                const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
-                                const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
-                                const year = start.getFullYear();
-                                return startMonth === endMonth
-                                    ? `${startMonth} ${year}`
-                                    : `${startMonth} / ${endMonth} ${year}`;
-                            })()}
-                        </h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* Day type: segmented control */}
+                            <div role="radiogroup" aria-label="Day type" className="inline-flex p-1 rounded-full bg-surface-sunken">
+                                {([['non-fast', 'Nourish'], ['fast', 'Fast day']] as const).map(([type, label]) => {
+                                    const active = (type === 'fast') === isFastDay;
+                                    return (
+                                        <button
+                                            key={type}
+                                            role="radio"
+                                            aria-checked={active}
+                                            onClick={() => { if (!active) toggleFastDay(); }}
+                                            className={`min-h-9 px-4 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
+                                                ? (type === 'fast' ? 'bg-fasting-bg text-fasting-text shadow-sm' : 'bg-surface text-main shadow-sm')
+                                                : 'text-muted hover:text-main'}`}
+                                        >
+                                            {type === 'fast' && <Flame size={14} className="inline -mt-0.5 mr-1" aria-hidden="true" />}
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm">
+                                <Sparkles size={16} aria-hidden="true" /> Plan ahead
+                            </button>
+                            <button onClick={openAddModal} className="btn-primary btn-sm">
+                                <Plus size={16} aria-hidden="true" /> Add meal
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar snap-x">
-                        {weekDates.map(date => {
-                            const d = parseLocalDate(date);
-                            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-                            const dayNum = d.getDate();
-                            const isSelected = date === selectedDate;
-                            const plan = weekPlans[date];
-                            const hasMeals = plan?.meals && plan.meals.length > 0;
-                            const isToday = localDateString() === date;
-                            const isFast = plan?.type === 'fast';
-
-                            return (
-                                <button
-                                    key={date}
-                                    onClick={() => setSelectedDate(date)}
-                                    className={`
-                                        flex-shrink-0 w-[4.5rem] h-24 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 snap-center border
-                                        ${isSelected
-                                            ? 'bg-hearth text-white shadow-lg shadow-hearth/30 border-hearth transform -translate-y-1'
-                                            : 'bg-charcoal/5 dark:bg-white/5 border-charcoal/5 dark:border-white/5 text-charcoal/60 dark:text-stone-400 hover:border-hearth/50 hover:shadow-sm'
-                                        }
-                                        ${isFast && !isSelected ? 'bg-[var(--color-flame)]/10 dark:bg-[var(--color-flame)]/5 border-[var(--color-flame)]/30' : ''}
-                                    `}
-                                >
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isSelected ? 'opacity-90' : 'opacity-60'}`}>
-                                        {dayName}
-                                    </span>
-                                    <span className={`text-2xl font-serif font-bold mb-1 ${isSelected ? 'text-white' : 'text-charcoal dark:text-stone-200'} ${isFast && !isSelected ? 'text-[var(--color-flame)]' : ''}`}>
-                                        {dayNum}
-                                    </span>
-
-                                    {/* Indicators Container */}
-                                    <div className="flex gap-1 h-1.5">
-                                        {isToday && !isSelected && (
-                                            <div className="w-1.5 h-1.5 rounded-full bg-hearth/40" title="Today" />
-                                        )}
-                                        {hasMeals && (
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-stone-50' : 'bg-sage'} `} />
-                                        )}
-                                        {isFast && !isSelected && (
-                                            <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-flame)]" title="Fast Day" />
-                                        )}
-                                        {isFast && isSelected && (
-                                            <div className="w-1.5 h-1.5 rounded-full bg-stone-50" title="Fast Day" />
-                                        )}
-                                    </div>
-                                </button>
-                            );
-                        })}
+                    {/* Calories planned against the day's target */}
+                    <div>
+                        <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                            <p className="text-sm">
+                                <span className="font-display font-extrabold text-2xl">{selectedCalories}</span>
+                                <span className="text-muted"> of {selectedTarget} kcal planned</span>
+                            </p>
+                            <p className={`text-sm font-semibold ${selectedCalories > selectedTarget ? 'text-warning' : 'text-muted'}`}>
+                                {selectedCalories > selectedTarget
+                                    ? `${selectedCalories - selectedTarget} over`
+                                    : `${selectedTarget - selectedCalories} left`}
+                            </p>
+                        </div>
+                        <div className="h-2 rounded-full bg-surface-sunken overflow-hidden">
+                            <div
+                                className={`h-full rounded-full transition-[width] duration-500 ${selectedCalories > selectedTarget ? 'bg-warning' : 'bg-primary'}`}
+                                style={{ width: `${selectedTarget > 0 ? Math.min(selectedCalories / selectedTarget, 1) * 100 : 0}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Left Column: The Daily Menu (Card View) */}
-                <div className="lg:col-span-12">
-                    <GlassCard className="min-h-[600px] relative">
-                        {/* Header Actions */}
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-                            <div>
-                                <h2 className="text-3xl font-serif text-charcoal dark:text-stone-200">{parseLocalDate(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}'s Menu</h2>
-                                <p className="text-charcoal/60 dark:text-stone-400">
-                                    {dayPlan?.meals.length || 0} meals planned • {dayPlan?.totalCalories || 0} kcal total
-                                </p>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                                <button
-                                    onClick={toggleFastDay}
-                                    className={`px-3 py-1.5 md:px-5 h-8 md:h-auto rounded-xl md:rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${dayPlan?.type === 'fast'
-                                        ? 'bg-[var(--color-flame)]/10 text-[var(--color-flame)] hover:bg-[var(--color-flame)]/20'
-                                        : 'bg-stone-100 text-stone-500 dark:bg-white/5 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-white/10'
-                                        }`}
-                                >
-                                    {dayPlan?.type === 'fast' ? (
-                                        <>
-                                            <span className="text-xs md:text-sm">🔥</span> <span className="text-xs md:text-sm">Fast Day</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="text-xs md:text-sm">🍲</span> <span className="text-xs md:text-sm">Nourish</span>
-                                        </>
-                                    )}
-                                </button>
-
-                                <button
-                                    onClick={openAddModal}
-                                    className="px-3 py-1.5 md:px-5 h-8 md:h-auto bg-sage/10 text-sage-800 dark:text-sage-200 rounded-xl md:rounded-2xl font-bold hover:bg-sage/20 transition-all active:scale-95 flex items-center gap-2"
-                                >
-                                    <span>+</span> <span className="text-xs md:text-sm">Add Meal</span>
-                                </button>
-
-                                <button
-                                    onClick={() => setShowBatchPlanner(true)}
-                                    className="px-3 py-1.5 md:px-5 h-8 md:h-auto bg-hearth/10 text-hearth dark:text-flame rounded-xl md:rounded-2xl font-bold hover:bg-hearth/20 transition-all active:scale-95 flex items-center gap-2"
-                                >
-                                    <span>✨</span> <span className="text-xs md:text-sm">Plan Ahead</span>
-                                </button>
+                {/* Meals */}
+                <div className="px-3 md:px-4 pb-4">
+                    {(!dayPlan || dayPlan.meals.length === 0) ? (
+                        <div className="tile tile-neutral items-center text-center py-12 mx-2">
+                            <UtensilsCrossed size={28} className="text-muted mb-3" aria-hidden="true" />
+                            <p className="font-semibold">The table is empty</p>
+                            <p className="text-sm text-muted mt-1 mb-4">Add a meal, or let Vesta plan the week ahead for you.</p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                <button onClick={openAddModal} className="btn-primary btn-sm"><Plus size={16} aria-hidden="true" /> Add meal</button>
+                                <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm"><Sparkles size={16} aria-hidden="true" /> Plan ahead</button>
                             </div>
                         </div>
-
-                        {/* Meals List */}
-                        <div className="space-y-4">
-                            {(!dayPlan || dayPlan.meals.length === 0) ? (
-                                <div className="text-center py-24 text-charcoal/40 dark:text-stone-400 border-2 border-dashed border-charcoal/5 dark:border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4">
-                                    <div className="w-16 h-16 rounded-full bg-stone-100 dark:bg-white/5 flex items-center justify-center text-3xl">
-                                        🍽️
-                                    </div>
-                                    <div>
-                                        <p className="font-serif text-xl mb-1 text-charcoal dark:text-stone-300">The table is empty</p>
-                                        <p className="text-sm">Add a meal to start planning your day</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                dayPlan.meals.map((meal, index) => (
-                                    <div key={index}
-                                        onClick={() => setSelectedRecipe(meal)}
-                                        className="group relative bg-charcoal/5 dark:bg-white/5 hover:bg-charcoal/10 dark:hover:bg-white/10 rounded-3xl p-3 md:p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-charcoal/5 dark:border-white/5 flex flex-col gap-4 cursor-pointer"
-                                    >
-                                        <div className="flex gap-3 md:gap-6 items-stretch">
-                                            {/* Image */}
-                                            <div className="w-16 h-16 md:w-28 md:h-28 rounded-2xl overflow-hidden shadow-sm flex-shrink-0 bg-stone dark:bg-stone-800">
+                    ) : (
+                        <ul className="space-y-2">
+                            {dayPlan.meals.map((meal, index) => {
+                                const visual = mealVisualFor(meal);
+                                const sidesKcal = (meal.sides || []).reduce((sum, side) => sum + (side.calories || 0), 0);
+                                return (
+                                    <li key={index} className="rounded-[18px] border border-border bg-surface hover:bg-surface-sunken/60 transition-colors">
+                                        <div className="flex gap-3 md:gap-4 p-3 md:p-4">
+                                            <button
+                                                onClick={() => setSelectedRecipe(meal)}
+                                                className="shrink-0 rounded-[14px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                                                aria-label={`View recipe: ${meal.name}`}
+                                            >
                                                 {meal.image ? (
-                                                    <img src={meal.image} alt={meal.name} className="w-full h-full object-cover" />
+                                                    <img src={meal.image} alt="" className="size-20 md:size-24 rounded-[14px] object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-xl md:text-3xl font-serif text-charcoal/20 dark:text-white/20">
-                                                        {(meal.name || 'M').charAt(0)}
+                                                    <span className={`size-20 md:size-24 rounded-[14px] flex items-center justify-center ${visual.tint}`}>
+                                                        <visual.Icon size={32} strokeWidth={1.75} aria-hidden="true" />
+                                                    </span>
+                                                )}
+                                            </button>
+
+                                            <div className="flex-1 min-w-0 flex flex-col">
+                                                <button onClick={() => setSelectedRecipe(meal)} className="text-left rounded focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
+                                                    <h3 className="heading-3 line-clamp-2">{meal.name}</h3>
+                                                </button>
+                                                <p className="text-xs text-muted mt-0.5">
+                                                    {visual.label} · <span className="font-semibold text-main">{meal.calories + sidesKcal} kcal</span>
+                                                    {!!meal.prepTime && ` · ${meal.prepTime} min`}
+                                                    {!!meal.protein && ` · ${meal.protein} g protein`}
+                                                </p>
+                                                {(meal.isShared || meal.isLeftover || meal.isPacked) && (
+                                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                                        {meal.isShared && <span className="badge badge-workout !py-0">From {meal.ownerName?.split(' ')[0] || 'family'}</span>}
+                                                        {meal.isLeftover && <span className="badge badge-neutral !py-0">Leftover</span>}
+                                                        {meal.isPacked && <span className="badge badge-water !py-0">Packed</span>}
                                                     </div>
                                                 )}
-                                            </div>
 
-                                            {/* Info & Actions Container */}
-                                            <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                {/* Top: Title */}
-                                                <div className="flex justify-between items-start">
-                                                    <h3 className="text-lg md:text-xl font-serif text-charcoal dark:text-stone-200 line-clamp-2 leading-tight">{meal.name}</h3>
-                                                    {meal.isShared && (
-                                                        <span className="ml-2 px-1.5 py-0.5 md:px-2 rounded-full bg-hearth/10 text-hearth dark:bg-hearth/20 dark:text-hearth-light text-[9px] md:text-[10px] font-bold uppercase tracking-wide border border-hearth/20 whitespace-nowrap">
-                                                            {meal.ownerName?.split(' ')[0] || 'Partner'}
-                                                        </span>
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-1 mt-auto pt-2">
+                                                    <button onClick={() => setCookingModeRecipe(meal)} className="btn-secondary btn-sm !px-3">
+                                                        <ChefHat size={16} aria-hidden="true" /> Cook
+                                                    </button>
+                                                    <button onClick={() => openAddSideModal(index)} className="btn-ghost btn-sm !px-3">
+                                                        <Plus size={16} aria-hidden="true" /> Side
+                                                    </button>
+                                                    {!meal.isShared && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => togglePacked(index)}
+                                                                aria-pressed={!!meal.isPacked}
+                                                                aria-label={meal.isPacked ? 'Unmark as packed lunch' : 'Mark as packed lunch'}
+                                                                className={`size-9 ml-auto flex items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${meal.isPacked ? 'bg-water-bg text-water-text' : 'text-muted hover:bg-surface-sunken hover:text-main'}`}
+                                                            >
+                                                                <Package size={18} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => removeMeal(index)}
+                                                                aria-label={`Remove ${meal.name}`}
+                                                                className="size-9 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                                                            >
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        </>
                                                     )}
-                                                </div>
-
-                                                {/* Bottom: Metadata & Actions */}
-                                                <div className="flex justify-between items-end mt-1 gap-2">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                                            {(meal.tags?.[0] || 'meal').toLowerCase()}
-                                                        </span>
-                                                        <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>
-                                                            {meal.calories}
-                                                        </span>
-                                                        <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                            {meal.prepTime || 15}m
-                                                        </span>
-                                                        {meal.isLeftover && (
-                                                            <span className="text-xs font-bold text-stone-500 dark:text-stone-400 flex items-center gap-1" title="Leftover from previous day">
-                                                                <span className="text-[10px]">♻️</span>
-                                                            </span>
-                                                        )}
-                                                        {meal.isPacked && (
-                                                            <span className="text-xs font-bold text-charcoal/40 dark:text-stone-400 flex items-center gap-1" title="Packed Lunch">
-                                                                <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                                                    <g transform="translate(1.000000, 2.000000)">
-                                                                        <rect x="0" y="0" width="16" height="2" />
-                                                                        <path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" />
-                                                                    </g>
-                                                                </svg>
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Actions (Bottom Right) */}
-                                                    <div className="flex gap-2 flex-shrink-0">
-                                                        {/* ADD SIDE BUTTON */}
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); openAddSideModal(index); }}
-                                                            className="px-2 h-8 md:h-11 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 flex items-center justify-center hover:bg-hearth/10 hover:text-hearth dark:hover:bg-hearth/20 dark:hover:text-hearth-light transition-colors text-[10px] font-bold uppercase tracking-wider gap-1"
-                                                            title="Add Side Dish"
-                                                        >
-                                                            <span>+ Side</span>
-                                                        </button>
-
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setCookingModeRecipe(meal); }}
-                                                            className="w-8 h-8 md:w-11 md:h-11 rounded-full bg-hearth/10 dark:bg-white/5 text-hearth dark:text-stone-300 flex items-center justify-center hover:bg-hearth hover:text-white dark:hover:bg-hearth dark:hover:text-white transition-all shadow-sm"
-                                                            title="Start Cooking Mode"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                        </button>
-
-                                                        {!meal.isShared && (
-                                                            <>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); togglePacked(index); }}
-                                                                    className={`w-8 h-8 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all shadow-sm ${meal.isPacked ? 'bg-[var(--color-ocean)]/10 text-[var(--color-ocean)] dark:bg-[var(--color-ocean)]/20' : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-400 hover:bg-[var(--color-ocean)]/10 hover:text-[var(--color-ocean)]'} `}
-                                                                    title="Toggle Packed Lunch"
-                                                                >
-                                                                    <svg width="14" height="14" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg" className="md:w-[18px] md:h-[18px]">
-                                                                        <g transform="translate(1.000000, 2.000000)">
-                                                                            <rect x="0" y="0" width="16" height="2" />
-                                                                            <path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" />
-                                                                        </g>
-                                                                    </svg>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); removeMeal(index); }}
-                                                                    className="w-8 h-8 md:w-11 md:h-11 rounded-full bg-charcoal/5 dark:bg-white/5 text-charcoal/40 dark:text-stone-400 flex items-center justify-center hover:bg-hearth/10 hover:text-hearth dark:hover:bg-hearth/20 dark:hover:text-hearth-light transition-colors"
-                                                                >
-                                                                    <svg className="w-3.5 h-3.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* RENDER SIDES */}
+                                        {/* Sides */}
                                         {meal.sides && meal.sides.length > 0 && (
-                                            <div className="mt-2 space-y-2 border-t border-charcoal/5 dark:border-white/5 pt-3">
-                                                {meal.sides.map((side, sideIdx) => (
-                                                    <div key={side.id || sideIdx} className="flex items-center gap-3 pl-4 relative group/side">
-                                                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-charcoal/10 dark:bg-white/10 rounded-full" />
-
-                                                        {/* Side Image/Icon */}
-                                                        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-stone dark:bg-stone-800">
+                                            <ul className="border-t border-border mx-3 md:mx-4 py-2">
+                                                {meal.sides.map((side, sideIdx) => {
+                                                    const sideVisual = mealVisualFor(side);
+                                                    return (
+                                                        <li key={side.id || sideIdx} className="group/side flex items-center gap-3 py-1.5 pl-2">
                                                             {side.image ? (
-                                                                <img src={side.image} alt={side.name} className="w-full h-full object-cover" />
+                                                                <img src={side.image} alt="" className="size-9 rounded-[10px] object-cover shrink-0" />
                                                             ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-xs font-bold text-charcoal/20 dark:text-white/20">
-                                                                    {(side.name || 'S').charAt(0)}
-                                                                </div>
+                                                                <span className={`size-9 rounded-[10px] flex items-center justify-center shrink-0 ${sideVisual.tint}`}>
+                                                                    <sideVisual.Icon size={16} aria-hidden="true" />
+                                                                </span>
                                                             )}
-                                                        </div>
-
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex justify-between items-center">
-                                                                <h5 className="font-serif text-charcoal dark:text-stone-300 text-sm leading-tight">{side.name}</h5>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); removeSide(index, sideIdx); }}
-                                                                    className="opacity-0 group-hover/side:opacity-100 p-1.5 text-charcoal/40 hover:text-hearth transition-all"
-                                                                >
-                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                                                </button>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-[10px] text-charcoal/40 dark:text-stone-500 font-bold uppercase tracking-wide">
-                                                                <span>Side</span>
-                                                                <span>•</span>
-                                                                <span>{side.calories} kcal</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                            <span className="flex-1 min-w-0">
+                                                                <span className="block text-sm font-semibold truncate">{side.name}</span>
+                                                                <span className="block text-xs text-muted">Side · {side.calories} kcal</span>
+                                                            </span>
+                                                            <button
+                                                                onClick={() => removeSide(index, sideIdx)}
+                                                                aria-label={`Remove side ${side.name}`}
+                                                                className="size-8 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error md:opacity-0 md:group-hover/side:opacity-100 md:focus-visible:opacity-100 transition-[opacity,colors]"
+                                                            >
+                                                                <X size={16} />
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
                                         )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </GlassCard>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
                 </div>
-            </div>
+            </section>
 
             {/* Cooking Mode Overlay */}
             <AnimatePresence>
@@ -688,7 +660,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4 py-4"
+                            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 px-4 py-4"
                             onClick={closeModal}
                         >
                             <motion.div
@@ -763,7 +735,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                 <p className="font-medium">No suggestions available.</p>
                                                 <button
                                                     onClick={handleSuggestSides}
-                                                    className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90"
+                                                    className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-bold hover:bg-primary/90"
                                                 >
                                                     Try Again
                                                 </button>
@@ -783,23 +755,23 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                             {recipe.image ? (
                                                                 <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <div className={`text-3xl font-bold uppercase opacity-50 ${getRecipeTheme(recipe.tags).text}`}>
+                                                                <div className={`text-3xl font-bold opacity-50 ${getRecipeTheme(recipe.tags).text}`}>
                                                                     {(recipe.name || 'S').charAt(0)}
                                                                 </div>
                                                             )}
-                                                            <div className="absolute top-1 right-1 bg-white/80 dark:bg-black/50 backdrop-blur-sm rounded-full p-1">
+                                                            <div className="absolute top-1 right-1 bg-surface dark:bg-black/50 rounded-full p-1">
                                                                 <span className="text-xs">✨</span>
                                                             </div>
                                                         </div>
                                                         <div className="flex-1 min-w-0 py-1">
                                                             <h4 className="font-bold text-lg text-[var(--text-main)] truncate font-serif">{recipe.name}</h4>
                                                             <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-sans mt-0.5">
-                                                                <span className="bg-charcoal/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold">Suggested Side</span>
+                                                                <span className="bg-charcoal/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-bold">Suggested Side</span>
                                                                 <span className="font-medium">{recipe.calories} kcal</span>
                                                             </div>
                                                         </div>
                                                         <div className="pr-2">
-                                                            <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center transition-all text-charcoal/60 dark:text-stone-400 group-hover:border-primary group-hover:text-primary">
+                                                            <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center transition-all text-muted dark:text-muted group-hover:border-primary group-hover:text-primary">
                                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                                             </div>
                                                         </div>
@@ -827,7 +799,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                 </div>
                                                 <div className="relative w-full md:w-36">
                                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none z-10">
-                                                        <span className="text-[10px] font-bold uppercase tracking-wide opacity-70">Max Cal</span>
+                                                        <span className="text-[10px] font-bold opacity-70">Max Cal</span>
                                                     </div>
                                                     <input
                                                         type="number"
@@ -844,8 +816,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                     <button
                                                         key={type}
                                                         onClick={() => setActiveFilter(type)}
-                                                        className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all ${activeFilter === type
-                                                            ? 'bg-primary text-white shadow-md shadow-primary/20'
+                                                        className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeFilter === type
+                                                            ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
                                                             : 'bg-charcoal/5 dark:bg-white/5 text-[var(--text-secondary)] hover:bg-charcoal/10 dark:hover:bg-white/10'
                                                             } `}
                                                     >
@@ -874,7 +846,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                                 {recipe.image ? (
                                                                     <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
                                                                 ) : (
-                                                                    <div className={`text - 3xl font - bold uppercase opacity - 50 ${getRecipeTheme(recipe.tags).text} `}>
+                                                                    <div className={`text - 3xl font - bold opacity - 50 ${getRecipeTheme(recipe.tags).text} `}>
                                                                         {(recipe.name || 'R').charAt(0)}
                                                                     </div>
                                                                 )}
@@ -882,7 +854,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                             <div className="flex-1 min-w-0 py-1">
                                                                 <h4 className="font-bold text-lg text-[var(--text-main)] truncate font-serif">{recipe.name}</h4>
                                                                 <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-sans mt-0.5">
-                                                                    <span className="bg-charcoal/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold">{recipe.tags[0] || 'Meal'}</span>
+                                                                    <span className="bg-charcoal/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-bold">{recipe.tags[0] || 'Meal'}</span>
                                                                     <span className="font-medium">{recipe.calories} kcal</span>
                                                                 </div>
                                                             </div>
@@ -969,16 +941,16 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                             {recipe.image ? (
                                                                 <img src={recipe.image} alt={recipe.name} className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <div className={`text - 3xl font - bold uppercase opacity - 50 ${getRecipeTheme(recipe.tags).text} `}>
+                                                                <div className={`text - 3xl font - bold opacity - 50 ${getRecipeTheme(recipe.tags).text} `}>
                                                                     {(recipe.name || 'R').charAt(0)}
                                                                 </div>
                                                             )}
-                                                            <div className="absolute top-1 right-1 bg-white/80 dark:bg-black/50 backdrop-blur-sm rounded-full p-1">
+                                                            <div className="absolute top-1 right-1 bg-surface dark:bg-black/50 rounded-full p-1">
                                                                 <span className="text-xs">♻️</span>
                                                             </div>
                                                         </div>
                                                         <div className="flex-1 min-w-0 py-1">
-                                                            <h4 className="font-bold text-lg text-[var(--text-main)] truncate font-serif">{recipe.name}</h4>
+                                                            <h4 className="text-lg text-[var(--text-main)] truncate font-display font-extrabold">{recipe.name}</h4>
                                                             <p className="text-xs text-[var(--text-secondary)] line-clamp-1 mb-2 font-sans">
                                                                 Leftover from {new Date(date).toLocaleDateString(undefined, { weekday: 'long' })}
                                                             </p>
@@ -987,7 +959,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                                             </div>
                                                         </div>
                                                         <div className="pr-2">
-                                                            <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center transition-all text-charcoal/60 dark:text-stone-400 group-hover:border-primary group-hover:text-primary">
+                                                            <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center transition-all text-muted dark:text-muted group-hover:border-primary group-hover:text-primary">
                                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                                             </div>
                                                         </div>
@@ -1011,7 +983,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[110] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4"
+                            className="fixed inset-0 z-[110] flex items-center justify-center bg-stone-900/40 px-4"
                             onClick={() => setShowConfigModal(false)}
                         >
                             <motion.div
@@ -1026,10 +998,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                                         (pendingRecipe.name || 'M').charAt(0)
                                     )}
                                 </div>
-                                <h3 className="text-xl font-bold text-[var(--text-main)] font-serif leading-tight">{pendingRecipe.name}</h3>
+                                <h3 className="text-xl text-[var(--text-main)] font-display font-extrabold leading-tight">{pendingRecipe.name}</h3>
                                 <p className="text-sm text-[var(--text-secondary)] mt-1">Configure serving size</p>
                                 <div className="bg-[var(--surface)] rounded-2xl p-6 border border-border mb-6">
-                                    <label className="block text-center text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-4">Cooking For</label>
+                                    <label className="block text-center text-xs font-bold text-[var(--text-secondary)] mb-4">Cooking For</label>
                                     <div className="flex items-center justify-center gap-6">
                                         <button
                                             onClick={() => setCookingServings(Math.max(1, cookingServings - 1))}
@@ -1040,7 +1012,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
                                         <div className="text-center w-16">
                                             <span className="text-4xl font-bold text-[var(--text-main)] block leading-none">{cookingServings}</span>
-                                            <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wide">People</span>
+                                            <span className="text-[10px] text-[var(--text-secondary)] font-bold">People</span>
                                         </div>
 
                                         <button

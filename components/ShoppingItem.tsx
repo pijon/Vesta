@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PurchasableItem } from '../types';
-import { TrashIcon, ClipboardDocumentIcon, ClipboardDocumentCheckIcon, Bars2Icon } from '@heroicons/react/24/outline';
 import { Reorder, useDragControls } from 'framer-motion';
+import { Check, Copy, CopyCheck, GripVertical, Trash2 } from 'lucide-react';
 
 interface ShoppingItemProps {
     item: PurchasableItem;
@@ -11,13 +11,17 @@ interface ShoppingItemProps {
     onUpdate: (newQuantity: string) => void;
     isChecked: boolean;
     onToggleCheck: () => void;
+    /** Checked items render outside the reorderable list */
+    reorderable?: boolean;
 }
 
-const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, onCopy, onUpdate, isChecked, onToggleCheck }) => {
+const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, onCopy, onUpdate, isChecked, onToggleCheck, reorderable = true }) => {
     const [copied, setCopied] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState('');
     const dragControls = useDragControls();
+
+    const quantity = item.purchasableQuantity || item.requiredQuantity;
 
     const handleCopy = () => {
         onCopy();
@@ -26,114 +30,106 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, on
     };
 
     const startEditing = () => {
-        if (!onUpdate) return;
-        setEditValue(item.purchasableQuantity || item.requiredQuantity);
+        setEditValue(quantity);
         setIsEditing(true);
     };
 
     const submitEdit = () => {
         setIsEditing(false);
-        if (editValue && editValue !== (item.purchasableQuantity || item.requiredQuantity)) {
-            onUpdate?.(editValue);
-        }
+        if (editValue && editValue !== quantity) onUpdate(editValue);
     };
+
+    const content = (
+        <>
+            {reorderable && (
+                <span
+                    className="hidden md:flex size-8 shrink-0 items-center justify-center text-muted cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+                    onPointerDown={(e) => dragControls.start(e)}
+                    aria-hidden="true"
+                >
+                    <GripVertical size={16} />
+                </span>
+            )}
+
+            <button
+                onClick={onToggleCheck}
+                aria-pressed={isChecked}
+                aria-label={isChecked ? `Put ${item.ingredientName} back on the list` : `Mark ${item.ingredientName} as in the basket`}
+                className={`size-11 shrink-0 flex items-center justify-center rounded-full border-2 transition-colors active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${isChecked
+                    ? 'bg-secondary border-secondary text-secondary-foreground'
+                    : 'border-border-control text-transparent hover:text-muted hover:border-main'}`}
+            >
+                <Check size={20} strokeWidth={3} />
+            </button>
+
+            <div className="flex-1 min-w-0 py-2">
+                <div className={`flex flex-wrap items-baseline gap-x-2 ${isChecked ? 'text-muted' : ''}`}>
+                    {isEditing ? (
+                        <input
+                            autoFocus
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={submitEdit}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') submitEdit();
+                                if (e.key === 'Escape') setIsEditing(false);
+                            }}
+                            aria-label={`Quantity of ${item.ingredientName}`}
+                            className="input !min-h-9 !py-1 !px-2 w-32 font-bold"
+                        />
+                    ) : (
+                        <button
+                            onClick={startEditing}
+                            disabled={isChecked}
+                            className="font-display font-extrabold text-lg leading-6 underline decoration-dashed decoration-border-control underline-offset-4 disabled:no-underline hover:decoration-main rounded focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                            aria-label={`Edit quantity: ${quantity}`}
+                        >
+                            {quantity}
+                        </button>
+                    )}
+                    <span className={`inline-block font-semibold first-letter:uppercase ${isChecked ? 'line-through decoration-1' : ''}`}>{item.ingredientName}</span>
+                </div>
+                {recipes && recipes.length > 0 && (
+                    <p className="text-xs text-muted mt-0.5 line-clamp-1">For {recipes.join(', ')}</p>
+                )}
+            </div>
+
+            <div className="flex shrink-0 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+                <button
+                    onClick={handleCopy}
+                    aria-label={copied ? 'Copied' : `Copy ${item.ingredientName}`}
+                    className="size-9 flex items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                >
+                    {copied ? <CopyCheck size={16} className="text-weight-text" /> : <Copy size={16} />}
+                </button>
+                <button
+                    onClick={onRemove}
+                    aria-label={`Remove ${item.ingredientName}`}
+                    className="size-9 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+        </>
+    );
+
+    const rowClass = 'group flex items-center gap-2 md:gap-3 rounded-[14px] pl-1 pr-1 hover:bg-surface-sunken transition-colors select-none';
+
+    if (!reorderable) {
+        return <li className={rowClass}>{content}</li>;
+    }
 
     return (
         <Reorder.Item
             value={item}
             dragListener={false}
             dragControls={dragControls}
-            layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            whileHover={{ scale: 1.01 }}
-            transition={{ duration: 0.2 }}
-            className={`group relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl card hover:shadow-md hover:border-hearth/30 select-none ${isChecked ? 'opacity-60 bg-stone-100 dark:bg-white/5' : ''}`}
+            layout="position"
+            transition={{ duration: 0.15 }}
+            className={rowClass}
         >
-            <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                {/* Drag Handle */}
-                <div
-                    className="cursor-grab active:cursor-grabbing text-charcoal/30 hover:text-hearth transition-colors p-1"
-                    onPointerDown={(e) => dragControls.start(e)}
-                >
-                    <Bars2Icon className="w-5 h-5" />
-                </div>
-
-                {/* Checkbox */}
-                <div
-                    onClick={onToggleCheck}
-                    className={`
-                        w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0
-                        ${isChecked
-                            ? 'bg-sage border-sage text-white'
-                            : 'border-border hover:border-sage'
-                        }
-                    `}
-                >
-                    {isChecked && (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                        {isEditing ? (
-                            <input
-                                autoFocus
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={submitEdit}
-                                onKeyDown={(e) => e.key === 'Enter' && submitEdit()}
-                                className="bg-white/60 dark:bg-white/5 border border-border rounded-lg px-2 py-1 text-lg font-bold text-hearth min-w-[60px] max-w-[120px] focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all"
-                            />
-                        ) : (
-                            <span
-                                onClick={startEditing}
-                                className={`text-lg font-bold text-hearth whitespace-nowrap decoration-dashed decoration-hearth/30 underline-offset-4 ${onUpdate ? 'cursor-pointer hover:underline' : ''} ${isChecked ? 'line-through opacity-70' : ''}`}
-                                title={onUpdate ? "Click to edit quantity" : undefined}
-                            >
-                                {item.purchasableQuantity || item.requiredQuantity}
-                            </span>
-                        )}
-                        <span className={`text-base font-semibold text-charcoal dark:text-stone-200 ${isChecked ? 'line-through opacity-70' : ''}`}>
-                            {item.ingredientName}
-                        </span>
-
-                        {(recipes && recipes.length > 0) && (
-                            <span className="text-xs text-hearth/70 font-medium ml-2">
-                                for {recipes.join(', ')}
-                            </span>
-                        )}
-
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
-                <button
-                    onClick={handleCopy}
-                    className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 hover:text-hearth hover:bg-hearth/10 transition-colors"
-                    title="Copy to clipboard"
-                >
-                    {copied ? (
-                        <ClipboardDocumentCheckIcon className="w-5 h-5 text-hearth" />
-                    ) : (
-                        <ClipboardDocumentIcon className="w-5 h-5" />
-                    )}
-                </button>
-
-                <button
-                    onClick={onRemove}
-                    className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors"
-                    title="Remove item"
-                >
-                    <TrashIcon className="w-5 h-5" />
-                </button>
-            </div>
+            {content}
         </Reorder.Item>
     );
 };

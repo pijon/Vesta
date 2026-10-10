@@ -7,7 +7,7 @@ import { RecipeDetailModal } from './RecipeDetailModal';
 import { WorkoutEntryModal } from './WorkoutEntryModal';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
-import { ActivityCard, FastingCard, HydrationCard, WeightCard, CaloriesRemainingCard } from './BentoGrid';
+import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 // import { MobileActionCards } from './MobileActionCards';
 // Lazy load RecipeLibrary
@@ -264,117 +264,43 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Mobile: 2x2 Grid of Rich Widgets */}
-      <div className="md:hidden grid grid-cols-2 gap-3 mb-6">
-        <CaloriesRemainingCard
-          caloriesRemaining={dailyTarget - consumed + caloriesBurned}
-          caloriesGoal={dailyTarget}
-          size="sm"
-          onLogFood={onOpenFoodModal}
-        />
-        <ActivityCard
-          caloriesBurned={caloriesBurned}
-          workoutsCompleted={(dailyLog.workouts || []).length}
-          workoutsGoal={stats.dailyWorkoutCountGoal || 1}
-          history={effectiveHistory}
-          onAddWorkout={() => onOpenWorkoutModal()}
-          onClick={() => setIsWorkoutOverviewOpen(true)}
-          size="sm"
-          streak={analyzeActivityStreaks(effectiveHistory).currentStreak}
-        />
-        <HydrationCard
-          liters={(dailyLog.waterIntake || 0) / 1000}
-          goal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
-          onAddWater={(amount) => handleAddWaterClick(amount)}
-          size="sm"
-        />
-        <WeightCard
-          weight={stats.currentWeight}
-          change={weightChange}
-          history={stats.weightHistory || []}
-          daysToGoal={weightAnalysis.daysToGoal}
-          onAddWeight={onOpenWeightModal}
-          onClick={() => onNavigate(AppView.ANALYTICS)}
-          size="sm"
-        />
-        <FastingCard
-          elapsedString={formatFastingTime(elapsedFastingHours)}
-          startTime={fastingState.lastAteTime ? new Date(fastingState.lastAteTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-          isFasting={!!fastingState.lastAteTime}
-          progressPercent={Math.min((elapsedFastingHours / fastingState.config.targetFastHours) * 100, 100)}
-          size="sm"
-        />
+      {/* Today: one hero block, then metric tiles */}
+      <div className="space-y-3">
         <HearthWidget
           caloriesRemaining={dailyTarget - consumed + caloriesBurned}
           caloriesTotal={consumed}
           caloriesGoal={dailyTarget}
-          waterLiters={(dailyLog.waterIntake || 0) / 1000}
-          waterGoal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
-          fastingHours={elapsedFastingHours}
-          fastingGoal={fastingState.config.targetFastHours}
-          size="sm"
+          onClick={onOpenFoodModal}
         />
-      </div>
-
-      {/* Desktop: Hero Stats - Unified Bento Grid */}
-      <div className="hidden md:block space-y-6">
-        {/* Header Section Removed - Global Header */}
-
-        <div className="flex gap-8 items-start">
-          {/* Left: Hearth Widget (Main Focus) */}
-          <div className="flex-none">
-            <HearthWidget
-              caloriesRemaining={dailyTarget - consumed + caloriesBurned}
-              caloriesTotal={consumed}
-              caloriesGoal={dailyTarget}
-              waterLiters={(dailyLog.waterIntake || 0) / 1000}
-              waterGoal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
-              fastingHours={elapsedFastingHours}
-              fastingGoal={fastingState.config.targetFastHours}
-            />
-          </div>
-
-          {/* Right: Bento Grid */}
-          <div className="flex-1 grid grid-cols-2 gap-6">
-            <ActivityCard
-              caloriesBurned={caloriesBurned}
-              workoutsCompleted={(dailyLog.workouts || []).length}
-              workoutsGoal={stats.dailyWorkoutCountGoal || 1}
-              history={effectiveHistory}
-              onAddWorkout={() => onOpenWorkoutModal()}
-              onClick={() => setIsWorkoutOverviewOpen(true)}
-              streak={analyzeActivityStreaks(effectiveHistory).currentStreak}
-            />
-            <div className="grid grid-cols-2 gap-4">
-              <CaloriesRemainingCard
-                caloriesRemaining={dailyTarget - consumed + caloriesBurned}
-                caloriesGoal={dailyTarget}
-                size="sm"
-                onLogFood={onOpenFoodModal}
-              />
-              <FastingCard
-                elapsedString={formatFastingTime(elapsedFastingHours)}
-                startTime={fastingState.lastAteTime ? new Date(fastingState.lastAteTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                isFasting={!!fastingState.lastAteTime}
-                progressPercent={Math.min((elapsedFastingHours / fastingState.config.targetFastHours) * 100, 100)}
-                size="sm"
-              />
-            </div>
-            <HydrationCard
-              liters={(dailyLog.waterIntake || 0) / 1000}
-              goal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
-              onAddWater={(amount) => handleAddWaterClick(amount)}
-            />
-            <WeightCard
-              weight={stats.currentWeight}
-              change={weightChange}
-              history={stats.weightHistory || []}
-              daysToGoal={weightAnalysis.daysToGoal}
-              onAddWeight={onOpenWeightModal}
-              onClick={() => onNavigate(AppView.ANALYTICS)}
-            />
-
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+          <HydrationCard
+            liters={(dailyLog.waterIntake || 0) / 1000}
+            goal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
+            onAddWater={(amount) => handleAddWaterClick(amount)}
+          />
+          <WeightCard
+            weight={stats.currentWeight}
+            change={weightChange}
+            history={stats.weightHistory || []}
+            daysToGoal={weightAnalysis.daysToGoal}
+            onAddWeight={onOpenWeightModal}
+            onClick={() => onNavigate(AppView.ANALYTICS)}
+          />
+          <ActivityCard
+            caloriesBurned={caloriesBurned}
+            workoutsCompleted={(dailyLog.workouts || []).length}
+            workoutsGoal={stats.dailyWorkoutCountGoal || 1}
+            history={effectiveHistory}
+            onAddWorkout={() => onOpenWorkoutModal()}
+            onClick={() => setIsWorkoutOverviewOpen(true)}
+            streak={analyzeActivityStreaks(effectiveHistory).currentStreak}
+          />
+          <FastingCard
+            elapsedString={formatFastingTime(elapsedFastingHours)}
+            startTime={fastingState.lastAteTime ? new Date(fastingState.lastAteTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+            isFasting={!!fastingState.lastAteTime}
+            progressPercent={Math.min((elapsedFastingHours / fastingState.config.targetFastHours) * 100, 100)}
+          />
         </div>
       </div>
 
@@ -395,9 +321,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
       {/* Tomorrow's Preview */}
       <div className="hidden md:block glass-card rounded-organic-md overflow-hidden">
-        <div className="px-6 py-5 border-b border-white/50 dark:border-white/5 flex justify-between items-center">
+        <div className="px-6 py-5 border-b border-border dark:border-white/5 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center text-hearth">
+            <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center text-primary">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -405,29 +331,29 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
             </div>
-            <h3 className="font-serif text-lg text-charcoal dark:text-stone-200">Tomorrow's Plan</h3>
-            <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 dark:text-stone-400 bg-white/50 dark:bg-white/10 px-2 py-1 rounded-md border border-white/20 dark:border-white/10 ml-2">
+            <h3 className="font-display font-extrabold text-lg text-charcoal dark:text-stone-200">Tomorrow's Plan</h3>
+            <span className="text-xs font-bold text-muted dark:text-muted dark:text-muted bg-surface dark:bg-white/10 px-2 py-1 rounded-md border border-border dark:border-white/10 ml-2">
               {tomorrowPlan.meals.reduce((acc, m) => acc + m.calories, 0)} kcal
             </span>
           </div>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {tomorrowPlan.meals.length === 0 ? (
-            <div className="col-span-full p-8 text-center text-charcoal/60 dark:text-stone-400 border border-dashed border-charcoal/10 dark:border-white/5 rounded-xl bg-white/20 dark:bg-white/5 backdrop-blur-sm">
+            <div className="col-span-full p-8 text-center text-muted dark:text-muted border border-dashed border-charcoal/10 dark:border-white/5 rounded-xl bg-white/20 dark:bg-white/5">
               <p className="font-medium">No meals planned for tomorrow</p>
             </div>
           ) : (
             tomorrowPlan.meals.map((meal, index) => (
               <div
                 key={index}
-                className="p-4 rounded-xl border border-white/40 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm hover:bg-white/60 dark:hover:bg-white/10 hover:shadow-md transition-all group"
+                className="p-4 rounded-xl border border-border dark:border-white/5 bg-surface dark:bg-white/5 hover:bg-surface-sunken dark:hover:bg-white/10 hover:shadow-md transition-all group"
               >
                 <p className="font-medium text-charcoal dark:text-stone-200 truncate">{meal.name}</p>
                 <div className="flex gap-2 items-center mt-2">
-                  <span className="text-[10px] font-bold text-hearth bg-calories-bg px-1.5 py-0.5 rounded uppercase tracking-wide">
+                  <span className="text-[10px] font-bold text-primary bg-calories-bg px-1.5 py-0.5 rounded">
                     {meal.type}
                   </span>
-                  <span className="text-xs text-charcoal/60 dark:text-stone-400">{meal.calories} kcal</span>
+                  <span className="text-xs text-muted dark:text-muted">{meal.calories} kcal</span>
                 </div>
               </div>
             ))
@@ -455,13 +381,13 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
       {isMealSelectorOpen && (
         <Portal>
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm px-4 py-4 animate-fade-in" onClick={() => setIsMealSelectorOpen(false)}>
-            <div className="bg-stone-50 dark:bg-[#1A1714] w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center p-6 border-b border-border bg-white/60 dark:bg-white/5 shrink-0">
-                <h2 className="text-2xl font-bold text-charcoal dark:text-stone-200 font-serif">Swap Meal</h2>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 px-4 py-4 animate-fade-in" onClick={() => setIsMealSelectorOpen(false)}>
+            <div className="bg-stone-50 dark:bg-background w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center p-6 border-b border-border bg-surface dark:bg-white/5 shrink-0">
+                <h2 className="text-2xl text-charcoal dark:text-stone-200 font-display font-extrabold">Swap Meal</h2>
                 <button
                   onClick={() => setIsMealSelectorOpen(false)}
-                  className="p-2 bg-white/60 dark:bg-white/5 border border-border rounded-full text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 transition-colors"
+                  className="p-2 bg-surface dark:bg-white/5 border border-border rounded-full text-muted dark:text-muted hover:text-charcoal dark:text-stone-200 transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>

@@ -74,7 +74,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
   return (
     <Portal>
       <div
-        className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in"
+        className="fixed inset-0 bg-stone-900/40 flex items-center justify-center z-[100] p-4 animate-fade-in"
         onClick={generatedRecipe ? undefined : onClose}
       >
         <div
@@ -86,7 +86,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
             // PREVIEW MODE
             <>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-serif font-bold text-[var(--text-main)]">
+                <h2 className="text-2xl font-display font-extrabold text-[var(--text-main)]">
                   Recipe Preview
                 </h2>
                 <button
@@ -103,7 +103,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
               {/* Recipe Details */}
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-2xl font-serif font-bold text-[var(--text-main)] mb-2">{generatedRecipe.name}</h3>
+                  <h3 className="text-2xl font-display font-extrabold text-[var(--text-main)] mb-2">{generatedRecipe.name}</h3>
                   <p className="text-sm text-[var(--text-secondary)]">{generatedRecipe.description}</p>
                 </div>
 
@@ -146,7 +146,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
                   <ol className="space-y-3">
                     {generatedRecipe.instructions?.map((instruction, i) => (
                       <li key={i} className="flex items-start gap-3 text-sm">
-                        <span className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">
+                        <span className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">
                           {i + 1}
                         </span>
                         <span className="text-[var(--text-main)] pt-0.5">{instruction}</span>
@@ -159,7 +159,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
                 <div className="flex gap-3 pt-4 border-t border-border">
                   <button
                     onClick={handleSaveRecipe}
-                    className="flex-1 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all active:scale-95"
+                    className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all active:scale-95"
                   >
                     Save to Library
                   </button>
@@ -182,7 +182,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
             // INPUT MODE
             <>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-serif font-bold text-[var(--text-main)]">
+                <h2 className="text-2xl font-display font-extrabold text-[var(--text-main)]">
                   Create Recipe from Ingredients
                 </h2>
                 <button
@@ -259,7 +259,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating || ingredientInput.trim().length === 0}
-                    className="flex-1 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                    className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
                   >
                     {isGenerating ? (
                       <span className="flex items-center justify-center gap-2">

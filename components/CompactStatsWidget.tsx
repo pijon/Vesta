@@ -24,8 +24,8 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
         <div className="bg-[var(--card-bg)] rounded-2xl shadow-sm border border-border/50 overflow-hidden">
             {/* Header */}
             <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-charcoal dark:text-stone-200 font-serif">Today's Summary</h3>
-                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border border-transparent ${isNonFastDay ? 'badge-stone' : 'badge-terracotta'}`}>
+                <h3 className="text-sm text-charcoal dark:text-stone-200 font-display font-extrabold">Today's Summary</h3>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border border-transparent ${isNonFastDay ? 'badge-stone' : 'badge-terracotta'}`}>
                     {isNonFastDay ? 'Non-Fast' : 'Fast Day'}
                 </span>
             </div>
@@ -42,15 +42,15 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                                     <path d="M12 2v20M2 12h20" />
                                 </svg>
                             </div>
-                            <span className="text-[10px] font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wide">Calories</span>
+                            <span className="text-[10px] text-muted dark:text-muted tracking-wide">Calories</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                            <span className={`text-2xl font-bold font-serif ${caloriesLeft < 0 ? 'text-error' : 'text-charcoal dark:text-stone-200'}`}>
+                            <span className={`text-2xl font-display font-extrabold ${caloriesLeft < 0 ? 'text-error' : 'text-charcoal dark:text-stone-200'}`}>
                                 {Math.abs(caloriesLeft)}
                             </span>
-                            <span className="text-xs text-charcoal/60 dark:text-stone-400 font-semibold">{caloriesLeft < 0 ? 'over' : 'left'}</span>
+                            <span className="text-xs text-muted dark:text-muted font-semibold">{caloriesLeft < 0 ? 'over' : 'left'}</span>
                         </div>
-                        <div className="text-[10px] text-charcoal/60 dark:text-stone-400 mt-1">{consumed} / {dailyTarget}</div>
+                        <div className="text-[10px] text-muted dark:text-muted mt-1">{consumed} / {dailyTarget}</div>
                     </div>
 
                     {/* Weight */}
@@ -61,13 +61,13 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                                     <path d="m18 15-6-6-6 6" />
                                 </svg>
                             </div>
-                            <span className="text-[10px] font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wide">Weight</span>
+                            <span className="text-[10px] font-bold text-muted dark:text-muted tracking-wide">Weight</span>
                         </div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-bold text-charcoal dark:text-stone-200 font-serif">{stats.currentWeight}</span>
-                            <span className="text-xs text-charcoal/60 dark:text-stone-400 font-semibold">kg</span>
+                            <span className="text-xs text-muted dark:text-muted font-semibold">kg</span>
                         </div>
-                        <div className="text-[10px] text-charcoal/60 dark:text-stone-400 mt-1">
+                        <div className="text-[10px] text-muted dark:text-muted mt-1">
                             {Math.abs(startWeight - stats.currentWeight).toFixed(1)}kg {startWeight >= stats.currentWeight ? 'lost' : 'gained'}
                         </div>
 
@@ -81,13 +81,13 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                                     <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                                 </svg>
                             </div>
-                            <span className="text-[10px] font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wide">Water</span>
+                            <span className="text-[10px] font-bold text-muted dark:text-muted">Water</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-charcoal dark:text-stone-200 font-serif">{hydration}</span>
-                            <span className="text-xs text-charcoal/60 dark:text-stone-400 font-semibold">ml</span>
+                            <span className="text-2xl text-charcoal dark:text-stone-200 font-display font-extrabold">{hydration}</span>
+                            <span className="text-xs text-muted dark:text-muted font-semibold">ml</span>
                         </div>
-                        <div className="text-[10px] text-charcoal/60 dark:text-stone-400 mt-1">{Math.round((hydration / hydrationGoal) * 100)}% of {hydrationGoal}ml</div>
+                        <div className="text-[10px] text-muted dark:text-muted mt-1">{Math.round((hydration / hydrationGoal) * 100)}% of {hydrationGoal}ml</div>
                     </div>
 
                     {/* Workouts */}
@@ -98,13 +98,13 @@ export const CompactStatsWidget: React.FC<CompactStatsWidgetProps> = ({ stats, d
                                     <path d="M12.1 3A1.9 1.9 0 1 1 14 4.9 1.898 1.898 0 0 1 12.1 3zm2.568 4.893c.26-1.262-1.399-1.861-2.894-2.385L7.09 6.71l.577 4.154c0 .708 1.611.489 1.587-.049l-.39-2.71 2.628-.48-.998 4.92 3.602 4.179-1.469 4.463a.95.95 0 0 0 .39 1.294c.523.196 1.124-.207 1.486-.923.052-.104 1.904-5.127 1.904-5.127l-2.818-3.236 1.08-5.303zm-5.974 8.848l-3.234.528a1.033 1.033 0 0 0-.752 1.158c.035.539.737.88 1.315.802l3.36-.662 2.54-2.831-1.174-1.361zm8.605-7.74l-1.954.578-.374 1.837 2.865-.781a.881.881 0 0 0-.537-1.633z" />
                                 </svg>
                             </div>
-                            <span className="text-[10px] font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wide">Active</span>
+                            <span className="text-[10px] font-bold text-muted dark:text-muted">Active</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-charcoal dark:text-stone-200 font-serif">{caloriesBurned}</span>
-                            <span className="text-xs text-charcoal/60 dark:text-stone-400 font-semibold">kcal</span>
+                            <span className="text-2xl text-charcoal dark:text-stone-200 font-display font-extrabold">{caloriesBurned}</span>
+                            <span className="text-xs text-muted dark:text-muted font-semibold">kcal</span>
                         </div>
-                        <div className="text-[10px] text-charcoal/60 dark:text-stone-400 mt-1">
+                        <div className="text-[10px] text-muted dark:text-muted mt-1">
                             {Math.round((caloriesBurned / (stats.dailyWorkoutCalorieGoal || 400)) * 100)}% of {stats.dailyWorkoutCalorieGoal || 400}kcal
                         </div>
                     </div>

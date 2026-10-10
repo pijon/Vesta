@@ -55,12 +55,12 @@ export function ReloadPrompt() {
                     <div className="text-xs opacity-80">Reload to update Vesta.</div>
                     <div className="flex gap-2 mt-1">
                         <button
-                            className="bg-hearth text-white px-3 py-1.5 rounded-lg text-xs font-bold"
+                            className="bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-bold"
                             onClick={() => updateServiceWorker(true)}>
                             Reload
                         </button>
                         <button
-                            className="bg-transparent border border-white/20 text-stone px-3 py-1.5 rounded-lg text-xs"
+                            className="bg-transparent border border-border text-stone px-3 py-1.5 rounded-lg text-xs"
                             onClick={close}>
                             Later
                         </button>

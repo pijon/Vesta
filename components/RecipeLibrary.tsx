@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { ChefHat, ChevronDown, Download, Heart, Link2, Plus, Search, Sparkles, X } from 'lucide-react';
+import { getCachedRecipes } from '../utils/cacheService';
 import { Recipe, Group } from '../types';
 import { getRecipes, saveRecipe, deleteRecipe, getDayPlan, saveDayPlan } from '../services/storageService';
 import { getUserGroup, getFamilyMemberRecipes, copyRecipeToMyLibrary } from '../services/groupService';
-import { parseRecipeText, generateRecipeFromIngredients } from '../services/geminiService';
+import { parseRecipeText, generateRecipeFromIngredients, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
 import { RecipeCard } from './RecipeCard';
 import { Portal } from './Portal';
-import { RecipeIllustration } from './RecipeIllustration';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
-import { GlassCard } from './GlassCard';
 import { localDateString } from '../utils/dateUtils';
 
 
@@ -20,10 +20,11 @@ interface RecipeLibraryProps {
 }
 
 export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  // Start from the local cache so revisiting the page renders immediately
+  const [recipes, setRecipes] = useState<Recipe[]>(() => getCachedRecipes() ?? []);
   const [familyRecipes, setFamilyRecipes] = useState<Recipe[]>([]);
   const [userGroup, setUserGroup] = useState<Group | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !getCachedRecipes()?.length);
 
   const [isAdding, setIsAdding] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -46,6 +47,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [newRecipeId, setNewRecipeId] = useState<string>(crypto.randomUUID()); // Generate ID upfront for Storage upload
+  const [importError, setImportError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(t => (t === message ? null : t)), 2500);
+  };
 
   useEffect(() => {
     loadData(false);
@@ -148,7 +155,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       setEditForm(null); // Cleanup
     } catch (e) {
       console.error("Failed to save recipe", e);
-      alert("Failed to save recipe. Please try again.");
+      alert("That recipe couldn't be saved. Try again.");
     } finally {
       setIsSaving(false);
     }
@@ -192,13 +199,16 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const handleAIAdd = async () => {
     if (!inputText.trim()) return;
     setIsProcessing(true);
+    setImportError(null);
     try {
-      const partialRecipe = await parseRecipeText(inputText);
+      const sourceUrl = getRecipeUrl(inputText);
+      const recipeText = sourceUrl ? await fetchRecipeFromUrl(sourceUrl) : inputText;
+      const partialRecipe = await parseRecipeText(recipeText);
       if (partialRecipe) {
         const newRecipe: Recipe = {
           id: newRecipeId, // Use pre-generated ID
           name: partialRecipe.name || 'Untitled Recipe',
-          description: 'Imported from text',
+          description: sourceUrl ? `Imported from ${sourceUrl}` : 'Imported from text',
           calories: partialRecipe.calories || 0,
           protein: partialRecipe.protein || 0,
           fat: partialRecipe.fat || 0,
@@ -228,8 +238,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       }
     } catch (e: any) {
       console.error("AI Import Failed:", e);
-      const errorMessage = e.message || "Unknown error occurred";
-      alert(`Failed to parse recipe via AI. \n\nError: ${errorMessage}\n\nPlease check the console for more details.`);
+      setImportError(getRecipeUrl(inputText)
+        ? "We couldn't read a recipe from that link. Try pasting the recipe text instead."
+        : "We couldn't make sense of that recipe. Check the text and try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -257,30 +268,10 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     e.stopPropagation();
     const updatedRecipe = { ...recipe, isFavorite: !recipe.isFavorite };
 
-    // Optimistic update
-    // Optimistic update
+    // Optimistic update. Only the user's own recipes can be favourited: saveRecipe
+    // writes to users/{uid}/recipes, so favouriting a family recipe would create a copy.
+    // RecipeCard hides the heart for family recipes.
     setRecipes(prev => prev.map(r => r.id === recipe.id ? updatedRecipe : r));
-    // Also update family recipes if it's there (though usually we can't edit shared recipes directly yet without being owner, but for fav toggles it's local)
-    // Actually fav status on shared recipe: strictly speaking `isFavorite` is stored on the recipe object.
-    // If I favorite a shared recipe, I'm editing the shared recipe doc? Or my local copy?
-    // Current architecture: Shared recipe is a document in `groups/.../recipes`. 
-    // If I edit it, everyone sees the edit. So favorite status is shared too? That's annoying.
-    // For now, let's assume favorite is shared. Ideally it should be a separate user-specific collection.
-    // But consistent with "Simple" rule: yes, favorite status is shared. 
-    // Wait, if I change it, I should save it to Where?
-    // If it's a family recipe, use `groupService`? No, `saveRecipe` only saves to `users/{uid}`.
-    // I need to check if it's a shared recipe and call appropriate update. 
-    // For now, I'll stick to local recipes for fav toggles or just re-load.
-
-    // Actually, let's just re-load data for correctness if we don't have update logic for shared yet.
-    // But `saveRecipe` only writes to local.
-    // So if I click favorite on a shared recipe, it currently saves a copy to my local? No, `saveRecipe` writes to `recipies` collection.
-    // Shared recipes are in `groups`. 
-    // We haven't implemented `updateGroupRecipe`.
-    // Let's disable fav toggling for shared recipes for now or implement it properly later.
-    // OR: just ignore this complexity for MVP and focus on sharing.
-
-    // I'll leave the local recipes logic as is.
     await saveRecipe(updatedRecipe);
   };
 
@@ -292,17 +283,14 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     e.stopPropagation();
     if (!recipe.ownerId) return; // Only for family recipes
 
-    if (confirm(`Copy "${recipe.name}" to your recipe library?`)) {
-      try {
-        const copied = await copyRecipeToMyLibrary(recipe);
-        alert("Recipe copied to your library!");
-        await loadData();
-        // Optionally open the copied recipe
-        setSelectedRecipe(copied);
-        setActiveTab('overview');
-      } catch (e: any) {
-        alert("Failed to copy: " + e.message);
-      }
+    try {
+      const copied = await copyRecipeToMyLibrary(recipe);
+      await loadData();
+      setSelectedRecipe(copied);
+      showToast(`Copied to your recipes`);
+    } catch (err) {
+      console.error('Failed to copy recipe', err);
+      showToast(`Couldn't copy that recipe`);
     }
   };
 
@@ -351,228 +339,186 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       }
     });
 
-  return (
-    <div className="space-y-8 animate-fade-in pb-20">
-      <div className="flex justify-end gap-3 mb-6">
-        <div className="flex gap-3">
-          <button
-            onClick={handleExport}
-            className="btn-secondary btn-sm flex items-center gap-2"
-            title="Export Recipes to JSON"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            <span className="hidden sm:inline">Export</span>
-          </button>
+  const familyCount = familyRecipes.length;
+  const handleAddToToday = async (recipe: Recipe) => {
+    try {
+      const today = localDateString();
+      const plan = await getDayPlan(today);
+      const newMeals = [...plan.meals, recipe];
+      const totalCals = newMeals.reduce((acc, m) => acc + m.calories, 0);
+      await saveDayPlan({ ...plan, meals: newMeals, totalCalories: totalCals });
+      showToast(`Added ${recipe.name} to today`);
+    } catch (err) {
+      console.error('Failed to add to plan', err);
+      showToast(`Couldn't add that to today`);
+    }
+  };
 
+  return (
+    <div className="space-y-5 pb-20">
+      {/* Title and actions */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h2 className="heading-2">Your cookbook</h2>
+          <p className="text-sm text-muted mt-0.5">
+            {recipes.length} {recipes.length === 1 ? 'recipe' : 'recipes'}
+            {familyCount > 0 && ` · ${familyCount} from family`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => setShowIngredientModal(true)}
-            className="btn-secondary btn-sm flex items-center gap-2"
-            title="Create recipe from ingredients"
+            onClick={() => { setIsAdding(!isAdding); setImportError(null); }}
+            aria-expanded={isAdding}
+            className={isAdding ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>
-            <span className="hidden sm:inline">From Ingredients</span>
+            {isAdding ? <X size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}
+            {isAdding ? 'Close import' : 'Import'}
           </button>
-          <button
-            onClick={() => setIsAdding(!isAdding)}
-            className={`btn-sm flex items-center gap-2 ${isAdding ? 'btn-secondary' : 'btn-secondary'}`}
-            title="Import recipe using AI"
-          >
-            {isAdding ? (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                Cancel Import
-              </>
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                AI Import
-              </>
-            )}
+          <button onClick={() => setShowIngredientModal(true)} className="btn-secondary btn-sm">
+            <Sparkles size={16} aria-hidden="true" /> From ingredients
           </button>
-          <button
-            onClick={handleManualAdd}
-            className="btn-primary btn-sm flex items-center gap-2"
-            title="Create a new recipe manually"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-            Manual Entry
+          <button onClick={handleManualAdd} className="btn-secondary btn-sm">
+            <Plus size={16} aria-hidden="true" /> New
+          </button>
+          <button onClick={handleExport} className="icon-btn !size-9" aria-label="Export recipes as JSON" title="Export recipes as JSON">
+            <Download size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
 
+      {/* Import panel */}
       {isAdding && (
-        <GlassCard className="card-padding-lg animate-slide-in-down relative overflow-hidden mb-8 border border-hearth/20 dark:border-hearth/10">
-          <div className="relative z-10">
-            <h3 className="heading-3 mb-2 flex items-center gap-2 text-charcoal dark:text-stone-200">
-              <span className="bg-hearth/10 text-hearth p-1.5 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span>
-              Import Recipe via AI
-            </h3>
-            <p className="text-charcoal/60 dark:text-stone-400 mb-6 max-w-2xl">Paste a recipe URL, full text, or even a rough list of ingredients. Our smart AI will parse the nutrition, ingredients, and instructions for you.</p>
-
-            {/* Image Upload */}
-            <div className="mb-6">
-              <label className="block text-sm font-bold text-charcoal dark:text-stone-300 mb-3">Recipe Photo (Optional)</label>
-              {uploadedImage ? (
-                <div className="relative rounded-2xl overflow-hidden border border-border">
-                  <img src={uploadedImage} alt="Recipe preview" className="w-full h-48 object-cover" />
-                  <button
-                    onClick={handleRemoveImage}
-                    className="absolute top-3 right-3 bg-rose-500 hover:bg-rose-600 text-white p-2 rounded-full shadow-lg transition-all"
-                    title="Remove image"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                  </button>
-                </div>
-              ) : (
-                <ImageInput
-                  recipeId={newRecipeId}
-                  onImageSelect={handleImageSelect}
-                  onError={(err) => setImageError(err)}
-                  disabled={isProcessing}
-                  className="w-full"
-                />
-              )}
-              {imageError && (
-                <p className="text-rose-600 text-sm mt-2">{imageError}</p>
-              )}
-            </div>
-
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="w-full input min-h-[160px] mb-4 bg-white/60 dark:bg-black/20 text-charcoal dark:text-stone-200 border-border dark:border-white/10"
-              placeholder="Paste your recipe here... e.g. 'Chicken Stir Fry, serves 4. Ingredients: 500g chicken breast...'"
-            />
-            <button
-              onClick={handleAIAdd}
-              disabled={isProcessing}
-              className={isProcessing ? 'btn-primary w-full flex justify-center items-center gap-3 text-lg opacity-50' : 'btn-primary w-full flex justify-center items-center gap-3 text-lg shadow-lg shadow-hearth/20'}
-            >
-              {isProcessing ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Processing Recipe...
-                </>
-              ) : (
-                <>
-                  <span>Magic Import</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg>
-                </>
-              )}
-            </button>
+        <section className="card p-5 md:p-6 space-y-4" aria-labelledby="import-heading">
+          <div>
+            <h3 id="import-heading" className="heading-3">Import a recipe</h3>
+            <p className="text-sm text-muted mt-0.5">Paste a link or the recipe text. Vesta reads the ingredients, steps and nutrition for you.</p>
           </div>
 
-          {/* Background Decoration */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-hearth/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none blur-3xl"></div>
-        </GlassCard>
+          <label htmlFor="import-text" className="sr-only">Recipe link or text</label>
+          <textarea
+            id="import-text"
+            value={inputText}
+            onChange={(e) => { setInputText(e.target.value); setImportError(null); }}
+            className={`input w-full min-h-[140px] ${importError ? 'input-error' : ''}`}
+            placeholder="https://… or: Chicken stir fry, serves 4. 500 g chicken breast, 2 peppers…"
+            aria-invalid={!!importError}
+            aria-describedby={importError ? 'import-error' : undefined}
+          />
+          {importError && <p id="import-error" className="text-sm text-error -mt-2">{importError}</p>}
+
+          <div>
+            <p className="text-sm font-semibold mb-2">Photo <span className="font-normal text-muted">(optional)</span></p>
+            {uploadedImage ? (
+              <div className="relative w-40">
+                <img src={uploadedImage} alt="Recipe photo preview" className="w-40 aspect-[4/3] object-cover rounded-[14px]" />
+                <button onClick={handleRemoveImage} className="icon-btn !size-8 absolute -top-2 -right-2 shadow-[var(--elev-sm)]" aria-label="Remove photo">
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <ImageInput
+                recipeId={newRecipeId}
+                onImageSelect={handleImageSelect}
+                onError={(err) => setImageError(err)}
+                disabled={isProcessing}
+                className="w-full"
+              />
+            )}
+            {imageError && <p className="text-sm text-error mt-2">{imageError}</p>}
+          </div>
+
+          <button onClick={handleAIAdd} disabled={isProcessing || !inputText.trim()} className="btn-primary btn-block">
+            {isProcessing ? <span className="spinner spinner-sm" aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
+            {isProcessing ? 'Reading recipe…' : 'Import recipe'}
+          </button>
+        </section>
       )}
 
-      {/* Search, Sort & Filters */}
-      <GlassCard className="space-y-6 !p-6">
-        <div className="flex flex-col md:flex-row gap-4">
+      {/* Search, filters, sort */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal/40 dark:text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none" aria-hidden="true" />
+            <label htmlFor="recipe-search" className="sr-only">Search recipes</label>
             <input
-              type="text"
-              className="block w-full !pl-12 !py-3 bg-charcoal/5 dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl text-charcoal dark:text-stone-200 placeholder:text-charcoal/40 dark:placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all font-medium"
-              placeholder="Search recipes, ingredients, tags..."
+              id="recipe-search"
+              type="search"
+              className="input w-full !pl-11"
+              placeholder="Search by name, ingredient or tag"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-
-
-
-          <div className="relative min-w-[160px]">
-            <select
-              value={calorieFilter}
-              onChange={(e) => setCalorieFilter(e.target.value)}
-              className="appearance-none w-full !py-3 px-4 bg-charcoal/5 dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl text-charcoal dark:text-stone-200 cursor-pointer font-bold focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all"
-            >
-              <option value="all">Max Cal: All</option>
+          <div className="flex gap-2">
+            <label className="sr-only" htmlFor="recipe-calories">Maximum calories</label>
+            <select id="recipe-calories" value={calorieFilter} onChange={(e) => setCalorieFilter(e.target.value)} className="input flex-1 sm:flex-none sm:w-40">
+              <option value="all">Any calories</option>
               {Array.from({ length: 8 }, (_, i) => (i + 1) * 100).map(cal => (
                 <option key={cal} value={cal.toString()}>Under {cal} kcal</option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-charcoal/40 dark:text-stone-500">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </div>
-          </div>
-
-          <div className="relative min-w-[200px]">
-            <select
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-              className="appearance-none w-full !py-3 px-4 bg-charcoal/5 dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl text-charcoal dark:text-stone-200 cursor-pointer font-bold focus:outline-none focus:ring-2 focus:ring-hearth/20 transition-all"
-            >
-              <option value="name">Sort: Name (A-Z)</option>
-              <option value="caloriesLow">Sort: Calories (Low)</option>
-              <option value="caloriesHigh">Sort: Calories (High)</option>
-              <option value="protein">Sort: Highest Protein</option>
+            <label className="sr-only" htmlFor="recipe-sort">Sort by</label>
+            <select id="recipe-sort" value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="input flex-1 sm:flex-none sm:w-44">
+              <option value="name">Name A–Z</option>
+              <option value="caloriesLow">Fewest calories</option>
+              <option value="caloriesHigh">Most calories</option>
+              <option value="protein">Most protein</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-charcoal/40 dark:text-stone-500">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </div>
           </div>
         </div>
 
-        {/* Filter Chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar pt-1">
-          {['all', 'mine', 'family', 'breakfast', 'main meal', 'snack', 'light meal'].map(type => (
-            <button
-              key={type}
-              onClick={() => setActiveFilter(type)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border ${activeFilter === type
-                ? 'bg-hearth text-white border-hearth shadow-md transform scale-105'
-                : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-transparent hover:border-hearth/20 hover:bg-charcoal/10 dark:hover:bg-white/10'
-                }`}
-            >
-              {type === 'mine' ? 'My Recipes' : type === 'family' ? 'Family Recipes' : type}
-            </button>
-          ))}
-          <div className="w-px h-6 bg-charcoal/10 dark:bg-white/10 mx-1 self-center"></div>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5" role="group" aria-label="Filter recipes">
           <button
             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap transition-all border flex items-center gap-1.5 ${showFavoritesOnly
-              ? 'bg-hearth text-white border-hearth shadow-md transform scale-105'
-              : 'bg-charcoal/5 dark:bg-white/5 text-charcoal/60 dark:text-stone-400 border-transparent hover:border-hearth/30 hover:bg-hearth/5 hover:text-hearth'
-              }`}
+            aria-pressed={showFavoritesOnly}
+            className={`shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${showFavoritesOnly ? 'bg-calories-bg text-calories-text' : 'bg-surface border border-border hover:bg-surface-sunken'}`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={showFavoritesOnly ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>
-            Favourites
+            <Heart size={14} fill={showFavoritesOnly ? 'currentColor' : 'none'} aria-hidden="true" /> Favourites
           </button>
+          {[['all', 'All'], ['mine', 'Mine'], ['family', 'Family'], ['breakfast', 'Breakfast'], ['main meal', 'Main meals'], ['light meal', 'Light meals'], ['snack', 'Snacks']].map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setActiveFilter(value)}
+              aria-pressed={activeFilter === value}
+              className={`shrink-0 min-h-9 px-3.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${activeFilter === value ? 'bg-ink text-on-ink' : 'bg-surface border border-border hover:bg-surface-sunken'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      </GlassCard >
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-        {isLoading ? (
-          // Skeleton Loader
+      {/* Grid */}
+      <div className="grid gap-2.5 md:gap-4 grid-cols-2 lg:grid-cols-3">
+        {isLoading && recipes.length === 0 ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="glass-panel rounded-3xl overflow-hidden h-full flex flex-col animate-pulse">
-              <div className="h-48 md:h-56 bg-border/50 w-full" />
-              <div className="p-4 md:p-6 space-y-4 flex-1">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="h-8 bg-border/50 rounded-xl w-3/4" />
-                  <div className="h-8 w-12 bg-border/50 rounded-lg" />
-                </div>
+            <div key={i} className="card p-2 animate-pulse" aria-hidden="true">
+              <div className="aspect-[4/3] rounded-[14px] bg-surface-sunken" />
+              <div className="p-2 pt-4 space-y-2">
+                <div className="h-5 w-3/4 rounded bg-surface-sunken" />
+                <div className="h-4 w-1/3 rounded bg-surface-sunken" />
               </div>
             </div>
           ))
         ) : filteredRecipes.length === 0 ? (
-          <div className="md:col-span-full py-32 text-center text-charcoal/40 dark:text-stone-500 bg-white/40 dark:bg-white/5 rounded-[3rem] border-2 border-dashed border-charcoal/5 dark:border-white/5 flex flex-col items-center justify-center">
-            <div className="w-20 h-20 rounded-full bg-white/50 dark:bg-white/5 flex items-center justify-center text-4xl mb-6 shadow-sm">
-              🧑‍🍳
-            </div>
-            <p className="font-serif text-2xl mb-2 text-charcoal dark:text-stone-300">
-              {recipes.length === 0 ? "Your cookbook is empty" : "No recipes match found"}
+          <div className="col-span-full tile tile-neutral items-center text-center py-14">
+            <ChefHat size={32} className="text-muted mb-3" aria-hidden="true" />
+            <p className="font-semibold">{recipes.length === 0 ? 'Your cookbook is empty' : 'No recipes match'}</p>
+            <p className="text-sm text-muted mt-1 max-w-sm">
+              {recipes.length === 0
+                ? 'Import a recipe from a link, or write your own.'
+                : 'Try a different search or clear a filter.'}
             </p>
-            <p className="text-charcoal/60 dark:text-stone-500 max-w-sm">
-              {recipes.length === 0 ? "Get started by adding your first recipe manually or import one with AI magic above." : "Try adjusting your filters or search terms to find what you're looking for."}
-            </p>
+            {recipes.length === 0 ? (
+              <button onClick={() => setIsAdding(true)} className="btn-primary btn-sm mt-4"><Link2 size={16} aria-hidden="true" /> Import a recipe</button>
+            ) : (
+              <button
+                onClick={() => { setSearchQuery(''); setActiveFilter('all'); setCalorieFilter('all'); setShowFavoritesOnly(false); }}
+                className="btn-secondary btn-sm mt-4"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
           filteredRecipes.map(recipe => (
@@ -582,45 +528,31 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               onClick={onSelect ? () => onSelect(recipe) : () => openRecipe(recipe)}
               showMacros={false}
               onToggleFavorite={(e) => toggleFavorite(e, recipe)}
-              actionLabel={onSelect ? "Select" : undefined}
-              onAction={onSelect ? (e) => {
-                e.stopPropagation();
-                onSelect(recipe);
-              } : undefined}
+              actionLabel={onSelect ? 'Select' : undefined}
+              onAction={onSelect ? () => onSelect(recipe) : undefined}
               ownerName={recipe.ownerName}
               isOwned={!recipe.ownerId}
               onCopyToLibrary={recipe.ownerId ? (e) => handleCopyToMyLibrary(e, recipe) : undefined}
-              // onShare removed as sharing is now automatic
-              onAddToPlan={async (e) => {
-                e.stopPropagation();
-                if (!confirm(`Add "${recipe.name}" to today's plan?`)) return;
-                const today = localDateString();
-                const plan = await getDayPlan(today);
-                // Determine next slot? Or simply append. Appending for now.
-                // We don't have "Breakfast/Lunch" slots strongly typed yet, it's just a list.
-                const newMeals = [...plan.meals, recipe];
-                const totalCals = newMeals.reduce((acc, m) => acc + m.calories, 0);
-                await saveDayPlan({ ...plan, meals: newMeals, totalCalories: totalCals });
-                alert("Recipe added to today's plan.");
-              }}
+              onAddToPlan={onSelect ? undefined : () => handleAddToToday(recipe)}
             />
           ))
         )}
       </div>
 
-      {
-        !hasLoadedAll && !isLoading && recipes.length > 0 && (
-          <div className="flex justify-center mt-8 pb-4">
-            <button
-              onClick={handleLoadMore}
-              className="btn-secondary flex items-center gap-2 group"
-            >
-              <span>Load All Recipes</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:translate-y-0.5 transition-transform"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>
-            </button>
-          </div>
-        )
-      }
+      {!hasLoadedAll && !isLoading && recipes.length > 0 && (
+        <div className="flex justify-center pt-2">
+          <button onClick={handleLoadMore} className="btn-secondary btn-sm">
+            Show all recipes <ChevronDown size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {/* Feedback toast, kept clear of the bottom nav */}
+      {toast && (
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in">
+          {toast}
+        </div>
+      )}
 
       {/* Ingredient Recipe Modal */}
       {

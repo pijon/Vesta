@@ -164,17 +164,17 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="w-24 h-24 bg-hearth/10 rounded-full flex items-center justify-center mx-auto text-hearth"
+                className="w-24 h-24 bg-hearth/10 rounded-full flex items-center justify-center mx-auto text-primary"
             >
                 <Sparkles size={48} />
             </motion.div>
             <div>
-                <h2 className="text-2xl font-serif text-[var(--text-main)] mb-2">The Sunday Reset</h2>
+                <h2 className="text-2xl font-display font-extrabold text-[var(--text-main)] mb-2">The Sunday Reset</h2>
                 <p className="text-[var(--text-muted)]">Light the hearth for the week ahead. Configure each day to match your rhythm.</p>
             </div>
             <button
                 onClick={handleIgnite}
-                className="w-full py-4 bg-hearth text-white rounded-2xl text-lg font-medium hover:bg-hearth-dark transition-colors shadow-lg shadow-hearth/30"
+                className="w-full py-4 bg-primary text-primary-foreground rounded-2xl text-lg font-medium hover:bg-hearth-dark transition-colors shadow-lg"
             >
                 Start Ritual
             </button>
@@ -184,7 +184,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
     const renderConfig = () => (
         <div className="flex flex-col h-[80vh]">
             <div className="p-4 border-b border-[var(--border)] bg-[var(--surface)] flex-none z-10">
-                <h3 className="text-xl font-serif text-[var(--text-main)] mb-3">
+                <h3 className="text-xl font-display font-extrabold text-[var(--text-main)] mb-3">
                     {mode === 'sunday_reset' ? 'Setup Upcoming Week' : 'Plan Days Ahead'}
                 </h3>
 
@@ -193,8 +193,8 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                         <button
                             key={s}
                             onClick={() => setSeason(s)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap ${season === s
-                                ? 'border-hearth bg-hearth/10 text-hearth'
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${season === s
+                                ? 'border-primary bg-hearth/10 text-primary'
                                 : 'border-[var(--border)] bg-transparent text-[var(--text-muted)]'
                                 }`}
                         >
@@ -223,21 +223,21 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                         onClick={() => updateDayConfig(idx, { ignore: !day.ignore })}
                                         className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-colors ${isIgnored
                                             ? 'bg-[var(--background)] border-[var(--border)]'
-                                            : 'bg-hearth border-hearth'
+                                            : 'bg-primary border-primary'
                                             }`}
                                     >
                                         {!isIgnored && <Check size={14} className="text-white" />}
                                     </button>
                                     <div>
                                         <div className="font-bold text-[var(--text-main)] text-sm">{dayName}</div>
-                                        <div className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">{dateStr}</div>
+                                        <div className="text-xs text-[var(--text-muted)] font-medium">{dateStr}</div>
                                     </div>
                                 </div>
                                 {!isIgnored && (
                                     <div className="flex gap-1">
                                         <button
                                             onClick={() => updateDayConfig(idx, { type: day.type === 'fast' ? 'non-fast' : 'fast' })}
-                                            className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${day.type === 'fast'
+                                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-colors ${day.type === 'fast'
                                                 ? 'bg-ocean-100 dark:bg-ocean-900/30 text-ocean-700 dark:text-ocean-300'
                                                 : 'bg-sage-100 dark:bg-sage-900/30 text-sage-800 dark:text-sage-200'
                                                 }`}
@@ -253,7 +253,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                 <div className="p-3 grid grid-cols-2 gap-4">
                                     {/* Meals Toggle */}
                                     <div>
-                                        <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-bold mb-1.5 block">Meals</label>
+                                        <label className="text-[10px] text-[var(--text-muted)] font-bold mb-1.5 block">Meals</label>
                                         <div className="flex bg-[var(--background)] rounded-xl p-1">
                                             {[2, 3, 4].map(num => (
                                                 <button
@@ -312,7 +312,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                 className="w-20 h-20 border-4 border-hearth/20 border-t-hearth rounded-full mx-auto"
             />
             <div>
-                <h3 className="text-xl font-serif text-[var(--text-main)] mb-2">Connecting to Fire...</h3>
+                <h3 className="text-xl font-display font-extrabold text-[var(--text-main)] mb-2">Connecting to Fire...</h3>
                 <p className="text-[var(--text-muted)]">Planning your nourishment...</p>
             </div>
         </div>
@@ -321,17 +321,17 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
     const renderReview = () => (
         <div className="h-[80vh] flex flex-col">
             <div className="p-4 border-b border-[var(--border)] bg-[var(--surface)]">
-                <h3 className="text-xl font-serif text-[var(--text-main)]">Your Plan</h3>
+                <h3 className="text-xl font-display font-extrabold text-[var(--text-main)]">Your Plan</h3>
                 <p className="text-[var(--text-muted)] text-sm">Review your plan. Tap shuffle to swap a meal.</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[var(--background)]">
                 {generatedPlan.map((day, idx) => (
                     <div key={idx} className="bg-[var(--input-bg)] p-4 rounded-2xl shadow-sm border border-[var(--border)]">
                         <div className="flex justify-between items-center mb-4">
-                            <span className="font-serif font-bold text-[var(--text-main)]">
+                            <span className="font-display font-extrabold text-[var(--text-main)]">
                                 {new Date(day.date).toLocaleDateString('en-US', { weekday: 'long' })}
                             </span>
-                            <span className={`text-[10px] px-2 py-1 rounded-lg font-bold uppercase tracking-wider ${day.type === 'fast'
+                            <span className={`text-[10px] px-2 py-1 rounded-lg font-bold ${day.type === 'fast'
                                 ? 'bg-ocean-100 dark:bg-ocean-900/30 text-ocean-700 dark:text-ocean-300'
                                 : 'bg-sage-100 dark:bg-sage-900/30 text-sage-800 dark:text-sage-200'
                                 }`}>
@@ -344,12 +344,12 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                 return (
                                     <div key={mIdx} className="flex items-center justify-between text-sm group">
                                         <div className="flex items-center flex-1 text-[var(--text-main)]">
-                                            <Utensils size={14} className="mr-3 text-hearth flex-shrink-0" />
+                                            <Utensils size={14} className="mr-3 text-primary flex-shrink-0" />
                                             <span className="truncate pr-4">{r ? r.name : 'Unknown Recipe'}</span>
                                         </div>
                                         <button
                                             onClick={() => handleSwapMeal(idx, mIdx)}
-                                            className="p-2 rounded-full hover:bg-[var(--background)] text-[var(--text-muted)] hover:text-hearth transition-colors"
+                                            className="p-2 rounded-full hover:bg-[var(--background)] text-[var(--text-muted)] hover:text-primary transition-colors"
                                             title="Shuffle this meal"
                                         >
                                             <RefreshCw size={14} />
@@ -365,7 +365,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                 <button
                     onClick={handleAcceptPlan}
                     disabled={isLoading}
-                    className="w-full py-3.5 bg-hearth text-white rounded-2xl font-medium shadow-lg shadow-hearth/30 hover:bg-hearth-dark transition-colors"
+                    className="w-full py-3.5 bg-primary text-primary-foreground rounded-2xl font-medium shadow-lg hover:bg-hearth-dark transition-colors"
                 >
                     {isLoading ? 'Saving...' : 'Confirm Plan'}
                 </button>
@@ -390,7 +390,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                 <Check size={48} />
             </motion.div>
             <div>
-                <h2 className="text-2xl font-serif text-[var(--text-main)] mb-2">Plan Saved!</h2>
+                <h2 className="text-2xl font-display font-extrabold text-[var(--text-main)] mb-2">Plan Saved!</h2>
                 <p className="text-[var(--text-muted)]">Your meals have been added to the table.</p>
             </div>
             <button
@@ -410,12 +410,12 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4"
             >
                 <motion.div
                     initial={{ y: 50, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="bg-[var(--background)] w-full max-w-md rounded-[2.5rem] shadow-2xl border border-[var(--border)] overflow-hidden relative"
+                    className="bg-[var(--background)] w-full max-w-md rounded-[24px] shadow-2xl border border-[var(--border)] overflow-hidden relative"
                 >
                     <button onClick={handleClose} className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-main)] z-50 p-2 rounded-full hover:bg-[var(--surface)] transition-colors">
                         <X size={24} />

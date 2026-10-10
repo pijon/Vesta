@@ -34,10 +34,10 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
   );
 
   return (
-    <div className="bg-[var(--card-bg)] backdrop-blur-md rounded-3xl p-8">
+    <div className="bg-[var(--card-bg)] rounded-3xl p-8">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-serif font-normal text-charcoal dark:text-stone-200">Period Comparison</h3>
-        <span className="text-xs text-charcoal/60 dark:text-stone-400">Weekly vs Monthly Averages</span>
+        <h3 className="text-lg font-display font-extrabold text-charcoal dark:text-stone-200">Period Comparison</h3>
+        <span className="text-xs text-muted dark:text-muted">Weekly vs Monthly Averages</span>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -53,14 +53,14 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Avg Calories</div>
+                <div className="text-xs text-muted dark:text-muted">Avg Calories</div>
                 <div className="text-2xl font-bold text-charcoal dark:text-stone-200">
                   {weeklySummary.avgCalories.toFixed(0)}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Net</div>
-                <div className="text-lg font-semibold text-charcoal/60 dark:text-stone-400">
+                <div className="text-xs text-muted dark:text-muted">Net</div>
+                <div className="text-lg font-semibold text-muted dark:text-muted">
                   {weeklySummary.avgNetCalories.toFixed(0)}
                 </div>
               </div>
@@ -68,14 +68,14 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
 
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Consistency</div>
+                <div className="text-xs text-muted dark:text-muted">Consistency</div>
                 <div className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>
                   {weeklySummary.complianceRate.toFixed(0)}%
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Days Logged</div>
-                <div className="text-lg font-semibold text-charcoal/60 dark:text-stone-400">
+                <div className="text-xs text-muted dark:text-muted">Days Logged</div>
+                <div className="text-lg font-semibold text-muted dark:text-muted">
                   {weeklySummary.daysLogged}/7
                 </div>
               </div>
@@ -83,14 +83,14 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
 
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Workouts</div>
+                <div className="text-xs text-muted dark:text-muted">Workouts</div>
                 <div className="text-2xl font-bold text-workout">
                   {weeklySummary.totalWorkouts}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Calories Burned</div>
-                <div className="text-lg font-semibold text-charcoal/60 dark:text-stone-400">
+                <div className="text-xs text-muted dark:text-muted">Calories Burned</div>
+                <div className="text-lg font-semibold text-muted dark:text-muted">
                   {weeklySummary.caloriesBurned.toFixed(0)}
                 </div>
               </div>
@@ -98,7 +98,7 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
 
             {weeklySummary.weightChange !== null && (
               <div className="pt-4 border-t border-charcoal/10 dark:border-white/10">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Weight Trend</div>
+                <div className="text-xs text-muted dark:text-muted">Weight Trend</div>
                 <div className={`text-lg font-bold ${weeklySummary.weightChange <= 0 ? 'text-calories' : 'text-charcoal dark:text-stone-200'}`}>
                   {formatWeightChange(weeklySummary.weightChange)}
                 </div>
@@ -119,14 +119,14 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Avg Calories</div>
+                <div className="text-xs text-muted dark:text-muted">Avg Calories</div>
                 <div className="text-2xl font-bold text-charcoal dark:text-stone-200">
                   {monthlySummary.avgCalories.toFixed(0)}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Net</div>
-                <div className="text-lg font-semibold text-charcoal/60 dark:text-stone-400">
+                <div className="text-xs text-muted dark:text-muted">Net</div>
+                <div className="text-lg font-semibold text-muted dark:text-muted">
                   {monthlySummary.avgNetCalories.toFixed(0)}
                 </div>
               </div>
@@ -134,14 +134,14 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
 
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Consistency</div>
+                <div className="text-xs text-muted dark:text-muted">Consistency</div>
                 <div className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>
                   {monthlySummary.complianceRate.toFixed(0)}%
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Days Logged</div>
-                <div className="text-lg font-semibold text-charcoal/60 dark:text-stone-400">
+                <div className="text-xs text-muted dark:text-muted">Days Logged</div>
+                <div className="text-lg font-semibold text-muted dark:text-muted">
                   {monthlySummary.daysLogged}/30
                 </div>
               </div>
@@ -149,14 +149,14 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
 
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Workouts</div>
+                <div className="text-xs text-muted dark:text-muted">Workouts</div>
                 <div className="text-2xl font-bold text-workout">
                   {monthlySummary.totalWorkouts}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Calories Burned</div>
-                <div className="text-lg font-semibold text-charcoal/60 dark:text-stone-400">
+                <div className="text-xs text-muted dark:text-muted">Calories Burned</div>
+                <div className="text-lg font-semibold text-muted dark:text-muted">
                   {monthlySummary.caloriesBurned.toFixed(0)}
                 </div>
               </div>
@@ -164,7 +164,7 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
 
             {monthlySummary.weightChange !== null && (
               <div className="pt-4 border-t border-charcoal/10 dark:border-white/10">
-                <div className="text-xs text-charcoal/60 dark:text-stone-400">Weight Trend</div>
+                <div className="text-xs text-muted dark:text-muted">Weight Trend</div>
                 <div className={`text-lg font-bold ${monthlySummary.weightChange <= 0 ? 'text-calories' : 'text-charcoal dark:text-stone-200'}`}>
                   {formatWeightChange(monthlySummary.weightChange)}
                 </div>
@@ -182,7 +182,7 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
               {calorieComparison.arrow}
             </span>
             <div>
-              <div className="text-xs text-charcoal/60 dark:text-stone-400">Weekly Calories</div>
+              <div className="text-xs text-muted dark:text-muted">Weekly Calories</div>
               <div className="font-semibold text-charcoal dark:text-stone-200">{calorieComparison.text}</div>
             </div>
           </div>
@@ -192,7 +192,7 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
               {consistencyComparison.arrow}
             </span>
             <div>
-              <div className="text-xs text-charcoal/60 dark:text-stone-400">Weekly Consistency</div>
+              <div className="text-xs text-muted dark:text-muted">Weekly Consistency</div>
               <div className="font-semibold text-charcoal dark:text-stone-200">{consistencyComparison.text}</div>
             </div>
           </div>
@@ -200,7 +200,7 @@ export const PeriodicComparison: React.FC<PeriodicComparisonProps> = ({
           <div className="flex items-center gap-2 text-sm col-span-2 md:col-span-1">
             <span className="text-2xl">📊</span>
             <div>
-              <div className="text-xs text-charcoal/60 dark:text-stone-400">Data Quality</div>
+              <div className="text-xs text-muted dark:text-muted">Data Quality</div>
               <div className="font-semibold text-charcoal dark:text-stone-200">
                 {monthlySummary.daysLogged >= 20 ? 'Excellent' : monthlySummary.daysLogged >= 10 ? 'Good' : 'Limited'}
               </div>

@@ -40,18 +40,18 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
     return (
         <Portal>
             <div
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm px-4 py-4 animate-fade-in"
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 px-4 py-4 animate-fade-in"
                 onClick={onClose}
             >
                 <div
-                    className="bg-[var(--background)] w-full max-w-lg rounded-3xl border border-border shadow-2xl overflow-hidden backdrop-blur-md flex flex-col max-h-[85vh]"
+                    className="bg-[var(--background)] w-full max-w-lg rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
                     onClick={e => e.stopPropagation()}
                 >
                     {/* Header */}
                     <div className="p-6 border-b border-border/50 shrink-0">
                         <div className="flex justify-between items-start">
                             <div>
-                                <h2 className="text-2xl font-bold text-charcoal dark:text-stone-200 font-serif flex items-center gap-2">
+                                <h2 className="text-2xl text-charcoal dark:text-stone-200 font-display font-extrabold flex items-center gap-2">
                                     <span className="text-flame">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
                                             <path d="M15.232 5.232l3.536 3.536a2.5 2.5 0 1 1-3.536 3.536L6.5 3.5 3.5 6.5l8.732 8.732a2.5 2.5 0 1 1-3.536 3.536L5.232 15.232l-1.768 1.768a2.5 2.5 0 0 0 3.536 3.536l1.768-1.768 8.732 8.732 3-3-8.732-8.732 1.768-1.768a2.5 2.5 0 1 1 3.536 3.536l-1.768-1.768 3.536-3.536-1.768-1.768z" />
@@ -59,7 +59,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
                                     </span>
                                     Activity Log
                                 </h2>
-                                <div className="flex gap-4 mt-2 text-xs font-bold uppercase tracking-wider text-muted">
+                                <div className="flex gap-4 mt-2 text-xs font-bold text-muted">
                                     <span>{totalWorkouts} Workouts</span>
                                     <span>{totalCalories} Active Kcal</span>
                                 </div>
@@ -78,7 +78,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
                         {/* Streak Banner */}
                         {streak > 0 && (
                             <div className="mt-4 bg-flame/10 border border-flame/20 rounded-xl p-3 flex items-center gap-3">
-                                <div className="p-2 bg-flame text-white rounded-full">
+                                <div className="p-2 bg-fasting-bg text-fasting-text rounded-full">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M12 2c-.3 0-.6.1-.9.4-1.2 1.3-2.6 3.3-3.1 5.6-.2 1-.2 2.3.5 3.5.7 1.2 2 2.2 3.4 2.5 1.5.3 3 .1 4.2-.7 1.2-.8 2-2.1 2.3-3.5.3-1.4.1-2.9-.6-4.2-.7-1.3-1.8-2.4-3.1-3.2-.8-.6-1.7-1-2.7-1.1zm.5 12.8c-1.2.6-2.5.5-3.6-.2-1.1-.7-1.8-1.9-1.9-3.2 0-.8.2-1.6.5-2.3-1.1 1.7-1.5 3.8-1.1 5.9.4 2.1 1.9 3.9 3.9 4.7 2 .8 4.3.4 6-1 .2-.2.4-.4.6-.6-.1.1-.2.2-.4.3-1.1.7-2.6.9-4 .4z" />
                                     </svg>
@@ -96,7 +96,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
                         {/* Today's Detailed View */}
                         {todayWorkouts.length > 0 && (
                             <div className="p-6 pb-2">
-                                <h3 className="text-xs font-bold text-muted uppercase tracking-widest mb-3 sticky top-0 bg-[var(--background)] py-2 z-10">Today</h3>
+                                <h3 className="text-xs font-bold text-muted mb-3 sticky top-0 bg-[var(--background)] py-2 z-10">Today</h3>
                                 <div className="space-y-3">
                                     {todayWorkouts.map((workout) => (
                                         <div key={workout.id} className="flex items-center justify-between p-4 rounded-2xl bg-[var(--input-bg)] border border-border">
@@ -154,7 +154,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
 
                         {/* History List */}
                         <div className="p-6 pt-2">
-                            <h3 className="text-xs font-bold text-muted uppercase tracking-widest mb-3 sticky top-0 bg-[var(--background)] py-2 z-10">History</h3>
+                            <h3 className="text-xs font-bold text-muted mb-3 sticky top-0 bg-[var(--background)] py-2 z-10">History</h3>
                             <div className="space-y-2">
                                 {activeDays.length === 0 ? (
                                     <div className="text-center py-8 text-muted">
@@ -182,7 +182,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className="font-serif font-bold text-charcoal dark:text-stone-200">{summary.caloriesBurned}</span>
+                                                    <span className="font-display font-extrabold text-charcoal dark:text-stone-200">{summary.caloriesBurned}</span>
                                                     <span className="text-xs text-muted ml-1">kcal</span>
                                                 </div>
                                             </div>

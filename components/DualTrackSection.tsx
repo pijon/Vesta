@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
+import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Dumbbell, Trash2, ChevronDown, Check, Shuffle } from 'lucide-react';
+import { mealVisualFor } from '../utils/mealVisual';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
@@ -16,6 +18,39 @@ interface DualTrackSectionProps {
   onNavigate: (view: AppView) => void;
   onSwapMeal: (index: number) => void;
 }
+
+
+type LogEntry =
+  | { kind: 'food'; id: string; timestamp: number; item: FoodLogItem }
+  | { kind: 'workout'; id: string; timestamp: number; workout: WorkoutItem };
+
+const PERIODS = [
+  { key: 'late', label: 'Late night', from: 0, to: 5, Icon: Moon },
+  { key: 'morning', label: 'Morning', from: 5, to: 11, Icon: Coffee },
+  { key: 'midday', label: 'Midday', from: 11, to: 15, Icon: Salad },
+  { key: 'afternoon', label: 'Afternoon', from: 15, to: 18, Icon: Cookie },
+  { key: 'evening', label: 'Evening', from: 18, to: 24, Icon: UtensilsCrossed },
+] as const;
+
+const periodFor = (timestamp: number) => {
+  const hour = new Date(timestamp).getHours();
+  return PERIODS.find(p => hour >= p.from && hour < p.to) ?? PERIODS[4];
+};
+
+// Pick a food icon from the meal type when present, else from the time of day.
+const foodIconFor = (item: FoodLogItem) => {
+  const kind = (item.type || item.tags?.[0] || '').toLowerCase();
+  if (kind.includes('breakfast')) return Coffee;
+  if (kind.includes('lunch')) return Salad;
+  if (kind.includes('snack')) return Cookie;
+  if (kind.includes('dinner')) return UtensilsCrossed;
+  return periodFor(item.timestamp).Icon;
+};
+
+const formatTime = (timestamp: number) =>
+  new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const COLLAPSED_COUNT = 5;
 
 export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   todayPlan,
@@ -45,7 +80,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
 
     const updateTime = () => {
       const now = Date.now();
-      const diff = now - lastAteTime;
+      const diff = Math.max(0, now - lastAteTime);
 
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff / (1000 * 60)) % 60);
@@ -65,9 +100,21 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const sortedFoodItems = [...(dailyLog.items || [])].sort((a, b) => b.timestamp - a.timestamp);
   const sortedWorkouts = [...(dailyLog.workouts || [])].sort((a, b) => b.timestamp - a.timestamp);
 
-  // Show only 3 items by default on mobile
-  const displayedItems = showAllLoggedItems ? sortedFoodItems : sortedFoodItems.slice(0, 3);
-  const displayedWorkouts = showAllLoggedItems ? sortedWorkouts : sortedWorkouts.slice(0, 3);
+  // One timeline, newest first, grouped by period of the day
+  const logEntries: LogEntry[] = [
+    ...sortedFoodItems.map(item => ({ kind: 'food' as const, id: item.id, timestamp: item.timestamp, item })),
+    ...sortedWorkouts.map(workout => ({ kind: 'workout' as const, id: workout.id, timestamp: workout.timestamp, workout })),
+  ].sort((a, b) => b.timestamp - a.timestamp);
+  const visibleEntries = showAllLoggedItems ? logEntries : logEntries.slice(0, COLLAPSED_COUNT);
+  const entryGroups = visibleEntries.reduce<{ key: string; label: string; entries: LogEntry[] }[]>((groups, entry) => {
+    const period = periodFor(entry.timestamp);
+    const last = groups[groups.length - 1];
+    if (last && last.key === period.key) last.entries.push(entry);
+    else groups.push({ key: period.key, label: period.label, entries: [entry] });
+    return groups;
+  }, []);
+  const caloriesEaten = sortedFoodItems.reduce((sum, i) => sum + i.calories, 0);
+  const caloriesBurned = sortedWorkouts.reduce((sum, w) => sum + w.caloriesBurned, 0);
 
   const handleStartEditFood = (item: FoodLogItem) => {
     setEditingFoodItem(item);
@@ -125,345 +172,214 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
 
   const totalLoggedItems = sortedFoodItems.length + sortedWorkouts.length;
 
+  const plannedMeals = todayPlan.meals || [];
+  const eatenCount = plannedMeals.filter(m => todayPlan.completedMealIds.includes(m.id)).length;
+  const plannedCalories = plannedMeals.reduce((sum, m) => sum + (m.calories || 0), 0);
+  const remainingPlannedCalories = plannedMeals
+    .filter(m => !todayPlan.completedMealIds.includes(m.id))
+    .reduce((sum, m) => sum + (m.calories || 0), 0);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
       {/* Left: From Your Plan */}
-      <div className="glass-card rounded-organic-md flex flex-col h-full bg-charcoal/5 dark:bg-white/5 border border-white/50 dark:border-white/5 shadow-glass">
-        <div className="px-6 py-5 border-b border-charcoal/5 dark:border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center text-hearth">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
+      <div className="card flex flex-col h-full">
+        <div className="px-5 md:px-6 pt-5 pb-4">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0">
+              <h3 className="heading-3 text-lg">From your plan</h3>
+              <p className="text-sm text-muted mt-0.5">
+                {plannedMeals.length === 0
+                  ? 'Nothing planned yet'
+                  : eatenCount === plannedMeals.length
+                    ? `All ${plannedMeals.length} meals eaten · ${plannedCalories} kcal`
+                    : `${eatenCount} of ${plannedMeals.length} eaten · ${remainingPlannedCalories} kcal to go`}
+              </p>
             </div>
-            <h3 className="font-serif text-lg text-charcoal dark:text-stone-200">From Your Plan</h3>
+            <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-ghost btn-sm shrink-0">
+              Planner
+            </button>
           </div>
-          <button
-            onClick={() => onNavigate(AppView.PLANNER)}
-            className="text-xs font-bold uppercase tracking-wider text-charcoal/60 dark:text-stone-400 hover:text-hearth transition-colors px-2 py-1 hover:bg-charcoal/5 dark:hover:bg-white/10 rounded-lg"
-          >
-            View All
-          </button>
+          {plannedMeals.length > 0 && (
+            <div className="flex gap-1 mt-3" role="img" aria-label={`${eatenCount} of ${plannedMeals.length} planned meals eaten`}>
+              {plannedMeals.map((meal) => (
+                <span
+                  key={meal.id}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${todayPlan.completedMealIds.includes(meal.id) ? 'bg-primary' : 'bg-surface-sunken'}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <div className="p-6 space-y-3 min-h-[200px]">
-          {todayPlan.meals.length === 0 ? (
-            <div className="p-8 text-center text-charcoal/60 dark:text-stone-400 flex flex-col items-center justify-center h-full">
-              <p className="font-medium mb-4">No meals planned for today</p>
-              <button
-                onClick={() => onNavigate(AppView.PLANNER)}
-                className="px-6 py-3 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
-                style={{ backgroundColor: 'var(--calories)' }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--calories)'}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Plan My Day
+
+        <div className="px-3 md:px-4 pb-4 flex-1 min-h-[200px]">
+          {plannedMeals.length === 0 ? (
+            <div className="tile tile-neutral items-center text-center py-8 mx-2">
+              <p className="font-semibold">Nothing planned for today</p>
+              <p className="text-sm text-muted mt-1 mb-4">Pick a few meals and we'll track them here.</p>
+              <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-primary btn-sm">
+                Plan my day
               </button>
             </div>
           ) : (
-            todayPlan.meals.map((meal, index) => {
-              const isCompleted = todayPlan.completedMealIds.includes(meal.id);
-
-              // Only apply swipe gestures to uncompleted meals
-              if (isCompleted) {
+            <ul>
+              {plannedMeals.map((meal, index) => {
+                const isEaten = todayPlan.completedMealIds.includes(meal.id);
+                const visual = mealVisualFor(meal);
                 return (
-                  <div
-                    key={index}
-                    onClick={() => onViewRecipe(meal)}
-                    className="p-4 flex items-center gap-4 rounded-xl border border-transparent bg-charcoal/5 dark:bg-white/5 opacity-60 hover:opacity-100 transition-all cursor-pointer"
+                  <li
+                    key={`${meal.id}-${index}`}
+                    className="group flex items-center gap-1 rounded-[14px] hover:bg-surface-sunken transition-colors"
                   >
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleMeal(index);
-                      }}
-                      className="w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer text-white"
-                      style={{ backgroundColor: 'var(--calories)', borderColor: 'var(--calories)' }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate line-through text-charcoal/60 dark:text-stone-400" style={{ color: 'var(--calories)' }}>
-                        {meal.name}
-                      </p>
-                      <div className="flex gap-2 flex-wrap items-center mt-1">
-                        <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                          {(meal.tags?.[0] || 'meal').toLowerCase()}
-                        </span>
-                        <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>
-                          {meal.calories} kcal
-                        </span>
-                        {meal.isLeftover && (
-                          <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Leftover from previous day">
-                            <span className="text-[10px]">♻️</span> leftover
-                          </span>
-                        )}
-                        {meal.isPacked && (
-                          <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Packed Lunch">
-                            <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><g transform="translate(1.000000, 2.000000)"><rect x="0" y="0" width="16" height="2" /><path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" /></g></svg>
-                            packed
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Simple checklist card for uncompleted meals
-              return (
-                <div
-                  key={index}
-                  onClick={() => onViewRecipe(meal)}
-                  className="relative z-10 p-4 flex items-center gap-4 rounded-xl border border-charcoal/5 dark:border-white/5 bg-charcoal/5 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer group"
-                >
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleMeal(index);
-                    }}
-                    className="w-6 h-6 rounded-full border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer border-charcoal/20 dark:border-white/20 hover:scale-110 active:scale-95"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--calories)';
-                      e.currentTarget.style.backgroundColor = 'var(--calories-bg)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '';
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }}
-                  >
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-charcoal dark:text-stone-200">
-                      {meal.name}
-                    </p>
-                    <div className="flex gap-2 flex-wrap items-center mt-1">
-                      <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                        {(meal.tags?.[0] || 'meal').toLowerCase()}
-                      </span>
-                      <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>
-                        {meal.calories} kcal
-                      </span>
-                      {meal.isLeftover && (
-                        <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Leftover from previous day">
-                          <span className="text-[10px]">♻️</span> leftover
-                        </span>
-                      )}
-                      {meal.isPacked && (
-                        <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Packed Lunch">
-                          <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><g transform="translate(1.000000, 2.000000)"><rect x="0" y="0" width="16" height="2" /><path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" /></g></svg>
-                          packed
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSwapMeal(index);
-                      }}
-                      className="p-2 rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-charcoal/5 dark:hover:bg-white/10 hover:text-hearth border border-transparent hover:border-charcoal/10 dark:hover:border-white/10"
-                      title="Swap meal"
+                      onClick={() => onViewRecipe(meal)}
+                      className={`flex-1 min-w-0 flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] ${isEaten ? 'opacity-60' : ''}`}
+                      aria-label={`View recipe: ${meal.name}`}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                      </svg>
+                      {meal.image ? (
+                        <img src={meal.image} alt="" className="size-12 shrink-0 rounded-[12px] object-cover" />
+                      ) : (
+                        <span className={`size-12 shrink-0 rounded-[12px] flex items-center justify-center ${visual.tint}`}>
+                          <visual.Icon size={22} strokeWidth={2} aria-hidden="true" />
+                        </span>
+                      )}
+                      <span className="flex-1 min-w-0">
+                        <span className={`block font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
+                        <span className="block text-xs text-muted mt-0.5">
+                          {visual.label} · <span className="font-semibold text-main">{meal.calories} kcal</span>
+                          {!!meal.protein && ` · ${meal.protein} g protein`}
+                        </span>
+                        {(isEaten || meal.isLeftover || meal.isPacked) && (
+                          <span className="flex flex-wrap gap-1 mt-1">
+                            {isEaten && <span className="badge badge-weight !py-0">Eaten</span>}
+                            {meal.isLeftover && <span className="badge badge-neutral !py-0">Leftover</span>}
+                            {meal.isPacked && <span className="badge badge-neutral !py-0">Packed</span>}
+                          </span>
+                        )}
+                      </span>
                     </button>
-                  </div>
-                </div>
-              );
-            })
+
+                    {!isEaten && (
+                      <button
+                        onClick={() => onSwapMeal(index)}
+                        className="size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:bg-surface hover:text-main transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                        aria-label={`Swap ${meal.name}`}
+                      >
+                        <Shuffle size={16} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onToggleMeal(index)}
+                      className={`size-11 shrink-0 mr-0.5 flex items-center justify-center rounded-full border-2 transition-colors active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${isEaten
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'border-border-control text-transparent hover:text-muted hover:border-main'}`}
+                      aria-pressed={isEaten}
+                      aria-label={isEaten ? `Mark ${meal.name} as not eaten` : `Mark ${meal.name} as eaten`}
+                    >
+                      <Check size={20} strokeWidth={3} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       </div>
 
-      {/* Right: Your Log */}
-      <div className="glass-card rounded-organic-md flex flex-col h-full bg-charcoal/5 dark:bg-white/5 border border-white/50 dark:border-white/5 shadow-glass">
-        <div className="px-6 py-5 border-b border-charcoal/5 dark:border-white/5 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center text-hearth">
-              <svg width="16" height="16" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                <path d="M290,32H144A64.07,64.07,0,0,0,80,96V416a64.07,64.07,0,0,0,64,64H290Z" />
-                <path d="M368,32H350V480h18a64.07,64.07,0,0,0,64-64V96A64.07,64.07,0,0,0,368,32Z" />
-              </svg>
-            </div>
-            <h3 className="font-serif text-lg text-charcoal dark:text-stone-200">Today's Log</h3>
+      {/* Right: Today's log, a single timeline */}
+      <div className="card flex flex-col h-full">
+        <div className="px-5 md:px-6 pt-5 pb-4 flex justify-between items-start gap-3">
+          <div className="min-w-0">
+            <h3 className="heading-3 text-lg">Today's log</h3>
+            <p className="text-sm text-muted mt-0.5">
+              {totalLoggedItems === 0
+                ? 'Nothing logged yet'
+                : [
+                    `${caloriesEaten} kcal eaten`,
+                    caloriesBurned > 0 ? `${caloriesBurned} burned` : null,
+                    timeSinceMeal ? (timeSinceMeal === '0m' ? 'last meal just now' : `last meal ${timeSinceMeal} ago`) : null,
+                  ].filter(Boolean).join(' · ')}
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            {timeSinceMeal && (
-              <span className="text-xs font-bold text-hearth bg-calories-bg px-2 py-1 rounded-md">
-                {timeSinceMeal} ago
-              </span>
-            )}
-            <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 bg-charcoal/5 dark:bg-white/10 px-2 py-1 rounded-md border border-charcoal/5 dark:border-white/10">
+          {totalLoggedItems > 0 && (
+            <span className="badge badge-neutral shrink-0">
               {totalLoggedItems} {totalLoggedItems === 1 ? 'entry' : 'entries'}
             </span>
-          </div>
+          )}
         </div>
-        <div className="p-6 space-y-3 min-h-[200px]">
-          {sortedFoodItems.length === 0 && sortedWorkouts.length === 0 ? (
-            <div className="p-8 text-center text-charcoal/60 dark:text-stone-400">
-              <p>No items logged yet</p>
-              <p className="text-xs mt-1">Use Quick Actions to log food or workouts</p>
+
+        <div className="px-3 md:px-4 pb-4 flex-1 min-h-[200px]">
+          {logEntries.length === 0 ? (
+            <div className="tile tile-neutral items-center text-center py-8 mx-2">
+              <p className="font-semibold">Your day starts here</p>
+              <p className="text-sm text-muted mt-1">Log a meal or a workout and it will show up on this timeline.</p>
             </div>
           ) : (
             <>
-              {/* Food Items */}
-              {displayedItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-4 flex gap-3 items-stretch rounded-xl border border-charcoal/5 dark:border-white/5 bg-charcoal/5 dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group"
-                >
-                  <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center flex-shrink-0 text-hearth mt-1">
-                    <svg width="18" height="18" viewBox="0 -4.83 52 52" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><g transform="translate(-788.946 -1785.428)"><path d="M814.946,1793.095a24,24,0,0,0-24,24h48A24,24,0,0,0,814.946,1793.095Z" /><line x2="48" transform="translate(790.946 1825.761)" /><line y2="5.667" transform="translate(814.946 1787.428)" /></g></svg>
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div className="flex justify-between items-start">
-                      <p className="font-medium text-charcoal dark:text-stone-200 truncate leading-tight">{item.name}</p>
+              {entryGroups.map((group) => {
+                // Subtotal counts food only; a workout-only period shows what was burned
+                const eaten = group.entries.reduce((sum, e) => sum + (e.kind === 'food' ? e.item.calories : 0), 0);
+                const burned = group.entries.reduce((sum, e) => sum + (e.kind === 'workout' ? e.workout.caloriesBurned : 0), 0);
+                return (
+                  <section key={group.key} className="mt-1 first:mt-0">
+                    <div className="flex justify-between items-baseline px-2 pt-3 pb-1.5">
+                      <h4 className="font-sans text-xs font-semibold text-muted">{group.label}</h4>
+                      <span className="text-xs font-semibold text-muted">
+                        {eaten > 0 ? `${eaten} kcal` : `−${burned} kcal`}
+                      </span>
                     </div>
+                    <ul>
+                      {group.entries.map((entry) => {
+                        const isFood = entry.kind === 'food';
+                        const Icon = isFood ? foodIconFor(entry.item) : Dumbbell;
+                        const name = isFood ? entry.item.name : entry.workout.type;
+                        const kcal = isFood ? entry.item.calories : entry.workout.caloriesBurned;
+                        return (
+                          <li key={entry.id} className="group relative flex items-center gap-1 rounded-[14px] hover:bg-surface-sunken transition-colors">
+                            <button
+                              onClick={() => (isFood ? handleStartEditFood(entry.item) : onEditWorkout(entry.workout))}
+                              className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
+                              aria-label={`Edit ${name}`}
+                            >
+                              <span className={`size-10 shrink-0 rounded-[12px] flex items-center justify-center ${isFood ? 'bg-calories-bg text-calories-text' : 'bg-workout-bg text-workout-text'}`}>
+                                <Icon size={20} strokeWidth={2} aria-hidden="true" />
+                              </span>
+                              <span className="flex-1 min-w-0">
+                                <span className="block font-semibold leading-snug line-clamp-2">{name}</span>
+                                <span className="flex items-center gap-1.5 text-xs text-muted mt-0.5">
+                                  <span>{formatTime(entry.timestamp)}</span>
+                                  {isFood && entry.item.isLeftover && <span className="badge badge-neutral !py-0">Leftover</span>}
+                                  {isFood && entry.item.isPacked && <span className="badge badge-neutral !py-0">Packed</span>}
+                                  {!isFood && <span>Workout</span>}
+                                </span>
+                              </span>
+                              <span className={`shrink-0 text-right font-display font-extrabold text-lg leading-6 ${isFood ? 'text-main' : 'text-workout-text'}`}>
+                                {isFood ? kcal : `−${kcal}`}
+                                <span className="block font-sans text-[11px] font-semibold text-muted leading-3">kcal</span>
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => (isFood ? handleDeleteFood(entry.id) : handleDeleteWorkout(entry.id))}
+                              className="size-9 shrink-0 mr-1 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                              aria-label={`Delete ${name}`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                );
+              })}
 
-                    <div className="flex justify-between items-end mt-1 gap-2">
-                      <div className="flex gap-2 flex-wrap items-center">
-                        <span className="text-xs text-charcoal/60 dark:text-stone-400">
-                          {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-xs font-bold text-hearth">{item.calories} kcal</span>
-
-                        {(item.type || item.tags?.[0]) && (
-                          <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                            {(item.type || item.tags?.[0] || '').toLowerCase()}
-                          </span>
-                        )}
-
-                        {item.isLeftover && (
-                          <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Leftover from previous day">
-                            <span className="text-[10px]">♻️</span>
-                          </span>
-                        )}
-
-                        {item.isPacked && (
-                          <span className="text-xs font-bold text-charcoal/60 dark:text-stone-400 flex items-center gap-1" title="Packed Lunch">
-                            <svg width="12" height="12" viewBox="0 -0.5 17 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><g transform="translate(1.000000, 2.000000)"><rect x="0" y="0" width="16" height="2" /><path d="M1,10 C1,11.105 1.896,12 3,12 L13,12 C14.105,12 15,11.105 15,10 L15,3 L1,3 L1,10 L1,10 Z M5.98,4.959 L10.062,4.959 L10.062,6.063 L5.98,6.063 L5.98,4.959 L5.98,4.959 Z" /></g></svg>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleStartEditFood(item)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-charcoal/5 dark:hover:bg-white/10"
-                          title="Edit entry"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteFood(item.id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
-                          title="Delete entry"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Workouts */}
-              {displayedWorkouts.map((workout) => (
-                <div
-                  key={workout.id}
-                  className="p-4 flex gap-3 items-stretch rounded-xl border border-charcoal/5 dark:border-white/5 bg-charcoal/5 dark:bg-white/5 shadow-sm md:shadow-none hover:shadow-md transition-all group"
-                >
-                  <div className="w-8 h-8 bg-workout-bg rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32" fill="currentColor" stroke="none" style={{ color: 'var(--workout)' }}>
-                      <path d="M24,13.5V10c0-4.4-3.6-8-8-8s-8,3.6-8,8v3.5c-1.9,2-3,4.6-3,7.5c0,3.5,1.6,6.7,4.4,8.8C9.6,29.9,9.8,30,10,30h12
-    c0.2,0,0.4-0.1,0.6-0.2c2.8-2.1,4.4-5.3,4.4-8.8C27,18.1,25.9,15.4,24,13.5z M10,11.8V10c0-3.3,2.7-6,6-6s6,2.7,6,6v1.8
-    c-1.7-1.1-3.8-1.8-6-1.8S11.7,10.7,10,11.8z M22,20.1c-0.1,0-0.2,0-0.3,0c-0.4,0-0.8-0.3-1-0.7c-0.3-1.1-1.1-2-2-2.6
-    c-0.5-0.3-0.6-0.9-0.3-1.4c0.3-0.5,0.9-0.6,1.4-0.3c1.3,0.9,2.3,2.2,2.8,3.7C22.8,19.4,22.5,19.9,22,20.1z"/>
-                    </svg>
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div className="flex justify-between items-start">
-                      <p className="font-medium text-charcoal dark:text-stone-200">{workout.type}</p>
-                    </div>
-
-                    <div className="flex justify-between items-end mt-1 gap-2">
-                      <div className="flex gap-2 items-center">
-                        <span className="text-xs text-charcoal/60 dark:text-stone-400">
-                          {new Date(workout.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-xs font-bold" style={{ color: 'var(--workout)' }}>-{workout.caloriesBurned} kcal</span>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => onEditWorkout(workout)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-charcoal/5 dark:hover:bg-white/10"
-                          title="Edit workout"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteWorkout(workout.id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-charcoal/60 dark:text-stone-400 transition-colors active:scale-95 hover:bg-error-bg hover:text-error"
-                          title="Delete workout"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* View All Button */}
-              {!showAllLoggedItems && totalLoggedItems > 3 && (
+              {logEntries.length > COLLAPSED_COUNT && (
                 <button
-                  onClick={() => setShowAllLoggedItems(true)}
-                  className="w-full py-2 text-sm font-medium rounded-lg transition-colors"
-                  style={{ color: 'var(--primary)' }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--primary-light)';
-                    e.currentTarget.style.color = 'var(--primary-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = 'var(--primary)';
-                  }}
+                  onClick={() => setShowAllLoggedItems(!showAllLoggedItems)}
+                  className="btn-ghost btn-sm w-full mt-2"
+                  aria-expanded={showAllLoggedItems}
                 >
-                  View All ({totalLoggedItems} total)
+                  {showAllLoggedItems ? 'Show less' : `Show all ${logEntries.length} entries`}
+                  <ChevronDown size={16} className={`transition-transform ${showAllLoggedItems ? 'rotate-180' : ''}`} />
                 </button>
               )}
             </>
@@ -475,18 +391,18 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
       {editingFoodItem && (
         <Portal>
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 animate-fade-in"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-4 animate-fade-in"
             onClick={handleCancelEditFood}
           >
             <div
-              className="bg-stone-50 dark:bg-[#1A1714] w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden border border-white/50 dark:border-white/5"
+              className="bg-stone-50 dark:bg-background w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-border dark:border-white/5"
               onClick={e => e.stopPropagation()}
             >
               <div className="p-6 border-b border-charcoal/5 dark:border-white/5 flex justify-between items-center bg-charcoal/5 dark:bg-white/5">
                 <h3 className="heading-3 text-charcoal dark:text-stone-200">Edit Food Entry</h3>
                 <button
                   onClick={handleCancelEditFood}
-                  className="p-2 bg-white/50 dark:bg-white/5 border border-white/20 dark:border-white/10 rounded-full text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:hover:text-stone-200 transition-colors"
+                  className="p-2 bg-surface dark:bg-white/5 border border-border dark:border-white/10 rounded-full text-muted dark:text-muted hover:text-charcoal dark:hover:text-stone-200 transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -527,16 +443,16 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               <div className="p-6 pt-0 flex gap-3">
                 <button
                   onClick={handleCancelEditFood}
-                  className="flex-1 py-3 bg-white/50 dark:bg-white/5 text-charcoal dark:text-stone-200 font-bold rounded-2xl border border-white/20 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
+                  className="flex-1 py-3 bg-surface dark:bg-white/5 text-charcoal dark:text-stone-200 font-bold rounded-2xl border border-border dark:border-white/10 hover:bg-surface-sunken dark:hover:bg-white/10 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveEditFood}
                   disabled={!editFoodName.trim() || !editFoodCalories}
-                  className={`flex-1 py-3 font-bold rounded-2xl transition-colors shadow-lg shadow-hearth/20 ${!editFoodName.trim() || !editFoodCalories
+                  className={`flex-1 py-3 font-bold rounded-2xl transition-colors shadow-lg ${!editFoodName.trim() || !editFoodCalories
                     ? 'bg-charcoal/10 text-charcoal/40 cursor-not-allowed shadow-none'
-                    : 'bg-hearth text-white hover:bg-hearth/90'
+                    : 'bg-primary text-primary-foreground hover:bg-hearth/90'
                     }`}
                 >
                   Save Changes

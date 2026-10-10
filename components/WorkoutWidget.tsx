@@ -21,7 +21,7 @@ export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyCou
         >
             {/* Header */}
             <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between shrink-0 h-[60px]">
-                <h3 className="font-serif text-lg font-medium text-charcoal dark:text-stone-200">Workouts</h3>
+                <h3 className="font-display font-extrabold text-lg text-charcoal dark:text-stone-200">Workouts</h3>
                 {/* Badge - Increased contrast: text-plum-800 */}
 
             </div>
@@ -41,7 +41,7 @@ export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyCou
                         <span className="text-3xl font-bold font-sans leading-none text-workout">
                             {workoutCount}
                         </span>
-                        <span className="text-xs font-semibold text-charcoal/60 dark:text-stone-400 uppercase tracking-wide mt-1">
+                        <span className="text-xs font-semibold text-muted dark:text-muted mt-1">
                             Session{workoutCount !== 1 ? 's' : ''}
                         </span>
                     </div>
@@ -54,7 +54,7 @@ export const WorkoutWidget: React.FC<WorkoutWidgetProps> = ({ workouts, dailyCou
                             🔥 {caloriesBurned} kcal
                         </span>
                     ) : (
-                        <span className="text-xs text-charcoal/60 dark:text-stone-400">No activity yet</span>
+                        <span className="text-xs text-muted dark:text-muted">No activity yet</span>
                     )}
                 </div>
             </div>

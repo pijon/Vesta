@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronDown, Check, ShoppingBasket } from 'lucide-react';
 import { AggregatedIngredient } from '../types';
 
 interface IngredientReviewCardProps {
@@ -7,64 +8,60 @@ interface IngredientReviewCardProps {
   onTogglePantry: (ingredientName: string, inPantry: boolean) => void;
 }
 
+/** One ingredient in the pantry check: tap the pill to flip between "Buy" and "Have it". */
 export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
   ingredient,
   inPantry,
   onTogglePantry
 }) => {
   const [showRecipes, setShowRecipes] = useState(false);
+  const usedIn = ingredient.recipes.length;
 
   return (
-    <div
-      className={`card p-4 transition-all ${inPantry
-        ? 'ring-1 ring-sage/20 bg-sage/5'
-        : 'hover:shadow-md'
-        }`}
-    >
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex-1">
-          <h3 className="font-medium text-charcoal dark:text-stone-200 capitalize">
-            {ingredient.name}
-          </h3>
-          <p className="text-sm text-charcoal/60 dark:text-stone-400">
+    <li className="rounded-[14px] hover:bg-surface-sunken transition-colors">
+      <div className="flex items-center gap-3 px-2 py-2.5">
+        <div className={`flex-1 min-w-0 ${inPantry ? 'text-muted' : ''}`}>
+          <p className="font-semibold first-letter:uppercase leading-snug">{ingredient.name}</p>
+          <p className="text-xs text-muted mt-0.5">
             {ingredient.totalQuantity} {ingredient.unit}
+            {usedIn > 1 ? (
+              <>
+                {' · '}
+                <button
+                  onClick={() => setShowRecipes(!showRecipes)}
+                  aria-expanded={showRecipes}
+                  className="inline-flex items-center gap-0.5 font-semibold hover:text-main rounded focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                >
+                  {usedIn} recipes
+                  <ChevronDown size={12} className={`transition-transform ${showRecipes ? 'rotate-180' : ''}`} />
+                </button>
+              </>
+            ) : usedIn === 1 ? ` · ${ingredient.recipes[0].name}` : null}
           </p>
         </div>
 
         <button
           onClick={() => onTogglePantry(ingredient.name, !inPantry)}
-          className={`btn-sm transition-all rounded-lg font-bold ${inPantry
-            ? 'bg-sage text-white shadow-sm'
-            : 'bg-white/60 dark:bg-white/5 border border-border text-charcoal/60 dark:text-stone-400 hover:border-charcoal/20 dark:hover:border-white/20'
-            }`}
+          aria-pressed={inPantry}
+          aria-label={inPantry ? `${ingredient.name}: have it at home. Tap to buy instead` : `${ingredient.name}: need to buy. Tap if you have it`}
+          className={`shrink-0 min-h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full text-sm font-semibold transition-colors active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${inPantry
+            ? 'bg-weight-bg text-weight-text'
+            : 'bg-calories-bg text-calories-text'}`}
         >
-          {inPantry ? '✓ Have This' : 'Need to Buy'}
+          {inPantry ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : <ShoppingBasket size={14} aria-hidden="true" />}
+          {inPantry ? 'Have it' : 'Buy'}
         </button>
       </div>
 
-      {ingredient.recipes.length > 1 && (
-        <div className="mt-2">
-          <button
-            onClick={() => setShowRecipes(!showRecipes)}
-            className="text-xs text-charcoal/60 dark:text-stone-400 hover:text-hearth font-medium flex items-center gap-1"
-          >
-            {showRecipes ? '▼' : '▶'} Used in {ingredient.recipes.length} recipes
-          </button>
-
-          {showRecipes && (
-            <div className="mt-2 space-y-1">
-              {ingredient.recipes.map((recipe) => (
-                <div
-                  key={recipe.id}
-                  className="text-xs text-charcoal/60 dark:text-stone-400 pl-3 border-l-2 border-hearth/20"
-                >
-                  {recipe.name}: {recipe.quantity} {ingredient.unit}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {showRecipes && (
+        <ul className="pb-2.5 px-2 space-y-0.5">
+          {ingredient.recipes.map((recipe) => (
+            <li key={recipe.id} className="text-xs text-muted pl-3 border-l-2 border-border">
+              {recipe.name}: {recipe.quantity} {ingredient.unit}
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+    </li>
   );
 };

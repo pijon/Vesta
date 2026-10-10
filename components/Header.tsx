@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppView } from '../types';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Moon, Sun, SlidersHorizontal } from 'lucide-react';
 
 interface HeaderProps {
     title: string;
@@ -22,48 +22,37 @@ export const Header: React.FC<HeaderProps> = ({
     onOpenSundayReset,
 }) => {
     return (
-        <div className="flex justify-between items-center mb-4">
-            <div>
-                <h1 className="text-2xl md:text-4xl font-serif text-charcoal dark:text-stone-100 transition-colors">{title}</h1>
+        <div className="flex justify-between items-center gap-4 mb-6">
+            <div className="min-w-0">
+                <h1 className="text-[32px] leading-9 font-display font-extrabold tracking-tight text-main">{title}</h1>
                 {subtitle && (
-                    <p className="text-sm md:text-base text-charcoal/60 dark:text-stone-400 mt-1">{subtitle}</p>
+                    <p className="text-sm text-muted mt-1">{subtitle}</p>
                 )}
             </div>
-            <div className="flex gap-4 items-center">
-                {/* Sunday Reset (Conditional) */}
+            <div className="flex gap-2 items-center shrink-0">
                 {showSundayReset && onOpenSundayReset && (
-                    <button
-                        onClick={onOpenSundayReset}
-                        className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-hearth/10 text-hearth hover:bg-hearth hover:text-white transition-all mr-2 text-sm font-bold shadow-sm"
-                        title="Start Sunday Reset"
-                    >
-                        <Sparkles size={14} />
-                        <span>Sunday Reset</span>
-                    </button>
+                    <span className="hidden md:block">
+                        <button onClick={onOpenSundayReset} className="btn-accent btn-sm">
+                            <Sparkles size={16} />
+                            Sunday reset
+                        </button>
+                    </span>
                 )}
 
-                {/* Dark Mode Toggle */}
                 <button
                     onClick={onToggleDarkMode}
-                    className="w-10 h-10 rounded-full bg-charcoal/5 dark:bg-white/5 border border-white/20 dark:border-white/5 flex items-center justify-center text-charcoal/60 dark:text-stone-400 hover:bg-white/80 dark:hover:bg-white/20 hover:text-hearth transition-all shadow-sm"
-                    title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+                    className="icon-btn"
+                    aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
-                    {isDarkMode ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                    ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    )}
+                    {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
 
-                {/* Settings Button */}
                 <button
                     onClick={() => onNavigate(AppView.SETTINGS)}
-                    className="w-10 h-10 rounded-full bg-charcoal/5 dark:bg-white/5 border border-white/20 dark:border-white/5 flex items-center justify-center text-charcoal/60 dark:text-stone-400 hover:bg-white/80 dark:hover:bg-white/20 hover:text-hearth transition-all shadow-sm"
-                    title="Settings"
+                    className="icon-btn"
+                    aria-label="Settings"
                 >
-                    <svg width="20" height="20" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M3.5 2h-1v5h1V2zm6.1 5H6.4L6 6.45v-1L6.4 5h3.2l.4.5v1l-.4.5zm-5 3H1.4L1 9.5v-1l.4-.5h3.2l.4.5v1l-.4.5zm3.9-8h-1v2h1V2zm-1 6h1v6h-1V8zm-4 3h-1v3h1v-3zm7.9 0h3.19l.4-.5v-.95l-.4-.5H11.4l-.4.5v.95l.4.5zm2.1-9h-1v6h1V2zm-1 10h1v2h-1v-2z" />
-                    </svg>
+                    <SlidersHorizontal size={20} />
                 </button>
             </div>
         </div>

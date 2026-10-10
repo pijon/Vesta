@@ -1,219 +1,146 @@
-# Vesta Design System - "Digital Hearth"
+# Vesta Design System — direction C ("bright and modern")
 
-> **Version:** 2.0 (January 2026)
-> **Philosophy:** "Nourishment over Numbers" - A warm, organic, and forgiving design language.
+> **Version:** 3.0 (October 2026). Replaces "Digital Hearth" v2.
+> **Principle:** Nourishment over Numbers: never clinical, never shaming.
+> **Full spec, with live component previews:** https://claude.ai/artifact/W9cu6wcRWW9agjtjn7EJU1
+> **Tokens in code:** `index.css` (`@theme` plus `:root` / `.dark` in `@layer base`).
 
-This guide is the single source of truth for implementing UI in Vesta. All new components and refactors MUST adhere to these rules.
+The look has four parts:
+- solid warm-white surfaces;
+- **one bold Hearth block per screen**;
+- ink-black controls;
+- soft tinted tiles that colour-code each metric.
+
+It should feel energetic and clear, like a good app, not a recipe book.
 
 ---
 
-## 1. Color Palette
+## 1. Colour
 
-### 1.1 Brand Colors
-| Name | Hex | CSS Variable | Usage |
-|------|-----|--------------|-------|
-| **Hearth Orange** | `#E07A5F` | `--color-hearth` | Primary actions, active states, energy/calories |
-| **Sage Green** | `#81B29A` | `--color-sage` | Health, balance, success, weight tracking |
-| **Charcoal** | `#3D405B` | `--color-charcoal` | Primary text (light mode), important UI elements |
-| **Stone White** | `#F4F1DE` | `--color-stone` | Page background (light mode), primary text (dark mode) |
-| **Eternal Flame** | `#F2CC8F` | `--color-flame` | Streaks, highlights, fasting indicators |
-| **Ocean Blue** | `#7BAEBC` | `--color-ocean` | Hydration, water tracking |
+### Grounds and text
+| Token / utility | Light | Dark | Use |
+|---|---|---|---|
+| `bg-background` | #FBF8F3 | #17181D | Page canvas |
+| `bg-surface` | #FFFDF9 | #21232B | Cards, sheets, modals (always with `border-border`) |
+| `bg-surface-sunken` | #F3EEE6 | #1C1D23 | Wells, inactive segments, skeletons |
+| `border-border` | #ECE6DC | #2F323C | Decorative hairline |
+| `border-border-control` | #8E8A84 | #6B6F7A | Input and outlined-control edges (3:1 or better) |
+| `text-main` | #1F2430 | #F3EFE8 | All primary text |
+| `text-muted` | #5D6270 | #A3A7B3 | Secondary text (4.5:1 or better at any size) |
 
-### 1.2 Light Mode Tokens
-```css
---background: #F4F1DE;          /* Stone White */
---surface: rgba(255,255,255,0.6); /* Semi-transparent white */
---card-bg: rgba(255,255,255,0.4); /* Glass effect */
---text-main: #3D405B;           /* Charcoal */
---text-muted: rgba(61,64,91,0.6); /* Charcoal @ 60% */
-```
+- `charcoal` now means Ink (#1F2430), and dark mode re-points it to cream.
+- `stone`/`stone-50` is the canvas colour.
+- **Never fade text with opacity** (`text-charcoal/60`). Use `text-muted`.
 
-### 1.3 Dark Mode Tokens ("Evening Firelight")
-```css
---background: #1A1714;          /* Deep charcoal brown */
---surface: rgba(255,255,255,0.05);
---card-bg: rgba(255,255,255,0.08);
---text-main: #F4F1DE;           /* Stone (inverted) */
---text-muted: rgba(244,241,222,0.6);
-```
+### Bold colour and controls
+- `primary` is Hearth deepened to **#B94E36** in light mode (Hearth #E07A5F in dark). Text on it is `text-primary-foreground`.
+- Use at most **one solid primary block per screen** (the Today hero). Small marks (active state, progress, the selected day) can also use it.
+- `bg-ink text-on-ink`: the primary button and the bottom nav bar.
+- `secondary` is sage (#467560 light / #81B29A dark) with `text-secondary-foreground`.
 
-### 1.4 Brand Scales (50–900)
-Defined as literal values in the `@theme` block of `index.css` (brand colour at 500, `stone-50` = page background). They replace Tailwind's stock palette, which must not be used:
+### Metrics
+Every metric has a mark colour (rings and charts only, never text), a tile/track tint and a text colour:
 
-| Instead of | Use | Role |
-|------------|-----|------|
-| `orange-*` | `terracotta-*` (or `hearth`) | Primary, calories, favourites |
-| `green-*`, `emerald-*` | `sage-*` | Health, success, weight |
-| `blue-*`, `sky-*` | `ocean-*` | Hydration |
-| `purple-*`, `indigo-*` | `plum-*` | Workouts |
-| `yellow-*` | `amber-*` | Warnings, **over-limit states** |
-| `red-*` | `rose-*` (or `text-error`) | Errors and destructive actions only |
-| `slate-*`, `gray-*`, `neutral-*` | `stone-*` or `charcoal` | Neutrals |
+| Metric | Mark | Tint | Text on tint |
+|---|---|---|---|
+| Calories | `calories` | `calories-bg` | `calories-text` |
+| Water | `water` | `water-bg` | `water-text` |
+| Weight | `weight` | `weight-bg` | `weight-text` |
+| Workouts | `workout` (plum) | `workout-bg` | `workout-text` |
+| Fasting | `fasting` | `fasting-bg` | `fasting-text` |
 
-- Shades stop at 900; there is no 950.
-- Text on light backgrounds: use 700+ (600 is enough for `rose` and `plum`). Lighter shades are for backgrounds, borders and dark-mode text.
-- Over-limit calorie states use `text-amber-700 dark:text-amber-400` / `bg-amber-500`, never rose or red.
+The chart order is `--chart-1` to `--chart-5`: calories, water, weight, workouts, fasting.
 
-### 1.5 Semantic Mapping (New Standard)
-Use these classes instead of legacy tokens:
+### Status
+- `warning` (amber) is for over-limit and caution. Over target is never `error`, and never red.
+- `error` (rose) is for real errors and destructive actions only.
 
-| Legacy Token | **Light Mode Replacement** | **Dark Mode Variant** |
-|--------------|----------------------------|----------------------|
-| `text-main` | `text-charcoal` | `dark:text-stone-200` |
-| `text-muted` | `text-charcoal/60` | `dark:text-stone-400` |
-| `bg-surface` | `bg-white/60` | `dark:bg-white/5` |
-| `bg-background` | `bg-stone-50` | `dark:bg-[#1A1714]` |
+### Scales
+The 50–900 families (`terracotta`, `sage`, `ocean`, `plum`, `amber`, `rose`, `stone`) remain for illustration and charts. Stock Tailwind palettes are banned. Text on light grounds uses step 700 or darker.
 
 ---
 
 ## 2. Typography
 
-### 2.1 Font Families
-- **Headings:** `font-serif` → Merriweather (Humanist Serif - Nostalgic, Editorial)
-- **Body:** `font-sans` → Nunito (Rounded Sans - Friendly, Approachable)
+Two families:
+- **Figtree** (`font-sans`, the default) for body and UI text, at weights 400, 500, 600 and 700.
+- **Nunito** (`font-display`, weight 800) for view titles, section and card headings, and big figures.
 
-### 2.2 Heading Styles
-```html
-<h1 class="text-2xl md:text-3xl lg:text-4xl font-serif font-normal text-charcoal dark:text-stone-200 tracking-tight">
-<h2 class="text-xl md:text-2xl lg:text-3xl font-serif font-normal">
-<h3 class="text-lg md:text-xl font-serif font-normal">
-```
+`h1`–`h6` and the `heading-*` classes use `font-display` automatically. Add `font-display` to any other `font-extrabold` figure. `font-serif` is an alias of `font-display`, kept for older markup; don't use it in new code.
 
-### 2.3 Body Text
-- Regular: `text-charcoal dark:text-stone-300`
-- Muted: `text-charcoal/60 dark:text-stone-400`
-- Small/Labels: `text-xs font-bold uppercase tracking-widest text-charcoal/60 dark:text-stone-400`
+| Use | Classes |
+|---|---|
+| View title (Header) | `font-display text-[32px] leading-9 font-extrabold tracking-tight` |
+| Section / modal title | `heading-2` (22/28, weight 800) |
+| Card title | `heading-3` (17/24, weight 700) |
+| Body | `text-base` |
+| Secondary | `text-sm text-muted` |
+| Caption / badge | `text-xs font-semibold` |
+| Hero figure | `font-display text-5xl font-extrabold` |
+| Tile figure | `font-display text-2xl font-extrabold` |
 
----
-
-## 3. Components
-
-### 3.1 Cards
-**Standard Card:**
-```html
-<div class="bg-white/60 dark:bg-white/5 border border-charcoal/5 dark:border-white/5 rounded-3xl shadow-sm p-6">
-```
-
-**Glass Card (for overlays/search bars):**
-```html
-<div class="glass-card rounded-2xl p-6">
-<!-- glass-card uses var(--card-bg) with backdrop-blur -->
-```
-
-### 3.2 Buttons
-**Primary (Hearth Orange):**
-```html
-<button class="btn-primary">Action</button>
-<!-- Already uses --primary (Hearth) with organic border-radius -->
-```
-
-**Secondary:**
-```html
-<button class="btn-secondary">Cancel</button>
-```
-
-**Ghost:**
-```html
-<button class="btn-ghost">Learn More</button>
-```
-
-### 3.3 Inputs
-```html
-<input class="bg-charcoal/5 dark:bg-white/5 border border-transparent focus:border-hearth/50 rounded-xl text-charcoal dark:text-stone-200 placeholder:text-charcoal/40 dark:placeholder:text-stone-600 focus:ring-2 focus:ring-hearth/20" />
-```
-
-### 3.4 Badges
-Use the pre-defined badge classes:
-- `badge-terracotta` - Calories, primary metrics
-- `badge-sage` - Health, protein
-- `badge-water` - Hydration
-- `badge-warning` - Fat, warnings
-- `badge-plum` - Workouts
-
-### 3.5 Modals
-```html
-<!-- Backdrop -->
-<div class="fixed inset-0 bg-stone-900/60 backdrop-blur-sm">
-  <!-- Modal Container -->
-  <div class="bg-stone-50 dark:bg-[#1A1714] rounded-[2.5rem] border border-white/50 dark:border-white/5">
-    <!-- Content uses bg-white/60 dark:bg-white/5 for inner cards -->
-  </div>
-</div>
-```
+- **Sentence case everywhere.** No uppercase eyebrows, no `tracking-widest`, no Title Case buttons.
+- Figures are tabular (set on `body`).
 
 ---
 
-## 4. Dark Mode Guidelines
+## 3. Shape, space, elevation
 
-### 4.1 Background Hierarchy
-| Level | Light Mode | Dark Mode |
-|-------|------------|-----------|
-| Page | `bg-stone-50` / `#F4F1DE` | `bg-[#1A1714]` |
-| Card Surface | `bg-white/60` | `bg-white/5` |
-| Inner Card | `bg-charcoal/5` | `bg-white/5` |
-| Elevated | `bg-white/80` + `shadow-sm` | `bg-white/10` |
+- **Corners:**
+  - Buttons, pills, the nav bar and avatars: `rounded-full`.
+  - Cards and the hero block: 18px (`rounded-3xl` now resolves to 18px).
+  - Tiles and inputs: 14px.
+  - Modals: 24px.
+  - Badges: 8px.
 
-### 4.2 Text Contrast
-| Usage | Light Mode | Dark Mode |
-|-------|------------|-----------|
-| Primary Text | `text-charcoal` | `text-stone-200` |
-| Secondary Text | `text-charcoal/60` | `text-stone-400` |
-| Disabled/Hint | `text-charcoal/40` | `text-stone-500` |
-
-### 4.3 Border Colors
-- Light: `border-charcoal/5` or `border-charcoal/10`
-- Dark: `border-white/5` or `border-white/10`
-
-### 4.4 Semantic Backgrounds (Tints)
-Use these variables for icon backgrounds/areas needing brand color tint:
-- `--calories-bg` (Hearth tint)
-- `--workout-bg` (Stone tint)
-- `--water-bg` (Ocean tint)
-- `--weight-bg` (Sage tint)
-- `--warning-bg` (Amber tint)
-- `--error-bg` (Rose tint)
-These automatically adjust opacity/color for dark mode.
+  The `rounded-organic-*` classes are aliases of these values; don't add new hand-molded corners.
+- **Spacing:** a 4px grid. Cards use `p-4 md:p-6`, tiles sit `gap-2`/`md:gap-3` apart, and sections are `space-y-6`.
+- **Flat by default.** Cards rely on their border. `shadow-soft` and `premium-shadow` resolve to a small shadow, and only floating UI (nav, modals) gets real elevation.
+- **No glass:** `glass-card` now renders as a solid surface. Don't use `backdrop-blur`, `bg-white/NN` or gradients.
+- **Mobile-first** at 375px. Every tappable control is at least 44px (`touch-target`, `min-h-11`).
 
 ---
 
-## 5. Motion & Interaction
+## 4. Components (classes in `index.css`)
 
-### 5.1 Hover Effects
-- **Cards:** `hover:scale-[1.01]` or `hover:-translate-y-1` with `hover:shadow-xl`
-- **Buttons:** Subtle lift, glow effect (`shadow-hearth/20`)
-- **Interactive Elements:** Use `transition-all duration-300`
+| Class | What |
+|---|---|
+| `btn-primary` | Ink pill, the main action (one per view) |
+| `btn-accent` | Hearth pill, for brand moments only, never next to a hero |
+| `btn-secondary` | Surface pill with a control border |
+| `btn-ghost` | Low emphasis |
+| `btn-sm`, `btn-lg`, `btn-block` | Size and width modifiers |
+| `icon-btn` | 44px round icon button (needs `aria-label`) |
+| `card`, `card-hover`, `card-padding` | Solid content containers |
+| `hero` | The one bold primary block (Today calories) |
+| `tile tile-{calories,water,weight,workout,fasting,neutral}` | Metric tiles |
+| `badge badge-{calories,water,weight,workout,fasting,warning,neutral,ink}` | Labels (old names `badge-terracotta/sage/plum/teal/stone/amber` are aliases) |
+| `input`, `input-error` | Text fields |
+| `nav-bar`, `nav-item` (`aria-current="page"`) | The floating ink bottom nav |
 
-### 5.2 Animations
-- `animate-fade-in` - Entry animations
-- `animate-scale-in` - Modal/Card pop-in
-- `animate-slide-up` - Content reveals
-
----
-
-## 6. Do's and Don'ts
-
-### ✅ DO
-- Use semantic color tokens (`text-charcoal`, `bg-hearth`)
-- Always provide dark mode variants (`dark:text-stone-200`)
-- Use Serif fonts for headings
-- Keep corners soft (`rounded-2xl` to `rounded-3xl`)
-- Use warm shadows with `hsla(25, 40%, 25%, 0.08)`
-
-### ❌ DON'T
-- Use pure black (`#000`) or solid white (`bg-white`, `#FFF`) for any surface. Cards use translucent white (`bg-white/60`, hover `bg-white/80`) over the stone background; modals use opaque `bg-stone-50 dark:bg-[#1A1714]`; small dots and toggle knobs use `bg-stone-50`
-- Use clinical colors (bright blue, stark gray)
-- Use sharp corners (`rounded-sm`, `rounded-md`)
-- Use aggressive red for "over limit" states (use soft warnings)
-- Mix legacy tokens (`text-muted`) with new tokens
+- **Focus:** a 2px `--focus-ring` (ink) outline, offset 2px.
+- **Motion:**
+  - Presses scale to 0.98 over 150ms.
+  - Rings fill over 1s.
+  - Nothing glows or pulses, except the active `StreakFlame`.
+  - Respect `motion-reduce`.
 
 ---
 
-## 7. Migration Checklist
+## 5. Dark mode
 
-When refactoring a component:
-- [ ] Replace `text-muted` → `text-charcoal/60 dark:text-stone-400`
-- [ ] Replace `text-main` → `text-charcoal dark:text-stone-200`
-- [ ] Replace `bg-surface` → `bg-white/60 dark:bg-white/5`
-- [ ] Replace `bg-background` → Use specific color or `bg-stone-50 dark:bg-[#1A1714]`
-- [ ] Ensure all headings use `font-serif`
-- [ ] Verify contrast in both light and dark mode
+Dark mode is the `.dark` class on `<html>`. Every semantic token above has a designed dark value. Before using a CSS variable, confirm `index.css` defines it under both `:root` and `.dark`. In dark mode:
+- `surface` is close to `background`, so keep card borders;
+- `primary` brightens and takes dark foreground text;
+- `ink` flips to cream.
+
+---
+
+## 6. Don'ts
+
+- Pure white or black surfaces; translucent white cards; blur.
+- Opacity-faded text, uppercase eyebrows, serif headings, Nunito for body copy.
+- More than one solid primary block per screen.
+- White text on pastel fills. Use the `*-foreground` / `*-text` partner.
+- Red or rose for calorie overages.
+- Emoji in UI copy. Use the `StreakFlame` icon instead of 🔥.

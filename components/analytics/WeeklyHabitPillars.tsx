@@ -131,8 +131,8 @@ export const WeeklyHabitPillars: React.FC<WeeklyHabitPillarsProps> = ({ summarie
         <div>
             {/* Header - Using generous padding (px-6 py-4) */}
             <div className="px-6 py-4 border-b border-charcoal/5 dark:border-white/5 flex justify-between items-center bg-transparent">
-                <h3 className="font-serif font-normal text-lg text-charcoal dark:text-stone-200">Habit Pillars</h3>
-                <span className="text-[10px] text-charcoal/60 dark:text-stone-400 uppercase tracking-wide">Last 7 Days</span>
+                <h3 className="font-display font-extrabold text-lg text-charcoal dark:text-stone-200">Habit Pillars</h3>
+                <span className="text-[10px] text-muted dark:text-muted">Last 7 Days</span>
             </div>
 
             {/* Content - Using generous padding (p-6) */}

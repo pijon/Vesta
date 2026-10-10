@@ -20,7 +20,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
 
     if (mobileCollapsible && isMobile) {
         return (
-            <div className="bg-[var(--card-bg)] backdrop-blur-md rounded-3xl border border-charcoal/10 dark:border-white/10 shadow-sm overflow-hidden">
+            <div className="bg-[var(--card-bg)] rounded-3xl border border-charcoal/10 dark:border-white/10 shadow-sm overflow-hidden">
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="w-full px-6 py-4 flex justify-between items-center hover:bg-black/5 transition-colors border-b border-transparent data-[expanded=true]:border-charcoal/10 dark:data-[expanded=true]:border-white/10"
@@ -49,9 +49,9 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
     }
 
     return (
-        <div className="bg-[var(--card-bg)] backdrop-blur-md rounded-3xl border border-charcoal/10 dark:border-white/10 shadow-sm overflow-hidden">
+        <div className="bg-[var(--card-bg)] rounded-3xl border border-charcoal/10 dark:border-white/10 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-charcoal/10 dark:border-white/10">
-                <h3 className="font-normal text-charcoal dark:text-stone-200 font-serif text-lg">{title}</h3>
+                <h3 className="text-charcoal dark:text-stone-200 font-display font-extrabold text-lg">{title}</h3>
             </div>
             <div className="p-6 md:p-8">
                 {children}

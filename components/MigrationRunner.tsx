@@ -131,7 +131,7 @@ export const MigrationRunner: React.FC = () => {
                 <h2 className="text-2xl font-bold text-charcoal dark:text-stone-100 mb-2">
                     Database Normalization
                 </h2>
-                <p className="text-sm text-stone-600 dark:text-stone-400 mb-6">
+                <p className="text-sm text-stone-600 dark:text-muted mb-6">
                     Reduce storage bloat by 60-80% with these one-time migrations
                 </p>
 
@@ -139,7 +139,7 @@ export const MigrationRunner: React.FC = () => {
                     {steps.map((step, index) => (
                         <div
                             key={step.id}
-                            className="bg-white/60 dark:bg-stone-800 rounded-xl p-4 border border-stone-200 dark:border-stone-700"
+                            className="bg-surface dark:bg-stone-800 rounded-xl p-4 border border-stone-200 dark:border-stone-700"
                         >
                             <div className="flex items-start gap-3">
                                 {/* Status Icon */}
@@ -175,7 +175,7 @@ export const MigrationRunner: React.FC = () => {
                                     <h3 className="font-semibold text-charcoal dark:text-stone-100">
                                         {step.name}
                                     </h3>
-                                    <p className="text-sm text-stone-600 dark:text-stone-400 mt-0.5">
+                                    <p className="text-sm text-stone-600 dark:text-muted mt-0.5">
                                         {step.description}
                                     </p>
                                     {step.result && (
@@ -213,7 +213,7 @@ export const MigrationRunner: React.FC = () => {
                     {allComplete && (
                         <button
                             onClick={() => window.location.reload()}
-                            className="px-6 py-3 rounded-xl font-semibold bg-sage-green text-white hover:bg-sage-green/90 transition-all duration-200"
+                            className="px-6 py-3 rounded-xl font-semibold btn-primary transition-all duration-200"
                         >
                             Reload App
                         </button>
@@ -239,7 +239,7 @@ export const MigrationRunner: React.FC = () => {
 
             <div className="mt-6 p-4 bg-stone-100 dark:bg-stone-800 rounded-xl">
                 <h3 className="font-semibold text-charcoal dark:text-stone-100 mb-2">What This Does:</h3>
-                <ul className="text-sm text-stone-600 dark:text-stone-400 space-y-1">
+                <ul className="text-sm text-stone-600 dark:text-muted space-y-1">
                     <li>• Uploads recipe images to Firebase Storage CDN (faster loading)</li>
                     <li>• Compresses historical food logs to summaries (95% smaller)</li>
                     <li>• Normalizes meal plans to use references (60-80% smaller)</li>

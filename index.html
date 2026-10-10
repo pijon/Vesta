@@ -4,14 +4,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#F4F1DE" />
+  <meta name="theme-color" content="#FBF8F3" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/svg+xml" href="/masked-icon.svg" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <title>Vesta - Warmth Health</title>
 
   <link
-    href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Nunito:wght@400;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Nunito:wght@700;800&display=swap"
     rel="stylesheet">
   <style>
     /* Hide scrollbar for Chrome, Safari and Opera */
@@ -63,11 +63,11 @@
     /* Theme Sync CSS */
     html.dark body,
     html.dark .initial-loader {
-      background-color: #1A1714 !important;
+      background-color: #17181D !important;
     }
 
     html.dark .loading-text {
-      color: #F4F1DE !important;
+      color: #F3EFE8 !important;
     }
   </style>
   <script>
@@ -96,8 +96,8 @@
       body {
         margin: 0;
         padding: 0;
-        background-color: #F4F1DE;
-        font-family: 'Nunito', sans-serif;
+        background-color: #FBF8F3;
+        font-family: 'Figtree', sans-serif;
       }
 
       .initial-loader {
@@ -107,8 +107,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background-color: #F4F1DE;
-        /* Stone White */
+        background-color: #FBF8F3;
         z-index: 9999;
       }
 
@@ -120,11 +119,10 @@
       }
 
       .loading-text {
-        font-family: 'Merriweather', serif;
-        color: #3D405B;
-        /* Charcoal */
-        font-size: 1.1rem;
-        font-weight: 500;
+        font-family: 'Figtree', sans-serif;
+        color: #1F2430;
+        font-size: 1rem;
+        font-weight: 700;
         opacity: 0.8;
         animation: fadeText 3s ease-in-out infinite;
       }
@@ -175,7 +173,7 @@
     </style>
     <div id="initial-loader" class="initial-loader">
       <img src="/pwa-192x192.png" alt="Vesta" class="logo-pulse">
-      <div class="loading-text">Warming the Hearth...</div>
+      <div class="loading-text">Warming the hearth…</div>
     </div>
   </div>
   <script type="module" src="index.tsx"></script>

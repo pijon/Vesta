@@ -61,16 +61,16 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4 py-4 animate-fade-in"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 px-4 py-4 animate-fade-in"
         onClick={handleClose}
       >
         <div
-          className="bg-[var(--background)] w-full max-w-md rounded-3xl border border-border shadow-2xl overflow-hidden backdrop-blur-md"
+          className="bg-[var(--background)] w-full max-w-md rounded-3xl border border-border shadow-2xl overflow-hidden"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
           <div className="p-6 md:p-8 border-b border-border flex justify-between items-center bg-transparent">
-            <h3 className="font-normal text-2xl md:text-3xl text-charcoal dark:text-stone-200 font-serif flex items-center gap-2">
+            <h3 className="text-2xl md:text-3xl text-charcoal dark:text-stone-200 font-display font-extrabold flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--workout)' }}>
                 <path d="M12.1 3A1.9 1.9 0 1 1 14 4.9 1.898 1.898 0 0 1 12.1 3zm2.568 4.893c.26-1.262-1.399-1.861-2.894-2.385L7.09 6.71l.577 4.154c0 .708 1.611.489 1.587-.049l-.39-2.71 2.628-.48-.998 4.92 3.602 4.179-1.469 4.463a.95.95 0 0 0 .39 1.294c.523.196 1.124-.207 1.486-.923.052-.104 1.904-5.127 1.904-5.127l-2.818-3.236 1.08-5.303zm-5.974 8.848l-3.234.528a1.033 1.033 0 0 0-.752 1.158c.035.539.737.88 1.315.802l3.36-.662 2.54-2.831-1.174-1.361zm8.605-7.74l-1.954.578-.374 1.837 2.865-.781a.881 0 0 0-.537-1.633z" />
                 <path fill="none" d="M0 0h24v24H0z" />
@@ -92,7 +92,7 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
           <div className="p-6">
             {recentWorkouts && recentWorkouts.length > 0 && !editingWorkout && (
               <div className="mb-6">
-                <label className="block text-xs font-bold text-muted uppercase tracking-widest mb-3">Quick Add</label>
+                <label className="block text-xs font-bold text-muted mb-3">Quick Add</label>
                 <div className="flex flex-wrap gap-2">
                   {recentWorkouts.map((workout, index) => (
                     <button
@@ -113,7 +113,7 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
 
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Workout Type</label>
+                <label className="block text-xs font-bold text-muted mb-2">Workout Type</label>
                 <input
                   type="text"
                   value={workoutType}
@@ -125,7 +125,7 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Calories Burned</label>
+                <label className="block text-xs font-bold text-muted mb-2">Calories Burned</label>
                 <input
                   type="number"
                   value={caloriesBurned}

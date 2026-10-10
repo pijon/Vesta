@@ -33,7 +33,7 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
       {/* Food Card - Primary Action */}
       <button
         onClick={onOpenFoodModal}
-        className="bg-white/60 dark:bg-white/5 rounded-2xl shadow-sm border border-calories-border p-4 text-left active:scale-[0.98] transition-transform"
+        className="bg-surface dark:bg-white/5 rounded-2xl shadow-sm border border-calories-border p-4 text-left active:scale-[0.98] transition-transform"
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -45,17 +45,17 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
               </g>
             </svg>
           </div>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${isNonFastDay ? 'bg-terracotta-100 text-terracotta-700 dark:bg-terracotta-900/40 dark:text-terracotta-300' : 'bg-sage-100 text-sage-700 dark:bg-sage-900/40 dark:text-sage-300'}`}>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${isNonFastDay ? 'bg-terracotta-100 text-terracotta-700 dark:bg-terracotta-900/40 dark:text-terracotta-300' : 'bg-sage-100 text-sage-700 dark:bg-sage-900/40 dark:text-sage-300'}`}>
             {isNonFastDay ? 'Non-Fast' : 'Fast'}
           </span>
         </div>
 
         {/* Main Value */}
         <div className="mb-2">
-          <span className={`text-2xl font-bold font-serif ${caloriesLeft < 0 ? 'text-amber-700 dark:text-amber-400' : 'text-charcoal dark:text-stone-200'}`}>
+          <span className={`text-2xl font-display font-extrabold ${caloriesLeft < 0 ? 'text-amber-700 dark:text-amber-400' : 'text-charcoal dark:text-stone-200'}`}>
             {Math.abs(caloriesLeft)}
           </span>
-          <span className="text-xs text-charcoal/60 dark:text-stone-400 ml-1">{caloriesLeft < 0 ? 'over' : 'left'}</span>
+          <span className="text-xs text-muted dark:text-muted ml-1">{caloriesLeft < 0 ? 'over' : 'left'}</span>
         </div>
 
         {/* Progress Bar */}
@@ -70,7 +70,7 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
 
         {/* Footer */}
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-charcoal/60 dark:text-stone-400">{consumed} / {dailyTarget}</span>
+          <span className="text-[10px] text-muted dark:text-muted">{consumed} / {dailyTarget}</span>
           <span className="text-[10px] font-bold text-calories">Log Food</span>
         </div>
       </button>
@@ -78,7 +78,7 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
       {/* Water Card - Primary Action */}
       <button
         onClick={() => onAddWater(250)}
-        className="bg-white/60 dark:bg-white/5 rounded-2xl shadow-sm border border-water-border p-4 text-left active:scale-[0.98] transition-transform"
+        className="bg-surface dark:bg-white/5 rounded-2xl shadow-sm border border-water-border p-4 text-left active:scale-[0.98] transition-transform"
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -94,10 +94,10 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
 
         {/* Main Value */}
         <div className="mb-2">
-          <span className="text-2xl font-bold font-serif text-charcoal dark:text-stone-200">
+          <span className="text-2xl font-display font-extrabold text-charcoal dark:text-stone-200">
             {hydration >= 1000 ? `${(hydration / 1000).toFixed(1)}` : hydration}
           </span>
-          <span className="text-xs text-charcoal/60 dark:text-stone-400 ml-1">{hydration >= 1000 ? 'L' : 'ml'}</span>
+          <span className="text-xs text-muted dark:text-muted ml-1">{hydration >= 1000 ? 'L' : 'ml'}</span>
         </div>
 
         {/* Progress Bar */}
@@ -112,7 +112,7 @@ export const MobileActionCards: React.FC<MobileActionCardsProps> = ({
 
         {/* Footer */}
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-charcoal/60 dark:text-stone-400">{Math.round(hydrationPercentage)}% of goal</span>
+          <span className="text-[10px] text-muted dark:text-muted">{Math.round(hydrationPercentage)}% of goal</span>
           <span className="text-[10px] font-bold text-water">Tap to Add</span>
         </div>
       </button>

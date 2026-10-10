@@ -34,7 +34,7 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
 
             {/* Header */}
             <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between shrink-0 h-[60px]">
-                <h3 className="font-serif text-lg font-medium text-charcoal dark:text-stone-200">Hydration</h3>
+                <h3 className="font-display font-extrabold text-lg text-charcoal dark:text-stone-200">Hydration</h3>
                 {/* Badge - Increased contrast: text-ocean-800 */}
 
             </div>
@@ -74,7 +74,7 @@ export const HydrationWidget: React.FC<HydrationWidgetProps> = ({ intake, goal, 
                                 {(intake / 1000).toFixed(1)}L
                             </span>
                         )}
-                        <span className="text-xs font-semibold text-charcoal/60 dark:text-stone-400 uppercase tracking-wide mt-1">
+                        <span className="text-xs font-semibold text-muted dark:text-muted mt-1">
                             Intake
                         </span>
                     </div>

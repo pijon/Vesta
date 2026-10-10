@@ -33,15 +33,15 @@ export const WeightEntryModal: React.FC<WeightEntryModalProps> = ({
     return (
         <Portal>
             <div
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4 py-4 animate-fade-in"
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 px-4 py-4 animate-fade-in"
                 onClick={onClose}
             >
                 <div
-                    className="bg-[var(--background)] w-full max-w-md rounded-3xl border border-border shadow-2xl overflow-hidden backdrop-blur-md"
+                    className="bg-[var(--background)] w-full max-w-md rounded-3xl border border-border shadow-2xl overflow-hidden"
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="p-6 md:p-8 border-b border-border flex justify-between items-center bg-transparent">
-                        <h3 className="font-normal text-2xl md:text-3xl text-[var(--text-main)] font-serif">Update Weight</h3>
+                        <h3 className="text-2xl md:text-3xl text-[var(--text-main)] font-display font-extrabold">Update Weight</h3>
                         <button
                             onClick={onClose}
                             className="p-2 bg-[var(--input-bg)] border border-transparent rounded-full text-muted hover:text-[var(--text-main)] transition-colors"
@@ -54,7 +54,7 @@ export const WeightEntryModal: React.FC<WeightEntryModalProps> = ({
                     </div>
                     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Current Weight (kg)</label>
+                            <label className="block text-xs font-bold text-muted mb-2">Current Weight (kg)</label>
                             <input
                                 type="number"
                                 step="0.1"

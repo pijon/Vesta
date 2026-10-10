@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
 import * as cache from './utils/cacheService';
@@ -12,6 +11,16 @@ const ShoppingList = React.lazy(() => import('./components/ShoppingList').then(m
 const FamilySettings = React.lazy(() => import('./components/FamilySettings').then(module => ({ default: module.FamilySettings })));
 const SettingsView = React.lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
 const MigrationRunner = React.lazy(() => import('./components/MigrationRunner').then(module => ({ default: module.MigrationRunner })));
+
+// Download the lazy views in the background after start-up so the first visit to
+// each page renders immediately instead of flashing the Suspense skeleton.
+const prefetchViews = () => {
+    void import('./components/TrackAnalytics');
+    void import('./components/Planner');
+    void import('./components/RecipeLibrary');
+    void import('./components/ShoppingList');
+    void import('./components/SettingsView');
+};
 import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
@@ -43,6 +52,11 @@ const TrackerApp: React.FC = () => {
         d.setDate(d.getDate() + 1);
         return localDateString(d);
     });
+
+    useEffect(() => {
+        const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
+        idle(prefetchViews);
+    }, []);
 
     // Check for date change on focus/visibility change
     useEffect(() => {
@@ -244,7 +258,15 @@ const TrackerApp: React.FC = () => {
         init();
     }, [todayDate, tomorrowDate]);
 
-    const handleUpdateStats = async (newStats: UserStats) => {
+    // Saves stats without touching weight history: Settings, streaks and other
+    // non-weigh-in updates must not create a weight entry for today.
+    const handleSaveStats = async (newStats: UserStats) => {
+        setUserStatsState(newStats);
+        await saveUserStats(newStats);
+    };
+
+    // A real weigh-in: records newStats.currentWeight as today's weight history entry.
+    const handleLogWeight = async (newStats: UserStats) => {
         const today = localDateString();
         let history = [...(newStats.weightHistory || [])];
         const existingIndex = history.findIndex(h => h.date === today);
@@ -352,7 +374,7 @@ const TrackerApp: React.FC = () => {
     };
 
     const handleUpdateWeight = (weight: number) => {
-        handleUpdateStats({ ...userStats, currentWeight: weight });
+        handleLogWeight({ ...userStats, currentWeight: weight });
     };
 
     const handleAddWater = async (amount: number) => {
@@ -419,8 +441,8 @@ const TrackerApp: React.FC = () => {
             startWeight: userStats.weightHistory.length === 0 ? data.currentWeight : userStats.startWeight
         };
 
-        // Use the existing safe update handler to manage history array logic
-        await handleUpdateStats(updatedStats);
+        // The welcome flow asks for current weight, so record it as a weigh-in
+        await handleLogWeight(updatedStats);
         setShowOnboarding(false);
     };
 
@@ -435,7 +457,7 @@ const TrackerApp: React.FC = () => {
         stats: userStats,
         dailyLog,
         fastingState,
-        onUpdateStats: handleUpdateStats,
+        onUpdateStats: handleSaveStats,
         onLogMeal: handleLogMeal,
         onAddFoodLogItems: handleAddFoodLogItems,
         onUpdateFoodItem: async (item: FoodLogItem) => {
@@ -500,9 +522,9 @@ const TrackerApp: React.FC = () => {
 
     const getGreeting = () => {
         const hour = new Date().getHours();
-        if (hour < 12) return 'Good Morning';
-        if (hour < 18) return 'Good Afternoon';
-        return 'Good Evening';
+        if (hour < 12) return 'Good morning';
+        if (hour < 18) return 'Good afternoon';
+        return 'Good evening';
     };
 
     const getHeaderInfo = () => {
@@ -510,19 +532,19 @@ const TrackerApp: React.FC = () => {
 
         switch (view) {
             case AppView.TODAY:
-                return { title: greeting, subtitle: 'Today\'s Log' };
+                return { title: 'Today', subtitle: greeting };
             case AppView.ANALYTICS:
-                return { title: greeting, subtitle: 'Analytics & Trends' };
+                return { title: 'Analytics', subtitle: greeting };
             case AppView.PLANNER:
-                return { title: greeting, subtitle: 'Meal Planner' };
+                return { title: 'Planner', subtitle: greeting };
             case AppView.RECIPES:
-                return { title: greeting, subtitle: 'Recipe Library' };
+                return { title: 'Recipes', subtitle: greeting };
             case AppView.SHOPPING:
-                return { title: greeting, subtitle: 'Shopping List' };
+                return { title: 'Shopping', subtitle: greeting };
             case AppView.SETTINGS:
-                return { title: greeting, subtitle: 'Settings & Preferences' };
+                return { title: 'Settings', subtitle: greeting };
             default:
-                return { title: greeting, subtitle: 'Digital Hearth' };
+                return { title: 'Vesta', subtitle: greeting };
         }
     };
 
@@ -538,7 +560,7 @@ const TrackerApp: React.FC = () => {
             {/* Main Content Wrapper */}
             <div className="w-full">
                 {/* Main Content */}
-                <main className="pb-32 pt-8 md:pt-12">
+                <main className="pb-28 pt-8 md:pt-12">
                     <div className="max-w-6xl mx-auto px-4 md:px-8">
                         <Header
                             title={headerInfo.title}
@@ -550,90 +572,59 @@ const TrackerApp: React.FC = () => {
                             onOpenSundayReset={() => setIsSundayResetOpen(true)}
                         />
                     </div>
-                    <React.Suspense fallback={<ViewSkeleton />}>
-                        <AnimatePresence mode="wait">
+                    {/* Views switch instantly (no cross-fade): each has its own Suspense so a
+                        loading view never blanks the page. Lazy chunks are prefetched below. */}
                             {view === AppView.TODAY && (
-                                <motion.div
-                                    key="today"
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                                >
-                                    <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
-                                </motion.div>
+                                <div key="today" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
+                                    <React.Suspense fallback={<ViewSkeleton />}>
+                                        <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
+                                    </React.Suspense>
+                                </div>
                             )}
                             {view === AppView.ANALYTICS && (
-                                <motion.div
-                                    key="analytics"
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                                >
-                                    <TrackAnalytics {...trackProps} />
-                                </motion.div>
+                                <div key="analytics" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
+                                    <React.Suspense fallback={<ViewSkeleton />}>
+                                        <TrackAnalytics {...trackProps} />
+                                    </React.Suspense>
+                                </div>
                             )}
                             {view === AppView.PLANNER && (
-                                <motion.div
-                                    key="planner"
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                                >
-                                    <Planner stats={userStats} onPlanChanged={refreshData} />
-                                </motion.div>
+                                <div key="planner" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
+                                    <React.Suspense fallback={<ViewSkeleton />}>
+                                        <Planner stats={userStats} onPlanChanged={refreshData} />
+                                    </React.Suspense>
+                                </div>
                             )}
                             {view === AppView.RECIPES && (
-                                <motion.div
-                                    key="recipes"
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                                >
-                                    <RecipeLibrary />
-                                </motion.div>
+                                <div key="recipes" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
+                                    <React.Suspense fallback={<ViewSkeleton />}>
+                                        <RecipeLibrary />
+                                    </React.Suspense>
+                                </div>
                             )}
                             {view === AppView.SHOPPING && (
-                                <motion.div
-                                    key="shopping"
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                                >
-                                    <ShoppingList />
-                                </motion.div>
+                                <div key="shopping" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
+                                    <React.Suspense fallback={<ViewSkeleton />}>
+                                        <ShoppingList />
+                                    </React.Suspense>
+                                </div>
                             )}
                             {view === AppView.SETTINGS && (
-                                <motion.div
-                                    key="settings"
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0"
-                                >
-                                    <SettingsView
-                                        stats={userStats}
-                                        onUpdateStats={handleUpdateStats}
-                                        fastingConfig={fastingState.config}
-                                        onUpdateFastingConfig={handleUpdateFastingConfig}
-                                        onTestOnboarding={() => setShowOnboarding(true)}
-                                        onTriggerSundayReset={() => setIsSundayResetOpen(true)}
-                                        onRefreshData={refreshData}
-                                    />
-                                </motion.div>
+                                <div key="settings" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
+                                    <React.Suspense fallback={<ViewSkeleton />}>
+                                        <SettingsView
+                                            stats={userStats}
+                                            onUpdateStats={handleSaveStats}
+                                            fastingConfig={fastingState.config}
+                                            onUpdateFastingConfig={handleUpdateFastingConfig}
+                                            onTestOnboarding={() => setShowOnboarding(true)}
+                                            onTriggerSundayReset={() => setIsSundayResetOpen(true)}
+                                            onRefreshData={refreshData}
+                                        />
+                                    </React.Suspense>
+                                </div>
                             )}
-                        </AnimatePresence>
-                    </React.Suspense>
+
                 </main>
 
                 {/* Mobile Bottom Navigation */}

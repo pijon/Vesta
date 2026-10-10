@@ -79,8 +79,8 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
             {/* Center Content (Absolute) */}
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                 {icon && <div className="mb-1 text-charcoal dark:text-stone-200">{icon}</div>}
-                {label && <div className="text-xl font-bold leading-none font-serif text-charcoal dark:text-white">{label}</div>}
-                {subLabel && <div className="text-[10px] font-bold uppercase tracking-wider text-charcoal/60 dark:text-stone-400 mt-1">{subLabel}</div>}
+                {label && <div className="text-xl leading-none font-display font-extrabold text-charcoal dark:text-white">{label}</div>}
+                {subLabel && <div className="text-[10px] font-bold text-muted dark:text-muted mt-1">{subLabel}</div>}
             </div>
         </div>
     );

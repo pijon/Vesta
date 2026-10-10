@@ -60,7 +60,7 @@ export const LoadingScreen: React.FC = () => {
                     transition={{ delay: 0.2 }}
                     className="flex flex-col items-center gap-2"
                 >
-                    <h2 className="text-xl font-serif text-main tracking-tight">Vesta</h2>
+                    <h2 className="text-xl font-display font-extrabold text-main tracking-tight">Vesta</h2>
                     <p className="text-sm text-muted font-medium animate-pulse">Warming the Hearth...</p>
                 </motion.div>
             </motion.div>

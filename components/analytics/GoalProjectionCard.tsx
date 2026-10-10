@@ -49,7 +49,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
   };
 
   return (
-    <div className="bg-[var(--card-bg)] backdrop-blur-md rounded-3xl relative overflow-hidden p-6 md:p-8">
+    <div className="bg-[var(--card-bg)] rounded-3xl relative overflow-hidden p-6 md:p-8">
       {/* Decorative Background Elements */}
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-gradient-to-br from-primary/10 to-weight/10 rounded-full blur-3xl opacity-50"></div>
       <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-gradient-to-br from-weight/10 to-primary/10 rounded-full blur-3xl opacity-50"></div>
@@ -58,13 +58,13 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-xl md:text-2xl font-serif font-normal text-charcoal dark:text-stone-200 mb-1">
+            <h2 className="text-xl md:text-2xl font-display font-extrabold text-charcoal dark:text-stone-200 mb-1">
               {remainingLoss <= 0 ? 'Goal Achieved' : 'Journey Projection'}
             </h2>
-            <p className="text-sm text-charcoal/60 dark:text-stone-400">{getTrendMessage()}</p>
+            <p className="text-sm text-muted dark:text-muted">{getTrendMessage()}</p>
           </div>
           <div className="text-right">
-            <div className="text-[10px] text-charcoal/60 dark:text-stone-400 uppercase tracking-wide mb-1">Progress</div>
+            <div className="text-[10px] text-muted dark:text-muted mb-1">Progress</div>
             <div className="text-3xl font-bold" style={{ color: getTrendColor() }}>
               {percentToGoal.toFixed(0)}%
             </div>
@@ -74,9 +74,9 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-8">
           {/* Total Weight Lost */}
-          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
+          <div className="bg-surface dark:bg-white/5 rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
             <div className="flex items-start justify-between mb-3">
-              <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">
+              <div className="text-xs font-bold text-muted dark:text-muted">
                 Total Lost
               </div>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
@@ -86,21 +86,21 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
             <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
               {totalLoss > 0 ? totalLoss.toFixed(1) : '0.0'}
             </div>
-            <div className="text-sm text-charcoal/60 dark:text-stone-400">
+            <div className="text-sm text-muted dark:text-muted">
               kg lost
             </div>
             <div className="mt-4 pt-4 border-t border-charcoal/10 dark:border-white/10">
               <div className="flex justify-between text-xs">
-                <span className="text-charcoal/60 dark:text-stone-400">Current</span>
+                <span className="text-muted dark:text-muted">Current</span>
                 <span className="font-semibold text-primary">{stats.currentWeight.toFixed(1)} kg</span>
               </div>
             </div>
           </div>
 
           {/* Days to Goal */}
-          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
+          <div className="bg-surface dark:bg-white/5 rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
             <div className="flex items-start justify-between mb-3">
-              <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">
+              <div className="text-xs font-bold text-muted dark:text-muted">
                 {remainingLoss <= 0 ? 'Status' : 'Est. Time'}
               </div>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-weight">
@@ -119,21 +119,21 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
                     daysToGoal
                   )}
                 </div>
-                <div className="text-sm text-charcoal/60 dark:text-stone-400">
+                <div className="text-sm text-muted dark:text-muted">
                   {remainingLoss <= 0 ? 'Maintaining' : 'days remaining'}
                 </div>
               </>
             ) : (
-              <div className="text-sm text-charcoal/60 dark:text-stone-400 mt-4">
+              <div className="text-sm text-muted dark:text-muted mt-4">
                 Keep logging...
               </div>
             )}
           </div>
 
           {/* Remaining to Goal */}
-          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
+          <div className="bg-surface dark:bg-white/5 rounded-2xl p-6 border border-charcoal/10 dark:border-white/5">
             <div className="flex items-start justify-between mb-3">
-              <div className="text-xs font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider">
+              <div className="text-xs font-bold text-muted dark:text-muted">
                 {remainingLoss <= 0 ? 'Current Status' : 'Remaining'}
               </div>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-warning">
@@ -144,12 +144,12 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
             <div className="text-4xl md:text-5xl font-bold text-charcoal dark:text-stone-200 mb-2">
               {remainingLoss > 0 ? remainingLoss.toFixed(1) : '0.0'}
             </div>
-            <div className="text-sm text-charcoal/60 dark:text-stone-400">
+            <div className="text-sm text-muted dark:text-muted">
               kg to reach goal
             </div>
             <div className="mt-4 pt-4 border-t border-charcoal/10 dark:border-white/10">
               <div className="flex justify-between text-xs">
-                <span className="text-charcoal/60 dark:text-stone-400">Goal</span>
+                <span className="text-muted dark:text-muted">Goal</span>
                 <span className="font-semibold text-charcoal dark:text-stone-200">{stats.goalWeight.toFixed(1)} kg</span>
               </div>
             </div>
@@ -163,7 +163,7 @@ export const GoalProjectionCard: React.FC<GoalProjectionCardProps> = ({ weightAn
 
         {/* Progress Bar */}
         <div>
-          <div className="flex justify-between text-sm text-charcoal/60 dark:text-stone-400 mb-3">
+          <div className="flex justify-between text-sm text-muted dark:text-muted mb-3">
             <span>Overall Progress</span>
             <span className="font-semibold" style={{ color: getTrendColor() }}>
               {percentToGoal.toFixed(1)}%

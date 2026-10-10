@@ -1,121 +1,90 @@
 import React from 'react';
 import { DailySummary, WeightEntry } from '../types';
-import { TrophyIcon } from './TrophyIcon';
 import { StreakFlame } from './StreakFlame';
 
-// --- Sub-components for Bento Grid ---
+// --- Today metric tiles (direction C) ---
+// Each tile is a tint (tile-*) with its metric's *-text colour, a big figure,
+// a caption, an optional mini ring and one quick action.
 
-export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted: number; workoutsGoal: number; history?: DailySummary[]; onAddWorkout: () => void; onClick?: () => void; size?: 'sm' | 'md'; streak?: number }> = ({
-    caloriesBurned, workoutsCompleted, workoutsGoal, history = [], onAddWorkout, onClick, size = 'md', streak = 0
+type TileSize = 'sm' | 'md';
+
+const MiniRing: React.FC<{ percent: number; color: string; label: string }> = ({ percent, color, label }) => {
+    const size = 40;
+    const stroke = 5;
+    const radius = (size - stroke) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const clamped = Math.min(Math.max(percent, 0), 100);
+    return (
+        <svg width={size} height={size} className="shrink-0 -rotate-90" role="img" aria-label={label}>
+            <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} stroke="var(--surface)" />
+            <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                fill="none" strokeWidth={stroke} strokeLinecap="round"
+                stroke={color}
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - clamped / 100)}
+                className="transition-[stroke-dashoffset] duration-1000 ease-out motion-reduce:transition-none"
+            />
+        </svg>
+    );
+};
+
+const QuickAction: React.FC<{ onClick: () => void; children: React.ReactNode; label?: string }> = ({ onClick, children, label }) => (
+    <button
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        aria-label={label}
+        className="min-h-9 px-3 rounded-full bg-surface text-sm font-bold whitespace-nowrap active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+    >
+        {children}
+    </button>
+);
+
+const tileHeight = (size: string) => (size === 'sm' ? 'min-h-[144px]' : 'min-h-[176px]');
+
+export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted: number; workoutsGoal: number; history?: DailySummary[]; onAddWorkout: () => void; onClick?: () => void; size?: TileSize; streak?: number }> = ({
+    caloriesBurned, workoutsCompleted, workoutsGoal, onAddWorkout, onClick, size = 'md', streak = 0
 }) => {
-    // Calculate Streak (Uses prop now)
-    const currentStreak = streak;
-
-    // Inactive if 0 streak AND no activity today? 
-    // Actually, design usually highlights if "Active Today".
-    // Let's keep "Active Today" logic separate from streak.
-    const isActive = caloriesBurned > 0;
-
-    // Design System Tokens
-    const TrophyClass = isActive ? "text-flame drop-shadow-md" : "text-charcoal/10 dark:text-white/5";
-
+    const isActive = workoutsCompleted > 0;
     return (
         <div
             onClick={onClick}
-            className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group ${onClick ? 'cursor-pointer hover:bg-white/5 active:scale-[0.98]' : ''} hover:scale-[1.01] hover:shadow-xl dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}
+            className={`tile tile-workout gap-1 ${tileHeight(size)} ${onClick ? 'cursor-pointer' : ''}`}
         >
-            {/* Gradient Defs */}
-            <svg width="0" height="0" className="absolute">
-                <defs>
-                    <linearGradient id="trophyGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--color-flame)" />
-                        <stop offset="100%" stopColor="var(--color-hearth)" />
-                    </linearGradient>
-                </defs>
-            </svg>
-
-            {/* Header: Standard Bento Grid Header */}
-            <div className="relative z-10 flex justify-between items-start w-full shrink-0">
-                <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Activity</h3>
-                <div className="flex gap-2 items-center">
-                    {/* Compact Header Streak Badge */}
-                    <div className={`flex items-center gap-1 bg-charcoal/5 dark:bg-white/5 px-2 py-1 rounded-full ${isActive ? 'opacity-100' : 'opacity-50'}`}>
-                        <StreakFlame className="w-3 h-3 text-flame" isActive={isActive} />
-                        <span className="font-sans font-bold text-[10px] text-charcoal dark:text-stone-200">
-                            {currentStreak}
-                        </span>
-                    </div>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onAddWorkout(); }}
-                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white/80 dark:hover:bg-white/20 hover:shadow-sm transition-all"
-                    >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                    </button>
-                </div>
+            <div className="flex justify-between items-start gap-2">
+                <h3 className="font-sans text-sm font-semibold text-workout-text">Workouts</h3>
+                {streak > 0 && (
+                    <span className="badge badge-fasting whitespace-nowrap" aria-label={`${streak}-day streak`}>
+                        <StreakFlame className="w-3.5 h-3.5" isActive={isActive} />
+                        {streak} days
+                    </span>
+                )}
             </div>
-
-            {/* Content Body: Trophy & Stats */}
-            <div className="flex flex-row items-center justify-between flex-1 w-full relative z-0">
-                {/* Left: Trophy Case */}
-                <div className={`flex-1 flex items-center justify-center h-full ${size === 'sm' ? '-ml-2' : ''}`}>
-                    <div className={`relative transition-all duration-500 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-50'}`}>
-                        <TrophyIcon className={`w-12 h-12 md:w-28 md:h-28 ${TrophyClass} transition-all duration-500`} />
-                        {/* Glow effect for active state */}
-                        {isActive && (
-                            <div className="absolute inset-0 bg-hearth/20 blur-3xl rounded-full -z-10 animate-pulse"></div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right: Stats & Streak */}
-                <div className="flex flex-col justify-center items-end h-full gap-4 pl-2 z-10">
-
-
-
-                    {/* Main Stats */}
-                    <div className="text-right">
-                        <div className="flex flex-col">
-                            <span className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-4xl md:text-5xl'} text-charcoal dark:text-stone-200 leading-none`}>
-                                {caloriesBurned}
-                            </span>
-                            <span className="font-sans text-[10px] font-bold uppercase tracking-widest text-charcoal/60 dark:text-stone-400 mt-0.5">
-                                Active Kcal
-                            </span>
-                        </div>
-                    </div>
-
-
-                </div>
+            <p className="text-2xl font-display font-extrabold leading-7">
+                {workoutsCompleted}<span className="text-sm font-semibold"> of {workoutsGoal}</span>
+            </p>
+            <p className="text-xs font-semibold">
+                {caloriesBurned > 0 ? `${caloriesBurned} kcal burned` : 'No activity yet'}
+            </p>
+            <div className="mt-auto pt-2">
+                <QuickAction onClick={onAddWorkout}>Log</QuickAction>
             </div>
         </div>
     );
 };
 
-export const FastingCard: React.FC<{ elapsedString: string; startTime: string; progressPercent: number; isFasting: boolean; size?: 'sm' | 'md' }> = ({
-    elapsedString, startTime, isFasting, size = 'md'
+export const FastingCard: React.FC<{ elapsedString: string; startTime: string; progressPercent: number; isFasting: boolean; size?: TileSize }> = ({
+    elapsedString, startTime, progressPercent, isFasting, size = 'md'
 }) => {
     return (
-        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} relative overflow-hidden group hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300`}>
-            <div className="relative z-10 w-full flex justify-between items-start">
-                <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Fasting</h3>
-                {isFasting && (
-                    <div className="flex items-center gap-1.5 bg-hearth/10 dark:bg-hearth/20 px-2 py-1 rounded-full">
-                        <div className="w-1.5 h-1.5 rounded-full bg-hearth animate-pulse"></div>
-                        <span className="text-[10px] font-bold text-hearth">Active</span>
-                    </div>
-                )}
+        <div className={`tile tile-fasting gap-1 ${tileHeight(size)}`}>
+            <div className="flex justify-between items-start gap-2">
+                <h3 className="font-sans text-sm font-semibold text-fasting-text">Fasting</h3>
+                {isFasting && <MiniRing percent={progressPercent} color="var(--fasting)" label={`${Math.round(progressPercent)}% of fasting goal`} />}
             </div>
-
-            <div className="absolute inset-0 z-0 flex flex-col items-center justify-center">
-                <p className={`font-serif ${size === 'sm' ? 'text-3xl' : 'text-5xl'} text-charcoal dark:text-stone-100 transition-colors`}>
-                    {elapsedString}
-                </p>
-                <p className="text-xs font-bold text-charcoal/40 dark:text-stone-500 uppercase tracking-wide mt-1">
-                    {isFasting ? `Started ${startTime}` : 'Eating Window'}
-                </p>
-            </div>
+            <p className="text-2xl font-display font-extrabold leading-7">{elapsedString}</p>
+            <p className="text-xs font-semibold">
+                {isFasting ? `Started ${startTime}` : 'Eating window'}
+            </p>
         </div>
     );
 };
@@ -123,189 +92,97 @@ export const FastingCard: React.FC<{ elapsedString: string; startTime: string; p
 export const CaloriesRemainingCard: React.FC<{
     caloriesRemaining: number;
     caloriesGoal: number;
-    size?: 'sm' | 'md';
+    size?: TileSize;
     onLogFood: () => void;
 }> = ({ caloriesRemaining, caloriesGoal, size = 'md', onLogFood }) => {
-    // Determine color based on remaining
-    // If negative (over limit), show warning color
     const isOver = caloriesRemaining < 0;
-    const absRemaining = Math.abs(caloriesRemaining);
-
-    // Calculate consumed percentage for the glow height
-    // If remaining is 500/2000, consumed is 1500 (75%)
-    // If remaining is -200/2000, consumed is 2200 (110%)
     const consumed = caloriesGoal - caloriesRemaining;
-    const percentConsumed = Math.min(100, (consumed / caloriesGoal) * 100);
+    const percent = caloriesGoal > 0 ? (consumed / caloriesGoal) * 100 : 0;
 
     return (
-        <div className={`glass-card p-4 md:p-6 rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}>
-            {/* Ember Glow Background */}
-            <div
-                className={`absolute bottom-0 left-0 right-0 z-0 transition-all duration-1000 ease-out bg-gradient-to-t ${isOver ? 'from-amber-400/25 via-amber-400/5 to-transparent' : 'from-hearth/30 via-hearth/5 to-transparent'}`}
-                style={{ height: `${percentConsumed}%` }}
-            ></div>
-
-            <div className="relative z-10 flex justify-between items-start">
-                <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">
-                    {isOver ? 'Over Limit' : 'Remaining'}
-                </h3>
-                <div className="flex gap-2">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onLogFood(); }}
-                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-hearth dark:text-hearth/90 hover:bg-white/80 dark:hover:bg-white/20 hover:shadow-sm transition-all"
-                    >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                    </button>
-                </div>
+        <div onClick={onLogFood} className={`tile tile-calories gap-1 cursor-pointer ${tileHeight(size)}`}>
+            <div className="flex justify-between items-start gap-2">
+                <h3 className="font-sans text-sm font-semibold text-calories-text">{isOver ? 'Over today' : 'Calories left'}</h3>
+                <MiniRing percent={percent} color="var(--calories)" label={`${Math.round(percent)}% of calories eaten`} />
             </div>
-
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center pointer-events-none">
-                <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-3xl'} ${isOver ? 'text-amber-700 dark:text-amber-400' : 'text-charcoal dark:text-stone-200'} transition-colors`}>
-                    {absRemaining}
-                    <span className="text-xs font-sans font-normal opacity-40 dark:opacity-60 uppercase ml-1">kcal</span>
-                </p>
-                <p className="text-[10px] font-bold text-charcoal/40 dark:text-stone-500 mt-1">
-                    Goal: {caloriesGoal}
-                </p>
+            <p className={`text-2xl font-display font-extrabold leading-7 ${isOver ? 'text-warning' : ''}`}>
+                {Math.abs(caloriesRemaining)}<span className="text-sm font-semibold"> kcal</span>
+            </p>
+            <p className="text-xs font-semibold">Goal {caloriesGoal}</p>
+            <div className="mt-auto pt-2">
+                <QuickAction onClick={onLogFood}>Log food</QuickAction>
             </div>
-
-            {/* Spacer to maintain flex layout structure if needed, though with absolute center it might not be strictly necessary, 
-                but let's keep the flex behavior consistent or just remove the progress bar as requested. 
-                The Header is at top. Consumed glow is background. Text is centered. 
-                We don't need the bottom bar anymore. */}
         </div>
     );
 };
 
-export const HydrationCard: React.FC<{ liters: number; onAddWater: (amount: number) => void; goal?: number; size?: 'sm' | 'md' }> = ({
-    liters, onAddWater, goal, size = 'md'
+export const HydrationCard: React.FC<{ liters: number; onAddWater: (amount: number) => void; goal?: number; size?: TileSize }> = ({
+    liters, onAddWater, goal = 2.5, size = 'md'
 }) => {
+    const percent = goal > 0 ? (liters / goal) * 100 : 0;
     return (
-        <div className={`relative glass-card rounded-3xl flex flex-col justify-between ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} overflow-hidden group`}>
-            {/* Liquid Fill Background */}
-            <div
-                className="absolute bottom-0 left-0 right-0 bg-ocean/20 dark:bg-ocean/30 transition-all duration-1000 ease-in-out z-0"
-                style={{ height: `${Math.min((liters / (goal || 2.5)) * 100, 100)}%` }}
-            >
-                {/* Wave effect top border */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-ocean/40 to-transparent opacity-50"></div>
+        <div className={`tile tile-water gap-1 ${tileHeight(size)}`}>
+            <div className="flex justify-between items-start gap-2">
+                <h3 className="font-sans text-sm font-semibold text-water-text">Water</h3>
+                <MiniRing percent={percent} color="var(--water)" label={`${Math.round(percent)}% of water goal`} />
             </div>
-
-            <div className={`relative z-10 p-4 md:p-6 flex flex-col justify-between h-full`}>
-                <div className="flex justify-between items-start">
-                    <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Hydration</h3>
-                </div>
-
-                <div className="text-center py-2">
-                    <p className={`font-serif ${size === 'sm' ? 'text-3xl' : 'text-4xl'} text-charcoal dark:text-stone-200`}>{parseFloat(liters.toFixed(2))}<span className="text-2xl opacity-60">L</span></p>
-                </div>
-
-                <div className="flex justify-between text-[10px] font-bold text-charcoal/60 dark:text-stone-400">
-                    <button onClick={() => onAddWater(250)} className="hover:text-ocean transition-colors">+250ml</button>
-                    <button onClick={() => onAddWater(500)} className="hover:text-ocean transition-colors">+500ml</button>
-                </div>
+            <p className="text-2xl font-display font-extrabold leading-7">
+                {parseFloat(liters.toFixed(2))}<span className="text-sm font-semibold"> L</span>
+            </p>
+            <p className="text-xs font-semibold">of {goal} L</p>
+            <div className="mt-auto pt-2 flex gap-1.5">
+                <QuickAction onClick={() => onAddWater(250)} label="Add 250 millilitres">+250 ml</QuickAction>
+                {size !== 'sm' && (
+                    <span className="hidden md:block">
+                        <QuickAction onClick={() => onAddWater(500)} label="Add 500 millilitres">+500 ml</QuickAction>
+                    </span>
+                )}
             </div>
         </div>
     );
 };
 
-export const WeightCard: React.FC<{ weight: number; change: number; history: WeightEntry[]; daysToGoal?: number | null; onAddWeight: () => void; onClick?: () => void; size?: 'sm' | 'md' }> = ({ weight, change, history, daysToGoal, onAddWeight, onClick, size = 'md' }) => {
-    // Sort history by date ascending
-    const sortedHistory = [...history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+export const WeightCard: React.FC<{ weight: number; change: number; history: WeightEntry[]; daysToGoal?: number | null; onAddWeight: () => void; onClick?: () => void; size?: TileSize }> = ({ weight, change, history, daysToGoal, onAddWeight, onClick, size = 'md' }) => {
+    const dataPoints = [...history]
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(-14);
 
-    // Take last 7 days or more if available, ensure at least 2 points
-    const dataPoints = sortedHistory.slice(-14); // Last 14 entries
-
-    // Graph Dimensions
+    // Sparkline
     const WIDTH = 100;
-    const HEIGHT = 40;
-    const PADDING = 5;
-
-    let pathD = "";
-    let endPoint = { x: 0, y: 0 };
-
+    const HEIGHT = 28;
+    const PADDING = 3;
+    let pathD = `M 0 ${HEIGHT / 2} L ${WIDTH} ${HEIGHT / 2}`;
     if (dataPoints.length > 1) {
-        const minWeight = Math.min(...dataPoints.map(d => d.weight)) - 0.5;
-        const maxWeight = Math.max(...dataPoints.map(d => d.weight)) + 0.5;
-        const weightRange = maxWeight - minWeight;
-
-        const points = dataPoints.map((d, index) => {
-            const x = (index / (dataPoints.length - 1)) * WIDTH;
-            const normalizedY = (d.weight - minWeight) / weightRange;
-            const y = HEIGHT - (normalizedY * (HEIGHT - PADDING * 2) + PADDING); // Invert Y
-            return { x, y };
-        });
-
-        // Generate smooth curve (Catmull-Rom or simple line for now)
-        // Using simple quadratic bezier smoothing or just straight lines
-        // For sparkline aesthetic, simple bezier curve is nice
-        pathD = `M ${points[0].x} ${points[0].y}`;
-
-        for (let i = 0; i < points.length - 1; i++) {
-            const midX = (points[i].x + points[i + 1].x) / 2;
-            const midY = (points[i].y + points[i + 1].y) / 2;
-            pathD += ` Q ${points[i].x} ${points[i].y}, ${midX} ${midY}`;
-        }
-        pathD += ` T ${points[points.length - 1].x} ${points[points.length - 1].y}`;
-
-        endPoint = points[points.length - 1];
-
-    } else {
-        // Fallback for single point
-        pathD = `M 0 ${HEIGHT / 2} L ${WIDTH} ${HEIGHT / 2}`;
-        endPoint = { x: WIDTH, y: HEIGHT / 2 };
+        const min = Math.min(...dataPoints.map(d => d.weight)) - 0.5;
+        const max = Math.max(...dataPoints.map(d => d.weight)) + 0.5;
+        const points = dataPoints.map((d, i) => ({
+            x: (i / (dataPoints.length - 1)) * WIDTH,
+            y: HEIGHT - (((d.weight - min) / (max - min)) * (HEIGHT - PADDING * 2) + PADDING)
+        }));
+        pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
     }
 
     return (
-        <div
-            onClick={onClick}
-            className={`glass-card p-4 md:p-6 rounded-3xl ${size === 'sm' ? 'min-h-[160px]' : 'h-56'} group cursor-pointer hover:scale-[1.02] hover:shadow-lg dark:hover:border-white/20 transition-all duration-300 relative overflow-hidden`}
-        >
-            <div className="relative z-10 flex justify-between items-start mb-2">
-                <h3 className="text-[10px] font-black text-charcoal/40 dark:text-stone-400 uppercase tracking-widest">Weight</h3>
-                <div className="flex gap-2 items-center">
-                    <span className={`text-[10px] font-bold ${change <= 0 ? 'text-sage' : 'text-flame'}`}>
-                        {change > 0 ? '+' : ''}{change}/week
-                    </span>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onAddWeight(); }}
-                        className="bg-charcoal/5 dark:bg-white/5 p-1.5 rounded-full text-sage dark:text-sage/90 hover:bg-white/80 dark:hover:bg-white/20 hover:shadow-sm transition-all"
-                    >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeWidth="3" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                    </button>
-                </div>
+        <div onClick={onClick} className={`tile tile-weight gap-1 ${tileHeight(size)} ${onClick ? 'cursor-pointer' : ''}`}>
+            <div className="flex justify-between items-start gap-2">
+                <h3 className="font-sans text-sm font-semibold text-weight-text">Weight</h3>
+                <span className="text-xs font-semibold">
+                    {change > 0 ? '+' : ''}{change} kg/week
+                </span>
             </div>
-
-            <div className="absolute inset-0 z-0 flex flex-col items-center justify-center text-center">
-                <p className={`font-serif ${size === 'sm' ? 'text-2xl' : 'text-3xl'} text-charcoal dark:text-stone-200`}>{weight} <span className="text-xs font-sans font-normal opacity-40 dark:opacity-60 uppercase">kg</span></p>
-                {daysToGoal !== undefined && daysToGoal !== null ? (
-                    <p className="text-[10px] font-bold text-sage mt-0.5">{daysToGoal} days to goal</p>
-                ) : null}
-            </div>
-
-            <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-80 pointer-events-none">
-                <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
-                    {/* Gradient Definition */}
-                    <defs>
-                        <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="var(--color-sage)" stopOpacity="0.4" />
-                            <stop offset="100%" stopColor="var(--color-sage)" stopOpacity="0" />
-                        </linearGradient>
-                    </defs>
-
-                    {/* Fill Area (Path + bottom lines for closing) */}
-                    <path d={`${pathD} V ${HEIGHT} H 0 Z`} fill="url(#weightGrad)" stroke="none" />
-
-                    {/* The Line */}
-                    <path d={pathD} fill="none" stroke="var(--color-sage)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-
-                    {/* Endpoint Dot */}
-                    <circle cx={endPoint.x} cy={endPoint.y} r="2" fill="var(--color-sage)" className="animate-pulse" />
+            <p className="text-2xl font-display font-extrabold leading-7">
+                {weight}<span className="text-sm font-semibold"> kg</span>
+            </p>
+            <p className="text-xs font-semibold">
+                {daysToGoal !== undefined && daysToGoal !== null ? `${daysToGoal} days to goal` : 'Keep logging to see a trend'}
+            </p>
+            {size !== 'sm' && (
+                <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-7 mt-1" preserveAspectRatio="none" aria-hidden="true">
+                    <path d={pathD} fill="none" stroke="var(--weight)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </svg>
+            )}
+            <div className="mt-auto pt-2">
+                <QuickAction onClick={onAddWeight}>Update</QuickAction>
             </div>
         </div>
     );

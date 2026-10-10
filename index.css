@@ -11,18 +11,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Nunito', sans-serif;
-  --font-serif: 'Merriweather', serif;
+  /* Direction C ("bright and modern"): Figtree for body and UI text, Nunito
+     (font-display) for titles, headings and big figures. font-serif is kept
+     as an alias of the display face so older heading markup still works. */
+  --font-sans: 'Figtree', system-ui, sans-serif;
+  --font-display: 'Nunito', system-ui, sans-serif;
+  --font-serif: var(--font-display);
 
   /* ============================================
-     VESTA "DIGITAL HEARTH" PALETTE
-     Matches warmth1.html mockup
+     VESTA PALETTE (direction C)
+     Spec: the Vesta design system artifact.
+     charcoal is now Ink and stone the warm canvas; both keep their
+     names so existing utilities follow the new values.
      ============================================ */
 
   --color-hearth: #E07A5F;
-  --color-stone: #F4F1DE;
+  --color-stone: #FBF8F3;
   --color-flame: #F2CC8F;
-  --color-charcoal: #3D405B;
+  --color-charcoal: #1F2430;
   --color-sage: #81B29A;
   --color-ocean: #7BAEBC;
 
@@ -105,8 +111,8 @@
   --color-rose-900: #4E2E2E;
 
   /* stone */
-  --color-stone-50: #F4F1DE;
-  --color-stone-100: #EAE6D3;
+  --color-stone-50: #FBF8F3;
+  --color-stone-100: #F3EEE6;
   --color-stone-200: #DCD7C3;
   --color-stone-300: #C5BFAA;
   --color-stone-400: #A8A190;
@@ -117,12 +123,14 @@
   --color-stone-900: #24211C;
 
   /* ============================================
-     SEMANTIC TOKENS
+     SEMANTIC TOKENS (values per theme in @layer base below)
      ============================================ */
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
   --color-border: var(--border);
   --color-border-muted: var(--border-muted);
+  --color-border-control: var(--border-control);
   --color-main: var(--text-main);
   --color-muted: var(--text-muted);
 
@@ -136,17 +144,35 @@
   --color-secondary-hover: var(--secondary-hover);
   --color-secondary-light: var(--secondary-light);
 
+  /* Ink: the primary button and nav bar fill; flips to cream in dark mode */
+  --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
+  --color-on-ink-muted: var(--on-ink-muted);
+
+  /* Metrics: mark (rings, charts) + -bg (tile, track) + -text (text on tile) */
   --color-calories: var(--calories);
   --color-calories-bg: var(--calories-bg);
+  --color-calories-text: var(--calories-text);
   --color-calories-border: var(--calories-border);
+
+  --color-water: var(--water);
+  --color-water-bg: var(--water-bg);
+  --color-water-text: var(--water-text);
+  --color-water-border: var(--water-border);
 
   --color-weight: var(--weight);
   --color-weight-bg: var(--weight-bg);
+  --color-weight-text: var(--weight-text);
   --color-weight-border: var(--weight-border);
 
   --color-workout: var(--workout);
   --color-workout-bg: var(--workout-bg);
+  --color-workout-text: var(--workout-text);
   --color-workout-border: var(--workout-border);
+
+  --color-fasting: var(--fasting);
+  --color-fasting-bg: var(--fasting-bg);
+  --color-fasting-text: var(--fasting-text);
 
   --color-error: var(--error);
   --color-error-bg: var(--error-bg);
@@ -156,22 +182,18 @@
   --color-warning-bg: var(--warning-bg);
   --color-warning-border: var(--warning-border);
 
-  --color-water: var(--water);
-  --color-water-bg: var(--water-bg);
-  --color-water-border: var(--water-border);
-
-  /* Chart Colors - Use semantic colors */
+  /* Chart order: calories, water, weight, workouts, fasting */
   --chart-1: var(--calories);
-  --chart-2: var(--weight);
-  --chart-3: var(--secondary);
-  --chart-4: var(--warning);
-  --chart-5: var(--workout);
+  --chart-2: var(--water);
+  --chart-3: var(--weight);
+  --chart-4: var(--workout);
+  --chart-5: var(--fasting);
 
-  /* Ceramic Shadows */
-  --shadow-ceramic-sm: 0 1px 3px hsla(25, 40%, 30%, 0.06);
-  --shadow-ceramic-md: 0 4px 12px hsla(25, 40%, 25%, 0.08);
-  --shadow-ceramic-lg: 0 10px 30px hsla(25, 40%, 20%, 0.12);
-
+  /* Elevation: flat by default; shadows only lift floating things.
+     The ceramic names are kept as aliases for existing utilities. */
+  --shadow-ceramic-sm: var(--elev-sm);
+  --shadow-ceramic-md: var(--elev-sm);
+  --shadow-ceramic-lg: var(--elev-md);
   /* Animations */
   --animate-fade-in: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-slide-up: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -237,383 +259,302 @@
     }
   }
 
-  /* Custom Utilities from Mockup */
-  --shadow-soft: 0 10px 25px -5px rgba(61, 64, 91, 0.05),
-  0 8px 10px -6px rgba(61, 64, 91, 0.05);
-  --shadow-inner-soft: inset 0 2px 4px 0 rgba(61, 64, 91, 0.06);
-  --radius-3xl: 2rem;
+  /* Large card radius: one value for all cards (direction C) */
+  --radius-3xl: 1.125rem;
+  --shadow-soft: var(--elev-sm);
 }
 
 @layer base {
   :root {
-    /* ============================================
-       VESTA BRAND PALETTE - "Warm Ceramic"
-       Per brand_guidelines.md
-       ============================================ */
+    /* Direction C, light. Contrast ratios are on `background` unless noted. */
+    --background: #FBF8F3;
+    --surface: #FFFDF9;
+    --surface-sunken: #F3EEE6;
+    --card-bg: #FFFDF9;
+    --input-bg: #FFFDF9;
 
-    /* ============================================
-       SEMANTIC TOKENS (Light Mode)
-       Based on warmth1.html
-       ============================================ */
+    --text-main: #1F2430;          /* 14.65:1 */
+    --text-muted: #5D6270;         /* 5.75:1 */
+    --text-secondary: var(--text-muted);
 
-    /* Backgrounds */
-    --background: var(--color-stone);
-    /* #F4F1DE */
-    --surface: rgba(255, 255, 255, 0.6);
-    /* slightly transparent white */
-    --card-bg: rgba(255, 255, 255, 0.4);
-    /* Glass effect base */
+    --border: #ECE6DC;             /* decorative hairline */
+    --border-muted: #F1ECE4;
+    --border-control: #8E8A84;     /* 3.38:1 on surface: inputs, outlined controls */
 
-    /* Text */
-    --text-main: var(--color-charcoal);
-    /* #3D405B */
-    --text-muted: rgba(61, 64, 91, 0.6);
-    /* Charcoal with opacity */
+    --primary: #B94E36;            /* the one bold colour; on-primary 4.75:1 */
+    --primary-foreground: #FFF8F2;
+    --primary-hover: #A24430;
+    --primary-light: #F8E4DC;
 
-    /* Brand Colors */
-    --primary: var(--color-hearth);
-    /* #E07A5F */
-    --primary-foreground: #FFFFFF;
-    --secondary: var(--color-sage);
-    /* #81B29A */
+    --secondary: #467560;          /* 5.2:1 with secondary-foreground */
+    --secondary-foreground: #FFFDF9;
+    --secondary-hover: #3F6B54;
+    --secondary-light: #E2EEE6;
 
-    /* Semantic Colors */
-    --calories: var(--color-hearth);
-    --water: var(--color-ocean);
-    /* #7BAEBC */
-    --fasting: var(--color-flame);
-    /* #F2CC8F */
-    --weight: var(--color-sage);
-    --workout: var(--color-charcoal);
-    /* Explicitly define RGBA values for Light Mode Tints */
-    --calories-bg: rgba(224, 122, 95, 0.1);
-    /* Hearth/Terracotta tint */
-    --workout-bg: rgba(61, 64, 91, 0.08);
-    /* Charcoal tint (Plan items) */
-    --water-bg: rgba(123, 174, 188, 0.15);
-    /* Ocean tint */
-    --weight-bg: rgba(129, 178, 154, 0.15);
-    /* Sage tint */
-    --warning-bg: rgba(242, 204, 143, 0.15);
-    /* Amber/Flame tint */
-    --error-bg: rgba(224, 122, 95, 0.1);
-    /* Rose/Hearth tint */
+    --ink: #1F2430;
+    --on-ink: #FBF8F3;
+    --on-ink-muted: #9CA0AB;       /* 5.93:1 on ink */
+    --focus-ring: #1F2430;
 
-    --error: var(--color-rose-600);
-    --warning: var(--color-amber-700);
+    --calories: #C9573D;
+    --calories-bg: #F8E4DC;
+    --calories-text: #8D3E2B;      /* 5.99:1 on calories-bg */
+    --calories-border: rgba(201, 87, 61, 0.3);
 
-    --primary-hover: var(--color-terracotta-600);
-    --primary-light: var(--color-terracotta-100);
-    --secondary-foreground: #FFFFFF;
-    --secondary-hover: var(--color-sage-600);
-    --secondary-light: var(--color-sage-100);
+    --water: #4F8E9E;
+    --water-bg: #E3EFF1;
+    --water-text: #2C5560;         /* 6.94:1 */
+    --water-border: rgba(79, 142, 158, 0.3);
 
-    --border-muted: rgba(61, 64, 91, 0.05);
-    --calories-border: rgba(224, 122, 95, 0.3);
-    --weight-border: rgba(129, 178, 154, 0.35);
-    --workout-border: rgba(61, 64, 91, 0.15);
-    --water-border: rgba(123, 174, 188, 0.35);
-    --warning-border: rgba(210, 154, 76, 0.35);
-    --error-border: rgba(201, 101, 107, 0.3);
+    --weight: #5E9478;
+    --weight-bg: #E2EEE6;
+    --weight-text: #355A45;        /* 6.52:1 */
+    --weight-border: rgba(94, 148, 120, 0.3);
 
-    --border: rgba(61, 64, 91, 0.1);
-    --input-bg: rgba(255, 255, 255, 0.7);
+    --workout: #8E6C8A;
+    --workout-bg: #ECE6EE;
+    --workout-text: #5D4858;       /* 6.76:1 */
+    --workout-border: rgba(142, 108, 138, 0.3);
+
+    --fasting: #9E7420;
+    --fasting-bg: #F8EBD3;
+    --fasting-text: #7A5520;       /* 5.66:1 */
+
+    --warning: var(--color-amber-700);   /* 5.17:1 */
+    --warning-bg: var(--color-amber-50);
+    --warning-border: rgba(133, 99, 52, 0.3);
+    --error: var(--color-rose-600);      /* 4.87:1 */
+    --error-bg: var(--color-rose-50);
+    --error-border: rgba(166, 85, 90, 0.3);
+
+    --elev-sm: 0 1px 2px rgba(31, 36, 48, 0.06);
+    --elev-md: 0 8px 24px -8px rgba(31, 36, 48, 0.14);
+    --elev-lg: 0 24px 48px -12px rgba(31, 36, 48, 0.22);
   }
 
   .dark {
-    /* "Evening Firelight" Mode (Adaptive) */
-    --background: #1A1714;
-    /* Deep charcoal brown */
-    --surface: rgba(255, 255, 255, 0.05);
-    --card-bg: rgba(255, 255, 255, 0.08);
-    --border: rgba(255, 255, 255, 0.1);
-    --input-bg: rgba(255, 255, 255, 0.05);
+    /* Direction C, dark: designed, not inverted. */
+    --background: #17181D;
+    --surface: #21232B;
+    --surface-sunken: #1C1D23;
+    --card-bg: #21232B;
+    --input-bg: #1C1D23;
 
-    --calories-bg: rgba(224, 122, 95, 0.15);
-    --workout-bg: rgba(244, 241, 222, 0.1);
-    /* Stone/Charcoal tint */
-    --water-bg: rgba(123, 174, 188, 0.15);
-    --weight-bg: rgba(129, 178, 154, 0.15);
-    --warning-bg: rgba(242, 204, 143, 0.15);
-    --error-bg: rgba(224, 122, 95, 0.15);
-    /* Using Hearth/Rose */
+    --text-main: #F3EFE8;          /* 15.46:1 */
+    --text-muted: #A3A7B3;         /* 7.37:1 */
 
-    --text-main: var(--color-stone);
-    --text-muted: rgba(244, 241, 222, 0.6);
+    --border: #2F323C;
+    --border-muted: #282A33;
+    --border-control: #6B6F7A;     /* 3.12:1 on surface */
 
-    --error: var(--color-rose-400);
-    --warning: var(--color-amber-400);
+    --primary: #E07A5F;
+    --primary-foreground: #17181D; /* 6.01:1 */
+    --primary-hover: #E79A85;
+    --primary-light: #3A241D;
 
-    --primary-hover: var(--color-terracotta-400);
-    --primary-light: rgba(224, 122, 95, 0.15);
-    --secondary-foreground: #1A1714;
-    --secondary-hover: var(--color-sage-400);
-    --secondary-light: rgba(129, 178, 154, 0.15);
+    --secondary: #81B29A;
+    --secondary-foreground: #17181D;
+    --secondary-hover: #A0C4B1;
+    --secondary-light: #1F3229;
 
-    --border-muted: rgba(255, 255, 255, 0.05);
+    --ink: #F3EFE8;
+    --on-ink: #17181D;
+    --on-ink-muted: #5D6270;       /* 5.32:1 on ink */
+    --focus-ring: #F3EFE8;
+
+    --calories: #E07A5F;
+    --calories-bg: #3A241D;
+    --calories-text: #F0B4A2;
     --calories-border: rgba(224, 122, 95, 0.3);
-    --weight-border: rgba(129, 178, 154, 0.3);
-    --workout-border: rgba(244, 241, 222, 0.15);
-    --water-border: rgba(123, 174, 188, 0.3);
-    --warning-border: rgba(210, 154, 76, 0.3);
-    --error-border: rgba(201, 101, 107, 0.3);
 
-    --color-charcoal: #F4F1DE;
-    /* Invert charcoal to stone for text in dark mode context */
+    --water: #7BAEBC;
+    --water-bg: #1E3237;
+    --water-text: #A9D2DB;
+    --water-border: rgba(123, 174, 188, 0.3);
+
+    --weight: #81B29A;
+    --weight-bg: #1F3229;
+    --weight-text: #A8D1B9;
+    --weight-border: rgba(129, 178, 154, 0.3);
+
+    --workout: #AA90A5;
+    --workout-bg: #2F2530;
+    --workout-text: #D7BDD3;
+    --workout-border: rgba(170, 144, 165, 0.3);
+
+    --fasting: #F2CC8F;
+    --fasting-bg: #382D1A;
+    --fasting-text: #EFCB86;
+
+    --warning: var(--color-amber-400);
+    --warning-bg: #33291A;
+    --warning-border: rgba(221, 178, 119, 0.3);
+    --error: var(--color-rose-400);
+    --error-bg: #3A2224;
+    --error-border: rgba(214, 139, 142, 0.3);
+
+    --elev-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --elev-md: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+    --elev-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+
+    /* Existing text-charcoal utilities read as cream text in dark mode */
+    --color-charcoal: #F3EFE8;
   }
 
   body {
     background-color: var(--background);
     color: var(--text-main);
-    @apply antialiased selection:bg-primary/20 selection:text-primary transition-colors duration-300;
+    font-variant-numeric: tabular-nums;
+    @apply antialiased selection:bg-primary/20 selection:text-main transition-colors duration-300;
   }
 
-  /* Reset generic elements for consistency */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply font-serif text-main tracking-tight;
+    @apply font-display font-extrabold text-main tracking-tight;
   }
 }
 
 @layer utilities {
 
-  /* Hand-Drawn / Organic Radius - Mimics hand-molded clay */
-  .rounded-organic-xs {
-    border-radius: 6px 8px 5px 7px / 7px 6px 8px 5px;
-  }
+  /* Corners: one scale. The organic names are kept as aliases. */
+  .rounded-organic-xs { border-radius: 8px; }
+  .rounded-organic-sm { border-radius: 14px; }
+  .rounded-organic-md { border-radius: 18px; }
 
-  .rounded-organic-sm {
-    border-radius: 12px 15px 11px 13px / 13px 12px 14px 11px;
-  }
-
-  .rounded-organic-md {
-    border-radius: 20px 23px 18px 21px / 21px 19px 22px 20px;
-  }
-
-  /* Glass Effect from Mockup */
+  /* Formerly frosted glass; now a solid card surface */
   .glass-card {
-    background: var(--card-bg);
-    /* Default, but overridable */
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    @apply shadow-soft;
+    background: var(--surface);
+    border: 1px solid var(--border);
   }
 
-  .dark .glass-card {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
+  .premium-shadow { box-shadow: var(--elev-sm); }
+  .premium-shadow-hover { @apply transition-shadow duration-150; }
+  .premium-shadow-hover:hover { box-shadow: var(--elev-md); }
 
-  /* Hand-Drawn / Organic Radius - Mimics hand-molded clay */
-
-  /* Ceramic shadows - warm tinted */
-  .premium-shadow {
-    box-shadow: var(--shadow-ceramic-md);
-  }
-
-  .premium-shadow-hover {
-    @apply transition-shadow duration-300;
-  }
-
-  .premium-shadow-hover:hover {
-    box-shadow: var(--shadow-ceramic-lg);
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 
   /* ============================================
-     DESIGN SYSTEM UTILITIES
+     DESIGN SYSTEM CLASSES (direction C)
      ============================================ */
 
-  /* --- BUTTONS (Ceramic "Soft Edge" Style) --- */
-  .btn-base {
-    @apply px-6 py-3 font-bold transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-2 border border-transparent;
-    border-radius: 12px 15px 11px 13px / 13px 12px 14px 11px;
+  /* --- BUTTONS: pills. Primary is ink; accent is Hearth for brand moments. --- */
+  .btn-base, .btn-primary, .btn-accent, .btn-secondary, .btn-ghost, .btn-disabled {
+    @apply inline-flex items-center justify-center gap-2 min-h-11 px-6 py-2.5 font-bold rounded-full border border-transparent transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
+  }
+  .btn-primary { background: var(--ink); color: var(--on-ink); }
+  .btn-primary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--background)); }
+  .btn-accent { background: var(--primary); color: var(--primary-foreground); }
+  .btn-accent:hover { background: var(--primary-hover); }
+  .btn-secondary { background: var(--surface); color: var(--text-main); border-color: var(--border-control); }
+  .btn-secondary:hover { background: var(--surface-sunken); }
+  .btn-ghost { background: transparent; color: var(--text-main); }
+  .btn-ghost:hover { background: var(--surface-sunken); }
+  .btn-disabled, .btn-primary:disabled, .btn-accent:disabled, .btn-secondary:disabled {
+    background: var(--surface-sunken);
+    color: var(--text-muted);
+    border-color: var(--border);
+    cursor: not-allowed;
+  }
+  .btn-sm { @apply min-h-9 px-4 py-1.5 text-sm; }
+  .btn-lg { @apply px-8 py-3.5 text-lg; }
+  .btn-block { @apply flex w-full; }
+
+  .icon-btn {
+    @apply inline-flex items-center justify-center size-11 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-main);
+  }
+  .icon-btn:hover { background: var(--surface-sunken); }
+
+  /* --- SURFACES --- */
+  .card, .card-hover {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+  }
+  .card-hover { @apply transition-[box-shadow,transform] duration-150; }
+  .card-hover:hover { box-shadow: var(--elev-sm); transform: translateY(-1px); }
+  .card-padding { @apply p-4 md:p-6; }
+  .card-padding-sm { @apply p-3 md:p-4; }
+  .card-padding-lg { @apply p-6 md:p-8; }
+
+  /* The one bold block per screen */
+  .hero {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-radius: 18px;
   }
 
-  .btn-primary {
-    @apply px-6 py-3 font-bold transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary shadow-sm border border-transparent;
-    border-radius: 12px 15px 11px 13px / 13px 12px 14px 11px;
-  }
+  /* Metric tiles: tint fill + tint text, no border */
+  .tile { @apply flex flex-col rounded-[14px] p-4; }
+  .tile-calories { background: var(--calories-bg); color: var(--calories-text); }
+  .tile-water { background: var(--water-bg); color: var(--water-text); }
+  .tile-weight { background: var(--weight-bg); color: var(--weight-text); }
+  .tile-workout { background: var(--workout-bg); color: var(--workout-text); }
+  .tile-fasting { background: var(--fasting-bg); color: var(--fasting-text); }
+  .tile-neutral { background: var(--surface-sunken); color: var(--text-main); }
 
-  .btn-secondary {
-    @apply px-6 py-3 font-bold transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-2 bg-transparent text-main border border-border hover:bg-[var(--surface)] hover:border-primary/30 focus:ring-primary shadow-sm hover:shadow-md;
-    border-radius: 12px 15px 11px 13px / 13px 12px 14px 11px;
+  /* --- BADGES: sentence case on a tint --- */
+  .badge, .badge-sm, .badge-md, .badge-lg {
+    @apply inline-flex items-center gap-1 font-semibold rounded-lg;
   }
+  .badge, .badge-sm, .badge-md { @apply px-2 py-0.5 text-xs; }
+  .badge-lg { @apply px-3 py-1 text-sm; }
 
-  .btn-ghost {
-    @apply px-6 py-3 font-bold transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-2 bg-transparent text-main hover:bg-background/50 focus:ring-primary border border-transparent;
-    border-radius: 12px 15px 11px 13px / 13px 12px 14px 11px;
-  }
-
-  .btn-disabled {
-    @apply px-6 py-3 font-bold bg-border text-muted cursor-not-allowed opacity-50;
-    border-radius: 12px 15px 11px 13px / 13px 12px 14px 11px;
-  }
-
-  .btn-sm {
-    @apply px-4 py-2 text-sm;
-  }
-
-  .btn-lg {
-    @apply px-8 py-4 text-lg;
-  }
-
-  /* --- CARDS --- */
-  .card {
-    @apply bg-[var(--card-bg)] border border-border/50 shadow-sm;
-    border-radius: 20px 23px 18px 21px / 21px 19px 22px 20px;
-  }
-
-  .card-hover {
-    @apply bg-[var(--card-bg)] border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-200;
-    border-radius: 20px 23px 18px 21px / 21px 19px 22px 20px;
-  }
-
-  .card-padding {
-    @apply p-4 md:p-6;
-  }
-
-  .card-padding-sm {
-    @apply p-3 md:p-4;
-  }
-
-  .card-padding-lg {
-    @apply p-6 md:p-8;
-  }
-
-  /* --- BADGES (Ceramic Style) --- */
-  /* Per brand guidelines: rounded-organic-xs */
-  .badge-sm {
-    @apply inline-flex items-center font-bold uppercase tracking-wide px-2 py-0.5 text-[10px] md:text-xs border;
-    border-radius: 6px 8px 5px 7px / 7px 6px 8px 5px;
-  }
-
-  .badge-md {
-    @apply inline-flex items-center font-bold uppercase tracking-wide px-2.5 md:px-3 py-0.5 md:py-1 text-[10px] md:text-xs border;
-    border-radius: 6px 8px 5px 7px / 7px 6px 8px 5px;
-  }
-
-  .badge-lg {
-    @apply inline-flex items-center font-bold uppercase tracking-wide px-3 md:px-4 py-1 md:py-1.5 text-xs md:text-sm border;
-    border-radius: 6px 8px 5px 7px / 7px 6px 8px 5px;
-  }
-
-  /* Badge color variants - Using CSS vars for brand colors */
-  .badge-terracotta {
-    background-color: hsl(16, 60%, 95%, 0.5);
-    color: var(--color-terracotta-700);
-    border-color: var(--color-terracotta-200);
-  }
-
-  .dark .badge-terracotta {
-    background-color: hsl(16, 65%, 15%, 0.3);
-    color: var(--color-terracotta-300);
-    border-color: var(--color-terracotta-800);
-  }
-
-  .badge-sage {
-    background-color: hsl(100, 25%, 92%, 0.5);
-    color: var(--color-sage-700);
-    border-color: var(--color-sage-200);
-  }
-
-  .dark .badge-sage {
-    background-color: hsl(100, 28%, 22%, 0.3);
-    color: var(--color-sage-300);
-    border-color: var(--color-sage-700);
-  }
-
-  .badge-plum {
-    background-color: hsl(330, 18%, 92%, 0.5);
-    color: var(--color-plum-600);
-    border-color: var(--color-plum-100);
-  }
-
-  .dark .badge-plum {
-    background-color: hsl(330, 18%, 25%, 0.3);
-    color: var(--color-plum-400);
-    border-color: var(--color-plum-800);
-  }
-
-  .badge-teal {
-    background-color: hsl(180, 28%, 92%, 0.5);
-    color: var(--color-sage-700);
-    border-color: var(--color-sage-100);
-  }
-
-  .dark .badge-teal {
-    background-color: hsl(180, 30%, 22%, 0.3);
-    color: var(--color-sage-400);
-    border-color: var(--color-sage-800);
-  }
-
-  .badge-stone {
-    background-color: hsl(32, 30%, 87%, 0.5);
-    color: var(--color-stone-700);
-    border-color: var(--color-stone-200);
-  }
-
-  .dark .badge-stone {
-    background-color: hsl(30, 20%, 25%, 0.3);
-    color: var(--color-stone-300);
-    border-color: var(--color-stone-700);
-  }
+  .badge-calories, .badge-terracotta { background: var(--calories-bg); color: var(--calories-text); }
+  .badge-water, .badge-teal { background: var(--water-bg); color: var(--water-text); }
+  .badge-weight, .badge-sage { background: var(--weight-bg); color: var(--weight-text); }
+  .badge-workout, .badge-plum { background: var(--workout-bg); color: var(--workout-text); }
+  .badge-fasting, .badge-amber { background: var(--fasting-bg); color: var(--fasting-text); }
+  .badge-warning { background: var(--warning-bg); color: var(--warning); }
+  .badge-neutral, .badge-stone { background: var(--surface-sunken); color: var(--text-muted); }
+  .badge-ink { background: var(--ink); color: var(--on-ink); }
+  [class*="badge-"] { border-color: transparent; }
 
   /* --- INPUTS --- */
   .input {
-    @apply px-4 py-3 bg-[var(--input-bg)] border border-border rounded-xl text-main placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary transition-all;
+    @apply min-h-11 px-4 py-2.5 rounded-[14px] border focus:outline-2 focus:outline-offset-1 focus:outline-[var(--focus-ring)];
+    background: var(--surface);
+    border-color: var(--border-control);
+    color: var(--text-main);
   }
+  .input::placeholder { color: var(--text-muted); }
+  .input-error { border-color: var(--error); }
 
-  .input-error {
-    @apply border-error focus:ring-error;
+  /* --- HEADINGS --- */
+  .heading-1 { @apply font-display text-[32px] leading-9 font-extrabold text-main tracking-tight; }
+  .heading-2 { @apply font-display text-[22px] leading-7 font-extrabold text-main tracking-tight; }
+  .heading-3 { @apply font-display text-[17px] leading-6 font-bold text-main; }
+  .heading-4 { @apply font-display text-base font-bold text-main; }
+
+  .section-header { @apply mb-4 md:mb-6; }
+  .section-title { @apply font-display text-[22px] leading-7 font-extrabold text-main tracking-tight mb-1; }
+  .section-description { @apply text-muted; }
+
+  /* --- NAV --- */
+  .nav-bar {
+    @apply flex justify-around items-center p-1 rounded-full;
+    background: var(--ink);
+    box-shadow: var(--elev-md);
   }
-
-  /* --- HEADINGS (Responsive) --- */
-  .heading-1 {
-    @apply text-2xl md:text-3xl lg:text-4xl font-serif font-normal text-main tracking-tight;
+  .nav-item {
+    @apply flex items-center justify-center w-13 h-11 rounded-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
+    color: var(--on-ink-muted);
+    outline-color: var(--on-ink);
   }
-
-  .heading-2 {
-    @apply text-xl md:text-2xl lg:text-3xl font-serif font-normal text-main tracking-tight;
-  }
-
-  .heading-3 {
-    @apply text-lg md:text-xl font-serif font-normal text-main tracking-tight;
-  }
-
-  .heading-4 {
-    @apply text-base md:text-lg font-semibold text-main;
-  }
-
-  /* --- SECTION CONTAINERS --- */
-  .section-header {
-    @apply mb-4 md:mb-6;
-  }
-
-  .section-title {
-    @apply text-xl md:text-2xl lg:text-3xl font-serif font-normal text-main tracking-tight mb-1;
+  .nav-item[aria-current="page"] {
+    color: var(--on-ink);
+    background: color-mix(in srgb, var(--on-ink) 14%, transparent);
   }
 
   /* --- MOBILE TOUCH TARGETS --- */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  .touch-target-sm {
-    min-height: 36px;
-    min-width: 36px;
-  }
-
-  .section-description {
-    @apply text-muted font-medium;
-  }
+  .touch-target { min-height: 44px; min-width: 44px; }
+  .touch-target-sm { min-height: 36px; min-width: 36px; }
 }
 
 /* Custom Scrollbar */
@@ -641,11 +582,12 @@
 }
 
 @layer utilities {
+  /* Direction C has no gradients or glows; these resolve to flat equivalents */
   .sunrise-gradient {
-    background: linear-gradient(135deg, var(--color-hearth) 0%, var(--color-flame) 100%);
+    background: var(--primary);
   }
 
   .hearth-glow {
-    filter: drop-shadow(0 0 15px rgba(224, 122, 95, 0.4));
+    filter: none;
   }
 }

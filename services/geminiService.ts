@@ -88,6 +88,34 @@ const recipeSchema: Schema = {
   required: ['name', 'calories', 'ingredients']
 };
 
+/** Returns the URL when the import input is a link rather than pasted recipe text. */
+export const getRecipeUrl = (input: string): string | null => {
+  const match = input.trim().match(/^https?:\/\/\S+/);
+  return match ? match[0] : null;
+};
+
+// The browser cannot fetch recipe sites directly (no CORS headers), so Gemini's
+// urlContext tool reads the page and copies the recipe out as plain text.
+// Without this step the model only sees the URL and invents a recipe from the slug.
+export const fetchRecipeFromUrl = async (url: string): Promise<string> => {
+  if (!apiKey) throw new Error("API Key not found");
+
+  const response = await generateWithFallback({
+    model: getModel(),
+    contents: `Read the recipe at ${url}. Copy it out verbatim as plain text, in its original language: title, number of servings/portions, any nutrition values stated on the page (and whether they are per portion), the full ingredient list with quantities, and every instruction step. Do not add, translate, scale or invent anything. If you cannot read the page or it contains no recipe, reply exactly FETCH_FAILED.`,
+    config: { tools: [{ urlContext: {} }] }
+  });
+
+  const retrieved = response.candidates?.[0]?.urlContextMetadata?.urlMetadata?.some(
+    m => m.urlRetrievalStatus === 'URL_RETRIEVAL_STATUS_SUCCESS'
+  );
+  const text = response.text?.trim();
+  if (!retrieved || !text || text.includes('FETCH_FAILED')) {
+    throw new Error("Could not read a recipe from that link. Try pasting the recipe text instead.");
+  }
+  return text;
+};
+
 export const parseRecipeText = async (text: string, attempt = 1): Promise<Partial<Recipe>> => {
   if (!apiKey) throw new Error("API Key not found");
 
@@ -103,18 +131,18 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
        - Keep ingredient text clean and readable
        - Preserve quantities and measurements exactly as written
 
-    2. NUTRITIONAL ESTIMATION (if not provided):
-       - Calories: Estimate based on ingredients and portion size
-       - Protein: Calculate from protein sources (meat, fish, eggs, dairy, legumes)
-       - Fat: Calculate from oils, butter, cheese, nuts, fatty meats
-       - Carbs: Calculate from grains, fruits, starchy vegetables, sugars
-       - For context: Most meals should be 200-400 calories per serving to support health goals
-       - Be accurate and conservative - underestimate rather than overestimate
+    2. NUTRITION:
+       - If the text states calories or macros per serving/portion, use those values exactly. Do not adjust them.
+       - Only estimate values that are missing:
+         - Calories: Estimate based on ingredients and portion size
+         - Protein: Calculate from protein sources (meat, fish, eggs, dairy, legumes)
+         - Fat: Calculate from oils, butter, cheese, nuts, fatty meats
+         - Carbs: Calculate from grains, fruits, starchy vegetables, sugars
+       - Estimated macros should satisfy (protein × 4) + (carbs × 4) + (fat × 9) ≈ total calories
 
-    3. MACRONUTRIENT ACCURACY:
-       - If macros are partially provided, ensure they're consistent with calories
-       - Verify: (protein × 4) + (carbs × 4) + (fat × 9) ≈ total calories
-       - If macros don't match calories, recalculate them
+    3. LANGUAGE AND FIDELITY:
+       - Keep the recipe in its original language. Do not translate the name, ingredients or instructions.
+       - Use only ingredients and steps that appear in the text. Never invent or substitute any.
 
     4. TAGS SELECTION:
        Meal type (choose one): breakfast, main meal, snack, light meal

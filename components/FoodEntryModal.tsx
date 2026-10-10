@@ -91,16 +91,16 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm px-4 py-4 animate-fade-in"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 px-4 py-4 animate-fade-in"
         onClick={handleClose}
       >
         <div
-          className="bg-[var(--background)] w-full max-w-lg rounded-3xl border border-border shadow-2xl overflow-hidden backdrop-blur-md"
+          className="bg-[var(--background)] w-full max-w-lg rounded-3xl border border-border shadow-2xl overflow-hidden"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
           <div className="p-6 md:p-8 border-b border-border flex justify-between items-center bg-transparent">
-            <h3 className="font-normal text-2xl md:text-3xl text-hearth font-serif">Log Food</h3>
+            <h3 className="text-2xl md:text-3xl text-primary font-display font-extrabold">Log Food</h3>
             <button
               onClick={handleClose}
               disabled={isAnalyzing || isAnalyzingImage}
@@ -119,7 +119,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
             <button
               onClick={() => setTab('ai')}
               className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${tab === 'ai'
-                ? 'bg-[var(--surface)] text-hearth shadow-sm'
+                ? 'bg-[var(--surface)] text-primary shadow-sm'
                 : 'text-muted hover:text-[var(--text-main)]'
                 }`}
             >
@@ -128,7 +128,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
             <button
               onClick={() => setTab('manual')}
               className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${tab === 'manual'
-                ? 'bg-[var(--surface)] text-hearth shadow-sm'
+                ? 'bg-[var(--surface)] text-primary shadow-sm'
                 : 'text-muted hover:text-[var(--text-main)]'
                 }`}
             >
@@ -142,7 +142,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
               <>
                 {/* AI Text Input */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">What did you eat?</label>
+                  <label className="block text-xs font-bold text-muted mb-2">What did you eat?</label>
                   <div className="flex gap-3">
                     <input
                       type="text"
@@ -158,7 +158,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                       disabled={isAnalyzing || isAnalyzingImage || !input.trim()}
                       className={`px-6 py-3 font-bold rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 ${isAnalyzing || isAnalyzingImage || !input.trim()
                         ? 'bg-[var(--input-bg)] text-muted cursor-not-allowed shadow-none'
-                        : 'bg-hearth text-white'
+                        : 'bg-primary text-primary-foreground'
                         }`}
                     >
                       {isAnalyzing ? '...' : 'Add'}
@@ -170,7 +170,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                 {/* OR Divider */}
                 <div className="flex items-center gap-3 py-2">
                   <div className="h-px flex-1 bg-border"></div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted">OR</span>
+                  <span className="text-[10px] font-bold text-muted">OR</span>
                   <div className="h-px flex-1 bg-border"></div>
                 </div>
 
@@ -205,7 +205,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
               /* Manual Entry Form */
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Item Name</label>
+                  <label className="block text-xs font-bold text-muted mb-2">Item Name</label>
                   <input
                     type="text"
                     className="w-full p-3 bg-[var(--input-bg)] border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
@@ -215,7 +215,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Calories (kcal)</label>
+                  <label className="block text-xs font-bold text-muted mb-2">Calories (kcal)</label>
                   <input
                     type="number"
                     className="w-full p-3 bg-[var(--input-bg)] border border-transparent focus:border-hearth/50 rounded-xl focus:ring-2 focus:ring-hearth/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
@@ -230,7 +230,7 @@ export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, onClose,
                   disabled={!manualName.trim() || !manualCalories}
                   className={`w-full py-3 font-bold rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 ${!manualName.trim() || !manualCalories
                     ? 'bg-[var(--input-bg)] text-muted cursor-not-allowed shadow-none'
-                    : 'bg-hearth text-white'
+                    : 'bg-primary text-primary-foreground'
                     }`}
                 >
                   Add Entry

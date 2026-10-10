@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion, Reorder } from 'framer-motion';
+import { Reorder } from 'framer-motion';
 import {
   getFamilyPlansInRange,
   getPantryInventory,
@@ -14,6 +14,7 @@ import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../type
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
 import { localDateString } from '../utils/dateUtils';
+import { AlertCircle, ArrowLeft, CalendarDays, Check, Copy, CopyCheck, ListChecks, PartyPopper, RotateCcw, ShoppingBasket } from 'lucide-react';
 
 type Phase = 'selection' | 'requirements' | 'shopping';
 
@@ -42,6 +43,13 @@ export const ShoppingList: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
+  // Delay the loading screen so quick loads don't flash a spinner
+  const [showLoading, setShowLoading] = useState(false);
+  useEffect(() => {
+    if (!isProcessing) { setShowLoading(false); return; }
+    const timer = setTimeout(() => setShowLoading(true), 300);
+    return () => clearTimeout(timer);
+  }, [isProcessing]);
 
   // Persistence State
   const [inventory, setInventory] = useState<{ items: Array<{ name: string }> }>({ items: [] });
@@ -467,8 +475,21 @@ export const ShoppingList: React.FC = () => {
   };
 
   const handleReorder = (newOrder: PurchasableItem[]) => {
-    // Only update local state for smooth 60fps dragging
-    setPurchasableItems(newOrder);
+    // The list only reorders items still to buy; keep purchased ones after them.
+    // Local state only, for smooth dragging.
+    const purchased = purchasableItems.filter(item => shoppingState.purchased?.includes(item.ingredientName));
+    setPurchasableItems([...newOrder, ...purchased]);
+  };
+
+  const [listCopied, setListCopied] = useState(false);
+  const handleCopyList = () => {
+    const lines = purchasableItems
+      .filter(item => !shoppingState.purchased?.includes(item.ingredientName))
+      .map(item => `${item.purchasableQuantity || item.requiredQuantity} ${item.ingredientName}`);
+    navigator.clipboard?.writeText(lines.join('\n')).then(() => {
+      setListCopied(true);
+      setTimeout(() => setListCopied(false), 2000);
+    }).catch(err => console.error('Failed to copy list:', err));
   };
 
   const handleToggleCheck = async (ingredientName: string) => {
@@ -552,159 +573,144 @@ export const ShoppingList: React.FC = () => {
   const inPantryItems = aggregatedIngredients.filter(ing => isInPantry(ing.name));
   const needToBuyItems = aggregatedIngredients.filter(ing => !isInPantry(ing.name));
 
-  // Phase 0: Selection
-  if (phase === 'selection') {
-    // Group available meals by date for nicer display
-    const mealsByDate = new Map<string, PlanMeal[]>();
-    availableMeals.forEach(meal => {
-      if (!mealsByDate.has(meal.date)) {
-        mealsByDate.set(meal.date, []);
-        mealsByDate.get(meal.date)!.push(meal);
-      } else {
-        mealsByDate.get(meal.date)!.push(meal);
-      }
-    });
+  // Step indicator shared by every phase
+  const STEPS: { phase: Phase; label: string }[] = [
+    { phase: 'selection', label: 'Choose meals' },
+    { phase: 'requirements', label: 'Check pantry' },
+    { phase: 'shopping', label: 'Shop' },
+  ];
+  const stepIndex = STEPS.findIndex(st => st.phase === phase);
+  const stepBar = (
+    <nav aria-label="Shopping list steps">
+      <ol className="flex gap-1.5">
+        {STEPS.map((step, i) => (
+          <li key={step.phase} className="flex-1 min-w-0" aria-current={i === stepIndex ? 'step' : undefined}>
+            <span className={`block h-1.5 rounded-full ${i <= stepIndex ? 'bg-primary' : 'bg-surface-sunken'}`} />
+            <span className={`block mt-1.5 text-xs font-semibold truncate ${i === stepIndex ? 'text-main' : 'text-muted'}`}>
+              {i + 1}. {step.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
 
+  // Sticky footer for each phase's main action, kept clear of the bottom nav
+  const stickyAction = (children: React.ReactNode) => (
+    <div className="sticky bottom-24 z-20 flex justify-center pt-4 pointer-events-none">
+      <div className="pointer-events-auto">{children}</div>
+    </div>
+  );
+
+  // Loading state. Building the list from chosen meals keeps its inline spinner on the
+  // button; the first load (no meals yet) and later phases use this screen.
+  if (isProcessing && (phase !== 'selection' || availableMeals.length === 0)) {
+    if (!showLoading) return <div className="min-h-[50vh]" aria-busy="true" />;
     return (
-      <div className="space-y-8 pb-20 animate-fade-in">
-        {/* Info Card */}
-        {availableMeals.length === 0 ? (
-          <div className="p-12 text-center text-charcoal/60 dark:text-stone-400 bg-white/60 dark:bg-white/5 rounded-2xl border border-dashed border-border">
-            <div className="text-4xl mb-4">🍽️</div>
-            <p className="text-lg font-medium text-charcoal dark:text-stone-200 mb-2">No meals found</p>
-            <p className="text-sm">Go to the Planner to add meals for the upcoming week.</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-serif text-lg font-medium text-charcoal dark:text-stone-200">Planned Meals ({availableMeals.length})</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleSelectAll(true)}
-                  className="text-sm text-hearth font-semibold hover:bg-hearth/5 px-2 py-1 rounded transition-colors"
-                >
-                  Select All
-                </button>
-                <span className="text-border">|</span>
-                <button
-                  onClick={() => handleSelectAll(false)}
-                  className="text-sm text-charcoal/60 dark:text-stone-400 hover:text-charcoal dark:text-stone-200 px-2 py-1 rounded transition-colors"
-                >
-                  Deselect All
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {Array.from(mealsByDate.entries()).sort().map(([date, meals]) => (
-                <div key={date} className="space-y-3">
-                  <h4 className="text-sm font-bold text-charcoal/60 dark:text-stone-400 uppercase tracking-wider pl-1">
-                    {new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-                  </h4>
-                  <div className="grid gap-3 md:gap-4">
-                    {meals.map(meal => {
-                      const isSelected = selectedMealIds.has(meal.id);
-                      return (
-                        <div
-                          key={meal.id}
-                          onClick={() => handleToggleMeal(meal.id)}
-                          className={`
-                                        group flex items-center justify-between p-5 rounded-xl border cursor-pointer transition-all duration-200
-                                        ${isSelected
-                              ? 'bg-hearth/5 border-hearth shadow-sm'
-                              : 'bg-white/60 dark:bg-white/5 border-border hover:border-hearth/50 hover:shadow-md'
-                            }
-                                      `}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`
-                                              w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
-                                              ${isSelected ? 'bg-hearth border-hearth' : 'border-charcoal/20 dark:border-white/20 group-hover:border-hearth/50'}
-                                          `}>
-                              {isSelected && (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                              )}
-                            </div>
-
-                            <div>
-                              <div className={`font-medium text-lg ${isSelected ? 'text-hearth' : 'text-charcoal dark:text-stone-200'}`}>
-                                {meal.name}
-                                {meal.isShared && (
-                                  <span className="ml-2 px-2 py-0.5 rounded-full bg-hearth/10 text-hearth text-[10px] font-bold uppercase tracking-wide border border-hearth/20 whitespace-nowrap">
-                                    {meal.ownerName?.split(' ')[0] || 'Partner'}
-                                  </span>
-                                )}
-                                {meal.isLeftover && (
-                                  <span className="ml-2 text-xs font-bold text-stone-500 bg-stone-100 dark:bg-white/10 dark:text-stone-400 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 align-middle" title="Leftover from previous day">
-                                    ♻️ Leftover
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-sm text-charcoal/60 dark:text-stone-400 mt-1">
-                                {meal.isLeftover
-                                  ? 'No ingredients needed'
-                                  : (meal.ingredients.length > 0
-                                    ? `${meal.ingredients.length} ingredients`
-                                    : 'No ingredients listed')
-                                }
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Generate Button */}
-            <div className="sticky bottom-6 flex justify-center pt-8 pb-4 z-20 pointer-events-none">
-              <div className="bg-white/80 dark:bg-white/10 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/10 pointer-events-auto">
-                <button
-                  onClick={handleAnalyzeIngredients}
-                  disabled={isProcessing || selectedMealIds.size === 0}
-                  className={`
-                            btn-primary btn-lg flex items-center gap-3 px-8 shadow-md
-                            ${(isProcessing || selectedMealIds.size === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}
-                        `}
-                >
-                  {isProcessing ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Analyzing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
-                      </svg>
-                      <span>Generate List ({selectedMealIds.size})</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
+      <div className="space-y-5 pb-20">
+        {stepBar}
+        <div className="tile tile-neutral items-center text-center py-12" role="status">
+          <span className="spinner spinner-lg text-primary mb-4" aria-hidden="true" />
+          <p className="font-semibold">{loadingMessage || 'Working on your list…'}</p>
+        </div>
       </div>
     );
   }
 
-  // Loading state
-  if (isProcessing) {
+  // Phase 0: Selection
+  if (phase === 'selection') {
+    const mealsByDate = new Map<string, PlanMeal[]>();
+    availableMeals.forEach(meal => {
+      if (!mealsByDate.has(meal.date)) mealsByDate.set(meal.date, []);
+      mealsByDate.get(meal.date)!.push(meal);
+    });
+    const selectedIngredientCount = availableMeals
+      .filter(m => selectedMealIds.has(m.id) && !m.isLeftover)
+      .reduce((sum, m) => sum + m.ingredients.length, 0);
+
     return (
-      <div className="space-y-8 pb-20 animate-fade-in">
-        <div className="p-12 text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-hearth mb-4"></div>
-          <p className="text-charcoal/60 dark:text-stone-400 font-medium">{loadingMessage}</p>
-        </div>
+      <div className="space-y-5 pb-20">
+        {stepBar}
+
+        {availableMeals.length === 0 ? (
+          <div className="tile tile-neutral items-center text-center py-12">
+            <CalendarDays size={28} className="text-muted mb-3" aria-hidden="true" />
+            <p className="font-semibold">No meals planned yet</p>
+            <p className="text-sm text-muted mt-1">Plan a few meals for the week and your shopping list builds itself.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2 className="heading-2">Choose meals</h2>
+                <p className="text-sm text-muted mt-0.5">
+                  {selectedMealIds.size} of {availableMeals.length} meals · {selectedIngredientCount} ingredients
+                </p>
+              </div>
+              <button
+                onClick={() => handleSelectAll(selectedMealIds.size !== availableMeals.length)}
+                className="btn-ghost btn-sm shrink-0"
+              >
+                {selectedMealIds.size === availableMeals.length ? 'Clear all' : 'Select all'}
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {Array.from(mealsByDate.entries()).sort().map(([date, meals]) => {
+                const d = new Date(`${date}T00:00:00`);
+                const isToday = date === localDateString();
+                return (
+                  <section key={date} className="card px-3 md:px-4 py-3">
+                    <h3 className="font-sans text-xs font-semibold text-muted px-2 pb-1">
+                      {isToday ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' })} · {d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                    </h3>
+                    <ul>
+                      {meals.map(meal => {
+                        const isSelected = selectedMealIds.has(meal.id);
+                        return (
+                          <li key={meal.id}>
+                            <button
+                              onClick={() => handleToggleMeal(meal.id)}
+                              aria-pressed={isSelected}
+                              className="w-full flex items-center gap-3 px-2 py-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
+                            >
+                              <span className={`size-11 shrink-0 flex items-center justify-center rounded-full border-2 transition-colors ${isSelected
+                                ? 'bg-primary border-primary text-primary-foreground'
+                                : 'border-border-control text-transparent'}`}
+                              >
+                                <Check size={20} strokeWidth={3} aria-hidden="true" />
+                              </span>
+                              <span className={`flex-1 min-w-0 ${isSelected ? '' : 'text-muted'}`}>
+                                <span className="block font-semibold leading-snug line-clamp-2">{meal.name}</span>
+                                <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted mt-0.5">
+                                  {meal.isLeftover
+                                    ? 'Leftover · nothing to buy'
+                                    : meal.ingredients.length > 0 ? `${meal.ingredients.length} ingredients` : 'No ingredients listed'}
+                                  {meal.isShared && <span className="badge badge-workout !py-0">From {meal.ownerName?.split(' ')[0] || 'family'}</span>}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
+
+            {stickyAction(
+              <button
+                onClick={handleAnalyzeIngredients}
+                disabled={isProcessing || selectedMealIds.size === 0}
+                className="btn-primary btn-lg shadow-[var(--elev-md)]"
+              >
+                {isProcessing ? <span className="spinner spinner-sm" aria-hidden="true" /> : <ListChecks size={20} aria-hidden="true" />}
+                {isProcessing ? 'Reading recipes…' : `Build list from ${selectedMealIds.size} ${selectedMealIds.size === 1 ? 'meal' : 'meals'}`}
+              </button>
+            )}
+          </>
+        )}
       </div>
     );
   }
@@ -712,49 +718,48 @@ export const ShoppingList: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <div className="space-y-8 pb-20 animate-fade-in">
-        <div className="p-8 text-center text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-200 dark:border-rose-900/20">
-          <div className="text-3xl mb-2">⚠️</div>
-          <p className="font-medium mb-2">Error</p>
-          <p className="text-sm">{error}</p>
-          <button
-            onClick={() => initializeShoppingList()}
-            className="w-full py-2.5 rounded-xl bg-hearth text-white font-bold text-sm shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
-          >
-            Try Again
+      <div className="space-y-5 pb-20">
+        {stepBar}
+        <div className="rounded-[18px] bg-error-bg p-6 text-center" role="alert">
+          <AlertCircle size={28} className="text-error mx-auto mb-3" aria-hidden="true" />
+          <p className="font-semibold">We couldn't build your list</p>
+          <p className="text-sm text-muted mt-1">{error}</p>
+          <button onClick={() => initializeShoppingList()} className="btn-primary btn-sm mt-4">
+            Try again
           </button>
         </div>
       </div>
     );
   }
 
-
-  // Phase 1: Requirements Review
+  // Phase 1: Pantry check
   if (phase === 'requirements') {
     return (
-      <div className="space-y-8 pb-20 animate-fade-in">
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={handleResetList}
-            className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white/60 dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors shadow-sm"
-          >
-            Reset All
+      <div className="space-y-5 pb-20">
+        {stepBar}
+
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="heading-2">Check your pantry</h2>
+            <p className="text-sm text-muted mt-0.5">Tap anything you already have at home.</p>
+          </div>
+          <button onClick={handleResetList} className="btn-ghost btn-sm shrink-0">
+            <RotateCcw size={16} aria-hidden="true" /> Start over
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 md:gap-6">
-          <div className="card p-6 flex flex-col items-center text-center">
-            <div className="text-hearth text-xs font-bold uppercase tracking-widest mb-2">In Pantry</div>
-            <div className="text-4xl font-serif text-charcoal dark:text-stone-200">{inPantryItems.length}</div>
+        <div className="grid grid-cols-2 gap-2 md:gap-3">
+          <div className="tile tile-calories">
+            <span className="text-sm font-semibold">To buy</span>
+            <span className="font-display font-extrabold text-3xl leading-9">{needToBuyItems.length}</span>
           </div>
-          <div className="card p-6 flex flex-col items-center text-center">
-            <div className="text-flame text-xs font-bold uppercase tracking-widest mb-2">Need to Buy</div>
-            <div className="text-4xl font-serif text-charcoal dark:text-stone-200">{needToBuyItems.length}</div>
+          <div className="tile tile-weight">
+            <span className="text-sm font-semibold">In your pantry</span>
+            <span className="font-display font-extrabold text-3xl leading-9">{inPantryItems.length}</span>
           </div>
         </div>
 
-        {/* Ingredients Grid */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <ul className="card px-2 md:px-3 py-2 grid md:grid-cols-2 md:gap-x-4">
           {aggregatedIngredients.map(ingredient => (
             <IngredientReviewCard
               key={ingredient.name}
@@ -763,84 +768,112 @@ export const ShoppingList: React.FC = () => {
               onTogglePantry={handleTogglePantry}
             />
           ))}
-        </div>
+        </ul>
 
-        {/* Generate Button */}
-        <div className="flex justify-center pt-8 pb-4">
-          {needToBuyItems.length === 0 ? (
-            <div className="text-center">
-              <div className="text-5xl mb-4">🎉</div>
-              <p className="text-xl font-medium text-charcoal dark:text-stone-200 mb-2">You have everything!</p>
-              <p className="text-base text-charcoal/60 dark:text-stone-400">All ingredients are in your pantry.</p>
-            </div>
-          ) : (
-            <button
-              onClick={handleGenerateShoppingList}
-              className="px-10 py-4 bg-hearth text-white rounded-2xl transition-all text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
-            >
-              Generate Shopping List ({needToBuyItems.length} items)
-            </button>
-          )}
-        </div>
+        {needToBuyItems.length === 0 ? (
+          <div className="tile tile-weight items-center text-center py-8">
+            <PartyPopper size={28} className="mb-2" aria-hidden="true" />
+            <p className="font-semibold">You have everything</p>
+            <p className="text-sm mt-1">Every ingredient is already in your pantry.</p>
+          </div>
+        ) : stickyAction(
+          <button onClick={handleGenerateShoppingList} className="btn-primary btn-lg shadow-[var(--elev-md)]">
+            <ShoppingBasket size={20} aria-hidden="true" />
+            Make list · {needToBuyItems.length} {needToBuyItems.length === 1 ? 'item' : 'items'}
+          </button>
+        )}
       </div>
     );
   }
 
-  // Phase 2: Shopping List
+  // Phase 2: Shopping list
+  const isPurchased = (item: PurchasableItem) => shoppingState.purchased?.includes(item.ingredientName);
+  const toBuy = purchasableItems.filter(item => !isPurchased(item));
+  const inBasket = purchasableItems.filter(item => isPurchased(item));
+  const recipesFor = (item: PurchasableItem) =>
+    aggregatedIngredients
+      .find(ing => ing.name.toLowerCase() === item.ingredientName.toLowerCase())
+      ?.recipes.map(r => r.name) || [];
+  const renderItem = (item: PurchasableItem, reorderable: boolean) => (
+    <ShoppingItem
+      key={item.ingredientName}
+      item={item}
+      recipes={recipesFor(item)}
+      isChecked={isPurchased(item)}
+      reorderable={reorderable}
+      onToggleCheck={() => handleToggleCheck(item.ingredientName)}
+      onRemove={() => handleRemoveItem(item.ingredientName)}
+      onCopy={() => handleCopyItem(item)}
+      onUpdate={(val) => handleUpdateItem(item.ingredientName, val)}
+    />
+  );
+
   return (
-    <div className="space-y-6 pb-20 animate-fade-in">
-      <div className="flex justify-end gap-2 mb-4">
-        <button
-          onClick={() => setPhase('requirements')}
-          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white/60 dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
-        >
-          ← Back to Review
-        </button>
-        <button
-          onClick={handleResetList}
-          className="text-sm font-semibold text-charcoal dark:text-stone-200 bg-white/60 dark:bg-white/5 border border-border px-4 py-2 rounded-xl hover:bg-stone-50 dark:bg-[#1A1714] transition-colors"
-        >
-          Reset
-        </button>
+    <div className="space-y-5 pb-20">
+      {stepBar}
+
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div>
+          <h2 className="heading-2">Shopping list</h2>
+          <p className="text-sm text-muted mt-0.5">
+            {purchasableItems.length === 0
+              ? 'Nothing to buy'
+              : toBuy.length === 0
+                ? `All ${purchasableItems.length} items in the basket`
+                : `${inBasket.length} of ${purchasableItems.length} in the basket`}
+          </p>
+        </div>
+        <div className="flex gap-1">
+          {toBuy.length > 0 && (
+            <button onClick={handleCopyList} className="btn-secondary btn-sm">
+              {listCopied ? <CopyCheck size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+              {listCopied ? 'Copied' : 'Copy list'}
+            </button>
+          )}
+          <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
+            <ArrowLeft size={16} aria-hidden="true" /> Pantry
+          </button>
+          <button onClick={handleResetList} className="btn-ghost btn-sm !px-3" aria-label="Start over">
+            <RotateCcw size={16} aria-hidden="true" /> <span className="hidden md:inline">Start over</span>
+          </button>
+        </div>
       </div>
 
+      {purchasableItems.length > 0 && (
+        <div className="h-2 rounded-full bg-surface-sunken overflow-hidden" role="img" aria-label={`${inBasket.length} of ${purchasableItems.length} items in the basket`}>
+          <div className="h-full rounded-full bg-secondary transition-[width] duration-300" style={{ width: `${(inBasket.length / purchasableItems.length) * 100}%` }} />
+        </div>
+      )}
+
       {purchasableItems.length === 0 ? (
-        <div className="p-12 text-center text-charcoal/60 dark:text-stone-400 border-2 border-dashed border-border rounded-xl">
-          <div className="text-4xl mb-4">✨</div>
-          <p className="text-lg font-medium text-charcoal dark:text-stone-200 mb-2">Perfect!</p>
-          <p className="text-sm">You already have everything you need.</p>
+        <div className="tile tile-weight items-center text-center py-12">
+          <PartyPopper size={28} className="mb-2" aria-hidden="true" />
+          <p className="font-semibold">Nothing to buy</p>
+          <p className="text-sm mt-1">You already have everything you need.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="bg-white/60 dark:bg-white/5 rounded-3xl shadow-sm border border-border overflow-hidden p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-normal text-charcoal dark:text-stone-200 font-serif text-lg">Items to Purchase ({purchasableItems.length})</h3>
-            </div>
-
-            <Reorder.Group axis="y" values={purchasableItems} onReorder={handleReorder} className="grid gap-3">
-              {purchasableItems.map(item => {
-                const aggIng = aggregatedIngredients.find(ing =>
-                  ing.name.toLowerCase() === item.ingredientName.toLowerCase()
-                );
-                const recipeNames = aggIng?.recipes.map(r => r.name) || [];
-                const isChecked = shoppingState.purchased?.includes(item.ingredientName);
-
-                return (
-                  <ShoppingItem
-                    key={item.ingredientName}
-                    item={item}
-                    recipes={recipeNames}
-                    isChecked={isChecked}
-                    onToggleCheck={() => handleToggleCheck(item.ingredientName)}
-                    onRemove={() => handleRemoveItem(item.ingredientName)}
-                    onCopy={() => handleCopyItem(item)}
-                    onUpdate={(val) => handleUpdateItem(item.ingredientName, val)}
-                  />
-                );
-              })}
+        <>
+          {toBuy.length > 0 ? (
+            <Reorder.Group axis="y" values={toBuy} onReorder={handleReorder} className="card px-2 md:px-3 py-2">
+              {toBuy.map(item => renderItem(item, true))}
             </Reorder.Group>
-          </div>
-        </div>
+          ) : (
+            <div className="tile tile-weight items-center text-center py-8">
+              <PartyPopper size={28} className="mb-2" aria-hidden="true" />
+              <p className="font-semibold">All done</p>
+              <p className="text-sm mt-1">Everything's in the basket. Time to head home.</p>
+            </div>
+          )}
+
+          {inBasket.length > 0 && (
+            <section>
+              <h3 className="font-sans text-xs font-semibold text-muted px-2 pb-1.5">In the basket · {inBasket.length}</h3>
+              <ul className="card px-2 md:px-3 py-2">
+                {inBasket.map(item => renderItem(item, false))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
     </div>
   );

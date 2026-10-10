@@ -25,7 +25,7 @@ firebase deploy --only firestore:rules    # also firestore:indexes, storage
 Flat layout with no `src/`: `App.tsx`, `index.tsx`, `types.ts` and `constants.ts` live at the root, alongside `components/`, `services/`, `contexts/`, `hooks/` and `utils/`. The `@/` alias maps to the repo root.
 
 - **State lives in `App.tsx`.** It holds today's and tomorrow's `DayPlan`, `DailyLog`, `UserStats`, `FastingState`, dark mode and modal state, and passes them down as props. Do not add Redux or Zustand. Contexts exist only for auth (`AuthContext`) and dev-mode feature flags (`DevModeContext`).
-- **Views and routing:** the `AppView` enum in `types.ts` (TODAY, ANALYTICS, PLANNER, RECIPES, SHOPPING, SETTINGS) is mapped by hand to react-router paths in `App.tsx` (`/today`, `/mealplanner`, …). To add a view, update the enum, both path maps in `App.tsx`, `DesktopSidebar`/`MobileBottomNav` nav items and the `AnimatePresence` switch.
+- **Views and routing:** the `AppView` enum in `types.ts` (TODAY, ANALYTICS, PLANNER, RECIPES, SHOPPING, SETTINGS) is mapped by hand to react-router paths in `App.tsx` (`/today`, `/mealplanner`, …). To add a view, update the enum, both path maps in `App.tsx`, the `MobileBottomNav` items (the only primary navigation) and the `AnimatePresence` switch.
 - **Persistence (`services/storageService.ts`):** every Firestore read and write goes through this file, under `users/{uid}/…`. Collections include `recipes`, `days/{YYYY-MM-DD}`, `data/*` (stats, shopping, etc.), `summaries`, `pantry` and `fasting`.
   - **Cache-first:** `utils/cacheService.ts` mirrors data in localStorage (`fast800_cache_*` keys, kept from the app's earlier Fast800 name). `App.tsx` initializes state from the cache, then refreshes from Firestore. Saves update the cache optimistically before writing.
   - **Normalized day plans:** `DayPlan.meals` is stored as `PlannedMeal[]` (references) and hydrated into full `Recipe[]` on read (`hydratePlannedMeals` / `dehydrateMeal`). Never write full recipes into `days` docs.
@@ -39,9 +39,11 @@ Flat layout with no `src/`: `App.tsx`, `index.tsx`, `types.ts` and `constants.ts
 
 ## Rules
 
-- **Design system "Digital Hearth":** Hearth Orange `#E07A5F`, Sage `#81B29A`, Charcoal `#3D405B`, Stone `#F4F1DE`, Flame `#F2CC8F`, Ocean `#7BAEBC`. Read [.agent/knowledge/design_system.md](.agent/knowledge/design_system.md) before styling.
-  - Use semantic tokens. Stock Tailwind palette colors (`blue-*`, `red-*`, `emerald-*`) are banned unless the design system allows them.
-  - Avoid pure white backgrounds and red "shame" states for calories.
+- **Design system (direction C, "bright and modern"):** read [.agent/knowledge/design_system.md](.agent/knowledge/design_system.md) before styling. The full spec is the Vesta design system artifact (https://claude.ai/artifact/W9cu6wcRWW9agjtjn7EJU1).
+  - Type: Figtree for body and UI text (`font-sans`); Nunito (`font-display`, weight 800) for titles, headings and big figures. `font-serif` is an alias of `font-display` kept for old markup. Solid surfaces (`bg-surface` + `border-border`), no glass, blur or gradients.
+  - One bold `primary` block per screen; primary buttons are ink (`btn-primary`); metrics use `tile-*` / `*-bg` / `*-text` tokens.
+  - Use semantic tokens. Stock Tailwind palette colors (`blue-*`, `red-*`, `emerald-*`) are banned. Never fade text with opacity (`text-charcoal/60`); use `text-muted`.
+  - No pure white surfaces, no uppercase eyebrows, and no red "shame" states for calories (over target is `warning`).
 - **Dark mode:** before using a CSS variable, confirm `index.css` defines it under both `:root` and `.dark`. Many recent fixes were dark-mode regressions.
 - **Mobile-first** (around 375px). Build layouts with `flex-col md:flex-row`.
 - **Types and IDs:** no `any`. Types go in `types.ts` or the component file. Store dates as `YYYY-MM-DD` strings. Create IDs with `crypto.randomUUID()`.

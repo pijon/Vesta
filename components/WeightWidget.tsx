@@ -26,7 +26,7 @@ export const WeightWidget: React.FC<WeightWidgetProps> = ({ stats, onUpdateWeigh
             {/* Header */}
             <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between shrink-0 h-[60px]">
                 <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-lg font-medium text-charcoal dark:text-stone-200">Weight</h3>
+                    <h3 className="font-display font-extrabold text-lg text-charcoal dark:text-stone-200">Weight</h3>
                 </div>
                 {/* Badge - High contrast solid colors for maximum readability */}
 
@@ -47,7 +47,7 @@ export const WeightWidget: React.FC<WeightWidgetProps> = ({ stats, onUpdateWeigh
                         <span className="text-3xl font-bold font-sans leading-none text-weight">
                             {stats.currentWeight}
                         </span>
-                        <span className="text-xs font-semibold text-charcoal/60 dark:text-stone-400 uppercase tracking-wide mt-1">
+                        <span className="text-xs font-semibold text-muted dark:text-muted mt-1">
                             KG
                         </span>
                     </div>
@@ -63,7 +63,7 @@ export const WeightWidget: React.FC<WeightWidgetProps> = ({ stats, onUpdateWeigh
 
             {/* Action Button */}
             <div className="p-4 z-10 mt-auto">
-                <button className="w-full py-2.5 rounded-xl bg-weight text-white font-bold text-sm shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button className="w-full py-2.5 rounded-xl bg-secondary text-secondary-foreground font-bold text-sm shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                     Update Weight
                 </button>
             </div>
