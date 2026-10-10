@@ -35,3 +35,8 @@ export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {
 export const DEFAULT_DEV_SETTINGS: import('./types').DevSettings = {
   featureFlags: DEFAULT_FEATURE_FLAGS,
 };
+/**
+ * Longest gap between meals counted as a fast. A longer gap means meals weren't logged, so it's
+ * not recorded as a fast (it once produced "fasts" of 1,600+ hours) and analytics ignores it.
+ */
+export const MAX_PLAUSIBLE_FAST_HOURS = 72;

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { shoppingData } from '../services/pageData';
+import { ensureWarm, peekWarm } from '../utils/prewarm';
 import { Reorder } from 'framer-motion';
 import {
   getFamilyPlansInRange,
@@ -40,7 +42,8 @@ export const ShoppingList: React.FC = () => {
   const [parsedIngredients, setParsedIngredients] = useState<ParsedIngredient[]>([]);
   const [aggregatedIngredients, setAggregatedIngredients] = useState<AggregatedIngredient[]>([]);
   const [purchasableItems, setPurchasableItems] = useState<PurchasableItem[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  // Starts true so the page, pre-rendered while hidden, never shows "no meals" before loading
+  const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
   // Delay the loading screen so quick loads don't flash a spinner
@@ -72,9 +75,16 @@ export const ShoppingList: React.FC = () => {
     ingredientsHash: ''
   });
 
-  // Initialize component
+  // Load once; when the page is shown again (App keeps it in an Activity, which re-runs
+  // effects) just pick up meals planned meanwhile, without a loading screen
+  const initialized = useRef(false);
   useEffect(() => {
-    initializeShoppingList();
+    if (!initialized.current) {
+      initialized.current = true;
+      initializeShoppingList();
+    } else {
+      refreshPlannedMeals();
+    }
   }, []);
 
   // Debounced persistence for items (fixes jerky drag and drop)
@@ -110,6 +120,31 @@ export const ShoppingList: React.FC = () => {
     return ingredients.map(i => `${i.text}|${i.recipeId}`).join('::');
   };
 
+  /** Planned meals for the next two weeks, from the whole family's plan (loaded in the background after sign-in). */
+  const loadPlannedMeals = async (fresh = false) => extractMealsFromPlan((await ensureWarm(shoppingData, fresh)).plans);
+
+  // New meals start selected while choosing meals
+  const knownMealIds = useRef<Set<string>>(new Set());
+  // After the first load from background data, fetch the latest plan once
+  const refreshAfterInit = useRef(false);
+  useEffect(() => {
+    if (!isProcessing && refreshAfterInit.current) {
+      refreshAfterInit.current = false;
+      refreshPlannedMeals();
+    }
+  }, [isProcessing]);
+  const refreshPlannedMeals = () => {
+    if (isProcessing) return;
+    loadPlannedMeals(true).then(meals => {
+      const added = meals.filter(m => !knownMealIds.current.has(m.id)).map(m => m.id);
+      knownMealIds.current = new Set(meals.map(m => m.id));
+      setAvailableMeals(meals);
+      if (phase === 'selection' && added.length > 0) {
+        setSelectedMealIds(prev => new Set([...prev, ...added]));
+      }
+    }).catch(e => console.error('Failed to refresh planned meals', e));
+  };
+
   const initializeShoppingList = async () => {
     try {
       setIsProcessing(true);
@@ -119,32 +154,17 @@ export const ShoppingList: React.FC = () => {
       // Migrate old shopping state if needed
       migrateShoppingState();
 
-      // Extract meals from weekly plan
-      // Extract meals from weekly plan (Family View)
-      const today = new Date();
-      const endDate = new Date(today);
-      endDate.setDate(endDate.getDate() + 14); // 2 weeks out
-
-      const plan = await getFamilyPlansInRange(
-        localDateString(today),
-        localDateString(endDate)
-      );
-      const meals = extractMealsFromPlan(plan);
-      setAvailableMeals(meals);
-
-      // Load persistence data
-      const [enhancedState, pantryInventory] = await Promise.all([
-        getEnhancedShoppingState(),
-        getPantryInventory()
-      ]);
+      // Usually ready already (App loads it in the background after sign-in): show that
+      // straight away, however old, and pick up newer meals just after
+      const warm = peekWarm(shoppingData) ?? await ensureWarm(shoppingData);
+      const { shoppingState: enhancedState, pantry: pantryInventory } = warm;
+      const mealsPromise = Promise.resolve(extractMealsFromPlan(warm.plans));
 
       setShoppingState(enhancedState);
       setInventory(pantryInventory);
 
-      // Determine initial phase and selection
       if (enhancedState.cachedPurchasableItems.length > 0) {
-        // We have an active list, restore it
-        // Filter out removed items from the cached list
+        // We have an active list, restore it (without the items the user removed)
         const visibleItems = enhancedState.cachedPurchasableItems.filter(
           item => !enhancedState.removed.includes(item.ingredientName)
         );
@@ -152,24 +172,27 @@ export const ShoppingList: React.FC = () => {
         setPurchasableItems(visibleItems);
         setParsedIngredients(enhancedState.cachedParsedIngredients);
         setAggregatedIngredients(enhancedState.cachedAggregatedIngredients);
-
-        // Restore selection if saved, otherwise default to all used in cache (implicit) or just all
-        if (enhancedState.selectedMealIds) {
-          setSelectedMealIds(new Set(enhancedState.selectedMealIds));
-        } else {
-          // Fallback: select all if we have a list but no selection state (legacy support)
-          setSelectedMealIds(new Set(meals.map(m => m.id)));
-        }
-
+        if (enhancedState.selectedMealIds) setSelectedMealIds(new Set(enhancedState.selectedMealIds));
         setPhase('shopping');
+        setIsProcessing(false);
+
+        const meals = await mealsPromise;
+        setAvailableMeals(meals);
+        knownMealIds.current = new Set(meals.map(m => m.id));
+        // Legacy lists saved no selection: treat every planned meal as selected
+        if (!enhancedState.selectedMealIds) setSelectedMealIds(new Set(meals.map(m => m.id)));
       } else {
-        // No active list, start fresh in selection mode
-        // Default to selecting ALL meals
+        // No active list, start fresh in selection mode with every meal selected
+        setLoadingMessage('Loading meal plan...');
+        const meals = await mealsPromise;
+        setAvailableMeals(meals);
+        knownMealIds.current = new Set(meals.map(m => m.id));
         setSelectedMealIds(new Set(meals.map(m => m.id)));
         setPhase('selection');
       }
 
       setIsProcessing(false);
+      refreshAfterInit.current = true;
 
     } catch (err) {
       console.error('Error initializing shopping list:', err);

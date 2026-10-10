@@ -23,7 +23,8 @@ const MiniRing: React.FC<{ percent: number; color: string; label: string }> = ({
                 stroke={color}
                 strokeDasharray={circumference}
                 strokeDashoffset={circumference * (1 - clamped / 100)}
-                className="transition-[stroke-dashoffset] duration-1000 ease-out motion-reduce:transition-none"
+                style={{ '--ring-empty': circumference } as React.CSSProperties}
+                className="ring-fill transition-[stroke-dashoffset] duration-1000 ease-out motion-reduce:transition-none"
             />
         </svg>
     );
@@ -72,18 +73,28 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
     );
 };
 
-export const FastingCard: React.FC<{ elapsedString: string; startTime: string; progressPercent: number; isFasting: boolean; size?: TileSize }> = ({
-    elapsedString, startTime, progressPercent, isFasting, size = 'md'
+/** Time since the last meal against the fasting target, and when the target is reached. */
+export const FastingCard: React.FC<{ elapsedHours: number; targetHours: number; lastAteTime: number | null; size?: TileSize }> = ({
+    elapsedHours, targetHours, lastAteTime, size = 'md'
 }) => {
+    const fmtDuration = (hours: number) => `${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`;
+    const reached = !!lastAteTime && elapsedHours >= targetHours;
+    const doneAt = lastAteTime
+        ? new Date(lastAteTime + targetHours * 3_600_000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : null;
+    const percent = targetHours > 0 ? Math.min((elapsedHours / targetHours) * 100, 100) : 0;
     return (
         <div className={`tile tile-fasting gap-1 ${tileHeight(size)}`}>
             <div className="flex justify-between items-start gap-2">
                 <h3 className="font-sans text-sm font-semibold text-fasting-text">Fasting</h3>
-                {isFasting && <MiniRing percent={progressPercent} color="var(--fasting)" label={`${Math.round(progressPercent)}% of fasting goal`} />}
+                {lastAteTime && <MiniRing percent={percent} color="var(--fasting)" label={`${Math.round(percent)}% of ${targetHours}-hour fast`} />}
             </div>
-            <p className="text-2xl font-display font-extrabold leading-7">{elapsedString}</p>
+            <p className="text-2xl font-display font-extrabold leading-7">
+                {lastAteTime ? fmtDuration(elapsedHours) : '–'}
+                {lastAteTime && <span className="text-sm font-semibold"> of {targetHours}h</span>}
+            </p>
             <p className="text-xs font-semibold">
-                {isFasting ? `Started ${startTime}` : 'Eating window'}
+                {!lastAteTime ? 'Starts after your next meal' : reached ? 'Target reached' : `Done at ${doneAt}`}
             </p>
         </div>
     );
@@ -142,10 +153,21 @@ export const HydrationCard: React.FC<{ liters: number; onAddWater: (amount: numb
     );
 };
 
-export const WeightCard: React.FC<{ weight: number; change: number; history: WeightEntry[]; daysToGoal?: number | null; onAddWeight: () => void; onClick?: () => void; size?: TileSize }> = ({ weight, change, history, daysToGoal, onAddWeight, onClick, size = 'md' }) => {
-    const dataPoints = [...history]
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .slice(-14);
+/** Latest weight with the same trend as Analytics, the change since the previous weigh-in and a sparkline. */
+export const WeightCard: React.FC<{
+    weight: number | null;
+    /** kg per week over the last month, when there are enough weigh-ins */
+    ratePerWeek: number | null;
+    /** Change from the previous weigh-in */
+    sinceLast: number | null;
+    lastDate: string | null;
+    history: WeightEntry[];
+    onAddWeight: () => void;
+    onClick?: () => void;
+    size?: TileSize;
+}> = ({ weight, ratePerWeek, sinceLast, lastDate, history, onAddWeight, onClick, size = 'md' }) => {
+    const dataPoints = [...history].sort((a, b) => a.date.localeCompare(b.date)).slice(-14);
+    const signed = (n: number, digits = 1) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(digits)}`;
 
     // Sparkline
     const WIDTH = 100;
@@ -162,19 +184,23 @@ export const WeightCard: React.FC<{ weight: number; change: number; history: Wei
         pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
     }
 
+    const lastLabel = lastDate ? new Date(lastDate + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null;
+
     return (
         <div onClick={onClick} className={`tile tile-weight gap-1 ${tileHeight(size)} ${onClick ? 'cursor-pointer' : ''}`}>
             <div className="flex justify-between items-start gap-2">
                 <h3 className="font-sans text-sm font-semibold text-weight-text">Weight</h3>
-                <span className="text-xs font-semibold">
-                    {change > 0 ? '+' : ''}{change} kg/week
-                </span>
+                {ratePerWeek !== null && (
+                    <span className="text-xs font-semibold whitespace-nowrap" title="Trend over the last month">{signed(ratePerWeek)} kg/wk</span>
+                )}
             </div>
             <p className="text-2xl font-display font-extrabold leading-7">
-                {weight}<span className="text-sm font-semibold"> kg</span>
+                {weight !== null ? weight.toFixed(1) : '–'}<span className="text-sm font-semibold"> kg</span>
             </p>
             <p className="text-xs font-semibold">
-                {daysToGoal !== undefined && daysToGoal !== null ? `${daysToGoal} days to goal` : 'Keep logging to see a trend'}
+                {weight === null ? 'No weigh-ins yet'
+                    : sinceLast !== null ? `${signed(sinceLast)} kg since last · ${lastLabel}`
+                    : `Weighed ${lastLabel}`}
             </p>
             {size !== 'sm' && (
                 <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-7 mt-1" preserveAspectRatio="none" aria-hidden="true">

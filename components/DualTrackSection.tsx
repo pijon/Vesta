@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
-import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle } from 'lucide-react';
+import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
-import { isMealEaten, mealCalories } from '../utils/planUtils';
+import { MEAL_SLOTS, isMealEaten, mealCalories, slotFor } from '../utils/planUtils';
+import type { FrequentFood } from '../services/pageData';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
@@ -19,7 +20,15 @@ interface DualTrackSectionProps {
   onDeleteFoodItem: (itemId: string) => void;
   onNavigate: (view: AppView) => void;
   onSwapMeal: (index: number) => void;
+  /** Calories left today (target − eaten + burned), to say whether the rest of the plan fits */
+  caloriesLeft: number;
+  frequentFoods: FrequentFood[];
+  onQuickLog: (food: FrequentFood) => void;
+  onLogFood: () => void;
 }
+
+/** Shows a logged name with a capital first letter; what the user typed is stored unchanged. */
+const displayName = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
 
 
 type LogEntry =
@@ -67,7 +76,11 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   onUpdateFoodItem,
   onDeleteFoodItem,
   onNavigate,
-  onSwapMeal
+  onSwapMeal,
+  caloriesLeft,
+  frequentFoods,
+  onQuickLog,
+  onLogFood,
 }) => {
   const [editingFoodItem, setEditingFoodItem] = useState<FoodLogItem | null>(null);
   const [editFoodName, setEditFoodName] = useState('');
@@ -182,11 +195,16 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const remainingPlannedCalories = plannedMeals
     .filter(m => !isMealEaten(todayPlan, m))
     .reduce((sum, m) => sum + mealCalories(m), 0);
+  // Meals in slot order (breakfast → snacks); toggling still uses the plan index
+  const mealsBySlot = MEAL_SLOTS
+    .map(({ slot, label }) => ({ label, entries: plannedMeals.map((meal, index) => ({ meal, index })).filter(({ meal }) => slotFor(meal) === slot) }))
+    .filter(group => group.entries.length > 0);
+  const fits = remainingPlannedCalories <= caloriesLeft;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-start">
       {/* Left: From Your Plan */}
-      <div className="card flex flex-col h-full">
+      <div className="card flex flex-col">
         <div className="px-5 md:px-6 pt-5 pb-4">
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
@@ -198,6 +216,13 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     ? `All ${plannedMeals.length} meals eaten · ${plannedCalories} kcal`
                     : `${eatenCount} of ${plannedMeals.length} eaten · ${remainingPlannedCalories} kcal to go`}
               </p>
+              {remainingPlannedCalories > 0 && (
+                <p className={`text-sm mt-0.5 font-semibold ${fits ? 'text-weight-text' : 'text-warning'}`}>
+                  {fits
+                    ? `Fits your ${Math.max(caloriesLeft, 0).toLocaleString()} kcal left`
+                    : `${(remainingPlannedCalories - Math.max(caloriesLeft, 0)).toLocaleString()} kcal more than you have left`}
+                </p>
+              )}
             </div>
             <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-ghost btn-sm shrink-0">
               Planner
@@ -215,7 +240,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           )}
         </div>
 
-        <div className="px-3 md:px-4 pb-4 flex-1 min-h-[200px]">
+        <div className="px-3 md:px-4 pb-4">
           {plannedMeals.length === 0 ? (
             <div className="tile tile-neutral items-center text-center py-8 mx-2">
               <p className="font-semibold">Nothing planned for today</p>
@@ -225,8 +250,11 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               </button>
             </div>
           ) : (
+            mealsBySlot.map(group => (
+            <section key={group.label}>
+            {mealsBySlot.length > 1 && <h4 className="font-sans text-xs font-semibold text-muted px-2 pt-2 pb-1">{group.label}</h4>}
             <ul>
-              {plannedMeals.map((meal, index) => {
+              {group.entries.map(({ meal, index }) => {
                 const isEaten = isMealEaten(todayPlan, meal);
                 const visual = mealVisualFor(meal);
                 return (
@@ -285,12 +313,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 );
               })}
             </ul>
+            </section>
+            ))
           )}
         </div>
       </div>
 
       {/* Right: Today's log, a single timeline */}
-      <div className="card flex flex-col h-full">
+      <div className="card flex flex-col">
         <div className="px-5 md:px-6 pt-5 pb-4 flex justify-between items-start gap-3">
           <div className="min-w-0">
             <h3 className="heading-3 text-lg">Today's log</h3>
@@ -304,18 +334,38 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   ].filter(Boolean).join(' · ')}
             </p>
           </div>
-          {totalLoggedItems > 0 && (
-            <span className="badge badge-neutral shrink-0">
-              {totalLoggedItems} {totalLoggedItems === 1 ? 'entry' : 'entries'}
-            </span>
-          )}
+          <button onClick={onLogFood} className="btn-secondary btn-sm shrink-0"><Plus size={16} aria-hidden="true" /> Add</button>
         </div>
 
-        <div className="px-3 md:px-4 pb-4 flex-1 min-h-[200px]">
+        {frequentFoods.length > 0 && (
+          <div className="px-5 md:px-6 pb-3 -mt-1">
+            <p className="text-xs font-semibold text-muted mb-1.5">Log again</p>
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5">
+              {frequentFoods.map(food => {
+                const Icon = foodIconFor({ name: food.name });
+                return (
+                  <button
+                    key={food.name}
+                    onClick={() => onQuickLog(food)}
+                    aria-label={`Log ${food.name}, ${food.calories} kcal`}
+                    className="shrink-0 inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                  >
+                    {Icon ? <Icon size={15} className="text-calories-text" aria-hidden="true" /> : <Plus size={15} className="text-muted" aria-hidden="true" />}
+                    <span className="max-w-[11rem] truncate">{displayName(food.name)}</span>
+                    <span className="text-muted font-normal">{food.calories}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="px-3 md:px-4 pb-4">
           {logEntries.length === 0 ? (
             <div className="tile tile-neutral items-center text-center py-8 mx-2">
               <p className="font-semibold">Your day starts here</p>
-              <p className="text-sm text-muted mt-1">Log a meal or a workout and it will show up on this timeline.</p>
+              <p className="text-sm text-muted mt-1 mb-4">Log a meal or a workout and it will show up on this timeline.</p>
+              <button onClick={onLogFood} className="btn-primary btn-sm"><Plus size={16} aria-hidden="true" /> Log food</button>
             </div>
           ) : (
             <>
@@ -336,7 +386,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                         const isFood = entry.kind === 'food';
                         const FoodIcon = isFood ? logIconFor(entry.item) : null;
                         const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
-                        const name = isFood ? entry.item.name : entry.workout.type;
+                        const name = displayName(isFood ? entry.item.name : entry.workout.type);
                         const kcal = isFood ? entry.item.calories : entry.workout.caloriesBurned;
                         return (
                           <li key={entry.id} className="group relative flex items-center gap-1 rounded-[14px] hover:bg-surface-sunken transition-colors">

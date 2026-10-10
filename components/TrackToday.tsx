@@ -8,6 +8,11 @@ import { WorkoutEntryModal } from './WorkoutEntryModal';
 import { dayTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
+import { TomorrowCard } from './TomorrowCard';
+import { useNavigate } from 'react-router-dom';
+import { frequentFoodsData, FrequentFood } from '../services/pageData';
+import { usePrewarmed } from '../utils/prewarm';
+import { weightSummary } from '../utils/analyticsModel';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 // import { MobileActionCards } from './MobileActionCards';
@@ -71,6 +76,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   // const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
   // const [editingWorkout, setEditingWorkout] = useState<WorkoutItem | null>(null);
 
+  const navigate = useNavigate();
   const [quickWeightInput, setQuickWeightInput] = useState(stats.currentWeight.toString());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isWorkoutOverviewOpen, setIsWorkoutOverviewOpen] = useState(false);
@@ -256,6 +262,33 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const today = localDateString();
   const weightLoggedToday = stats.weightHistory.some(entry => entry.date === today);
 
+  // Weight tile: same trend as Analytics (last month), and the change since the previous weigh-in
+  const weightInfo = React.useMemo(() => {
+    const history = [...(stats.weightHistory || [])].filter(e => e.weight > 0).sort((a, b) => a.date.localeCompare(b.date));
+    const last = history[history.length - 1];
+    const previous = history[history.length - 2];
+    return {
+      current: last ? last.weight : null,
+      lastDate: last ? last.date : null,
+      sinceLast: last && previous ? last.weight - previous.weight : null,
+      ratePerWeek: weightSummary(history, 30, stats.goalWeight).ratePerWeek,
+    };
+  }, [stats.weightHistory, stats.goalWeight]);
+
+  // One-tap re-logging of frequent foods, with undo
+  const frequentFoods = usePrewarmed(frequentFoodsData) ?? [];
+  const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+  const handleQuickLog = async (food: FrequentFood) => {
+    const item: FoodLogItem = { id: crypto.randomUUID(), name: food.name, calories: food.calories, timestamp: Date.now() };
+    await onAddFoodLogItems([item]);
+    setToast({ message: `Logged ${food.name} · ${food.calories} kcal`, undo: () => { onDeleteFoodItem(item.id); } });
+  };
+
   // Helper to format hours into string
   const formatFastingTime = (hours: number) => {
     const h = Math.floor(hours);
@@ -268,10 +301,11 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       {/* Today: one hero block, then metric tiles */}
       <div className="space-y-3">
         <HearthWidget
-          caloriesRemaining={dailyTarget - consumed + caloriesBurned}
-          caloriesTotal={consumed}
           caloriesGoal={dailyTarget}
-          onClick={onOpenFoodModal}
+          caloriesEaten={consumed}
+          caloriesBurned={caloriesBurned}
+          isFastDay={!isNonFastDay}
+          onLogFood={onOpenFoodModal}
         />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
           <HydrationCard
@@ -280,10 +314,11 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             onAddWater={(amount) => handleAddWaterClick(amount)}
           />
           <WeightCard
-            weight={stats.currentWeight}
-            change={weightChange}
+            weight={weightInfo.current}
+            ratePerWeek={weightInfo.ratePerWeek}
+            sinceLast={weightInfo.sinceLast}
+            lastDate={weightInfo.lastDate}
             history={stats.weightHistory || []}
-            daysToGoal={weightAnalysis.daysToGoal}
             onAddWeight={onOpenWeightModal}
             onClick={() => onNavigate(AppView.ANALYTICS)}
           />
@@ -297,10 +332,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             streak={analyzeActivityStreaks(effectiveHistory).currentStreak}
           />
           <FastingCard
-            elapsedString={formatFastingTime(elapsedFastingHours)}
-            startTime={fastingState.lastAteTime ? new Date(fastingState.lastAteTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-            isFasting={!!fastingState.lastAteTime}
-            progressPercent={Math.min((elapsedFastingHours / fastingState.config.targetFastHours) * 100, 100)}
+            elapsedHours={elapsedFastingHours}
+            targetHours={fastingState.config.targetFastHours}
+            lastAteTime={fastingState.lastAteTime}
           />
         </div>
       </div>
@@ -318,49 +352,23 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onDeleteFoodItem={onDeleteFoodItem}
         onNavigate={onNavigate}
         onSwapMeal={handleSwapMeal}
+        caloriesLeft={dailyTarget - consumed + caloriesBurned}
+        frequentFoods={frequentFoods}
+        onQuickLog={handleQuickLog}
+        onLogFood={onOpenFoodModal}
       />
 
-      {/* Tomorrow's Preview */}
-      <div className="hidden md:block glass-card rounded-organic-md overflow-hidden">
-        <div className="px-6 py-5 border-b border-border dark:border-white/5 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-calories-bg flex items-center justify-center text-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-            </div>
-            <h3 className="font-display font-extrabold text-lg text-charcoal dark:text-stone-200">Tomorrow's Plan</h3>
-            <span className="text-xs font-bold text-muted dark:text-muted dark:text-muted bg-surface dark:bg-white/10 px-2 py-1 rounded-md border border-border dark:border-white/10 ml-2">
-              {tomorrowPlan.meals.reduce((acc, m) => acc + m.calories, 0)} kcal
-            </span>
-          </div>
-        </div>
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tomorrowPlan.meals.length === 0 ? (
-            <div className="col-span-full p-8 text-center text-muted dark:text-muted border border-dashed border-charcoal/10 dark:border-white/5 rounded-xl bg-white/20 dark:bg-white/5">
-              <p className="font-medium">No meals planned for tomorrow</p>
-            </div>
-          ) : (
-            tomorrowPlan.meals.map((meal, index) => (
-              <div
-                key={index}
-                className="p-4 rounded-xl border border-border dark:border-white/5 bg-surface dark:bg-white/5 hover:bg-surface-sunken dark:hover:bg-white/10 hover:shadow-md transition-all group"
-              >
-                <p className="font-medium text-charcoal dark:text-stone-200 truncate">{meal.name}</p>
-                <div className="flex gap-2 items-center mt-2">
-                  <span className="text-[10px] font-bold text-primary bg-calories-bg px-1.5 py-0.5 rounded">
-                    {meal.type}
-                  </span>
-                  <span className="text-xs text-muted dark:text-muted">{meal.calories} kcal</span>
-                </div>
-              </div>
-            ))
+      {/* Tomorrow */}
+      <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />
+
+      {toast && (
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] flex items-center gap-3 badge-ink !rounded-full pl-4 pr-1.5 py-1.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in max-w-[calc(100vw-32px)]">
+          <span className="truncate">{toast.message}</span>
+          {toast.undo && (
+            <button onClick={() => { toast.undo!(); setToast(null); }} className="shrink-0 min-h-8 px-3 rounded-full bg-on-ink/15 hover:bg-on-ink/25 font-semibold">Undo</button>
           )}
         </div>
-      </div>
+      )}
 
       {/* Modals - Removed inline, managed by App.tsx */}
       {/* FoodEntryModal, WorkoutEntryModal, WeightEntryModal removed */}

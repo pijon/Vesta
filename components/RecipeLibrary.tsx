@@ -1,39 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { ChefHat, ChevronDown, Download, Heart, Link2, Plus, Search, Sparkles, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowUpDown, ChefHat, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
 import { getCachedRecipes } from '../utils/cacheService';
-import { planMeal, slotFor } from '../utils/planUtils';
-import { Recipe, Group } from '../types';
-import { getRecipes, saveRecipe, deleteRecipe, getDayPlan, saveDayPlan } from '../services/storageService';
-import { getUserGroup, getFamilyMemberRecipes, copyRecipeToMyLibrary } from '../services/groupService';
+import { addDays } from '../utils/planUtils';
+import { Recipe } from '../types';
+import { getRecipes, saveRecipe, deleteRecipe } from '../services/storageService';
+import { copyRecipeToMyLibrary } from '../services/groupService';
+import { familyData, recipeHistoryData } from '../services/pageData';
+import { ensureWarm, usePrewarmed } from '../utils/prewarm';
+import { AddToPlanSheet } from './AddToPlanSheet';
+import { CookingMode } from './CookingMode';
 import { parseRecipeText, generateRecipeFromIngredients, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
-import { RecipeCard } from './RecipeCard';
+import { RecipeCard, RecipeRow } from './RecipeCard';
 import { Portal } from './Portal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { importRecipeImageFromUrl } from '../utils/storageUtils';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
-import { localDateString } from '../utils/dateUtils';
+import { localDateString, parseLocalDate } from '../utils/dateUtils';
 
 
+
+/** Meal-type tags have their own chips; the rest (diet, style, cuisine) become tag chips. */
+const MEAL_TYPE_TAGS = new Set(['breakfast', 'lunch', 'dinner', 'main meal', 'light meal', 'snack', 'side dish']);
+const FAST_DAY_KCAL = 400;
+const VIEW_KEY = 'vesta_recipes_view';
+
+const normalizeTag = (tag: string) => tag.trim().toLowerCase();
+const tagLabel = (tag: string) => tag.charAt(0).toUpperCase() + tag.slice(1);
+
+const daysAgo = (date: string, today: string) =>
+  Math.round((parseLocalDate(today).getTime() - parseLocalDate(date).getTime()) / 86_400_000);
+
+/** "Planned today", "Planned tomorrow", "Planned Thu" */
+const plannedLabelFor = (date: string | undefined, today: string) => {
+  if (!date) return undefined;
+  if (date === today) return 'Planned today';
+  if (date === addDays(today, 1)) return 'Planned tomorrow';
+  return `Planned ${parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })}`;
+};
+
+/** "Had today", "Had 4 days ago", "Had 3 weeks ago" */
+const historyLabelFor = (date: string | undefined, today: string) => {
+  if (!date) return undefined;
+  const days = daysAgo(date, today);
+  if (days <= 0) return 'Had today';
+  if (days === 1) return 'Had yesterday';
+  if (days < 14) return `Had ${days} days ago`;
+  return `Had ${Math.round(days / 7)} weeks ago`;
+};
 
 interface RecipeLibraryProps {
   onSelect?: (recipe: Recipe) => void;
 }
 
 export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
-  // Start from the local cache so revisiting the page renders immediately
+  // The whole library, starting from the local cache so the page renders immediately
   const [recipes, setRecipes] = useState<Recipe[]>(() => getCachedRecipes() ?? []);
-  const [familyRecipes, setFamilyRecipes] = useState<Recipe[]>([]);
-  const [userGroup, setUserGroup] = useState<Group | null>(null);
   const [isLoading, setIsLoading] = useState(() => !getCachedRecipes()?.length);
+  // Family recipes and plan history load in the background after sign-in
+  const familyRecipes = usePrewarmed(familyData)?.recipes ?? [];
+  const history = usePrewarmed(recipeHistoryData);
+  const today = localDateString();
+
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [fastDayFriendly, setFastDayFriendly] = useState(false);
+  const [view, setView] = useState<'grid' | 'list'>(() => {
+    try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid'; } catch { return 'grid'; }
+  });
+  const changeView = (next: 'grid' | 'list') => {
+    setView(next);
+    try { localStorage.setItem(VIEW_KEY, next); } catch { /* per-device preference only */ }
+  };
+  const [planTarget, setPlanTarget] = useState<Recipe | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!addMenuOpen) return;
+    const close = () => setAddMenuOpen(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('keydown', onKey); };
+  }, [addMenuOpen]);
+  const [cookRecipe, setCookRecipe] = useState<Recipe | null>(null);
 
   const [isAdding, setIsAdding] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<string>('name');
-  const [calorieFilter, setCalorieFilter] = useState<string>('all'); // 'all' or number as string
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showIngredientModal, setShowIngredientModal] = useState(false);
@@ -57,68 +112,19 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   };
 
   useEffect(() => {
-    loadData(false);
+    loadData();
   }, []);
 
-  const [hasLoadedAll, setHasLoadedAll] = useState(false);
-
-  // Automatically load the rest of the recipes if the user starts searching, filtering, or sorting
-  useEffect(() => {
-    if (!hasLoadedAll && !isLoading) {
-      const isSearching = searchQuery.trim().length > 0;
-      const isFiltering = activeFilter !== 'all' || calorieFilter !== 'all';
-      const isSorting = sortOption !== 'name'; // Assuming 'name' describes the implicit default or random order we accepted, actually default state is 'name'
-
-      if (isSearching || isFiltering || isSorting) {
-        loadData(true);
-      }
-    }
-  }, [searchQuery, activeFilter, calorieFilter, sortOption]);
-
-  const loadData = async (loadAll: boolean = false) => {
-    // Prevent double loading if already loading all
-    if (isLoading && loadAll) return;
-
-    setIsLoading(true);
+  const loadData = async () => {
     try {
-      const limit = (loadAll || hasLoadedAll) ? undefined : 24;
-
-      // Parallelize: Fetch Own Recipes AND (Group + Family Recipes)
-      const [userRecipes, group] = await Promise.all([
-        getRecipes(limit),
-        getUserGroup()
-      ]);
-
-      // Set user recipes immediately
-      if (loadAll) {
-        setHasLoadedAll(true);
-        setRecipes(userRecipes);
-      } else {
-        if (userRecipes.length < 24) {
-          setHasLoadedAll(true);
-        } else {
-          setHasLoadedAll(false);
-        }
-        setRecipes(userRecipes);
-      }
-
-      setUserGroup(group);
-
-      if (group) {
-        // Now fetch family recipes using the group we just got
-        // We pass the group object to avoid re-fetching it inside the service
-        const familyRecipes = await getFamilyMemberRecipes(group);
-        setFamilyRecipes(familyRecipes);
-      }
+      const fresh = await getRecipes();
+      // Keep the cached library if the refresh comes back empty (offline)
+      if (fresh.length > 0 || !getCachedRecipes()?.length) setRecipes(fresh);
     } catch (e) {
       console.error("Failed to load recipe data:", e);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLoadMore = () => {
-    loadData(true);
   };
 
   const openRecipe = (recipe: Recipe) => {
@@ -314,23 +320,38 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     URL.revokeObjectURL(url);
   };
 
-  const filteredRecipes = [...recipes, ...familyRecipes]
+  const allRecipes = useMemo(() => [...recipes, ...familyRecipes], [recipes, familyRecipes]);
+
+  // Tag chips from the library itself: the most used diet, style and cuisine tags
+  const tagChips = useMemo(() => {
+    const counts = new Map<string, number>();
+    allRecipes.forEach(r => new Set<string>((r.tags || []).map(normalizeTag)).forEach(tag => {
+      if (tag && !MEAL_TYPE_TAGS.has(tag)) counts.set(tag, (counts.get(tag) || 0) + 1);
+    }));
+    return [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12);
+  }, [allRecipes]);
+  const fastDayCount = useMemo(() => allRecipes.filter(r => r.calories > 0 && r.calories <= FAST_DAY_KCAL).length, [allRecipes]);
+
+  const query = searchQuery.trim().toLowerCase();
+  const lastHad = (r: Recipe) => history?.lastHad[r.id] ?? '';
+  const filteredRecipes = allRecipes
     .filter(recipe => {
-      const matchesSearch =
-        recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()));
+      const tags = (recipe.tags || []).map(normalizeTag);
+      const matchesSearch = !query ||
+        recipe.name.toLowerCase().includes(query) ||
+        tags.some(tag => tag.includes(query)) ||
+        (recipe.ingredients || []).some(i => i.toLowerCase().includes(query));
 
       const matchesFilter = activeFilter === 'all' ||
         (activeFilter === 'mine' && !recipe.ownerId) ||
         (activeFilter === 'family' && !!recipe.ownerId) ||
-        recipe.tags?.includes(activeFilter);
+        tags.includes(activeFilter);
 
-      const matchesCalories = calorieFilter === 'all' || recipe.calories <= parseInt(calorieFilter);
-
+      const matchesTag = !activeTag || tags.includes(activeTag);
+      const matchesFastDay = !fastDayFriendly || (recipe.calories > 0 && recipe.calories <= FAST_DAY_KCAL);
       const matchesFavorite = !showFavoritesOnly || recipe.isFavorite;
 
-      return matchesSearch && matchesFilter && matchesCalories && matchesFavorite;
+      return matchesSearch && matchesFilter && matchesTag && matchesFastDay && matchesFavorite;
     })
     .sort((a, b) => {
       switch (sortOption) {
@@ -340,54 +361,90 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           return b.calories - a.calories;
         case 'protein':
           return (b.protein || 0) - (a.protein || 0);
+        case 'lastHad':
+          // Never had first, then longest ago
+          return lastHad(a).localeCompare(lastHad(b)) || a.name.localeCompare(b.name);
         case 'name':
         default:
           return a.name.localeCompare(b.name);
       }
     });
 
+  /** Filter chip: ink when on (fast day uses its own tint) */
+  const chip = (label: React.ReactNode, active: boolean, onClick: () => void, tone: 'ink' | 'fasting' = 'ink') => (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
+        ? (tone === 'fasting' ? 'bg-fasting-bg text-fasting-text' : 'bg-ink text-on-ink')
+        : 'bg-surface border border-border hover:bg-surface-sunken'}`}
+    >
+      {label}
+    </button>
+  );
+
+  const filtersActive = !!query || activeFilter !== 'all' || !!activeTag || fastDayFriendly || showFavoritesOnly;
+  const clearFilters = () => {
+    setSearchQuery(''); setActiveFilter('all'); setActiveTag(null); setFastDayFriendly(false); setShowFavoritesOnly(false);
+  };
+
   const familyCount = familyRecipes.length;
-  const handleAddToToday = async (recipe: Recipe) => {
-    try {
-      const today = localDateString();
-      const plan = await getDayPlan(today);
-      await saveDayPlan({ ...plan, meals: [...plan.meals, planMeal(recipe, slotFor(recipe))] });
-      showToast(`Added ${recipe.name} to today`);
-    } catch (err) {
-      console.error('Failed to add to plan', err);
-      showToast(`Couldn't add that to today`);
-    }
+
+  const handleSetImage = async (recipe: Recipe, image: string) => {
+    const updated = { ...recipe, image };
+    await saveRecipe(updated);
+    setRecipes(prev => prev.map(r => r.id === recipe.id ? updated : r));
+    setSelectedRecipe(updated);
+    showToast('Photo added');
   };
 
   return (
     <div className="space-y-5 pb-20">
-      {/* Title and actions */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <h2 className="heading-2">Your cookbook</h2>
-          <p className="text-sm text-muted mt-0.5">
-            {recipes.length} {recipes.length === 1 ? 'recipe' : 'recipes'}
-            {familyCount > 0 && ` · ${familyCount} from family`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      {/* Count and add actions */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          <span className="font-semibold text-main">{recipes.length}</span> {recipes.length === 1 ? 'recipe' : 'recipes'}
+          {familyCount > 0 && ` · ${familyCount} from family`}
+          {filtersActive && ` · ${filteredRecipes.length} shown`}
+        </p>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => { setIsAdding(!isAdding); setImportError(null); }}
             aria-expanded={isAdding}
             className={isAdding ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
           >
             {isAdding ? <X size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}
-            {isAdding ? 'Close import' : 'Import'}
+            {isAdding ? 'Close' : 'Import'}
           </button>
-          <button onClick={() => setShowIngredientModal(true)} className="btn-secondary btn-sm">
-            <Sparkles size={16} aria-hidden="true" /> From ingredients
-          </button>
-          <button onClick={handleManualAdd} className="btn-secondary btn-sm">
-            <Plus size={16} aria-hidden="true" /> New
-          </button>
-          <button onClick={handleExport} className="icon-btn !size-9" aria-label="Export recipes as JSON" title="Export recipes as JSON">
-            <Download size={16} aria-hidden="true" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setAddMenuOpen(v => !v); }}
+              className="icon-btn !size-9"
+              aria-label="More ways to add recipes"
+              aria-haspopup="menu"
+              aria-expanded={addMenuOpen}
+            >
+              <Plus size={18} />
+            </button>
+            {addMenuOpen && (
+              <div role="menu" className="absolute right-0 top-11 z-30 w-56 p-1.5 rounded-[16px] bg-surface border border-border shadow-[var(--elev-md)]">
+                {([
+                  [<Plus size={16} aria-hidden="true" />, 'Write a recipe', handleManualAdd],
+                  [<Sparkles size={16} aria-hidden="true" />, 'Create from ingredients', () => setShowIngredientModal(true)],
+                  [<Download size={16} aria-hidden="true" />, 'Export all as JSON', handleExport],
+                ] as const).map(([icon, label, action]) => (
+                  <button
+                    key={label}
+                    role="menuitem"
+                    onClick={() => { setAddMenuOpen(false); action(); }}
+                    className="w-full flex items-center gap-2.5 min-h-10 px-3 rounded-[10px] text-sm font-semibold text-left hover:bg-surface-sunken"
+                  >
+                    {icon} {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -439,62 +496,79 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         </section>
       )}
 
-      {/* Search, filters, sort */}
+      {/* Search, sort and layout, then one row of filter chips */}
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
+        <div className="flex gap-2">
+          <div className="relative flex-1 min-w-0">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none" aria-hidden="true" />
             <label htmlFor="recipe-search" className="sr-only">Search recipes</label>
             <input
               id="recipe-search"
               type="search"
               className="input w-full !pl-11"
-              placeholder="Search by name, ingredient or tag"
+              placeholder="Search name, ingredient or tag"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex gap-2">
-            <label className="sr-only" htmlFor="recipe-calories">Maximum calories</label>
-            <select id="recipe-calories" value={calorieFilter} onChange={(e) => setCalorieFilter(e.target.value)} className="input flex-1 sm:flex-none sm:w-40">
-              <option value="all">Any calories</option>
-              {Array.from({ length: 8 }, (_, i) => (i + 1) * 100).map(cal => (
-                <option key={cal} value={cal.toString()}>Under {cal} kcal</option>
-              ))}
-            </select>
-            <label className="sr-only" htmlFor="recipe-sort">Sort by</label>
-            <select id="recipe-sort" value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="input flex-1 sm:flex-none sm:w-44">
+          {/* Sort: full menu from sm, an icon over the same menu on phones */}
+          <label className="relative shrink-0">
+            <span className="sr-only">Sort by</span>
+            <ArrowUpDown size={18} className="sm:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
+            <select
+              id="recipe-sort"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              className="input h-full w-11 sm:w-48 !px-0 sm:!px-4 !text-transparent sm:!text-[var(--text-main)] appearance-none sm:appearance-auto cursor-pointer [&_option]:!text-[var(--text-main)]"
+            >
               <option value="name">Name A–Z</option>
               <option value="caloriesLow">Fewest calories</option>
               <option value="caloriesHigh">Most calories</option>
               <option value="protein">Most protein</option>
+              <option value="lastHad">Not had in a while</option>
             </select>
-          </div>
+          </label>
+          {!onSelect && (
+            <div className="inline-flex shrink-0 self-center p-1 rounded-[14px] bg-surface-sunken" role="radiogroup" aria-label="Layout">
+              {([['grid', LayoutGrid, 'Grid'], ['list', List, 'List']] as const).map(([value, Icon, label]) => (
+                <button
+                  key={value}
+                  role="radio"
+                  aria-checked={view === value}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => changeView(value)}
+                  className={`size-9 flex items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${view === value ? 'bg-surface text-main shadow-sm' : 'text-muted hover:text-main'}`}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5" role="group" aria-label="Filter recipes">
-          <button
-            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-            aria-pressed={showFavoritesOnly}
-            className={`shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${showFavoritesOnly ? 'bg-calories-bg text-calories-text' : 'bg-surface border border-border hover:bg-surface-sunken'}`}
-          >
-            <Heart size={14} fill={showFavoritesOnly ? 'currentColor' : 'none'} aria-hidden="true" /> Favourites
-          </button>
-          {[['all', 'All'], ['mine', 'Mine'], ['family', 'Family'], ['breakfast', 'Breakfast'], ['main meal', 'Main meals'], ['light meal', 'Light meals'], ['snack', 'Snacks']].map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setActiveFilter(value)}
-              aria-pressed={activeFilter === value}
-              className={`shrink-0 min-h-9 px-3.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${activeFilter === value ? 'bg-ink text-on-ink' : 'bg-surface border border-border hover:bg-surface-sunken'}`}
-            >
-              {label}
-            </button>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5" role="group" aria-label="Filter recipes">
+          {chip(<><Heart size={14} fill={showFavoritesOnly ? 'currentColor' : 'none'} aria-hidden="true" /> Favourites</>, showFavoritesOnly, () => setShowFavoritesOnly(v => !v))}
+          {(familyCount > 0
+            ? [['mine', 'Mine'], ['family', 'Family'], ['breakfast', 'Breakfast'], ['main meal', 'Main meals'], ['light meal', 'Light meals'], ['snack', 'Snacks']]
+            : [['breakfast', 'Breakfast'], ['main meal', 'Main meals'], ['light meal', 'Light meals'], ['snack', 'Snacks']]
+          ).map(([value, label]) => (
+            <React.Fragment key={value}>
+              {chip(label, activeFilter === value, () => setActiveFilter(f => (f === value ? 'all' : value)))}
+            </React.Fragment>
+          ))}
+          <span className="shrink-0 w-px my-1.5 bg-border" aria-hidden="true" />
+          {fastDayCount > 0 && chip(<><Flame size={14} aria-hidden="true" /> Fast day friendly</>, fastDayFriendly, () => setFastDayFriendly(v => !v), 'fasting')}
+          {tagChips.map(([tag]) => (
+            <React.Fragment key={tag}>
+              {chip(tagLabel(tag), activeTag === tag, () => setActiveTag(t => (t === tag ? null : tag)))}
+            </React.Fragment>
           ))}
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid gap-2.5 md:gap-4 grid-cols-2 lg:grid-cols-3">
+      {/* Grid or list */}
+      <div className={view === 'list' && !onSelect && filteredRecipes.length > 0 && !(isLoading && recipes.length === 0) ? 'card p-1.5' : 'grid gap-2.5 md:gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}>
         {isLoading && recipes.length === 0 ? (
           Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="card p-2 animate-pulse" aria-hidden="true">
@@ -517,18 +591,33 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             {recipes.length === 0 ? (
               <button onClick={() => setIsAdding(true)} className="btn-primary btn-sm mt-4"><Link2 size={16} aria-hidden="true" /> Import a recipe</button>
             ) : (
-              <button
-                onClick={() => { setSearchQuery(''); setActiveFilter('all'); setCalorieFilter('all'); setShowFavoritesOnly(false); }}
-                className="btn-secondary btn-sm mt-4"
-              >
+              <button onClick={clearFilters} className="btn-secondary btn-sm mt-4">
                 Clear filters
               </button>
             )}
           </div>
+        ) : view === 'list' && !onSelect ? (
+          <ul>
+            {filteredRecipes.map(recipe => (
+              <RecipeRow
+                key={`${recipe.ownerId || 'me'}-${recipe.id}`}
+                meal={recipe}
+                onClick={() => openRecipe(recipe)}
+                isOwned={!recipe.ownerId}
+                ownerName={recipe.ownerName}
+                onToggleFavorite={(e) => toggleFavorite(e, recipe)}
+                onAddToPlan={() => setPlanTarget(recipe)}
+                onCopyToLibrary={recipe.ownerId ? (e) => handleCopyToMyLibrary(e, recipe) : undefined}
+                plannedLabel={plannedLabelFor(history?.next[recipe.id], today)}
+                historyLabel={historyLabelFor(history?.lastHad[recipe.id], today)}
+                tags={(recipe.tags || []).map(normalizeTag).filter(t => !MEAL_TYPE_TAGS.has(t)).map(tagLabel)}
+              />
+            ))}
+          </ul>
         ) : (
           filteredRecipes.map(recipe => (
             <RecipeCard
-              key={recipe.id}
+              key={`${recipe.ownerId || 'me'}-${recipe.id}`}
               meal={recipe}
               onClick={onSelect ? () => onSelect(recipe) : () => openRecipe(recipe)}
               showMacros={false}
@@ -538,19 +627,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               ownerName={recipe.ownerName}
               isOwned={!recipe.ownerId}
               onCopyToLibrary={recipe.ownerId ? (e) => handleCopyToMyLibrary(e, recipe) : undefined}
-              onAddToPlan={onSelect ? undefined : () => handleAddToToday(recipe)}
+              onAddToPlan={onSelect ? undefined : () => setPlanTarget(recipe)}
+              plannedLabel={onSelect ? undefined : plannedLabelFor(history?.next[recipe.id], today)}
             />
           ))
         )}
       </div>
-
-      {!hasLoadedAll && !isLoading && recipes.length > 0 && (
-        <div className="flex justify-center pt-2">
-          <button onClick={handleLoadMore} className="btn-secondary btn-sm">
-            Show all recipes <ChevronDown size={16} aria-hidden="true" />
-          </button>
-        </div>
-      )}
 
       {/* Feedback toast, kept clear of the bottom nav */}
       {toast && (
@@ -558,6 +640,21 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           {toast}
         </div>
       )}
+
+      {planTarget && (
+        <AddToPlanSheet
+          recipe={planTarget}
+          onClose={() => setPlanTarget(null)}
+          onAdded={(message) => {
+            setPlanTarget(null);
+            showToast(message);
+            ensureWarm(recipeHistoryData, true).catch(() => { /* badge updates next refresh */ });
+          }}
+          onError={showToast}
+        />
+      )}
+
+      {cookRecipe && <CookingMode recipe={cookRecipe} onClose={() => setCookRecipe(null)} />}
 
       {/* Ingredient Recipe Modal */}
       {
@@ -589,6 +686,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               onCopyToLibrary={selectedRecipe.ownerId ? async () => {
                 await handleCopyToMyLibrary({ stopPropagation: () => { } } as React.MouseEvent, selectedRecipe);
               } : undefined}
+              onAddToPlan={onSelect ? undefined : () => { setPlanTarget(selectedRecipe); closeRecipe(); }}
+              onCook={() => setCookRecipe(selectedRecipe)}
+              onSetImage={!selectedRecipe.ownerId && !selectedRecipe.image ? (url) => handleSetImage(selectedRecipe, url) : undefined}
             />
           )
         )

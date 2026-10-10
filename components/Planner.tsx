@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingCart, Sparkles, UsersRound } from 'lucide-react';
 import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
 import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan } from '../services/storageService';
-import { getFamilyMemberRecipes, getGroupMembersDetails, getUserGroup } from '../services/groupService';
+import { familyData } from '../services/pageData';
+import { usePrewarmed } from '../utils/prewarm';
 import { auth } from '../services/firebase';
 import { getCachedRecipes } from '../utils/cacheService';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import {
   MEAL_SLOTS, addDays, dayCalories, dayTarget, emptyDayPlan, isFastDay, isMealEaten, mealCalories, mealKey,
-  planMeal, slotFor, slotLabel, weekDates, weekStart,
+  planMeal, planRecipe, slotFor, slotLabel, weekDates, weekStart,
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { CookingMode } from './CookingMode';
@@ -20,7 +21,6 @@ import { PlannerMealSheet } from './PlannerMealSheet';
 
 interface AddTarget { date: string; slot: MealSlot; mode: AddMode; index?: number }
 interface MealTarget { date: string; index: number }
-interface Family { memberCount: number; names: Map<string, string> }
 
 const shortDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' });
 const longDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'long' });
@@ -31,6 +31,7 @@ const longDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefi
  */
 export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const today = localDateString();
   const [monday, setMonday] = useState(() => weekStart(today));
   const dates = useMemo(() => weekDates(monday), [monday]);
@@ -39,8 +40,9 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   plansRef.current = plans;
   const [loadedWeeks, setLoadedWeeks] = useState<Set<string>>(new Set());
   const [recipes, setRecipes] = useState<Recipe[]>(() => getCachedRecipes() || []);
-  const [familyRecipes, setFamilyRecipes] = useState<Recipe[]>([]);
-  const [family, setFamily] = useState<Family | null>(null);
+  // Family group, member names and their recipes (loaded in the background after sign-in)
+  const family = usePrewarmed(familyData) ?? null;
+  const familyRecipes = family?.recipes ?? [];
 
   const [addTarget, setAddTarget] = useState<AddTarget | null>(null);
   const [mealTarget, setMealTarget] = useState<MealTarget | null>(null);
@@ -71,6 +73,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     setLoadedWeeks(prev => new Set(prev).add(start));
   }, []);
 
+  // Opened with a date (e.g. "Plan tomorrow" on Today): show that week
+  useEffect(() => {
+    const date = (location.state as { date?: string } | null)?.date;
+    if (date) setMonday(weekStart(date));
+  }, [location.key]);
+
+  // Also re-runs each time the page is shown again (App keeps it in an Activity), so meals
+  // ticked off on Today appear without a loading state
   useEffect(() => { loadWeek(monday); }, [monday, loadWeek]);
 
   useEffect(() => {
@@ -78,17 +88,6 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     getRecipes()
       .then(fresh => { if (fresh.length > 0 || !getCachedRecipes()) setRecipes(fresh); })
       .catch(e => console.error('Failed to load recipes', e));
-    (async () => {
-      try {
-        const group = await getUserGroup();
-        if (!group) return;
-        const [members, shared] = await Promise.all([getGroupMembersDetails(group.memberIds), getFamilyMemberRecipes(group)]);
-        setFamily({ memberCount: group.memberIds.length, names: new Map(members.map(m => [m.id, m.name.split(' ')[0]])) });
-        setFamilyRecipes(shared);
-      } catch (e) {
-        console.error('Failed to load family', e);
-      }
-    })();
   }, []);
 
   // Phones: start at today in the current week
@@ -125,16 +124,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const updateDay = (date: string, change: (plan: DayPlan) => DayPlan) => updateDays({ [date]: change });
 
   /** A planned copy of a recipe for a slot, shared with the family when it's a dinner. */
-  const newMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}) => {
-    const shared = inFamily && slot === 'dinner';
-    return planMeal(recipe, slot, {
-      familyDinner: shared,
-      cookingServings: shared ? family!.memberCount : 1,
-      addedBy: myUid,
-      ownerId: recipe.ownerId,
-      ...extra,
-    });
-  };
+  const newMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}) =>
+    planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: myUid }, extra);
 
   const replaceAt = (meals: Recipe[], index: number, meal: Recipe) => meals.map((m, i) => (i === index ? meal : m));
 

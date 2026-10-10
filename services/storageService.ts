@@ -1,4 +1,4 @@
-import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference, CustomMealInstance } from "../types";
+import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference, CustomMealInstance } from "../types";
 import { getCacheKey, saveToCache, getFromCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
@@ -680,6 +680,33 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
     return {};
   }
 };
+/**
+ * Dates each library recipe is planned on in a range (own days plus family dinners), read from
+ * the stored references without hydrating recipes. Keyed by recipe id; dates ascending.
+ */
+export const getRecipePlanDates = async (startDate: string, endDate: string): Promise<Record<string, string[]>> => {
+  const dates: Record<string, string[]> = {};
+  const add = (date: string, meals: unknown[]) => meals.forEach(raw => {
+    const meal = raw as PlannedMeal & { id?: string };
+    const id = meal?.type === 'reference' ? meal.recipeId : !meal?.type ? meal?.id : undefined;
+    if (id) (dates[id] ||= []).push(date);
+  });
+
+  const inRange = (name: string) => query(getCollectionRef(name), where('date', '>=', startDate), where('date', '<=', endDate));
+  const groupId = await getMyGroupId();
+  const [days, dinners] = await Promise.all([
+    getDocs(inRange('days')),
+    groupId
+      ? getDocs(query(collection(db, 'groups', groupId, 'dinners'), where('date', '>=', startDate), where('date', '<=', endDate))).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  days.forEach(d => { const data = d.data(); add(data.date, data.meals || []); });
+  dinners?.forEach(d => { const data = d.data(); add(data.date, Object.values(data.meals || {})); });
+
+  Object.values(dates).forEach(list => list.sort());
+  return dates;
+};
+
 // Purely local helper to stitch together a range from existing cache
 export const getCachedPlansInRange = (startDate: string, endDate: string): Record<string, DayPlan> | null => {
   const plans: Record<string, DayPlan> = {};
@@ -902,6 +929,12 @@ export const migrateShoppingState = async () => {
 
 // --- Daily Logs ---
 // Using a collection 'logs' where docId = date
+/** Food items logged since a date (inclusive), oldest day first. */
+export const getFoodItemsSince = async (startDate: string): Promise<FoodLogItem[]> => {
+  const snapshot = await getDocs(query(getCollectionRef('logs'), where('date', '>=', startDate), orderBy('date', 'asc')));
+  return snapshot.docs.flatMap(d => (d.data() as DailyLog).items || []);
+};
+
 export const getDailyLog = async (date: string): Promise<DailyLog> => {
   try {
     const d = await getDoc(getDocRef('logs', date));

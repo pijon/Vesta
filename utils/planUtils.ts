@@ -68,3 +68,23 @@ export const planMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> 
   familyDinner: false,
   ...extra,
 });
+
+/**
+ * A recipe planned into a slot by the current user. With a family group (familySize set), a
+ * dinner is shared with the family and cooked for everyone; other meals are personal.
+ */
+export const planRecipe = (
+  recipe: Recipe,
+  slot: MealSlot,
+  { familySize, addedBy }: { familySize?: number | null; addedBy?: string },
+  extra: Partial<Recipe> = {},
+): Recipe => {
+  const shared = !!familySize && slot === 'dinner';
+  return planMeal(recipe, slot, {
+    familyDinner: shared,
+    cookingServings: shared ? familySize! : 1,
+    addedBy,
+    ownerId: recipe.ownerId,
+    ...extra,
+  });
+};

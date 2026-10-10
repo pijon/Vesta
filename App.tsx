@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { mealCalories, slotFor, slotLabel } from './utils/planUtils';
@@ -26,7 +26,7 @@ import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { APP_NAME, DEFAULT_USER_STATS } from './constants';
+import { APP_NAME, DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
@@ -54,9 +54,15 @@ const TrackerApp: React.FC = () => {
         return localDateString(d);
     });
 
+    // After start-up: download the other pages' code and load their data in the background,
+    // so opening them shows content straight away
     useEffect(() => {
         const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
-        idle(prefetchViews);
+        idle(() => {
+            prefetchViews();
+            import('./services/pageData').then(m => m.prewarmPages());
+        });
+        return () => { import('./utils/prewarm').then(m => m.clearWarm()); };
     }, []);
 
     // Check for date change on focus/visibility change
@@ -96,6 +102,16 @@ const TrackerApp: React.FC = () => {
     };
 
     const view = getCurrentView();
+
+    // Each page gets back the scroll position it was left at
+    const scrollPositions = useRef(new Map<AppView, number>());
+    const previousView = useRef(view);
+    useLayoutEffect(() => {
+        if (previousView.current === view) return;
+        scrollPositions.current.set(previousView.current, window.scrollY);
+        previousView.current = view;
+        window.scrollTo(0, scrollPositions.current.get(view) ?? 0);
+    }, [view]);
 
     // Navigation handler that updates URL
     const handleNavigate = (newView: AppView) => {
@@ -291,7 +307,7 @@ const TrackerApp: React.FC = () => {
         // Check active fast duration before breaking it
         if (fastingState.lastAteTime) {
             const diffHours = (now - fastingState.lastAteTime) / (1000 * 60 * 60);
-            if (diffHours > currentFastingMax) {
+            if (diffHours > currentFastingMax && diffHours <= MAX_PLAUSIBLE_FAST_HOURS) {
                 currentFastingMax = diffHours;
             }
         }
@@ -353,7 +369,7 @@ const TrackerApp: React.FC = () => {
             // Check active fast duration before breaking it
             if (fastingState.lastAteTime) {
                 const diffHours = (now - fastingState.lastAteTime) / (1000 * 60 * 60);
-                if (diffHours > currentFastingMax) {
+                if (diffHours > currentFastingMax && diffHours <= MAX_PLAUSIBLE_FAST_HOURS) {
                     currentFastingMax = diffHours;
                 }
             }
@@ -401,7 +417,7 @@ const TrackerApp: React.FC = () => {
             const fastDuration = timestamp - fastingState.lastAteTime;
             const targetMs = fastingState.config.targetFastHours * 60 * 60 * 1000;
 
-            if (fastDuration >= targetMs) {
+            if (fastDuration >= targetMs && fastDuration <= MAX_PLAUSIBLE_FAST_HOURS * 60 * 60 * 1000) {
                 // Log successful fast to history
                 await addFastingEntry({
                     id: crypto.randomUUID(),
@@ -551,6 +567,17 @@ const TrackerApp: React.FC = () => {
 
     const headerInfo = getHeaderInfo();
 
+    // Every page lives in an Activity: hidden pages are pre-rendered in the background and keep
+    // their state, but their effects pause and they don't re-render, so switching is instant.
+    // Effects re-run when a page is shown again, which quietly refreshes its data.
+    const renderView = (target: AppView, content: React.ReactNode) => (
+        <Activity key={target} mode={view === target ? 'visible' : 'hidden'}>
+            <div className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0 motion-safe:animate-page-in">
+                <React.Suspense fallback={<ViewSkeleton />}>{content}</React.Suspense>
+            </div>
+        </Activity>
+    );
+
 
 
     return (
@@ -573,58 +600,24 @@ const TrackerApp: React.FC = () => {
                             onOpenSundayReset={() => setIsSundayResetOpen(true)}
                         />
                     </div>
-                    {/* Views switch instantly (no cross-fade): each has its own Suspense so a
-                        loading view never blanks the page. Lazy chunks are prefetched below. */}
-                            {view === AppView.TODAY && (
-                                <div key="today" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
-                                    <React.Suspense fallback={<ViewSkeleton />}>
-                                        <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
-                                    </React.Suspense>
-                                </div>
-                            )}
-                            {view === AppView.ANALYTICS && (
-                                <div key="analytics" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
-                                    <React.Suspense fallback={<ViewSkeleton />}>
-                                        <TrackAnalytics {...trackProps} />
-                                    </React.Suspense>
-                                </div>
-                            )}
-                            {view === AppView.PLANNER && (
-                                <div key="planner" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
-                                    <React.Suspense fallback={<ViewSkeleton />}>
-                                        <Planner stats={userStats} onPlanChanged={refreshData} />
-                                    </React.Suspense>
-                                </div>
-                            )}
-                            {view === AppView.RECIPES && (
-                                <div key="recipes" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
-                                    <React.Suspense fallback={<ViewSkeleton />}>
-                                        <RecipeLibrary />
-                                    </React.Suspense>
-                                </div>
-                            )}
-                            {view === AppView.SHOPPING && (
-                                <div key="shopping" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
-                                    <React.Suspense fallback={<ViewSkeleton />}>
-                                        <ShoppingList />
-                                    </React.Suspense>
-                                </div>
-                            )}
-                            {view === AppView.SETTINGS && (
-                                <div key="settings" className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0">
-                                    <React.Suspense fallback={<ViewSkeleton />}>
-                                        <SettingsView
-                                            stats={userStats}
-                                            onUpdateStats={handleSaveStats}
-                                            fastingConfig={fastingState.config}
-                                            onUpdateFastingConfig={handleUpdateFastingConfig}
-                                            onTestOnboarding={() => setShowOnboarding(true)}
-                                            onTriggerSundayReset={() => setIsSundayResetOpen(true)}
-                                            onRefreshData={refreshData}
-                                        />
-                                    </React.Suspense>
-                                </div>
-                            )}
+                    {/* Views switch instantly (no cross-fade). Each has its own Suspense so a
+                        loading view never blanks the page; lazy chunks are prefetched at start-up. */}
+                    {renderView(AppView.TODAY, <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />)}
+                    {renderView(AppView.ANALYTICS, <TrackAnalytics {...trackProps} />)}
+                    {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} />)}
+                    {renderView(AppView.RECIPES, <RecipeLibrary />)}
+                    {renderView(AppView.SHOPPING, <ShoppingList />)}
+                    {renderView(AppView.SETTINGS, (
+                        <SettingsView
+                            stats={userStats}
+                            onUpdateStats={handleSaveStats}
+                            fastingConfig={fastingState.config}
+                            onUpdateFastingConfig={handleUpdateFastingConfig}
+                            onTestOnboarding={() => setShowOnboarding(true)}
+                            onTriggerSundayReset={() => setIsSundayResetOpen(true)}
+                            onRefreshData={refreshData}
+                        />
+                    ))}
 
                 </main>
 
