@@ -5,6 +5,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Recipe } from '../types';
+import { compileIconRules, matchIcon, type IconRule } from './iconMatch';
 
 export interface MealVisual {
   label: string;
@@ -13,13 +14,12 @@ export interface MealVisual {
   tint: string;
 }
 
-type FoodRule = [LucideIcon, string[]];
+type FoodRule = IconRule<LucideIcon>;
 
 /**
  * Food-type icons, matched against whole words in a recipe or logged item's name (English and common Swedish).
- * English plurals ending in s/es match automatically.
  * Dish shape comes first (a chicken salad is drawn as a salad), then the main ingredient.
- * Swedish compounds: '-soppa' also matches the end of a word (linssoppa), 'kyckling-' the start (kycklinggryta).
+ * See iconMatch.ts for plurals and the '-' compound markers.
  */
 const DISH_RULES: FoodRule[] = [
   // Drinks first, so "coffee with milk" is a coffee and "orange juice" a drink
@@ -66,31 +66,16 @@ const INGREDIENT_RULES: FoodRule[] = [
   [Carrot, ['carrot', 'vegetable', 'veg', 'veggie', 'veggies', 'crudités', 'potato', 'sweet potato', 'tomato', 'tomatoes', 'pepper', 'morot', 'morötter', 'grönsaker', 'potatis']],
 ];
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-// Whole-word match that also works for å/ä/ö (\b only knows ASCII letters)
-const NOT_AFTER_LETTER = '(?<![\\p{L}])';
-const NOT_BEFORE_LETTER = '(?![\\p{L}])';
-const wordPattern = (words: string[]) => new RegExp(words.map(word => {
-  const open = word.startsWith('-');
-  const prefix = word.endsWith('-');
-  const core = escapeRegExp(word.replace(/^-|-$/g, ''));
-  return `${open ? '' : NOT_AFTER_LETTER}${core}${prefix ? '' : `(?:e?s)?${NOT_BEFORE_LETTER}`}`;
-}).join('|'), 'iu');
-
-const DISH_PATTERNS = DISH_RULES.map(([Icon, words]) => [Icon, wordPattern(words)] as const);
-const INGREDIENT_PATTERNS = INGREDIENT_RULES.map(([Icon, words]) => [Icon, wordPattern(words)] as const);
-
-const firstMatch = (text: string, patterns: ReadonlyArray<readonly [LucideIcon, RegExp]>) =>
-  patterns.find(([, re]) => re.test(text))?.[0];
+const DISH_PATTERNS = compileIconRules(DISH_RULES);
+const INGREDIENT_PATTERNS = compileIconRules(INGREDIENT_RULES);
 
 /** Icon for what the dish is: name first, then the first few ingredients for the main protein. */
 export const foodIconFor = (meal: Partial<Pick<Recipe, 'name' | 'ingredients'>>): LucideIcon | undefined => {
   const name = meal.name || '';
-  const fromName = firstMatch(name, DISH_PATTERNS) || firstMatch(name, INGREDIENT_PATTERNS);
+  const fromName = matchIcon(name, DISH_PATTERNS) || matchIcon(name, INGREDIENT_PATTERNS);
   if (fromName) return fromName;
   const leadIngredients = (meal.ingredients || []).slice(0, 3).join(' · ');
-  return leadIngredients ? firstMatch(leadIngredients, INGREDIENT_PATTERNS) : undefined;
+  return leadIngredients ? matchIcon(leadIngredients, INGREDIENT_PATTERNS) : undefined;
 };
 
 /** Meal-type label and tint, with an icon for the food itself when the name tells us what it is. */

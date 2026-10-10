@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
-import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Dumbbell, Trash2, ChevronDown, Check, Shuffle } from 'lucide-react';
+import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
+import { workoutIconFor } from '../utils/workoutVisual';
+import { isMealEaten, mealCalories } from '../utils/planUtils';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
@@ -175,11 +177,11 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const totalLoggedItems = sortedFoodItems.length + sortedWorkouts.length;
 
   const plannedMeals = todayPlan.meals || [];
-  const eatenCount = plannedMeals.filter(m => todayPlan.completedMealIds.includes(m.id)).length;
-  const plannedCalories = plannedMeals.reduce((sum, m) => sum + (m.calories || 0), 0);
+  const eatenCount = plannedMeals.filter(m => isMealEaten(todayPlan, m)).length;
+  const plannedCalories = plannedMeals.reduce((sum, m) => sum + mealCalories(m), 0);
   const remainingPlannedCalories = plannedMeals
-    .filter(m => !todayPlan.completedMealIds.includes(m.id))
-    .reduce((sum, m) => sum + (m.calories || 0), 0);
+    .filter(m => !isMealEaten(todayPlan, m))
+    .reduce((sum, m) => sum + mealCalories(m), 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
@@ -206,7 +208,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {plannedMeals.map((meal) => (
                 <span
                   key={meal.id}
-                  className={`h-1.5 flex-1 rounded-full transition-colors ${todayPlan.completedMealIds.includes(meal.id) ? 'bg-primary' : 'bg-surface-sunken'}`}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${isMealEaten(todayPlan, meal) ? 'bg-primary' : 'bg-surface-sunken'}`}
                 />
               ))}
             </div>
@@ -225,7 +227,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           ) : (
             <ul>
               {plannedMeals.map((meal, index) => {
-                const isEaten = todayPlan.completedMealIds.includes(meal.id);
+                const isEaten = isMealEaten(todayPlan, meal);
                 const visual = mealVisualFor(meal);
                 return (
                   <li
@@ -332,7 +334,8 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     <ul>
                       {group.entries.map((entry) => {
                         const isFood = entry.kind === 'food';
-                        const Icon = isFood ? logIconFor(entry.item) : Dumbbell;
+                        const FoodIcon = isFood ? logIconFor(entry.item) : null;
+                        const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
                         const name = isFood ? entry.item.name : entry.workout.type;
                         const kcal = isFood ? entry.item.calories : entry.workout.caloriesBurned;
                         return (
@@ -343,7 +346,8 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                               aria-label={`Edit ${name}`}
                             >
                               <span className={`size-10 shrink-0 rounded-[12px] flex items-center justify-center ${isFood ? 'bg-calories-bg text-calories-text' : 'bg-workout-bg text-workout-text'}`}>
-                                <Icon size={20} strokeWidth={2} aria-hidden="true" />
+                                {FoodIcon && <FoodIcon size={20} strokeWidth={2} aria-hidden="true" />}
+                                {WorkoutIcon && <WorkoutIcon size={22} stroke={1.75} aria-hidden="true" />}
                               </span>
                               <span className="flex-1 min-w-0">
                                 <span className="block font-semibold leading-snug line-clamp-2">{name}</span>

@@ -22,15 +22,42 @@ export interface Recipe {
   isLeftover?: boolean; // If true, this is a leftover from a previous meal
   isPacked?: boolean;   // If true, this is a packed lunch/meal
   sides?: Recipe[];     // Nested side dishes associated with this meal
+  // Set on meals inside a DayPlan (see PlannedMealMeta)
+  slot?: MealSlot;
+  instanceId?: string;
+  familyDinner?: boolean;
+  addedBy?: string;
+  /** Planned reference whose library recipe no longer exists */
+  isMissing?: boolean;
 }
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export type Meal = Recipe;
 
 // --- Normalized Meal Planning (Database Optimization) ---
 
+/** Per-instance fields stored with every planned meal (all optional for legacy data) */
+export interface PlannedMealMeta {
+  slot?: MealSlot;
+  /** Unique per planned meal; completedMealIds and leftovers point at it */
+  instanceId?: string;
+  /** Portions to cook (shopping list scale); servings stays the recipe's yield */
+  cookingServings?: number;
+  isPacked?: boolean;
+  isLeftover?: boolean;
+  sides?: PlannedMeal[];
+  /** Shared family dinner (stored in groups/{groupId}/dinners/{date}) */
+  familyDinner?: boolean;
+  /** Uid of the member who planned it */
+  addedBy?: string;
+}
+
 /** Lightweight reference to a library recipe */
-export interface RecipeReference {
+export interface RecipeReference extends PlannedMealMeta {
   type: 'reference';
+  /** Library owner when not the current user (family recipes) */
+  ownerId?: string;
   recipeId: string;      // Points to users/{uid}/recipes/{id}
   servings: number;      // User's planned servings for this meal
 
@@ -42,7 +69,7 @@ export interface RecipeReference {
 }
 
 /** One-off custom meals not in the library */
-export interface CustomMealInstance {
+export interface CustomMealInstance extends PlannedMealMeta {
   type: 'custom';
   id: string;            // Generated UUID
   name: string;

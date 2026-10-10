@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Utensils, Check, Sparkles, RefreshCw } from 'lucide-react';
 import { planSpecificDays, DayConfig } from '../services/geminiService';
-import { getRecipes, saveDayPlan } from '../services/storageService';
+import { getDayPlan, getRecipes, saveDayPlan } from '../services/storageService';
+import { getMyGroupId } from '../services/groupService';
+import { planMeal, slotFor } from '../utils/planUtils';
 import { Recipe, DayPlan } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { localDateString } from '../utils/dateUtils';
@@ -100,21 +102,26 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
     const handleAcceptPlan = async () => {
         setIsLoading(true);
         try {
+            // Fill only the open slots: meals already planned (and family dinners) stay
+            const inFamily = !!(await getMyGroupId());
             for (const day of generatedPlan) {
-                const meals = day.mealIds.map(id => {
-                    const r = recipes.find(rec => rec.id === id);
-                    return r ? { ...r } : null;
-                }).filter(Boolean) as Recipe[];
+                const existing = await getDayPlan(day.date);
+                const taken = new Set(existing.meals.map(slotFor));
+                const added: Recipe[] = [];
+                day.mealIds.forEach(id => {
+                    const recipe = recipes.find(rec => rec.id === id);
+                    if (!recipe) return;
+                    const slot = slotFor(recipe);
+                    if (slot !== 'snack' && taken.has(slot)) return;
+                    taken.add(slot);
+                    added.push(planMeal(recipe, slot, { familyDinner: inFamily && slot === 'dinner' }));
+                });
 
-                const fullPlan: DayPlan = {
-                    date: day.date,
-                    meals: meals,
-                    completedMealIds: [],
-                    tips: '',
-                    type: day.type || 'non-fast'
-                };
-
-                await saveDayPlan(fullPlan);
+                await saveDayPlan({
+                    ...existing,
+                    meals: [...existing.meals, ...added],
+                    type: day.type || existing.type,
+                });
             }
             setStep('complete');
         } catch (e) {

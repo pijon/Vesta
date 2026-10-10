@@ -5,6 +5,7 @@ import { saveDayPlan, saveDailyLog, getDailySummaries } from '../services/storag
 import { FoodEntryModal } from './FoodEntryModal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { WorkoutEntryModal } from './WorkoutEntryModal';
+import { dayTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
@@ -185,8 +186,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const weightAnalysis = analyzeWeightTrends(stats);
 
   // Determine Daily Target based on Day Type
-  const isNonFastDay = todayPlan.type === 'non-fast';
-  const dailyTarget = isNonFastDay ? (stats.nonFastDayCalories || 2000) : stats.dailyCalorieGoal;
+  const isNonFastDay = !isFastDay(todayPlan);
+  const dailyTarget = dayTarget(todayPlan, stats);
 
   const handleAddWaterClick = (amount: number) => {
     // Direct prop call - Parent updates dailyLog which re-renders this component
@@ -206,7 +207,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     if (!meal) return;
 
     let newCompleted = [...todayPlan.completedMealIds];
-    const uniqueId = meal.id;
+    const uniqueId = mealKey(meal);
     let isAdding = false;
 
     if (newCompleted.includes(uniqueId)) {
@@ -232,12 +233,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     if (activeMealIndexToSwap === null) return;
     const newMeals = [...todayPlan.meals];
     const oldMeal = newMeals[activeMealIndexToSwap];
-    const updatedCompletedIds = todayPlan.completedMealIds.filter(id => id !== oldMeal.id);
+    const updatedCompletedIds = todayPlan.completedMealIds.filter(id => id !== mealKey(oldMeal));
 
-    newMeals[activeMealIndexToSwap] = {
-      ...recipe,
-      id: recipe.id
-    };
+    newMeals[activeMealIndexToSwap] = planMeal(recipe, slotFor(oldMeal), {
+      familyDinner: oldMeal.familyDinner,
+      cookingServings: oldMeal.cookingServings,
+    });
 
     const updatedPlan: DayPlan = {
       ...todayPlan,

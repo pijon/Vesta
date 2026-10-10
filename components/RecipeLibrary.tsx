@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChefHat, ChevronDown, Download, Heart, Link2, Plus, Search, Sparkles, X } from 'lucide-react';
 import { getCachedRecipes } from '../utils/cacheService';
+import { planMeal, slotFor } from '../utils/planUtils';
 import { Recipe, Group } from '../types';
 import { getRecipes, saveRecipe, deleteRecipe, getDayPlan, saveDayPlan } from '../services/storageService';
 import { getUserGroup, getFamilyMemberRecipes, copyRecipeToMyLibrary } from '../services/groupService';
@@ -350,9 +351,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     try {
       const today = localDateString();
       const plan = await getDayPlan(today);
-      const newMeals = [...plan.meals, recipe];
-      const totalCals = newMeals.reduce((acc, m) => acc + m.calories, 0);
-      await saveDayPlan({ ...plan, meals: newMeals, totalCalories: totalCals });
+      await saveDayPlan({ ...plan, meals: [...plan.meals, planMeal(recipe, slotFor(recipe))] });
       showToast(`Added ${recipe.name} to today`);
     } catch (err) {
       console.error('Failed to add to plan', err);

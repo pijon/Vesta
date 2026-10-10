@@ -43,6 +43,25 @@ const getCurrentUser = () => {
 
 // --- Group Management ---
 
+// The current user's groupId, read once per session (plans need it on every load).
+let myGroupId: { uid: string; promise: Promise<string | null> } | null = null;
+
+export const getMyGroupId = (): Promise<string | null> => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return Promise.resolve(null);
+    if (myGroupId?.uid !== uid) {
+        myGroupId = {
+            uid,
+            promise: getDoc(getUserRef(uid))
+                .then(snap => (snap.data()?.groupId as string | undefined) || null)
+                .catch(() => { myGroupId = null; return null; }), // retry next time
+        };
+    }
+    return myGroupId.promise;
+};
+
+const forgetMyGroupId = () => { myGroupId = null; };
+
 export const createGroup = async (groupName: string): Promise<string> => {
     const user = getCurrentUser();
     const groupId = crypto.randomUUID();
@@ -64,6 +83,7 @@ export const createGroup = async (groupName: string): Promise<string> => {
     batch.set(getInviteRef(inviteCode), { groupId });
     batch.set(getUserRef(user.uid), { groupId }, { merge: true });
     await batch.commit();
+    forgetMyGroupId();
 
     return groupId;
 };
@@ -89,6 +109,7 @@ export const joinGroup = async (inviteCode: string): Promise<Group> => {
 
     // 3. Update User Profile
     await setDoc(getUserRef(user.uid), { groupId }, { merge: true });
+    forgetMyGroupId();
 
     const group = await getGroup(groupId);
     if (!group) throw new Error("Group not found");
@@ -122,6 +143,7 @@ export const leaveGroup = async (groupId: string): Promise<void> => {
 
     // 2. Clear groupId from User Profile
     await setDoc(getUserRef(user.uid), { groupId: null }, { merge: true });
+    forgetMyGroupId();
 };
 
 export const getGroup = async (groupId: string): Promise<Group | null> => {

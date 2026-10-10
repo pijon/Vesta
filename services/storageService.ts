@@ -1,9 +1,12 @@
-import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, RecipeReference, CustomMealInstance } from "../types";
+import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference, CustomMealInstance } from "../types";
 import { getCacheKey, saveToCache, getFromCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState } from "../utils/cacheService";
-import { getUserGroup, getGroupMembersDetails } from "./groupService";
+import { getUserGroup, getGroupMembersDetails, getMyGroupId } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, deleteField, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
+
+/** Description that marks a one-off (eat out / quick entry) meal rather than a library recipe */
+const CUSTOM_MEAL_DESCRIPTION = 'Eat Out / Custom Meal';
 
 // Helper to get current user ID or throw
 const getUserId = () => {
@@ -149,42 +152,49 @@ const PLAN_DOC = 'plan'; // Keeping reference for legacy migration and export
 
 /**
  * Converts a full Recipe UI object to a lightweight PlannedMeal for storage.
- * - If meal is from library: store reference only
- * - If meal is custom: store minimal data
+ * - Library recipes are stored as a reference (family recipes keep their ownerId)
+ * - Custom meals store their own minimal data
+ * Per-instance fields (slot, sides, portions, packed, leftover) are stored on both.
+ * `shared`: family dinners always record the recipe owner, since other members hydrate them.
  */
-const dehydrateMeal = (meal: Recipe): PlannedMeal => {
-  // Check if this is a library recipe (has originalRecipeId or id matching library)
-  const isLibraryRecipe = !!meal.originalRecipeId || (!!meal.id && meal.description !== 'Eat Out / Custom Meal');
+const dehydrateMeal = (meal: Recipe, shared = false): PlannedMeal => {
+  const meta: PlannedMealMeta = {
+    slot: meal.slot,
+    instanceId: meal.instanceId,
+    cookingServings: meal.cookingServings,
+    isPacked: meal.isPacked || undefined,
+    isLeftover: meal.isLeftover || undefined,
+    sides: meal.sides?.length ? meal.sides.map(side => dehydrateMeal(side, shared)) : undefined,
+    familyDinner: meal.familyDinner || undefined,
+    addedBy: meal.addedBy,
+  };
+
+  const isLibraryRecipe = !!meal.originalRecipeId || (!!meal.id && meal.description !== CUSTOM_MEAL_DESCRIPTION);
 
   if (isLibraryRecipe) {
-    // Store as RecipeReference
-    const reference: RecipeReference = {
+    const me = auth.currentUser?.uid;
+    const ownerId = meal.ownerId || (shared ? me : undefined);
+    return {
       type: 'reference',
       recipeId: meal.originalRecipeId || meal.id!,
-      servings: meal.servings || 1
+      servings: meal.servings || 1,
+      ownerId: ownerId && (shared || ownerId !== me) ? ownerId : undefined,
+      ...meta,
     };
-
-    // Add overrides ONLY if user customized this instance
-    // (We detect this if the meal has been manually edited)
-    // For now, we'll skip overrides detection - can add later if needed
-
-    return reference;
-  } else {
-    // Store as CustomMealInstance (one-off meal)
-    const custom: CustomMealInstance = {
-      type: 'custom',
-      id: meal.id || crypto.randomUUID(),
-      name: meal.name,
-      calories: meal.calories,
-      protein: meal.protein,
-      fat: meal.fat,
-      carbs: meal.carbs,
-      tags: meal.tags || [],
-      servings: meal.servings || 1
-    };
-
-    return custom;
   }
+
+  return {
+    type: 'custom',
+    id: meal.id || crypto.randomUUID(),
+    name: meal.name,
+    calories: meal.calories,
+    protein: meal.protein,
+    fat: meal.fat,
+    carbs: meal.carbs,
+    tags: meal.tags || [],
+    servings: meal.servings || 1,
+    ...meta,
+  };
 };
 
 // Helper to get a single recipe
@@ -202,81 +212,82 @@ export const getRecipe = async (id: string, userId?: string): Promise<Recipe | n
 
 /**
  * Hydrates PlannedMeal[] (from Firestore) back to Recipe[] (for UI display).
- * Handles both RecipeReference and CustomMealInstance types.
+ * References are fetched from their owner's library (`userId`, else the meal's ownerId, else me).
  */
 const hydratePlannedMeals = async (plannedMeals: PlannedMeal[], userId?: string): Promise<Recipe[]> => {
   if (!plannedMeals || plannedMeals.length === 0) return [];
 
-  const hydrated: Recipe[] = [];
+  const ownerOf = (ref: RecipeReference) => ref.ownerId || userId || getUserId();
+  const refKey = (ref: RecipeReference) => `${ownerOf(ref)}/${ref.recipeId}`;
 
-  // Group by type for efficient batch fetching
-  const references: RecipeReference[] = [];
-  const customs: CustomMealInstance[] = [];
-
-  plannedMeals.forEach(meal => {
-    if (meal.type === 'reference') {
-      references.push(meal);
-    } else {
-      customs.push(meal);
-    }
+  // Fetch every referenced recipe (including sides) once, in parallel
+  const references = new Map<string, RecipeReference>();
+  const collect = (meals: PlannedMeal[]) => meals.forEach(meal => {
+    if (meal?.type === 'reference') references.set(refKey(meal), meal);
+    if (meal?.sides) collect(meal.sides);
   });
+  collect(plannedMeals);
+  const fetched = await Promise.all([...references.entries()].map(async ([key, ref]) =>
+    [key, await getRecipe(ref.recipeId, ownerOf(ref))] as const
+  ));
+  const recipeMap = new Map(fetched);
 
-  // Fetch all referenced recipes in parallel
-  const recipeIds = [...new Set(references.map(r => r.recipeId))];
-  const fetchedRecipes = await Promise.all(
-    recipeIds.map(id => getRecipe(id, userId))
-  );
-  const recipeMap = new Map(fetchedRecipes.filter(r => r !== null).map(r => [r!.id, r!]));
+  const hydrateOne = (meal: PlannedMeal): Recipe => {
+    // Legacy day docs may still hold full recipes
+    if (!meal.type) return meal as unknown as Recipe;
 
-  // Hydrate each meal in order
-  for (const meal of plannedMeals) {
+    const meta: Partial<Recipe> = {
+      slot: meal.slot,
+      instanceId: meal.instanceId,
+      cookingServings: meal.cookingServings,
+      isPacked: meal.isPacked,
+      isLeftover: meal.isLeftover,
+      familyDinner: meal.familyDinner,
+      addedBy: meal.addedBy,
+      sides: meal.sides ? meal.sides.map(hydrateOne) : undefined,
+    };
+
     if (meal.type === 'reference') {
-      const original = recipeMap.get(meal.recipeId);
-      if (original) {
-        // Merge original recipe with any overrides
-        const hydratedRecipe: Recipe = {
-          ...original,
-          servings: meal.servings || original.servings,
-          ...(meal.overrides || {})
-        };
-        hydrated.push(hydratedRecipe);
-      } else {
+      const original = recipeMap.get(refKey(meal));
+      if (!original) {
         console.warn(`Recipe ${meal.recipeId} not found in library`);
-        // Create placeholder
-        hydrated.push({
+        return {
           id: meal.recipeId,
-          name: 'Recipe Not Found',
+          name: 'Recipe deleted',
           description: 'This recipe may have been deleted',
-          calories: 0,
-          protein: 0,
-          fat: 0,
-          carbs: 0,
-          ingredients: [],
-          instructions: [],
-          tags: [],
-          servings: meal.servings || 1
-        });
+          isMissing: true,
+          calories: 0, protein: 0, fat: 0, carbs: 0,
+          ingredients: [], instructions: [], tags: [],
+          servings: meal.servings || 1,
+          ...meta,
+        };
       }
-    } else {
-      // CustomMealInstance - convert to Recipe
-      const recipe: Recipe = {
-        id: meal.id,
-        name: meal.name,
-        description: 'Eat Out / Custom Meal',
-        calories: meal.calories,
-        protein: meal.protein || 0,
-        fat: meal.fat || 0,
-        carbs: meal.carbs || 0,
-        ingredients: [],
-        instructions: [],
-        tags: meal.tags || [],
-        servings: meal.servings || 1
+      return {
+        ...original,
+        ownerId: meal.ownerId ?? original.ownerId,
+        servings: meal.servings || original.servings,
+        ...(meal.overrides || {}),
+        ...meta,
       };
-      hydrated.push(recipe);
     }
-  }
 
-  return hydrated;
+    return {
+      id: meal.id,
+      name: meal.name,
+      description: CUSTOM_MEAL_DESCRIPTION,
+      calories: meal.calories,
+      protein: meal.protein || 0,
+      fat: meal.fat || 0,
+      carbs: meal.carbs || 0,
+      ingredients: [],
+      instructions: [],
+      tags: meal.tags || [],
+      servings: meal.servings || 1,
+      ...meta,
+    };
+  };
+
+  return plannedMeals.filter(Boolean).map(hydrateOne);
 };
 
 // Helper to re-attach fields from library
@@ -345,51 +356,119 @@ const hydrateMeals = async (meals: Recipe[]): Promise<Recipe[]> => {
   });
 };
 
+// --- Family dinners ---
+// With a family group, dinners planned in the dinner slot are shared: they live in
+// groups/{groupId}/dinners/{date} as { date, meals: { [instanceId]: PlannedMeal & { position } } }
+// and appear in every member's day plan with familyDinner set. Each meal is its own map
+// entry, so members editing different dinners at once don't overwrite each other.
+
+type StoredFamilyDinner = PlannedMeal & { position?: number };
+
+/** What each loaded family-dinner doc held, by `${groupId}/${date}`, so saves only write real changes. */
+const loadedFamilyDinners = new Map<string, Map<string, string>>();
+
+const familyDinnersRef = (groupId: string, date: string) => doc(db, 'groups', groupId, 'dinners', date);
+
+const hydrateFamilyDinners = async (groupId: string, date: string, stored?: Record<string, StoredFamilyDinner>): Promise<Recipe[]> => {
+  const entries = Object.values(stored || {}).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const meals = (await hydratePlannedMeals(entries)).map(meal => ({ ...meal, slot: 'dinner' as const, familyDinner: true }));
+  loadedFamilyDinners.set(`${groupId}/${date}`, new Map(meals.map(meal => [meal.instanceId!, JSON.stringify(dehydrateMeal(meal, true))])));
+  return meals;
+};
+
+/** Family dinners for a date range, keyed by date. Empty without a family group. */
+export const getFamilyDinnersInRange = async (startDate: string, endDate: string): Promise<Record<string, Recipe[]>> => {
+  const groupId = await getMyGroupId();
+  if (!groupId) return {};
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, 'groups', groupId, 'dinners'),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate)
+    ));
+    const result: Record<string, Recipe[]> = {};
+    await Promise.all(snapshot.docs.map(async d => {
+      const data = d.data() as { date: string; meals?: Record<string, StoredFamilyDinner> };
+      result[data.date] = await hydrateFamilyDinners(groupId, data.date, data.meals);
+    }));
+    return result;
+  } catch (e) {
+    console.error('Error fetching family dinners:', e);
+    return {};
+  }
+};
+
+/** Writes the family dinners that changed since they were loaded; never removes one this session hasn't seen. */
+const saveFamilyDinners = async (date: string, meals: Recipe[]) => {
+  const groupId = await getMyGroupId();
+  if (!groupId) return;
+  const key = `${groupId}/${date}`;
+  const before = loadedFamilyDinners.get(key) || new Map<string, string>();
+  const after = new Map<string, string>();
+  const changes: Record<string, unknown> = {};
+
+  meals.forEach((meal, position) => {
+    const instanceId = meal.instanceId || crypto.randomUUID();
+    const stored = JSON.stringify(dehydrateMeal({ ...meal, instanceId }, true));
+    after.set(instanceId, stored);
+    if (before.get(instanceId) !== stored) changes[instanceId] = { ...JSON.parse(stored), position };
+  });
+  before.forEach((_, instanceId) => {
+    if (!after.has(instanceId)) changes[instanceId] = deleteField();
+  });
+
+  if (Object.keys(changes).length === 0) return;
+  await setDoc(familyDinnersRef(groupId, date), { date, meals: changes }, { merge: true });
+  loadedFamilyDinners.set(key, after);
+};
+
+/** Gives meals without an instanceId one, so they can be ticked off and moved individually. */
+const withInstanceIds = (meals: Recipe[]) =>
+  meals.map(meal => meal.instanceId ? meal : { ...meal, instanceId: crypto.randomUUID() });
+
 export const getDayPlan = async (date: string): Promise<DayPlan> => {
   try {
-    const docRef = doc(db, 'users', getUserId(), 'days', date);
-    const dayDoc = await getDoc(docRef);
+    const [dayDoc, familyDinners] = await Promise.all([
+      getDoc(doc(db, 'users', getUserId(), 'days', date)),
+      getFamilyDinnersInRange(date, date),
+    ]);
 
-    if (dayDoc.exists()) {
-      const storedPlan = dayDoc.data() as { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' };
+    const stored = dayDoc.exists()
+      ? dayDoc.data() as { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' }
+      : null;
+    const ownMeals = stored?.meals ? await hydratePlannedMeals(stored.meals) : [];
 
-      // Hydrate PlannedMeal[] to Recipe[] for UI
-      const hydratedMeals = storedPlan.meals ? await hydratePlannedMeals(storedPlan.meals) : [];
+    const fullPlan: DayPlan = {
+      ...(stored || {}),
+      date,
+      completedMealIds: stored?.completedMealIds || [],
+      meals: [...ownMeals, ...(familyDinners[date] || [])],
+    };
 
-      const fullPlan: DayPlan = {
-        ...storedPlan,
-        meals: hydratedMeals
-      };
-
-      // Update Cache
-      saveToCache(getCacheKey('dayPlan', date), fullPlan);
-      return fullPlan;
-    }
-
-    // 2. Fallback to legacy (if not found in new, and legacy exists)
-    // We don't want to load the huge blob on every missing day, but for migration safety:
-    // Ideally we migrate once. For now, let's return empty and rely on a global migration.
-    const emptyPlan: DayPlan = { date, meals: [], completedMealIds: [] };
-    saveToCache(getCacheKey('dayPlan', date), emptyPlan);
-    return emptyPlan;
+    saveToCache(getCacheKey('dayPlan', date), fullPlan);
+    return fullPlan;
   } catch (e) {
     console.error("Error getting day plan:", e);
     return { date, meals: [], completedMealIds: [] };
   }
 };
 
-
 export const saveDayPlan = async (dayPlan: DayPlan) => {
+  const plan: DayPlan = { ...dayPlan, meals: withInstanceIds(dayPlan.meals) };
+
   // 1. Optimistic Cache Update
-  saveToCache(getCacheKey('dayPlan', dayPlan.date), dayPlan);
+  saveToCache(getCacheKey('dayPlan', plan.date), plan);
 
-  const docRef = doc(db, 'users', getUserId(), 'days', dayPlan.date);
+  // 2. Own meals go in the user's day doc (normalized), family dinners in the group
+  const ownMeals = plan.meals.filter(meal => !meal.familyDinner);
+  const familyDinners = plan.meals.filter(meal => meal.familyDinner);
+  const totalCalories = plan.meals.reduce((sum, meal) =>
+    sum + (meal.calories || 0) + (meal.sides || []).reduce((s, side) => s + (side.calories || 0), 0), 0);
 
-  // Runtime conversion: Convert Recipe[] to PlannedMeal[] before saving
-  const dehydratedMeals = dayPlan.meals.map(dehydrateMeal);
-  const planToSave = { ...dayPlan, meals: dehydratedMeals };
-
-  await setDoc(docRef, planToSave);
+  await Promise.all([
+    setDoc(doc(db, 'users', getUserId(), 'days', plan.date), { ...plan, meals: ownMeals.map(meal => dehydrateMeal(meal)), totalCalories }),
+    saveFamilyDinners(plan.date, familyDinners),
+  ]);
 };
 
 /**
@@ -551,76 +630,48 @@ export const getUpcomingPlan = async (days: number = 7): Promise<Record<string, 
   return plans;
 };
 
-// Helper to get plan for a range of dates (efficient batch fetch)
+// Helper to get plan for a range of dates (efficient batch fetch), family dinners included.
+// Every date in the range gets a plan; days are nourish days unless typed 'fast'.
 export const getDayPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
   try {
-    const q = query(
-      getCollectionRef('days'),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate)
-    );
+    const [snapshot, familyDinners] = await Promise.all([
+      getDocs(query(
+        getCollectionRef('days'),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate)
+      )),
+      getFamilyDinnersInRange(startDate, endDate),
+    ]);
 
-    const snapshot = await getDocs(q);
-    const rawPlans: Record<string, { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' }> = {};
-
-    snapshot.forEach(doc => {
-      const planData = doc.data() as { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' };
-      rawPlans[planData.date] = planData;
-    });
-
-    // Hydrate all PlannedMeal[] arrays to Recipe[] for UI
-    const hydratedPlans: Record<string, DayPlan> = {};
-    for (const [date, rawPlan] of Object.entries(rawPlans)) {
-      const hydratedMeals = rawPlan.meals ? await hydratePlannedMeals(rawPlan.meals) : [];
-      hydratedPlans[date] = {
-        ...rawPlan,
-        meals: hydratedMeals
+    const plans: Record<string, DayPlan> = {};
+    await Promise.all(snapshot.docs.map(async d => {
+      const raw = d.data() as { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' };
+      plans[raw.date] = {
+        ...raw,
+        completedMealIds: raw.completedMealIds || [],
+        meals: raw.meals ? await hydratePlannedMeals(raw.meals) : [],
       };
-    }
+    }));
 
-    const plans = hydratedPlans;
-
-    // Fallback: Check legacy plan doc for missing dates in range
-    // This ensures users with unmigrated data still see correct Day Types
+    // Fallback: legacy plan doc for dates with no day doc (unmigrated users)
     try {
       const legacyDoc = await getDoc(doc(db, 'users', getUserId(), 'data', 'plan'));
       if (legacyDoc.exists()) {
         const legacyData = legacyDoc.data();
-        const start = parseLocalDate(startDate);
-        const end = parseLocalDate(endDate);
-
-        for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+        for (let d = parseLocalDate(startDate); d <= parseLocalDate(endDate); d.setDate(d.getDate() + 1)) {
           const dateStr = localDateString(d);
-          // Only use legacy if we don't have a new plan AND legacy has data
-          if (!plans[dateStr] && legacyData[dateStr]) {
-            plans[dateStr] = legacyData[dateStr] as DayPlan;
-          }
+          if (!plans[dateStr] && legacyData[dateStr]) plans[dateStr] = legacyData[dateStr] as DayPlan;
         }
       }
     } catch (e) {
       console.warn("Legacy plan fallback failed:", e);
     }
 
-    // Fallback: Default to 'fast' day if no data exists
-    // Policy: "Default is a fast day"
-    const start = parseLocalDate(startDate);
-    const end = parseLocalDate(endDate);
-
-    for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+    for (let d = parseLocalDate(startDate); d <= parseLocalDate(endDate); d.setDate(d.getDate() + 1)) {
       const dateStr = localDateString(d);
-
-      if (!plans[dateStr]) {
-        // No plan exists -> Default to Fast Day
-        plans[dateStr] = {
-          date: dateStr,
-          meals: [],
-          completedMealIds: [],
-          type: 'fast'
-        };
-      } else if (!plans[dateStr].type) {
-        // Plan exists but no type set -> Default to Fast Day
-        plans[dateStr].type = 'fast';
-      }
+      const plan = plans[dateStr] || { date: dateStr, meals: [], completedMealIds: [] };
+      plans[dateStr] = { ...plan, meals: [...plan.meals, ...(familyDinners[dateStr] || [])] };
+      saveToCache(getCacheKey('dayPlan', dateStr), plans[dateStr]);
     }
 
     return plans;
@@ -629,7 +680,6 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
     return {};
   }
 };
-
 // Purely local helper to stitch together a range from existing cache
 export const getCachedPlansInRange = (startDate: string, endDate: string): Record<string, DayPlan> | null => {
   const plans: Record<string, DayPlan> = {};
@@ -651,116 +701,74 @@ export const getCachedPlansInRange = (startDate: string, endDate: string): Recor
 };
 
 /**
- * Fetches DayPlans for all family members for a range of dates.
- * Merges them into a single view (User's plan is base, others are added to meals array).
+ * Fetches DayPlans for all family members for a range of dates (for the shopping list).
+ * The user's plan is the base (type, tips, completed meals); other members' meals are added,
+ * tagged with their owner. Family dinners are included once.
  */
 export const getFamilyPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
   const user = auth.currentUser;
   if (!user) return {};
 
   try {
-    // 1. Get Group & Members
     const group = await getUserGroup();
-    if (!group) {
-      // Fallback to single user mode
-      return getDayPlansInRange(startDate, endDate);
-    }
+    if (!group) return getDayPlansInRange(startDate, endDate);
 
-    // 2. Get Member Details (for names)
-    const memberDetails = await getGroupMembersDetails(group.memberIds);
+    const [memberDetails, familyDinners] = await Promise.all([
+      getGroupMembersDetails(group.memberIds),
+      getFamilyDinnersInRange(startDate, endDate),
+    ]);
     const memberNameMap = new Map(memberDetails.map(m => [m.id, m.name]));
 
-    // 3. Fetch Plans for ALL members in parallel
-    const allMemberPlans: Record<string, DayPlan>[] = await Promise.all(
-      group.memberIds.map(async (memberId) => {
-        // We reuse logic similar to 'getDayPlansInRange' but targeted at a specific user
-        const q = query(
-          collection(db, 'users', memberId, 'days'),
-          where('date', '>=', startDate),
-          where('date', '<=', endDate)
-        );
-
-        const snapshot = await getDocs(q);
-        const memberPlans: Record<string, DayPlan> = {};
-
-        for (const doc of snapshot.docs) {
-          const rawPlan = doc.data() as { date: string; meals: PlannedMeal[] };
-
-          // Hydrate meals
-          const hydratedMeals = rawPlan.meals ? await hydratePlannedMeals(rawPlan.meals, memberId) : [];
-
-          // TAG MEALS WITH OWNER INFO
-          const taggedMeals = hydratedMeals.map(meal => ({
+    const allMemberPlans = await Promise.all(group.memberIds.map(async memberId => {
+      const snapshot = await getDocs(query(
+        collection(db, 'users', memberId, 'days'),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate)
+      ));
+      const memberPlans: Record<string, DayPlan> = {};
+      await Promise.all(snapshot.docs.map(async d => {
+        const raw = d.data() as { date: string; meals: PlannedMeal[]; completedMealIds?: string[]; type?: 'fast' | 'non-fast'; tips?: string };
+        const meals = raw.meals ? await hydratePlannedMeals(raw.meals, memberId) : [];
+        memberPlans[raw.date] = {
+          ...raw,
+          completedMealIds: raw.completedMealIds || [],
+          meals: meals.map(meal => ({
             ...meal,
             ownerId: memberId,
-            ownerName: memberNameMap.get(memberId) || 'Family Member',
-            isShared: memberId !== user.uid // Mark as shared if not mine
-          }));
+            ownerName: memberNameMap.get(memberId) || 'Family member',
+            isShared: memberId !== user.uid,
+          })),
+        } as DayPlan;
+      }));
+      return { memberId, memberPlans };
+    }));
 
-          memberPlans[rawPlan.date] = {
-            ...rawPlan,
-            meals: taggedMeals,
-            completedMealIds: (doc.data() as any).completedMealIds || []
-          } as DayPlan;
+    const merged: Record<string, DayPlan> = {};
+    for (let d = parseLocalDate(startDate); d <= parseLocalDate(endDate); d.setDate(d.getDate() + 1)) {
+      const date = localDateString(d);
+      merged[date] = { date, meals: [], completedMealIds: [] };
+    }
+
+    allMemberPlans.forEach(({ memberId, memberPlans }) => {
+      Object.entries(memberPlans).forEach(([date, plan]) => {
+        const target = merged[date] || (merged[date] = { date, meals: [], completedMealIds: [] });
+        if (memberId === user.uid) {
+          target.type = plan.type;
+          target.tips = plan.tips;
+          target.completedMealIds.push(...plan.completedMealIds);
         }
-
-        return memberPlans;
-      })
-    );
-
-    // 4. Merge Logic
-    // Base: Current User's Plan (to preserve their tips, type, etc.)
-    // We start with a constructed object of all dates in range to ensure continuity
-    const mergedPlans: Record<string, DayPlan> = {};
-
-    // Helper to initialize a date
-    const initDate = (date: string) => {
-      if (!mergedPlans[date]) {
-        mergedPlans[date] = { date, meals: [], completedMealIds: [] };
-      }
-    };
-
-    // Flatten all plans into mergedPlans
-    allMemberPlans.forEach(memberPlanMap => {
-      Object.entries(memberPlanMap).forEach(([date, plan]) => {
-        initDate(date);
-
-        // If it's the current user, lay down the foundation (type, tips, etc.)
-        const isCurrentUser = plan.meals.length > 0 && plan.meals[0].ownerId === user.uid;
-
-        if (isCurrentUser) {
-          // Preserve my metadata
-          if (!mergedPlans[date].type && plan.type) mergedPlans[date].type = plan.type;
-          if (!mergedPlans[date].tips && plan.tips) mergedPlans[date].tips = plan.tips;
-          if (!mergedPlans[date].totalCalories && plan.totalCalories) mergedPlans[date].totalCalories = plan.totalCalories;
-          mergedPlans[date].completedMealIds.push(...plan.completedMealIds);
-        }
-
-        // Aggregate meals
-        mergedPlans[date].meals.push(...plan.meals);
+        target.meals.push(...plan.meals);
       });
     });
 
-    // 5. Fill gaps with defaults (like 'fast' day defaults) if needed
-    // (Reusing logic from getDayPlansInRange for specific defaults)
-    const start = parseLocalDate(startDate);
-    const end = parseLocalDate(endDate);
-    for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = localDateString(d);
-      if (!mergedPlans[dateStr]) {
-        // If no one has a plan, default to empty (or fast day logic if we want)
-        mergedPlans[dateStr] = { date: dateStr, meals: [], completedMealIds: [], type: 'fast' };
-      } else if (!mergedPlans[dateStr].type) {
-        // Default type
-        mergedPlans[dateStr].type = 'fast';
-      }
-    }
+    Object.entries(familyDinners).forEach(([date, meals]) => {
+      const target = merged[date] || (merged[date] = { date, meals: [], completedMealIds: [] });
+      target.meals.push(...meals);
+    });
 
-    return mergedPlans;
-
+    return merged;
   } catch (e) {
     console.error("Error fetching family plans:", e);
-    // Fallback safely
     return getDayPlansInRange(startDate, endDate);
   }
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
+import { mealCalories, slotFor, slotLabel } from './utils/planUtils';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
 import * as cache from './utils/cacheService';
 // Lazy load non-critical components for performance
@@ -340,13 +341,13 @@ const TrackerApp: React.FC = () => {
             newItems.push({
                 id: crypto.randomUUID(),
                 name: meal.name,
-                calories: meal.calories,
+                calories: mealCalories(meal),
                 timestamp: now,
                 // Persist metadata
                 tags: meal.tags,
                 isLeftover: meal.isLeftover,
                 isPacked: meal.isPacked,
-                type: meal.tags?.[0] // Helpful shortcut
+                type: slotLabel(slotFor(meal))
             });
 
             // Check active fast duration before breaking it
@@ -361,7 +362,7 @@ const TrackerApp: React.FC = () => {
             await updateLastAteTime(now);
         } else {
             for (let i = newItems.length - 1; i >= 0; i--) {
-                if (newItems[i].name === meal.name && newItems[i].calories === meal.calories) {
+                if (newItems[i].name === meal.name && newItems[i].calories === mealCalories(meal)) {
                     newItems.splice(i, 1);
                     // When removing, we don't recalculate maxFastingHours or revert persistence
                     // as the fast WAS broken/achieved at that time.

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WorkoutItem } from '../types';
 import { Portal } from './Portal';
+import { workoutIconFor } from '../utils/workoutVisual';
 
 interface WorkoutEntryModalProps {
   isOpen: boolean;
@@ -103,6 +104,7 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
                       }}
                       className="px-3 py-2 bg-[var(--surface)] text-sm font-medium rounded-lg border border-border hover:border-workout transition-all flex items-center gap-2 group shadow-sm hover:shadow-md"
                     >
+                      {React.createElement(workoutIconFor(workout.type), { size: 18, stroke: 1.75, className: 'text-workout-text', 'aria-hidden': true })}
                       <span className="text-[var(--text-main)] group-hover:text-workout transition-colors">{workout.type}</span>
                       <span className="text-muted text-xs">({workout.caloriesBurned} kcal)</span>
                     </button>
@@ -114,15 +116,20 @@ export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
             <div className="space-y-5">
               <div>
                 <label className="block text-xs font-bold text-muted mb-2">Workout Type</label>
+                <div className="relative">
+                <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-8 rounded-[10px] bg-workout-bg text-workout-text flex items-center justify-center">
+                  {React.createElement(workoutIconFor(workoutType), { size: 18, stroke: 1.75, 'aria-hidden': true })}
+                </span>
                 <input
                   type="text"
                   value={workoutType}
                   onChange={(e) => setWorkoutType(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                  className="w-full p-3 bg-[var(--input-bg)] border border-transparent focus:border-workout/50 rounded-xl focus:ring-2 focus:ring-workout/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
+                  className="w-full p-3 pl-12 bg-[var(--input-bg)] border border-transparent focus:border-workout/50 rounded-xl focus:ring-2 focus:ring-workout/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
                   placeholder="e.g. Running, Cycling, Swimming..."
                   autoFocus
                 />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted mb-2">Calories Burned</label>
