@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, Droplets, Flame, Lightbulb, Scale, Timer } from 'lucide-react';
-import { DayPlan, DailyLog, FastingState, UserStats } from '../types';
+import { AppView, DayPlan, DailyLog, FastingState, UserStats } from '../types';
 import { analyticsDayTypesData, analyticsSummariesData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
 import { AnalyticsDay, AnalyticsPeriod, PERIODS, buildDays, insightsFor, summarize, weightSummary } from '../utils/analyticsModel';
@@ -9,6 +9,7 @@ import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { addDays, proteinTarget } from '../utils/planUtils';
 import { ChartContainer } from './analytics/ChartContainer';
 import { EnergyPanel } from './EnergyCheckIn';
+import { CoachPanel } from './CoachPanel';
 import { weightTrend } from '../utils/energyModel';
 
 interface TrackAnalyticsProps {
@@ -17,6 +18,9 @@ interface TrackAnalyticsProps {
     dailyLog: DailyLog;
     fastingState: FastingState;
     onUpdateStats: (stats: UserStats) => void;
+    onOpenFoodModal: () => void;
+    onOpenWeightModal: () => void;
+    onNavigate: (view: AppView) => void;
 }
 
 const PERIOD_KEY = 'vesta_analytics_period';
@@ -51,7 +55,7 @@ const ChartTip: React.FC<{ active?: boolean; label?: string | number; lines: (la
         <div className="rounded-[12px] border border-border bg-surface px-3 py-2 text-sm shadow-[var(--elev-md)]">{lines(label)}</div>
     ) : null;
 
-export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats }) => {
+export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats, onOpenFoodModal, onOpenWeightModal, onNavigate }) => {
     const summaries = usePrewarmed(analyticsSummariesData) ?? [];
     const dayTypes = usePrewarmed(analyticsDayTypesData) ?? {};
     const [period, setPeriod] = useState<AnalyticsPeriod>(() => {
@@ -206,6 +210,18 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                     </div>
                 ))}
             </div>
+
+            {/* Guidance from the user's own data, and questions about it */}
+            <CoachPanel
+                stats={stats}
+                summaries={summaries}
+                dayTypes={dayTypes}
+                dailyLog={dailyLog}
+                onUpdateStats={onUpdateStats}
+                onOpenFoodModal={onOpenFoodModal}
+                onOpenWeightModal={onOpenWeightModal}
+                onNavigate={onNavigate}
+            />
 
             {/* Weight */}
             <Panel

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Check, Gauge, X } from 'lucide-react';
+import { Check, Gauge } from 'lucide-react';
 import { DailySummary, UserStats } from '../types';
 import {
   DEFAULT_LOSS_RATE, EnergyEstimate, LOSS_RATES, MIN_LOGGED_DAYS, MIN_NOURISH_TARGET, MIN_WEIGH_INS, MIN_WEIGH_SPAN_DAYS,
@@ -153,108 +153,6 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
           </div>
         </div>
       )}
-    </section>
-  );
-};
-
-const DISMISS_KEY = 'vesta_checkin_dismissed';
-const DISMISS_DAYS = 7;
-
-const dismissedRecently = () => {
-  try {
-    const at = Number(localStorage.getItem(DISMISS_KEY));
-    return at > 0 && Date.now() - at < DISMISS_DAYS * 86_400_000;
-  } catch {
-    return false;
-  }
-};
-
-interface CardProps extends PanelProps {
-  onOpenDetails: () => void;
-}
-
-/**
- * Today: a short check-in when there's a better target to suggest, or how close the estimate is
- * while data is still coming in. Hidden for a week when dismissed; hidden when the target already fits.
- */
-export const CheckInCard: React.FC<CardProps> = ({ stats, summaries, dayTypes, onUpdateStats, onOpenDetails }) => {
-  const { estimate, suggestion, differs, rate } = useEnergy(stats, summaries, dayTypes);
-  const [hidden, setHidden] = useState(dismissedRecently);
-  const [applied, setApplied] = useState(false);
-  const current = stats.nonFastDayCalories || 2000;
-
-  const dismiss = () => {
-    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* per-device */ }
-    setHidden(true);
-  };
-
-  if (applied) {
-    return (
-      <section className="card px-5 py-4 flex items-center gap-3" role="status">
-        <Check size={18} className="text-weight-text shrink-0" aria-hidden="true" />
-        <p className="text-sm flex-1">Nourish days are now {fmt(suggestion?.nourish ?? current)} kcal.</p>
-        <button onClick={() => setHidden(true)} className="btn-ghost btn-sm">Done</button>
-      </section>
-    );
-  }
-  if (hidden) return null;
-  if (estimate.ready && !differs) return null;
-
-  const close = (
-    <button onClick={dismiss} className="size-9 -mr-1.5 -mt-1 shrink-0 inline-flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]" aria-label="Hide for a week">
-      <X size={18} />
-    </button>
-  );
-
-  if (!estimate.ready || !suggestion || estimate.expenditure === null) {
-    const loggedPct = Math.min(estimate.loggedDays / MIN_LOGGED_DAYS, 1);
-    const weighPct = Math.min(estimate.weighIns / MIN_WEIGH_INS, 1);
-    return (
-      <section className="card p-4 md:px-6" aria-label="Personal calorie target">
-        <div className="flex items-start gap-3">
-          <span className="size-10 shrink-0 rounded-[12px] tile-calories flex items-center justify-center"><Gauge size={20} aria-hidden="true" /></span>
-          <div className="flex-1 min-w-0">
-            <h2 className="heading-4">Get a target that fits you</h2>
-            <p className="text-sm text-muted">
-              Log food on {MIN_LOGGED_DAYS} days and weigh in {MIN_WEIGH_INS} times over two weeks, and Vesta works out what you really burn.
-            </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm">
-              <span><span className="font-semibold">{Math.min(estimate.loggedDays, MIN_LOGGED_DAYS)} of {MIN_LOGGED_DAYS}</span> <span className="text-muted">days logged</span></span>
-              <span><span className="font-semibold">{Math.min(estimate.weighIns, MIN_WEIGH_INS)} of {MIN_WEIGH_INS}</span> <span className="text-muted">weigh-ins</span></span>
-            </div>
-            <div className="mt-2 h-1.5 rounded-full bg-surface-sunken overflow-hidden" aria-hidden="true">
-              <div className="h-full rounded-full bg-weight" style={{ width: `${((loggedPct + weighPct) / 2) * 100}%` }} />
-            </div>
-            <button onClick={onOpenDetails} className="mt-3 text-sm font-semibold underline underline-offset-2 hover:no-underline rounded focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">How it works</button>
-          </div>
-          {close}
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className="card p-4 md:px-6" aria-label="Weekly check-in">
-      <div className="flex items-start gap-3">
-        <span className="size-10 shrink-0 rounded-[12px] tile-calories flex items-center justify-center"><Gauge size={20} aria-hidden="true" /></span>
-        <div className="flex-1 min-w-0">
-          <h2 className="heading-4">Weekly check-in</h2>
-          <p className="text-sm text-muted">
-            You burn about {approx(estimate.expenditure)} kcal a day. To lose {kg(suggestion.weeklyLoss)} kg a week, set nourish days to
-            {' '}<span className="font-semibold text-main">{fmt(suggestion.nourish)} kcal</span> (now {fmt(current)}).
-          </p>
-          <div className="flex flex-wrap gap-2 mt-3">
-            <button
-              onClick={() => { onUpdateStats({ ...stats, nonFastDayCalories: suggestion.nourish, weeklyLossGoal: rate }); setApplied(true); }}
-              className="btn-secondary btn-sm"
-            >
-              Use {fmt(suggestion.nourish)} kcal
-            </button>
-            <button onClick={onOpenDetails} className="btn-ghost btn-sm">Details</button>
-          </div>
-        </div>
-        {close}
-      </div>
     </section>
   );
 };

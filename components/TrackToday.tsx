@@ -8,7 +8,7 @@ import { HearthWidget } from './HearthWidget';
 import { TomorrowCard } from './TomorrowCard';
 import { useNavigate } from 'react-router-dom';
 import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
-import { CheckInCard } from './EnergyCheckIn';
+import { CoachCard } from './CoachPanel';
 import { usePrewarmed } from '../utils/prewarm';
 import { weightSummary } from '../utils/analyticsModel';
 import { weightTrend } from '../utils/energyModel';
@@ -312,13 +312,16 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onLogFood={onOpenFoodModal}
       />
 
-      {/* Burn estimate: a weekly target check-in, or progress towards one */}
-      <CheckInCard
+      {/* The most useful piece of guidance right now (all of it is on Analytics) */}
+      <CoachCard
         stats={stats}
         summaries={activityHistory}
         dayTypes={dayTypes}
+        dailyLog={dailyLog}
         onUpdateStats={onUpdateStats}
-        onOpenDetails={() => onNavigate(AppView.ANALYTICS)}
+        onOpenFoodModal={onOpenFoodModal}
+        onOpenWeightModal={onOpenWeightModal}
+        onNavigate={onNavigate}
       />
 
       {/* Tomorrow */}
