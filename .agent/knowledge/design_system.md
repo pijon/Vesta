@@ -103,6 +103,8 @@ Two families:
 
 ## 4. Components (classes in `index.css`)
 
+These live in `@layer components`, so Tailwind utilities in markup override them: `md:hidden` on an `icon-btn`, `py-8` on a `tile`, `size-9` on an `icon-btn`. No `!` or wrapper `<span>` is needed. Add new component classes there, not to `@layer utilities`.
+
 | Class | What |
 |---|---|
 | `btn-primary` | Ink pill, the main action (one per view) |

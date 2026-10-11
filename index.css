@@ -439,18 +439,20 @@
   .rounded-organic-sm { border-radius: 14px; }
   .rounded-organic-md { border-radius: 18px; }
 
-  /* Formerly frosted glass; now a solid card surface */
-  .glass-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-  }
-
   .premium-shadow { box-shadow: var(--elev-sm); }
   .premium-shadow-hover { @apply transition-shadow duration-150; }
   .premium-shadow-hover:hover { box-shadow: var(--elev-md); }
 
   .text-balance { text-wrap: balance; }
 
+  /* --- MOBILE TOUCH TARGETS --- */
+  .touch-target { min-height: 44px; min-width: 44px; }
+  .touch-target-sm { min-height: 36px; min-width: 36px; }
+}
+
+/* Design system classes live in the components layer, so utilities in markup override them
+   (md:hidden on an .icon-btn, mt-2 on a .btn-sm). Anything in @layer utilities beats them. */
+@layer components {
   /* ============================================
      DESIGN SYSTEM CLASSES (direction C)
      ============================================ */
@@ -619,9 +621,12 @@
     @apply text-[11px] leading-none lg:text-[15px] lg:leading-6 font-semibold;
   }
 
-  /* --- MOBILE TOUCH TARGETS --- */
-  .touch-target { min-height: 44px; min-width: 44px; }
-  .touch-target-sm { min-height: 36px; min-width: 36px; }
+  /* Formerly frosted glass; now a solid card surface */
+  .glass-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
 }
 
 /* Custom Scrollbar */

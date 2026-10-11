@@ -31,12 +31,10 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="flex gap-2 items-center shrink-0">
                 {showSundayReset && onOpenSundayReset && (
-                    <span className="hidden md:block">
-                        <button onClick={onOpenSundayReset} className="btn-accent btn-sm">
-                            <Sparkles size={16} />
-                            Sunday reset
-                        </button>
-                    </span>
+                    <button onClick={onOpenSundayReset} className="btn-accent btn-sm hidden md:inline-flex">
+                        <Sparkles size={16} />
+                        Sunday reset
+                    </button>
                 )}
 
                 <button
@@ -48,15 +46,13 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
 
                 {/* Phones only: from md up, Settings is in the sidebar */}
-                <span className="md:hidden">
-                    <button
-                        onClick={() => onNavigate(AppView.SETTINGS)}
-                        className="icon-btn"
-                        aria-label="Settings"
-                    >
-                        <SlidersHorizontal size={20} />
-                    </button>
-                </span>
+                <button
+                    onClick={() => onNavigate(AppView.SETTINGS)}
+                    className="icon-btn md:hidden"
+                    aria-label="Settings"
+                >
+                    <SlidersHorizontal size={20} />
+                </button>
             </div>
         </div>
     );
