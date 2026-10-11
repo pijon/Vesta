@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion, PanInfo } from 'framer-motion';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Portal } from './Portal';
 import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';

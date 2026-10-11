@@ -1,9 +1,9 @@
-import { Recipe, DayPlan, UserStats, ShoppingState, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference, CustomMealInstance } from "../types";
-import { getCacheKey, saveToCache, getFromCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState } from "../utils/cacheService";
+import { Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference } from "../types";
+import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, deleteField, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
 
 /** Description that marks a one-off (eat out / quick entry) meal rather than a library recipe */
 const CUSTOM_MEAL_DESCRIPTION = 'Eat Out / Custom Meal';
@@ -16,19 +16,12 @@ const getUserId = () => {
 };
 
 // Helper for references
-const getUserRef = () => doc(db, 'users', getUserId());
 const getCollectionRef = (name: string) => collection(db, 'users', getUserId(), name);
 const getDocRef = (collectionName: string, docId: string) => doc(db, 'users', getUserId(), collectionName, docId);
 
 // --- Local Caching Helpers (SWR Strategy) ---
-// --- Local Caching Helpers (SWR Strategy) ---
 // Delegated to utils/cacheService.ts
 export { getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState };
-
-export const getUserData = async () => {
-  const userDoc = await getDoc(getUserRef());
-  return userDoc.data();
-};
 
 // --- Recipes ---
 // Saved as individual documents in 'recipes' collection
@@ -290,72 +283,6 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[], userId?: string)
   return plannedMeals.filter(Boolean).map(hydrateOne);
 };
 
-// Helper to re-attach fields from library
-const hydrateMeals = async (meals: Recipe[]): Promise<Recipe[]> => {
-  if (!meals || meals.length === 0) return [];
-
-  // 1. Identify meals that need hydration
-  // We identify them if they have an ID and are missing 'instructions' or 'ingredients'
-  const mealsToHydrate = meals.filter(m =>
-    !!m.id &&
-    m.description !== 'Eat Out / Custom Meal' &&
-    (!m.instructions || m.instructions.length === 0 || !m.image)
-    // ^ check for image too, as that's what we essentially want
-  );
-
-  // Optimization: If nothing needs hydration, return immediately
-  if (mealsToHydrate.length === 0) return meals;
-
-  // 2. Fetch specific recipes in parallel
-  // Deduplicate IDs first: prefer originalRecipeId, fallback to id
-  const idsToFetch = new Set<string>();
-  mealsToHydrate.forEach(m => {
-    if (m.originalRecipeId) idsToFetch.add(m.originalRecipeId);
-    else if (m.id) idsToFetch.add(m.id);
-  });
-  const uniqueIds = Array.from(idsToFetch);
-
-  // Fetch from DB (Promise.all)
-  // TODO: Add a simple in-memory cache here if we find we are re-fetching same IDs frequently in a session
-  console.log(`Hydrating ${uniqueIds.length} recipes...`);
-
-  const fetchedRecipes = await Promise.all(
-    uniqueIds.map(async id => {
-      const r = await getRecipe(id);
-      return r;
-    })
-  );
-
-  const recipeMap = new Map();
-  fetchedRecipes.forEach(r => {
-    if (r) recipeMap.set(r.id, r);
-  });
-
-  // 3. Merge
-  return meals.map(meal => {
-    // If it has instructions, it's already full (or custom)
-    if (meal.instructions && meal.instructions.length > 0) return meal;
-    if (meal.description === 'Eat Out / Custom Meal') return meal;
-
-    const lookupId = meal.originalRecipeId || meal.id;
-    const original = recipeMap.get(lookupId);
-    if (original) {
-      // Merge: Original props + Overrides from the plan
-      return {
-        ...original,
-        ...meal, // Overrides from plan
-        ingredients: original.ingredients,
-        instructions: original.instructions,
-        image: original.image,
-        description: original.description
-      };
-    }
-
-    // If original not found (deleted?), keep what we have
-    return meal;
-  });
-};
-
 // --- Family dinners ---
 // With a family group, dinners planned in the dinner slot are shared: they live in
 // groups/{groupId}/dinners/{date} as { date, meals: { [instanceId]: PlannedMeal & { position } } }
@@ -568,68 +495,6 @@ export const cleanupLegacyData = async (): Promise<{ success: boolean; deletedCo
   }
 };
 
-// Migration Helper
-export const migrateLegacyPlanToCollection = async () => {
-  try {
-    const legacyRef = getDocRef('data', 'plan');
-    const legacyDoc = await getDoc(legacyRef);
-
-    if (legacyDoc.exists()) {
-      const data = legacyDoc.data();
-      console.log("Migrating legacy plan data...", Object.keys(data).length, "days found.");
-
-      const batchSize = 100; // Firestore batch limit is 500
-      const entries = Object.entries(data);
-
-      // Process in chunks to avoid blowing up memory/batch limits
-      for (let i = 0; i < entries.length; i += 50) {
-        // We can just use Promise.all for parallel writes, simplest for now
-        const chunk = entries.slice(i, i + 50);
-        await Promise.all(chunk.map(async ([date, plan]) => {
-          // Ensure it's a valid plan object
-          if (date && (plan as DayPlan).meals) {
-            const docRef = doc(db, 'users', getUserId(), 'days', date);
-            await setDoc(docRef, plan as DayPlan);
-          }
-        }));
-        console.log(`Migrated chunk ${i} - ${i + 50}`);
-      }
-
-      console.log("Migration finished. Deleting legacy doc.");
-      await deleteDoc(legacyRef);
-      return { success: true };
-    }
-    return { success: true, message: "No legacy data found" };
-  } catch (e: any) {
-    console.error("Migration failed:", e);
-    return { success: false, error: e.message };
-  }
-};
-
-// Helper to get plan for a range of dates (upcoming week)
-export const getUpcomingPlan = async (days: number = 7): Promise<Record<string, DayPlan>> => {
-  const plans: Record<string, DayPlan> = {};
-  const today = new Date();
-
-  const dates = [];
-  for (let i = 0; i < days; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    dates.push(localDateString(d));
-  }
-
-  // Fetch in parallel
-  await Promise.all(dates.map(async date => {
-    // getDayPlan handles hydration internally now
-    const p = await getDayPlan(date);
-    if (p.meals && p.meals.length > 0) {
-      plans[date] = p;
-    }
-  }));
-
-  return plans;
-};
-
 // Helper to get plan for a range of dates (efficient batch fetch), family dinners included.
 // Every date in the range gets a plan; days are nourish days unless typed 'fast'.
 export const getDayPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
@@ -712,7 +577,6 @@ export const getCachedPlansInRange = (startDate: string, endDate: string): Recor
   const plans: Record<string, DayPlan> = {};
   const start = parseLocalDate(startDate);
   const end = parseLocalDate(endDate);
-  let allFound = false; // We can be partial, it's better than nothing. SWR will update.
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = localDateString(d);
@@ -800,15 +664,7 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
   }
 };
 
-// Deprecated: Used only for explicit exports or legacy checks
-export const getWeeklyPlan = async (): Promise<Record<string, DayPlan>> => {
-  // Use collection fetch (careful with size)
-  // For export purposes, we might need a range.
-  return getUpcomingPlan(14); // Return 2 weeks just in case
-};
-
 // --- Stats (Weight) ---
-const USER_DOC = 'stats'; // or just on the user doc itself?
 // Let's use a subcollection 'data' doc 'stats' for cleaner separation if needed,
 // but for now keeping it simple: store on user doc or specific doc.
 // Going with 'data/stats' to match other singletons
@@ -838,18 +694,6 @@ export const saveUserStats = async (stats: UserStats) => {
   // Optimistic Cache
   saveToCache(getCacheKey('stats'), stats);
   await setDoc(getDocRef('data', STATS_DOC), stats);
-};
-
-// --- Shopping List State ---
-// Obsolete? 'migrateShoppingState' handles migration. 
-// We likely only care about EnhancedShoppingState now.
-export const getShoppingState = async (): Promise<ShoppingState> => {
-  // Legacy support not strictly needed if we migrate
-  return { checked: [], removed: [] };
-};
-
-export const saveShoppingState = async (state: ShoppingState) => {
-  // No-op
 };
 
 

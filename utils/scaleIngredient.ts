@@ -44,7 +44,8 @@ export const scaleIngredient = (line: string, factor: number): string => {
   if (!match) return line;
   const [whole, lead, from, to] = match;
   const rest = line.slice(whole.length);
-  const metric = METRIC.test(rest);
+  // Metric amounts become decimals, unless the recipe wrote them as fractions ("4 ½ dl")
+  const metric = METRIC.test(rest) && !/[½⅓⅔¼¾⅛/]/.test(whole);
   const comma = /,\d/.test(whole);
   const scaled = format(parse(from) * factor, metric, comma);
   const scaledTo = to ? `–${format(parse(to) * factor, metric, comma)}` : '';

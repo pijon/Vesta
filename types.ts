@@ -124,16 +124,6 @@ export interface UserStats {
   };
 }
 
-export interface GroceryItem {
-  name: string;
-  checked: boolean;
-}
-
-export interface ShoppingState {
-  checked: string[];
-  removed: string[];
-}
-
 // Enhanced shopping list types
 export interface ParsedIngredient {
   id: string;
@@ -289,8 +279,4 @@ export interface Group {
 export interface FeatureFlags {
   forceSundayReset: boolean;
   useGeminiExperimental: boolean;
-}
-
-export interface DevSettings {
-  featureFlags: FeatureFlags;
 }

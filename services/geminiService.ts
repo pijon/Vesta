@@ -1,6 +1,5 @@
 import { GoogleGenAI, Type, Schema, ApiError, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import {
-  GEMINI_TEXT_MODEL,
   GEMINI_FAST_MODEL,
   GEMINI_MODEL_PRIMARY,
   GEMINI_MODEL_STABLE,

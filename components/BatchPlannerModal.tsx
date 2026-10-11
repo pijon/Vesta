@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Utensils, Check, Sparkles, RefreshCw } from 'lucide-react';
+import { X, Utensils, Check, Sparkles, RefreshCw } from 'lucide-react';
 import { planSpecificDays, DayConfig } from '../services/geminiService';
 import { getDayPlan, getRecipes, saveDayPlan } from '../services/storageService';
 import { getMyGroupId } from '../services/groupService';
 import { planMeal, slotFor } from '../utils/planUtils';
-import { Recipe, DayPlan } from '../types';
+import { Recipe } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { localDateString } from '../utils/dateUtils';
 

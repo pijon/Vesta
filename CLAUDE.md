@@ -29,11 +29,11 @@ Flat layout with no `src/`: `App.tsx`, `index.tsx`, `types.ts` and `constants.ts
 - **Persistence (`services/storageService.ts`):** every Firestore read and write goes through this file, under `users/{uid}/…`. Collections include `recipes`, `days/{YYYY-MM-DD}`, `data/*` (stats, shopping, etc.), `summaries`, `pantry` and `fasting`.
   - **Cache-first:** `utils/cacheService.ts` mirrors data in localStorage (`fast800_cache_*` keys, kept from the app's earlier Fast800 name). `App.tsx` initializes state from the cache, then refreshes from Firestore. Saves update the cache optimistically before writing.
   - **Normalized day plans:** `DayPlan.meals` is stored as `PlannedMeal[]` (references) and hydrated into full `Recipe[]` on read (`hydratePlannedMeals` / `dehydrateMeal`). Never write full recipes into `days` docs. Each planned meal carries a `slot` (breakfast, lunch, dinner, snack), an `instanceId` (what `completedMealIds` stores), `cookingServings`, sides and packed/leftover flags; helpers live in `utils/planUtils.ts`. Days are nourish days unless `type: 'fast'`.
-  - **Migrations run at read time,** or through the `migrate*` functions triggered by `components/MigrationRunner.tsx`. Legacy shapes still exist in production data.
+  - **Migrations run at read time,** or through the `migrate*` functions in `components/MigrationRunner.tsx` (a manual tool that nothing renders at the moment). Legacy shapes still exist in production data.
   - Recipe images go to Firebase Storage at `users/{uid}/recipe-images/`, not base64 in Firestore.
 - **Family groups (`services/groupService.ts`):** `groups/{groupId}` with `shared_recipes` and `dinners/{YYYY-MM-DD}` (the family's shared dinner plan: meals planned in the dinner slot while in a group are stored there, keyed by `instanceId`, and merged into every member's `DayPlan` with `familyDinner: true`; `saveDayPlan` splits them back out). Users carry a `groupId`. Family plans and recipes are read across member uids, so check `firestore.rules` whenever you add a cross-user read.
 - **Security rules:** a new Firestore subcollection needs a matching `match` block in `firestore.rules`, or reads fail at runtime.
-- **AI (`services/geminiService.ts`):** uses `@google/genai` with JSON `responseSchema` structured output. Model IDs are in `constants.ts` (`GEMINI_TEXT_MODEL`, `GEMINI_FAST_MODEL`). Generate IDs locally with `crypto.randomUUID()`; never trust IDs returned by the AI.
+- **AI (`services/geminiService.ts`):** uses `@google/genai` with JSON `responseSchema` structured output. Model IDs are in `constants.ts` (`GEMINI_MODEL_PRIMARY`, `GEMINI_MODEL_STABLE`, and `GEMINI_FAST_MODEL` for quick calls). Generate IDs locally with `crypto.randomUUID()`; never trust IDs returned by the AI.
 - **Feature flags:** `useDevMode().isFeatureEnabled('flag')` from `contexts/DevModeContext.tsx`. Dev status comes from a Firebase custom claim set by `scripts/setDeveloperClaim.cjs`. See `.agent/skills/feature-switch/SKILL.md`.
 - **Modals** render through `components/Portal.tsx`.
 
@@ -47,7 +47,7 @@ Flat layout with no `src/`: `App.tsx`, `index.tsx`, `types.ts` and `constants.ts
 - **Dark mode:** before using a CSS variable, confirm `index.css` defines it under both `:root` and `.dark`. Many recent fixes were dark-mode regressions.
 - **Mobile-first** (around 375px). Build layouts with `flex-col md:flex-row`.
 - **Types and IDs:** no `any`. Types go in `types.ts` or the component file. Store dates as `YYYY-MM-DD` strings. Create IDs with `crypto.randomUUID()`.
-- Functional components only, in PascalCase, in a flat `components/` folder (subfolders: `achievements/`, `analytics/`; `_archive/` is dead code).
+- Functional components only, in PascalCase, in a flat `components/` folder (one subfolder: `analytics/`).
 
 ## Agent resources
 

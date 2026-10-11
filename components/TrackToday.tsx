@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary } from '../types';
-import { saveDayPlan, saveDailyLog, getDailySummaries } from '../services/storageService';
-import { FoodEntryModal } from './FoodEntryModal';
+import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { WorkoutEntryModal } from './WorkoutEntryModal';
 import { dayTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
@@ -15,15 +12,12 @@ import { usePrewarmed } from '../utils/prewarm';
 import { weightSummary } from '../utils/analyticsModel';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
-// import { MobileActionCards } from './MobileActionCards';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Portal } from './Portal';
 import { useAchievements } from '../hooks/useAchievements';
-import { analyzeWeightTrends, analyzeActivityStreaks } from '../utils/analytics';
+import { analyzeActivityStreaks } from '../utils/analytics';
 
-import { saveUserStats } from '../services/storageService';
-import { localDateString } from '../utils/dateUtils';
 
 interface TrackTodayProps {
   todayPlan: DayPlan;
@@ -70,26 +64,14 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onOpenWeightModal,
   onAddWater
 }) => {
-  // Removed local modal state
-  // const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
-  // const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
-  // const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
-  // const [editingWorkout, setEditingWorkout] = useState<WorkoutItem | null>(null);
-
   const navigate = useNavigate();
-  const [quickWeightInput, setQuickWeightInput] = useState(stats.currentWeight.toString());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isWorkoutOverviewOpen, setIsWorkoutOverviewOpen] = useState(false);
-  // const [recentWorkouts, setRecentWorkouts] = useState<WorkoutItem[]>([]); // Moved to App.tsx
 
   // Meal Swap State
   const [isMealSelectorOpen, setIsMealSelectorOpen] = useState(false);
   const [activeMealIndexToSwap, setActiveMealIndexToSwap] = useState<number | null>(null);
 
-  // useEffect for recent workouts moved to App.tsx
-
-  // Hydration state removed - using dailyLog.waterIntake directly
-  // const [hydration, setHydration] = useState(dailyLog.waterIntake || 0);
   const [activityHistory, setActivityHistory] = useState<DailySummary[]>([]);
 
   // Fasting Live Timer State
@@ -152,44 +134,13 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     return Array.from(historyMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [activityHistory, dailyLog]);
 
-  useEffect(() => {
-    setQuickWeightInput(stats.currentWeight.toString());
-  }, [stats.currentWeight]);
-
-  // useEffect syncing hydration removed - relying on dailyLog prop
-
-
-  // Achievements Hook - kept for streak calculation logic mainly, though DailyGoalsWidget is gone
-  // We can use the progress object if needed for advanced badges in future
-  const { progress } = useAchievements(dailyLog, fastingState, stats, onUpdateStats);
+  // Called for its side effect: keeps streaks in stats up to date
+  useAchievements(dailyLog, fastingState, stats, onUpdateStats);
 
   // Calculate calories
   const consumed = (dailyLog.items || []).reduce((sum, item) => sum + item.calories, 0);
   const caloriesBurned = (dailyLog.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
 
-  // Calculate weekly weight change
-  const calculateWeightChange = () => {
-    if (!stats.weightHistory || stats.weightHistory.length < 2) return 0;
-
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const oneWeekAgoMs = oneWeekAgo.getTime();
-
-    // Find entry closest to 7 days ago
-    const relevantPastEntry = stats.weightHistory.reduce((prev, curr) => {
-      const prevDiff = Math.abs(new Date(prev.date).getTime() - oneWeekAgoMs);
-      const currDiff = Math.abs(new Date(curr.date).getTime() - oneWeekAgoMs);
-      return currDiff < prevDiff ? curr : prev;
-    });
-
-    // If the closest entry is too far (e.g. > 14 days), maybe just return 0 or calculate from that point
-    // For now, simple diff
-    const diff = stats.currentWeight - relevantPastEntry.weight;
-    return parseFloat(diff.toFixed(1));
-  };
-
-  const weightChange = calculateWeightChange();
-  const weightAnalysis = analyzeWeightTrends(stats);
 
   // Determine Daily Target based on Day Type
   const isNonFastDay = !isFastDay(todayPlan);
@@ -258,10 +209,6 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     refreshData();
   };
 
-  // Check if weight was logged today
-  const today = localDateString();
-  const weightLoggedToday = stats.weightHistory.some(entry => entry.date === today);
-
   // Weight tile: same trend as Analytics (last month), and the change since the previous weigh-in
   const weightInfo = React.useMemo(() => {
     const history = [...(stats.weightHistory || [])].filter(e => e.weight > 0).sort((a, b) => a.date.localeCompare(b.date));
@@ -287,13 +234,6 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     const item: FoodLogItem = { id: crypto.randomUUID(), name: food.name, calories: food.calories, timestamp: Date.now() };
     await onAddFoodLogItems([item]);
     setToast({ message: `Logged ${food.name} · ${food.calories} kcal`, undo: () => { onDeleteFoodItem(item.id); } });
-  };
-
-  // Helper to format hours into string
-  const formatFastingTime = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours % 1) * 60);
-    return `${h}h ${m}m`;
   };
 
   return (

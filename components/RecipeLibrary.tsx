@@ -9,9 +9,8 @@ import { familyData, recipeHistoryData } from '../services/pageData';
 import { ensureWarm, usePrewarmed } from '../utils/prewarm';
 import { AddToPlanSheet } from './AddToPlanSheet';
 import { CookingMode } from './CookingMode';
-import { parseRecipeText, generateRecipeFromIngredients, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
+import { parseRecipeText, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
 import { RecipeCard, RecipeRow } from './RecipeCard';
-import { Portal } from './Portal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { importRecipeImageFromUrl } from '../utils/storageUtils';
@@ -95,7 +94,6 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
   // Selection and Editing State
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'ingredients' | 'instructions'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Recipe | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -129,7 +127,6 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
   const openRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
-    setActiveTab('overview');
     setIsEditing(false);
     setEditForm(null);
   };
@@ -247,7 +244,6 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
         // Open the newly created recipe
         setSelectedRecipe(newRecipe);
-        setActiveTab('overview');
       }
     } catch (e: any) {
       console.error("AI Import Failed:", e);
@@ -265,7 +261,6 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
     // Open the newly saved recipe
     setSelectedRecipe(recipe);
-    setActiveTab('overview');
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {

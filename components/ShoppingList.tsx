@@ -3,11 +3,9 @@ import { shoppingData } from '../services/pageData';
 import { ensureWarm, peekWarm } from '../utils/prewarm';
 import { Reorder } from 'framer-motion';
 import {
-  getFamilyPlansInRange,
   getPantryInventory,
   addToPantry,
   removeFromPantry,
-  getEnhancedShoppingState,
   saveEnhancedShoppingState,
   migrateShoppingState
 } from '../services/storageService';
@@ -39,7 +37,6 @@ export const ShoppingList: React.FC = () => {
   const [selectedMealIds, setSelectedMealIds] = useState<Set<string>>(new Set());
 
   // Keep existing state for downstream phases
-  const [parsedIngredients, setParsedIngredients] = useState<ParsedIngredient[]>([]);
   const [aggregatedIngredients, setAggregatedIngredients] = useState<AggregatedIngredient[]>([]);
   const [purchasableItems, setPurchasableItems] = useState<PurchasableItem[]>([]);
   // Starts true so the page, pre-rendered while hidden, never shows "no meals" before loading
@@ -170,7 +167,6 @@ export const ShoppingList: React.FC = () => {
         );
 
         setPurchasableItems(visibleItems);
-        setParsedIngredients(enhancedState.cachedParsedIngredients);
         setAggregatedIngredients(enhancedState.cachedAggregatedIngredients);
         if (enhancedState.selectedMealIds) setSelectedMealIds(new Set(enhancedState.selectedMealIds));
         setPhase('shopping');
@@ -321,8 +317,6 @@ export const ShoppingList: React.FC = () => {
       recipeId: ingredientsToProcess[index].recipeId,
       recipeName: ingredientsToProcess[index].recipeName
     }));
-
-    setParsedIngredients(parsedWithRecipeInfo);
 
     // Aggregate by ingredient name
     const aggregated = aggregateIngredients(parsedWithRecipeInfo);
@@ -565,7 +559,6 @@ export const ShoppingList: React.FC = () => {
 
       setPhase('selection');
       setPurchasableItems([]);
-      setParsedIngredients([]);
       setAggregatedIngredients([]);
       setIsProcessing(false);
 

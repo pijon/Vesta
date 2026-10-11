@@ -100,33 +100,6 @@ export const FastingCard: React.FC<{ elapsedHours: number; targetHours: number; 
     );
 };
 
-export const CaloriesRemainingCard: React.FC<{
-    caloriesRemaining: number;
-    caloriesGoal: number;
-    size?: TileSize;
-    onLogFood: () => void;
-}> = ({ caloriesRemaining, caloriesGoal, size = 'md', onLogFood }) => {
-    const isOver = caloriesRemaining < 0;
-    const consumed = caloriesGoal - caloriesRemaining;
-    const percent = caloriesGoal > 0 ? (consumed / caloriesGoal) * 100 : 0;
-
-    return (
-        <div onClick={onLogFood} className={`tile tile-calories gap-1 cursor-pointer ${tileHeight(size)}`}>
-            <div className="flex justify-between items-start gap-2">
-                <h3 className="font-sans text-sm font-semibold text-calories-text">{isOver ? 'Over today' : 'Calories left'}</h3>
-                <MiniRing percent={percent} color="var(--calories)" label={`${Math.round(percent)}% of calories eaten`} />
-            </div>
-            <p className={`text-2xl font-display font-extrabold leading-7 ${isOver ? 'text-warning' : ''}`}>
-                {Math.abs(caloriesRemaining)}<span className="text-sm font-semibold"> kcal</span>
-            </p>
-            <p className="text-xs font-semibold">Goal {caloriesGoal}</p>
-            <div className="mt-auto pt-2">
-                <QuickAction onClick={onLogFood}>Log food</QuickAction>
-            </div>
-        </div>
-    );
-};
-
 export const HydrationCard: React.FC<{ liters: number; onAddWater: (amount: number) => void; goal?: number; size?: TileSize }> = ({
     liters, onAddWater, goal = 2.5, size = 'md'
 }) => {

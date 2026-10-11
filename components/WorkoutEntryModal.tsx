@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { WorkoutItem } from '../types';
-import { Portal } from './Portal';
 import { workoutIconFor } from '../utils/workoutVisual';
+import { Sheet } from './Sheet';
 
 interface WorkoutEntryModalProps {
   isOpen: boolean;
@@ -11,163 +11,112 @@ interface WorkoutEntryModalProps {
   recentWorkouts?: WorkoutItem[];
 }
 
-export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({
-  isOpen,
+const WorkoutIcon: React.FC<{ type: string; size: number }> = ({ type, size }) =>
+  React.createElement(workoutIconFor(type), { size, stroke: 1.75, 'aria-hidden': true });
+
+const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
   onClose,
   onSave,
   editingWorkout = null,
-  recentWorkouts = []
+  recentWorkouts = [],
 }) => {
-  const [workoutType, setWorkoutType] = useState('');
-  const [caloriesBurned, setCaloriesBurned] = useState('');
+  const [type, setType] = useState(editingWorkout?.type ?? '');
+  const [kcal, setKcal] = useState(editingWorkout ? String(editingWorkout.caloriesBurned) : '');
+  const typeRef = useRef<HTMLInputElement>(null);
+  const kcalRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (editingWorkout) {
-      setWorkoutType(editingWorkout.type);
-      setCaloriesBurned(editingWorkout.caloriesBurned.toString());
-    } else {
-      setWorkoutType('');
-      setCaloriesBurned('');
-    }
-  }, [editingWorkout, isOpen]);
+  // One chip per workout type, most recent first
+  const seen = new Set<string>();
+  const recent = recentWorkouts.filter(w => {
+    const key = w.type.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 6);
 
-  const handleSave = () => {
-    if (!workoutType.trim() || !caloriesBurned) return;
+  const canSave = !!type.trim() && kcal !== '';
 
-    const workout: WorkoutItem = editingWorkout
-      ? {
-        ...editingWorkout,
-        type: workoutType,
-        caloriesBurned: parseInt(caloriesBurned) || 0
-      }
-      : {
-        id: crypto.randomUUID(),
-        type: workoutType,
-        caloriesBurned: parseInt(caloriesBurned) || 0,
-        timestamp: Date.now()
-      };
-
-    onSave(workout);
-    handleClose();
-  };
-
-  const handleClose = () => {
-    setWorkoutType('');
-    setCaloriesBurned('');
+  const save = () => {
+    if (!canSave) return;
+    const caloriesBurned = parseInt(kcal, 10) || 0;
+    onSave(editingWorkout
+      ? { ...editingWorkout, type: type.trim(), caloriesBurned }
+      : { id: crypto.randomUUID(), type: type.trim(), caloriesBurned, timestamp: Date.now() });
     onClose();
   };
 
-  if (!isOpen) return null;
+  const footer = (
+    <button onClick={save} disabled={!canSave} className="btn-primary btn-block">
+      {editingWorkout ? 'Save changes' : kcal ? `Log workout · ${parseInt(kcal, 10).toLocaleString()} kcal` : 'Log workout'}
+    </button>
+  );
 
   return (
-    <Portal>
-      <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 px-4 py-4 animate-fade-in"
-        onClick={handleClose}
-      >
-        <div
-          className="bg-[var(--background)] w-full max-w-md rounded-3xl border border-border shadow-2xl overflow-hidden"
-          onClick={e => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="p-6 md:p-8 border-b border-border flex justify-between items-center bg-transparent">
-            <h3 className="text-2xl md:text-3xl text-charcoal dark:text-stone-200 font-display font-extrabold flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--workout)' }}>
-                <path d="M12.1 3A1.9 1.9 0 1 1 14 4.9 1.898 1.898 0 0 1 12.1 3zm2.568 4.893c.26-1.262-1.399-1.861-2.894-2.385L7.09 6.71l.577 4.154c0 .708 1.611.489 1.587-.049l-.39-2.71 2.628-.48-.998 4.92 3.602 4.179-1.469 4.463a.95.95 0 0 0 .39 1.294c.523.196 1.124-.207 1.486-.923.052-.104 1.904-5.127 1.904-5.127l-2.818-3.236 1.08-5.303zm-5.974 8.848l-3.234.528a1.033 1.033 0 0 0-.752 1.158c.035.539.737.88 1.315.802l3.36-.662 2.54-2.831-1.174-1.361zm8.605-7.74l-1.954.578-.374 1.837 2.865-.781a.881 0 0 0-.537-1.633z" />
-                <path fill="none" d="M0 0h24v24H0z" />
-              </svg>
-              {editingWorkout ? 'Edit Workout' : 'Log Workout'}
-            </h3>
-            <button
-              onClick={handleClose}
-              className="p-2 bg-[var(--input-bg)] border border-transparent rounded-full text-muted hover:text-[var(--text-main)] transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="p-6">
-            {recentWorkouts && recentWorkouts.length > 0 && !editingWorkout && (
-              <div className="mb-6">
-                <label className="block text-xs font-bold text-muted mb-3">Quick Add</label>
-                <div className="flex flex-wrap gap-2">
-                  {recentWorkouts.map((workout, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setWorkoutType(workout.type);
-                        setCaloriesBurned(workout.caloriesBurned.toString());
-                      }}
-                      className="px-3 py-2 bg-[var(--surface)] text-sm font-medium rounded-lg border border-border hover:border-workout transition-all flex items-center gap-2 group shadow-sm hover:shadow-md"
-                    >
-                      {React.createElement(workoutIconFor(workout.type), { size: 18, stroke: 1.75, className: 'text-workout-text', 'aria-hidden': true })}
-                      <span className="text-[var(--text-main)] group-hover:text-workout transition-colors">{workout.type}</span>
-                      <span className="text-muted text-xs">({workout.caloriesBurned} kcal)</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-muted mb-2">Workout Type</label>
-                <div className="relative">
-                <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-8 rounded-[10px] bg-workout-bg text-workout-text flex items-center justify-center">
-                  {React.createElement(workoutIconFor(workoutType), { size: 18, stroke: 1.75, 'aria-hidden': true })}
-                </span>
-                <input
-                  type="text"
-                  value={workoutType}
-                  onChange={(e) => setWorkoutType(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                  className="w-full p-3 pl-12 bg-[var(--input-bg)] border border-transparent focus:border-workout/50 rounded-xl focus:ring-2 focus:ring-workout/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
-                  placeholder="e.g. Running, Cycling, Swimming..."
-                  autoFocus
-                />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted mb-2">Calories Burned</label>
-                <input
-                  type="number"
-                  value={caloriesBurned}
-                  onChange={(e) => setCaloriesBurned(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                  className="w-full p-3 bg-[var(--input-bg)] border border-transparent focus:border-workout/50 rounded-xl focus:ring-2 focus:ring-workout/20 outline-none font-medium text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
-                  placeholder="e.g. 200"
-                />
-                <p className="text-xs text-muted mt-2 ml-1">Estimate based on duration and intensity</p>
-              </div>
+    <Sheet title={editingWorkout ? 'Edit workout' : 'Log workout'} onClose={onClose} footer={footer} initialFocus={typeRef}>
+      <form className="space-y-4" onSubmit={e => { e.preventDefault(); save(); }}>
+        {recent.length > 0 && !editingWorkout && (
+          <div>
+            <p className="text-xs font-semibold text-muted mb-1.5">Recent</p>
+            <div className="flex flex-wrap gap-1.5">
+              {recent.map(w => {
+                const active = type.trim().toLowerCase() === w.type.trim().toLowerCase() && kcal === String(w.caloriesBurned);
+                return (
+                  <button
+                    key={w.type}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => { setType(w.type); setKcal(String(w.caloriesBurned)); kcalRef.current?.focus(); }}
+                    className={`inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active ? 'bg-ink text-on-ink border-transparent' : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                  >
+                    <span className={active ? '' : 'text-workout-text'}><WorkoutIcon type={w.type} size={16} /></span>
+                    <span className="max-w-[10rem] truncate">{w.type}</span>
+                    <span className={`font-normal ${active ? '' : 'text-muted'}`}>{w.caloriesBurned}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
+        )}
 
-          {/* Footer */}
-          <div className="p-6 md:p-8 pt-0 flex gap-3">
-            <button
-              onClick={handleClose}
-              className="flex-1 py-3 bg-transparent text-muted font-bold rounded-xl hover:text-[var(--text-main)] hover:bg-[var(--input-bg)] transition-all border border-border"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!workoutType.trim() || !caloriesBurned}
-              className={`flex-1 py-3 font-bold rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 ${!workoutType.trim() || !caloriesBurned
-                ? 'bg-[var(--input-bg)] text-muted cursor-not-allowed shadow-none'
-                : 'text-white'
-                }`}
-              style={!workoutType.trim() || !caloriesBurned ? {} : { backgroundColor: 'var(--workout)' }}
-            >
-              {editingWorkout ? 'Save Changes' : 'Add Workout'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Portal>
+        <label className="block">
+          <span className="block text-sm font-semibold mb-1.5">Workout</span>
+          <span className="relative block">
+            <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 size-8 rounded-[10px] bg-workout-bg text-workout-text flex items-center justify-center">
+              <WorkoutIcon type={type} size={18} />
+            </span>
+            <input
+              ref={typeRef}
+              value={type}
+              onChange={e => setType(e.target.value)}
+              placeholder="Running, cycling, yoga…"
+              autoCapitalize="sentences"
+              className="input w-full !pl-12"
+            />
+          </span>
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-semibold mb-1.5">Calories burned</span>
+          <span className="relative block">
+            <input
+              ref={kcalRef}
+              value={kcal}
+              onChange={e => setKcal(e.target.value.replace(/\D/g, ''))}
+              inputMode="numeric"
+              placeholder="250"
+              className="input w-full !pr-14"
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted">kcal</span>
+          </span>
+          <span className="block text-xs text-muted mt-1.5">Your watch or the machine usually shows this.</span>
+        </label>
+        {/* Lets Enter submit from either field */}
+        <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+      </form>
+    </Sheet>
   );
 };
+
+/** Log or edit a workout: type and calories burned, with recent workouts one tap away. */
+export const WorkoutEntryModal: React.FC<WorkoutEntryModalProps> = ({ isOpen, ...props }) =>
+  isOpen ? <WorkoutEntrySheet key={props.editingWorkout?.id ?? 'new'} {...props} /> : null;

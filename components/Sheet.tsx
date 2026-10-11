@@ -10,13 +10,15 @@ interface SheetProps {
   /** Sticky area under the scrolling body */
   footer?: React.ReactNode;
   size?: 'md' | 'lg';
+  /** Field to focus when the sheet opens (default: the close button) */
+  initialFocus?: React.RefObject<HTMLElement | null>;
 }
 
 /**
  * Bottom sheet on mobile, centred dialog from md up. Escape closes it, focus starts on the
- * close button and returns to the opener, and the page behind stops scrolling.
+ * close button (or `initialFocus`) and returns to the opener, and the page behind stops scrolling.
  */
-export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children, footer, size = 'md' }) => {
+export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children, footer, size = 'md', initialFocus }) => {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
@@ -28,7 +30,7 @@ export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children
     document.addEventListener('keydown', onKey);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    closeRef.current?.focus();
+    (initialFocus?.current ?? closeRef.current)?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;

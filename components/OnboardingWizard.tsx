@@ -1,141 +1,182 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Droplets, Flame, Scale, Target, UtensilsCrossed, X } from 'lucide-react';
+import { UserStats } from '../types';
+import { DEFAULT_USER_STATS } from '../constants';
 
-interface OnboardingWizardProps {
-    onComplete: (data: { name: string; currentWeight: number; goalWeight: number }) => void;
+export interface OnboardingResult {
+    name: string;
+    currentWeight: number;
+    goalWeight: number;
+    nonFastDayCalories: number;
+    dailyCalorieGoal: number;
+    dailyWaterGoal: number;
 }
 
-export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
+interface OnboardingWizardProps {
+    /** Existing values to start from (e.g. when re-run from Settings) */
+    stats?: Partial<UserStats>;
+    onComplete: (data: OnboardingResult) => void;
+    /** Shown as a close button; leave out when the profile is required */
+    onCancel?: () => void;
+}
+
+/** Accepts "82,4" as well as "82.4". */
+const num = (s: string) => {
+    const n = parseFloat(s.replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+const str = (n: number | undefined) => (n && n > 0 ? String(n) : '');
+
+const STEPS = ['About you', 'Your weight', 'Daily targets'];
+
+const NumberField: React.FC<{
+    label: string;
+    hint?: string;
+    unit: string;
+    value: string;
+    onChange: (v: string) => void;
+    Icon: typeof Scale;
+    tone: string;
+    decimal?: boolean;
+    inputRef?: React.Ref<HTMLInputElement>;
+}> = ({ label, hint, unit, value, onChange, Icon, tone, decimal, inputRef }) => (
+    <label className="flex items-center gap-3 rounded-[14px] border border-border bg-surface p-3 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-[var(--focus-ring)]">
+        <span className={`size-10 shrink-0 rounded-[12px] flex items-center justify-center ${tone}`}><Icon size={20} aria-hidden="true" /></span>
+        <span className="flex-1 min-w-0">
+            <span className="block font-semibold leading-snug">{label}</span>
+            {hint && <span className="block text-xs text-muted">{hint}</span>}
+        </span>
+        <span className="flex items-baseline gap-1 shrink-0">
+            <input
+                ref={inputRef}
+                value={value}
+                onChange={e => onChange(e.target.value.replace(decimal ? /[^\d.,]/g : /\D/g, ''))}
+                inputMode={decimal ? 'decimal' : 'numeric'}
+                placeholder="0"
+                className="w-20 bg-transparent text-right font-display font-extrabold text-2xl text-main placeholder:text-muted focus:outline-none"
+            />
+            <span className="text-sm font-semibold text-muted w-8">{unit}</span>
+        </span>
+    </label>
+);
+
+/** First-run setup: name, weight and goal, then daily targets. Everything can be changed later in Settings. */
+export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onComplete, onCancel }) => {
     const [step, setStep] = useState(0);
-    const [name, setName] = useState('');
-    const [weight, setWeight] = useState('');
-    const [goal, setGoal] = useState('');
+    const [name, setName] = useState(stats?.name ?? '');
+    const [weight, setWeight] = useState(str(stats?.currentWeight));
+    const [goal, setGoal] = useState(str(stats?.goalWeight));
+    const [nourish, setNourish] = useState(str(stats?.nonFastDayCalories ?? DEFAULT_USER_STATS.nonFastDayCalories));
+    const [fast, setFast] = useState(str(stats?.dailyCalorieGoal ?? DEFAULT_USER_STATS.dailyCalorieGoal));
+    const [water, setWater] = useState(str(stats?.dailyWaterGoal ?? DEFAULT_USER_STATS.dailyWaterGoal));
 
-    const canProceed = () => {
-        if (!name.trim()) return false;
-        if (!weight || parseFloat(weight) <= 0) return false;
-        if (!goal || parseFloat(goal) <= 0) return false;
-        return true;
-    };
+    const nameRef = useRef<HTMLInputElement>(null);
+    const weightRef = useRef<HTMLInputElement>(null);
+    const nourishRef = useRef<HTMLInputElement>(null);
 
-    const handleSubmit = () => {
-        if (canProceed()) {
-            onComplete({
-                name: name.trim(),
-                currentWeight: parseFloat(weight),
-                goalWeight: parseFloat(goal)
-            });
-        }
+    useEffect(() => {
+        const target = [nameRef, weightRef, nourishRef][step].current;
+        // Wait for the step to render before focusing
+        requestAnimationFrame(() => target?.focus());
+    }, [step]);
+
+    const w = num(weight);
+    const g = num(goal);
+    const valid = [
+        !!name.trim(),
+        w !== null && g !== null && w < 500 && g < 500,
+        !!num(nourish) && !!num(fast) && !!num(water),
+    ];
+    const diff = w !== null && g !== null ? Math.round((w - g) * 10) / 10 : null;
+
+    const next = () => {
+        if (!valid[step]) return;
+        if (step < STEPS.length - 1) { setStep(step + 1); return; }
+        onComplete({
+            name: name.trim(),
+            currentWeight: Math.round(w! * 10) / 10,
+            goalWeight: Math.round(g! * 10) / 10,
+            nonFastDayCalories: Math.round(num(nourish)!),
+            dailyCalorieGoal: Math.round(num(fast)!),
+            dailyWaterGoal: Math.round(num(water)!),
+        });
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--background)]/80 p-4 animate-fade-in">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-lg bg-[var(--surface)] border border-border/50 shadow-2xl rounded-[24px] overflow-hidden p-8 md:p-12 relative"
-            >
-                {/* Decorative Background */}
-                <div className="absolute top-0 right-0 p-12 opacity-[0.03] text-[var(--text-main)] pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+        <div className="fixed inset-0 z-[100] bg-background overflow-y-auto animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+            <div className="min-h-dvh max-w-md mx-auto px-4 py-6 md:py-12 flex flex-col">
+                {/* Progress */}
+                <div className="flex items-center gap-3 mb-8">
+                    {step > 0 ? (
+                        <button onClick={() => setStep(step - 1)} className="icon-btn shrink-0" aria-label="Back"><ArrowLeft size={20} /></button>
+                    ) : <span className="size-11 shrink-0" aria-hidden="true" />}
+                    <div className="flex-1 flex gap-1.5" aria-label={`Step ${step + 1} of ${STEPS.length}`} role="img">
+                        {STEPS.map((_, i) => (
+                            <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-border'}`} />
+                        ))}
+                    </div>
+                    {onCancel ? (
+                        <button onClick={onCancel} className="icon-btn shrink-0" aria-label="Close"><X size={20} /></button>
+                    ) : <span className="size-11 shrink-0" aria-hidden="true" />}
                 </div>
 
-                <div className="text-center space-y-8 relative z-10">
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                    >
-                        <div className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center text-4xl shadow-sm animate-pulse-slow">
-                            🔥
-                        </div>
-                        <h1 className="text-3xl md:text-4xl font-display font-extrabold text-[var(--text-main)] mb-3">Welcome to Vesta</h1>
-                        <p className="text-xl text-[var(--text-secondary)] font-medium">Let's tend to your health.</p>
-                    </motion.div>
-
-                    <div className="space-y-6">
-                        <motion.div
-                            initial={{ x: -20, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            transition={{ delay: 0.4 }}
-                            className="space-y-2 text-left"
-                        >
-                            <label className="block text-sm font-bold text-[var(--text-main)] ml-1">What should we call you?</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Your Name"
-                                className="w-full p-4 text-lg bg-[var(--input-bg)] border border-border rounded-2xl focus:ring-2 focus:ring-primary/50 outline-none text-[var(--text-main)] placeholder-[var(--text-muted)] transition-all shadow-sm"
-                                autoFocus
-                            />
-                        </motion.div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <motion.div
-                                initial={{ x: -20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                                className="space-y-2 text-left"
-                            >
-                                <label className="block text-sm font-bold text-[var(--text-main)] ml-1">Current Weight</label>
-                                <div className="relative">
+                <form className="flex-1 flex flex-col" onSubmit={e => { e.preventDefault(); next(); }}>
+                    <div key={step} className="flex-1 motion-safe:animate-page-in">
+                        {step === 0 && (
+                            <>
+                                <img src="/resources/logo_light.png" alt="" className="size-14 mb-5 dark:hidden" />
+                                <img src="/resources/logo_dark.png" alt="" className="size-14 mb-5 hidden dark:block" />
+                                <h1 id="onboarding-title" className="heading-1">Welcome to Vesta</h1>
+                                <p className="text-muted mt-2 mb-8">Plan meals, cook together and keep track, without the fuss. Three quick questions to get you set up.</p>
+                                <label className="block">
+                                    <span className="block text-sm font-semibold mb-1.5">What should we call you?</span>
                                     <input
-                                        type="number"
-                                        step="0.1"
-                                        value={weight}
-                                        onChange={(e) => setWeight(e.target.value)}
-                                        placeholder="0.0"
-                                        className="w-full p-4 text-lg bg-[var(--input-bg)] border border-border rounded-2xl focus:ring-2 focus:ring-primary/50 outline-none text-[var(--text-main)] placeholder-[var(--text-muted)] transition-all shadow-sm"
+                                        ref={nameRef}
+                                        value={name}
+                                        onChange={e => setName(e.target.value)}
+                                        autoComplete="given-name"
+                                        autoCapitalize="words"
+                                        placeholder="Your first name"
+                                        className="input w-full text-lg"
                                     />
-                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] font-bold text-sm">kg</span>
-                                </div>
-                            </motion.div>
+                                </label>
+                            </>
+                        )}
 
-                            <motion.div
-                                initial={{ x: -20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.6 }}
-                                className="space-y-2 text-left"
-                            >
-                                <label className="block text-sm font-bold text-[var(--text-main)] ml-1">Goal Weight</label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        value={goal}
-                                        onChange={(e) => setGoal(e.target.value)}
-                                        placeholder="0.0"
-                                        className="w-full p-4 text-lg bg-[var(--input-bg)] border border-border rounded-2xl focus:ring-2 focus:ring-primary/50 outline-none text-[var(--text-main)] placeholder-[var(--text-muted)] transition-all shadow-sm"
-                                    />
-                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] font-bold text-sm">kg</span>
+                        {step === 1 && (
+                            <>
+                                <h1 id="onboarding-title" className="heading-1">Hi {name.trim().split(' ')[0]}. Where are you starting?</h1>
+                                <p className="text-muted mt-2 mb-8">We'll save your weight as today's weigh-in.</p>
+                                <div className="space-y-2">
+                                    <NumberField label="Weight today" unit="kg" value={weight} onChange={setWeight} Icon={Scale} tone="tile-weight" decimal inputRef={weightRef} />
+                                    <NumberField label="Goal weight" unit="kg" value={goal} onChange={setGoal} Icon={Target} tone="tile-weight" decimal />
                                 </div>
-                            </motion.div>
-                        </div>
+                                <p className="text-sm text-muted mt-3 min-h-5" aria-live="polite">
+                                    {diff === null ? '' : diff === 0 ? "You're already at your goal. Vesta will help you stay there." : `That's ${Math.abs(diff).toLocaleString()} kg to ${diff > 0 ? 'lose' : 'gain'}.`}
+                                </p>
+                            </>
+                        )}
+
+                        {step === 2 && (
+                            <>
+                                <h1 id="onboarding-title" className="heading-1">Your daily targets</h1>
+                                <p className="text-muted mt-2 mb-8">Every day is a nourish day unless you mark it as a fast day in the planner.</p>
+                                <div className="space-y-2">
+                                    <NumberField label="Nourish day" hint="A normal day" unit="kcal" value={nourish} onChange={setNourish} Icon={UtensilsCrossed} tone="tile-calories" inputRef={nourishRef} />
+                                    <NumberField label="Fast day" hint="A lighter day, if you do them" unit="kcal" value={fast} onChange={setFast} Icon={Flame} tone="tile-fasting" />
+                                    <NumberField label="Water" unit="ml" value={water} onChange={setWater} Icon={Droplets} tone="tile-water" />
+                                </div>
+                                <p className="text-sm text-muted mt-3">You can change all of this later in Settings.</p>
+                            </>
+                        )}
                     </div>
 
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.8 }}
-                        className="pt-4"
-                    >
-                        <button
-                            onClick={handleSubmit}
-                            disabled={!canProceed()}
-                            className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 ${canProceed()
-                                ? 'bg-primary text-primary-foreground hover:brightness-110 hover:shadow-primary/30'
-                                : 'bg-[var(--card-bg)] text-[var(--text-muted)] cursor-not-allowed'
-                                }`}
-                        >
-                            <span>Start My Vesta Journey</span>
-                            {canProceed() && (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-                            )}
-                        </button>
-                    </motion.div>
-                </div>
-            </motion.div>
+                    <button type="submit" disabled={!valid[step]} className="btn-primary btn-lg btn-block mt-8">
+                        {step < STEPS.length - 1 ? <>Continue <ArrowRight size={18} aria-hidden="true" /></> : 'Start using Vesta'}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 };

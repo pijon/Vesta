@@ -1,13 +1,8 @@
 import React from 'react';
 import { DailySummary, WorkoutItem } from '../types';
 import { Portal } from './Portal';
-import { StreakFlame } from './StreakFlame';
 import { localDateString } from '../utils/dateUtils';
 import { workoutIconFor } from '../utils/workoutVisual';
-// Actually StreakFlame is likely not exported from BentoGrid based on previous reads. 
-// I should check if StreakFlame is exported or just inline.
-// It was imported in BentoGrid: import { StreakFlame } from './StreakFlame'; 
-// So I can import it directly.
 
 interface WorkoutOverviewModalProps {
     isOpen: boolean;

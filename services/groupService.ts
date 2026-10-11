@@ -5,7 +5,6 @@ import {
     setDoc,
     collection,
     getDocs,
-    deleteDoc,
     updateDoc,
     arrayUnion,
     arrayRemove,
@@ -262,32 +261,3 @@ export const copyRecipeToMyLibrary = async (recipe: Recipe): Promise<Recipe> => 
 };
 
 // --- Recipe Sharing (Deprecated) ---
-
-/**
- * @deprecated Use getFamilyMemberRecipes() instead.
- */
-export const shareRecipeToGroup = async (groupId: string, recipe: Recipe): Promise<void> => {
-    const sharedRecipeRef = doc(db, "groups", groupId, "shared_recipes", recipe.id);
-    await setDoc(sharedRecipeRef, {
-        ...recipe,
-        isShared: true,
-        sharedBy: auth.currentUser?.uid,
-        sharedAt: Date.now()
-    });
-};
-
-/**
- * @deprecated Use getFamilyMemberRecipes() instead.
- */
-export const getGroupRecipes = async (groupId: string): Promise<Recipe[]> => {
-    const recipesRef = collection(db, "groups", groupId, "shared_recipes");
-    const snap = await getDocs(recipesRef);
-    return snap.docs.map(d => d.data() as Recipe);
-};
-
-/**
- * @deprecated Use family visibility model instead.
- */
-export const deleteGroupRecipe = async (groupId: string, recipeId: string): Promise<void> => {
-    await deleteDoc(doc(db, "groups", groupId, "shared_recipes", recipeId));
-};

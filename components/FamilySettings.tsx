@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Group } from '../types';
 import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode } from '../services/groupService';
 import { auth } from '../services/firebase';
-import { AlertCircle, Check, Copy, LogIn, LogOut, UsersRound } from 'lucide-react';
+import { AlertCircle, Check, Copy, LogIn, LogOut, UsersRound, UtensilsCrossed } from 'lucide-react';
 
 export const FamilySettings: React.FC = () => {
     const [group, setGroup] = useState<Group | null>(null);
@@ -69,8 +69,7 @@ export const FamilySettings: React.FC = () => {
 
     const handleLeaveGroup = async () => {
         if (!group) return;
-        if (!confirm("Leave this family? You'll stop seeing their shared recipes and plans.")) return;
-
+        setConfirmLeave(false);
         setLoading(true);
         try {
             await leaveGroup(group.id);
@@ -82,6 +81,7 @@ export const FamilySettings: React.FC = () => {
         }
     };
 
+    const [confirmLeave, setConfirmLeave] = useState(false);
     const [codeCopied, setCodeCopied] = useState(false);
     const handleCopyCode = () => {
         if (!group?.inviteCode) return;
@@ -109,6 +109,8 @@ export const FamilySettings: React.FC = () => {
             )}
 
             {!group ? (
+                <div className="space-y-3">
+                <p className="text-sm text-muted">A family shares recipes and one dinner plan: dinners anyone plans show up in everyone's planner and shopping list.</p>
                 <div className="grid sm:grid-cols-2 gap-3">
                     <form
                         className="rounded-[14px] bg-surface-sunken p-4 space-y-3"
@@ -161,6 +163,7 @@ export const FamilySettings: React.FC = () => {
                         </button>
                     </form>
                 </div>
+                </div>
             ) : (
                 <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] bg-surface-sunken p-4">
@@ -200,9 +203,28 @@ export const FamilySettings: React.FC = () => {
                         })}
                     </ul>
 
-                    <button onClick={handleLeaveGroup} className="btn-ghost btn-sm text-error hover:bg-error-bg">
-                        <LogOut size={16} aria-hidden="true" /> Leave family
-                    </button>
+                    <p className="text-sm text-muted flex items-start gap-2">
+                        <UtensilsCrossed size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
+                        Dinners anyone plans show up in everyone's planner and shopping list, and you can browse each other's recipes.
+                    </p>
+
+                    {confirmLeave ? (
+                        <div role="alertdialog" aria-label="Leave family?" className="rounded-[14px] bg-error-bg p-4 space-y-3">
+                            <p className="text-sm">
+                                <span className="font-semibold">Leave {group.name}?</span> You'll stop seeing the family's recipes and shared dinners, including dinners you planned for the family. Your own recipes stay yours.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                <button onClick={handleLeaveGroup} disabled={loading} className="btn-sm inline-flex items-center gap-1.5 min-h-9 px-4 rounded-full font-semibold bg-error text-on-ink hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
+                                    <LogOut size={16} aria-hidden="true" /> Leave family
+                                </button>
+                                <button onClick={() => setConfirmLeave(false)} className="btn-ghost btn-sm">Stay</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button onClick={() => setConfirmLeave(true)} className="btn-ghost btn-sm !text-error hover:!bg-error-bg">
+                            <LogOut size={16} aria-hidden="true" /> Leave family
+                        </button>
+                    )}
                 </div>
             )}
         </div>

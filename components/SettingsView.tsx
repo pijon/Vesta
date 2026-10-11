@@ -117,11 +117,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         }
     };
 
-    const handleTestOnboarding = () => {
-        if (confirm("Preview the welcome flow? Finishing it updates your name, weight and goal; your history is kept.")) {
-            onTestOnboarding();
-        }
-    };
+    // The preview can be closed without saving; finishing it saves name, weight, goal and targets
+    const handleTestOnboarding = () => onTestOnboarding();
 
     const handleCopyId = () => {
         if (user?.uid) {

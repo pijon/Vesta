@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Portal } from './Portal';
+import React, { useRef, useState } from 'react';
+import { Minus, Plus } from 'lucide-react';
+import { Sheet } from './Sheet';
 
 interface WeightEntryModalProps {
     isOpen: boolean;
@@ -8,86 +9,77 @@ interface WeightEntryModalProps {
     onSave: (weight: number) => void;
 }
 
-export const WeightEntryModal: React.FC<WeightEntryModalProps> = ({
-    isOpen,
-    onClose,
-    currentWeight,
-    onSave
-}) => {
-    const [weightInput, setWeightInput] = useState(currentWeight.toString());
+/** Accepts "82,4" as well as "82.4" (Swedish keyboards). */
+const parseWeight = (s: string) => {
+    const n = parseFloat(s.replace(',', '.'));
+    return Number.isFinite(n) && n > 0 && n < 500 ? n : null;
+};
 
-    useEffect(() => {
-        setWeightInput(currentWeight.toString());
-    }, [currentWeight, isOpen]);
+const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-    const handleSave = () => {
-        const w = parseFloat(weightInput);
-        if (w > 0) {
-            onSave(w);
-            onClose();
-        }
+const WeightEntrySheet: React.FC<Omit<WeightEntryModalProps, 'isOpen'>> = ({ onClose, currentWeight, onSave }) => {
+    const [value, setValue] = useState(currentWeight > 0 ? currentWeight.toFixed(1) : '');
+    const inputRef = useRef<HTMLInputElement>(null);
+    const weight = parseWeight(value);
+    const diff = weight !== null && currentWeight > 0 ? Math.round((weight - currentWeight) * 10) / 10 : null;
+
+    const step = (delta: number) => {
+        const base = weight ?? (currentWeight || 70);
+        setValue((Math.round((base + delta) * 10) / 10).toFixed(1));
     };
 
-    if (!isOpen) return null;
+    const save = () => {
+        if (weight === null) return;
+        onSave(Math.round(weight * 10) / 10);
+        onClose();
+    };
+
+    const stepButton = (delta: number, label: string, Icon: typeof Plus) => (
+        <button
+            type="button"
+            onClick={() => step(delta)}
+            aria-label={label}
+            className="icon-btn !size-12 shrink-0 bg-surface-sunken border-transparent"
+        >
+            <Icon size={20} />
+        </button>
+    );
 
     return (
-        <Portal>
-            <div
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/40 px-4 py-4 animate-fade-in"
-                onClick={onClose}
-            >
-                <div
-                    className="bg-[var(--background)] w-full max-w-md rounded-3xl border border-border shadow-2xl overflow-hidden"
-                    onClick={e => e.stopPropagation()}
-                >
-                    <div className="p-6 md:p-8 border-b border-border flex justify-between items-center bg-transparent">
-                        <h3 className="text-2xl md:text-3xl text-[var(--text-main)] font-display font-extrabold">Update Weight</h3>
-                        <button
-                            onClick={onClose}
-                            className="p-2 bg-[var(--input-bg)] border border-transparent rounded-full text-muted hover:text-[var(--text-main)] transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
-                    </div>
-                    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-                        <div>
-                            <label className="block text-xs font-bold text-muted mb-2">Current Weight (kg)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                value={weightInput}
-                                onChange={(e) => setWeightInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                                className="w-full p-3 bg-[var(--input-bg)] border border-transparent focus:border-sage/50 rounded-xl focus:ring-2 focus:ring-sage/20 outline-none font-medium text-lg text-[var(--text-main)] placeholder:text-muted transition-all shadow-sm"
-                                placeholder="e.g. 75.5"
-                                autoFocus
-                            />
-                            <p className="text-xs text-muted mt-2 ml-1">Enter your current weight to update your progress</p>
-                        </div>
-                    </div>
-                    <div className="p-6 md:p-8 pt-0 flex gap-3 md:gap-4">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-3 bg-transparent text-muted font-bold rounded-xl hover:text-[var(--text-main)] hover:bg-[var(--input-bg)] transition-all border border-border"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={!weightInput || parseFloat(weightInput) <= 0}
-                            className={`flex-1 py-3 font-bold rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 ${!weightInput || parseFloat(weightInput) <= 0
-                                ? 'bg-[var(--input-bg)] text-muted cursor-not-allowed shadow-none'
-                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                }`}
-                        >
-                            Update Weight
-                        </button>
-                    </div>
+        <Sheet
+            title="Log weight"
+            subtitle={currentWeight > 0 ? `Last logged ${fmt(currentWeight)} kg` : undefined}
+            onClose={onClose}
+            initialFocus={inputRef}
+            footer={<button onClick={save} disabled={weight === null} className="btn-primary btn-block">Save weight</button>}
+        >
+            <form onSubmit={e => { e.preventDefault(); save(); }} className="pt-2">
+                <div className="flex items-center justify-center gap-3">
+                    {stepButton(-0.1, 'Decrease by 0.1 kg', Minus)}
+                    <label className="relative flex items-baseline justify-center rounded-[14px] tile-weight px-4 py-3 min-w-0 w-48">
+                        <span className="sr-only">Weight in kilograms</span>
+                        <input
+                            ref={inputRef}
+                            value={value}
+                            onChange={e => setValue(e.target.value.replace(/[^\d.,]/g, ''))}
+                            onFocus={e => e.target.select()}
+                            inputMode="decimal"
+                            placeholder="75.0"
+                            className="w-full min-w-0 bg-transparent text-center font-display font-extrabold text-5xl leading-tight tracking-tight text-main placeholder:text-muted focus:outline-none"
+                        />
+                        <span className="text-lg font-bold text-weight-text">kg</span>
+                    </label>
+                    {stepButton(0.1, 'Increase by 0.1 kg', Plus)}
                 </div>
-            </div>
-        </Portal>
+                <p className="text-sm text-muted text-center mt-3 min-h-5" aria-live="polite">
+                    {diff === null ? '' : diff === 0 ? 'Same as last time' : `${fmt(Math.abs(diff))} kg ${diff < 0 ? 'less' : 'more'} than last time`}
+                </p>
+                <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+            </form>
+        </Sheet>
     );
 };
+
+/** Log today's weight: one big number with fine steppers, compared with the last weigh-in. */
+export const WeightEntryModal: React.FC<WeightEntryModalProps> = ({ isOpen, ...props }) =>
+    isOpen ? <WeightEntrySheet {...props} /> : null;

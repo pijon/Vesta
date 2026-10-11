@@ -2,16 +2,14 @@ import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, use
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
 import { mealCalories, slotFor, slotLabel } from './utils/planUtils';
-import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, exportAllData, importAllData, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage, getLocalStorageDebugInfo } from './services/storageService';
+import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage } from './services/storageService';
 import * as cache from './utils/cacheService';
 // Lazy load non-critical components for performance
 const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
 const Planner = React.lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
 const RecipeLibrary = React.lazy(() => import('./components/RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 const ShoppingList = React.lazy(() => import('./components/ShoppingList').then(module => ({ default: module.ShoppingList })));
-const FamilySettings = React.lazy(() => import('./components/FamilySettings').then(module => ({ default: module.FamilySettings })));
 const SettingsView = React.lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
-const MigrationRunner = React.lazy(() => import('./components/MigrationRunner').then(module => ({ default: module.MigrationRunner })));
 
 // Download the lazy views in the background after start-up so the first visit to
 // each page renders immediately instead of flashing the Suspense skeleton.
@@ -26,11 +24,11 @@ import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { APP_NAME, DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS } from './constants';
+import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
-import { OnboardingWizard } from './components/OnboardingWizard';
+import { OnboardingWizard, OnboardingResult } from './components/OnboardingWizard';
 import { FoodEntryModal } from './components/FoodEntryModal';
 import { WorkoutEntryModal } from './components/WorkoutEntryModal';
 import { WeightEntryModal } from './components/WeightEntryModal';
@@ -447,13 +445,11 @@ const TrackerApp: React.FC = () => {
         await saveFastingState(newState);
     };
 
-    const handleOnboardingComplete = async (data: { name: string; currentWeight: number; goalWeight: number }) => {
-        // Safe update: Update name, goal, and merge current weight into history
+    const handleOnboardingComplete = async (data: OnboardingResult) => {
+        // Safe update: name, weights and targets; current weight is merged into history
         const updatedStats = {
             ...userStats,
-            name: data.name,
-            currentWeight: data.currentWeight,
-            goalWeight: data.goalWeight,
+            ...data,
             // Deprecated startWeight: only set if starting fresh
             startWeight: userStats.weightHistory.length === 0 ? data.currentWeight : userStats.startWeight
         };
@@ -582,7 +578,14 @@ const TrackerApp: React.FC = () => {
 
     return (
         <div className="min-h-screen md:flex font-sans">
-            {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} />}
+            {showOnboarding && (
+                <OnboardingWizard
+                    stats={userStats}
+                    onComplete={handleOnboardingComplete}
+                    // Only optional once there's a first weigh-in
+                    onCancel={userStats.weightHistory.length > 0 ? () => setShowOnboarding(false) : undefined}
+                />
+            )}
 
 
             {/* Main Content Wrapper */}
