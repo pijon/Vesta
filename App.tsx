@@ -631,7 +631,7 @@ const TrackerApp: React.FC = () => {
             {/* Main Content Wrapper */}
             <div className="w-full">
                 {/* Main Content */}
-                <main className="pb-28 pt-8 md:pt-12">
+                <main className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-8 md:pt-12">
                     <div className="max-w-6xl mx-auto px-4 md:px-8">
                         <Header
                             title={headerInfo.title}

@@ -20,19 +20,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onNavigate
 }) => {
   return (
-    <nav
-      aria-label="Main"
-      className="nav-bar fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-50"
-    >
+    <nav aria-label="Main" className="tab-bar">
       {NAV_ITEMS.map(({ view, label, Icon }) => (
         <button
           key={view}
           onClick={() => onNavigate(view)}
-          aria-label={label}
           aria-current={currentView === view ? 'page' : undefined}
-          className="nav-item"
+          className="tab-item"
         >
-          <Icon size={24} strokeWidth={2} />
+          <Icon size={24} strokeWidth={currentView === view ? 2.25 : 1.75} />
+          <span className="tab-label">{label}</span>
         </button>
       ))}
     </nav>

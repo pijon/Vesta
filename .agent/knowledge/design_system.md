@@ -116,7 +116,7 @@ Two families:
 | `tile tile-{calories,water,weight,workout,fasting,neutral}` | Metric tiles |
 | `badge badge-{calories,water,weight,workout,fasting,warning,neutral,ink}` | Labels (old names `badge-terracotta/sage/plum/teal/stone/amber` are aliases) |
 | `input`, `input-error` | Text fields |
-| `nav-bar`, `nav-item` (`aria-current="page"`) | The floating ink bottom nav |
+| `tab-bar`, `tab-item`, `tab-label` (`aria-current="page"`) | The iOS-style bottom tab bar: full width, icon over label, current tab in `primary` |
 
 - **Focus:** a 2px `--focus-ring` (ink) outline, offset 2px.
 - **Motion:**

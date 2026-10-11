@@ -584,19 +584,21 @@
   .section-description { @apply text-muted; }
 
   /* --- NAV --- */
-  .nav-bar {
-    @apply flex justify-around items-center p-1 rounded-full;
-    background: var(--ink);
-    box-shadow: var(--elev-md);
+  /* iOS-style tab bar: full width, fixed to the bottom, icon over label, accent tint for the current tab */
+  .tab-bar {
+    @apply fixed inset-x-0 bottom-0 z-50 flex justify-center border-t border-border bg-surface;
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  .nav-item {
-    @apply flex items-center justify-center w-13 h-11 rounded-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
-    color: var(--on-ink-muted);
-    outline-color: var(--on-ink);
+  .tab-item {
+    @apply flex-1 max-w-32 h-[52px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-4 rounded-[10px];
+    color: var(--text-muted);
+    outline-color: var(--focus-ring);
   }
-  .nav-item[aria-current="page"] {
-    color: var(--on-ink);
-    background: color-mix(in srgb, var(--on-ink) 14%, transparent);
+  .tab-item[aria-current="page"] {
+    color: var(--primary);
+  }
+  .tab-label {
+    @apply text-[11px] leading-none font-semibold tracking-normal;
   }
 
   /* --- MOBILE TOUCH TARGETS --- */
