@@ -36,6 +36,13 @@ export const dayCalories = (plan?: DayPlan) =>
 /** Days are nourish days unless marked as a fast day. */
 export const isFastDay = (plan?: Pick<DayPlan, 'type'>) => plan?.type === 'fast';
 
+/**
+ * Workout calories added to the day's budget. Fitness trackers often overestimate burn, so this can
+ * be set to half or none in Settings; the default adds all of it.
+ */
+export const creditedBurn = (burned: number, stats: Pick<UserStats, 'workoutCalorieCredit'>) =>
+  Math.round(burned * (stats.workoutCalorieCredit ?? 1));
+
 export const dayTarget = (plan: Pick<DayPlan, 'type'> | undefined, stats: Pick<UserStats, 'dailyCalorieGoal' | 'nonFastDayCalories'>) =>
   isFastDay(plan) ? stats.dailyCalorieGoal : (stats.nonFastDayCalories || 2000);
 

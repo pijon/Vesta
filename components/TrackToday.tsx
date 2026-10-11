@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary } from '../types';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { dayTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
 import { TomorrowCard } from './TomorrowCard';
 import { useNavigate } from 'react-router-dom';
-import { frequentFoodsData, FrequentFood } from '../services/pageData';
+import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
+import { CheckInCard } from './EnergyCheckIn';
 import { usePrewarmed } from '../utils/prewarm';
 import { weightSummary } from '../utils/analyticsModel';
+import { weightTrend } from '../utils/energyModel';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 // Lazy load RecipeLibrary
@@ -18,6 +20,8 @@ import { Portal } from './Portal';
 import { useAchievements } from '../hooks/useAchievements';
 import { analyzeActivityStreaks } from '../utils/analytics';
 
+
+const EMPTY_DAY_TYPES: Record<string, string> = {};
 
 interface TrackTodayProps {
   todayPlan: DayPlan;
@@ -209,21 +213,26 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     refreshData();
   };
 
-  // Weight tile: same trend as Analytics (last month), and the change since the previous weigh-in
+  // Weight tile: the smoothed trend (as on Analytics), the latest scale reading and the last month's pace
   const weightInfo = React.useMemo(() => {
     const history = [...(stats.weightHistory || [])].filter(e => e.weight > 0).sort((a, b) => a.date.localeCompare(b.date));
     const last = history[history.length - 1];
-    const previous = history[history.length - 2];
+    const points = weightTrend(history);
+    const latest = points[points.length - 1];
+    // Sparkline: the current run of the trend over the last 30 days
+    const recent = latest ? points.filter(p => p.run === latest.run && p.date >= addDays(latest.date, -30)).map(p => p.trend) : [];
     return {
-      current: last ? last.weight : null,
+      current: latest ? Math.round(latest.trend * 10) / 10 : null,
+      scale: last ? last.weight : null,
       lastDate: last ? last.date : null,
-      sinceLast: last && previous ? last.weight - previous.weight : null,
+      trend: recent,
       ratePerWeek: weightSummary(history, 30, stats.goalWeight).ratePerWeek,
     };
   }, [stats.weightHistory, stats.goalWeight]);
 
   // One-tap re-logging of frequent foods, with undo
   const frequentFoods = usePrewarmed(frequentFoodsData) ?? [];
+  const dayTypes = usePrewarmed(analyticsDayTypesData) ?? EMPTY_DAY_TYPES;
   const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
   useEffect(() => {
     if (!toast) return;
@@ -244,6 +253,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           caloriesGoal={dailyTarget}
           caloriesEaten={consumed}
           caloriesBurned={caloriesBurned}
+          burnCredit={stats.workoutCalorieCredit ?? 1}
           isFastDay={!isNonFastDay}
           onLogFood={onOpenFoodModal}
         />
@@ -256,9 +266,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           <WeightCard
             weight={weightInfo.current}
             ratePerWeek={weightInfo.ratePerWeek}
-            sinceLast={weightInfo.sinceLast}
+            scale={weightInfo.scale}
             lastDate={weightInfo.lastDate}
-            history={stats.weightHistory || []}
+            trend={weightInfo.trend}
             onAddWeight={onOpenWeightModal}
             onClick={() => onNavigate(AppView.ANALYTICS)}
           />
@@ -292,10 +302,19 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onDeleteFoodItem={onDeleteFoodItem}
         onNavigate={onNavigate}
         onSwapMeal={handleSwapMeal}
-        caloriesLeft={dailyTarget - consumed + caloriesBurned}
+        caloriesLeft={dailyTarget - consumed + creditedBurn(caloriesBurned, stats)}
         frequentFoods={frequentFoods}
         onQuickLog={handleQuickLog}
         onLogFood={onOpenFoodModal}
+      />
+
+      {/* Burn estimate: a weekly target check-in, or progress towards one */}
+      <CheckInCard
+        stats={stats}
+        summaries={activityHistory}
+        dayTypes={dayTypes}
+        onUpdateStats={onUpdateStats}
+        onOpenDetails={() => onNavigate(AppView.ANALYTICS)}
       />
 
       {/* Tomorrow */}

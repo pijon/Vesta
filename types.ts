@@ -98,6 +98,9 @@ export interface WeightEntry {
   weight: number;
 }
 
+/** How much of a workout's calories is added back to the day's budget: all, half or none */
+export type WorkoutCalorieCredit = 1 | 0.5 | 0;
+
 export interface UserStats {
   startWeight: number; // @deprecated - derived from weightHistory[0]
   currentWeight: number;
@@ -110,6 +113,8 @@ export interface UserStats {
   nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
   dailyWorkoutCalorieGoal?: number; // Daily calorie burn target for workouts
   dailyWorkoutCountGoal?: number; // Daily target for number of workouts (default 1)
+  weeklyLossGoal?: number; // kg per week the suggested calorie target aims for (default 0.5)
+  workoutCalorieCredit?: WorkoutCalorieCredit; // Share of workout calories added to the day's budget (default 1)
   streaks?: {
     // Global "Perfect Day" Streak
     currentStreak: number;

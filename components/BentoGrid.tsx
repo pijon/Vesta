@@ -1,5 +1,5 @@
 import React from 'react';
-import { DailySummary, WeightEntry } from '../types';
+import { DailySummary } from '../types';
 import { StreakFlame } from './StreakFlame';
 
 // --- Today metric tiles (direction C) ---
@@ -128,18 +128,20 @@ export const HydrationCard: React.FC<{ liters: number; onAddWater: (amount: numb
 
 /** Latest weight with the same trend as Analytics, the change since the previous weigh-in and a sparkline. */
 export const WeightCard: React.FC<{
+    /** Smoothed trend weight (falls back to the latest weigh-in) */
     weight: number | null;
     /** kg per week over the last month, when there are enough weigh-ins */
     ratePerWeek: number | null;
-    /** Change from the previous weigh-in */
-    sinceLast: number | null;
+    /** Latest scale reading and its date */
+    scale: number | null;
     lastDate: string | null;
-    history: WeightEntry[];
+    /** Daily trend values for the sparkline, oldest first */
+    trend: number[];
     onAddWeight: () => void;
     onClick?: () => void;
     size?: TileSize;
-}> = ({ weight, ratePerWeek, sinceLast, lastDate, history, onAddWeight, onClick, size = 'md' }) => {
-    const dataPoints = [...history].sort((a, b) => a.date.localeCompare(b.date)).slice(-14);
+}> = ({ weight, ratePerWeek, scale, lastDate, trend, onAddWeight, onClick, size = 'md' }) => {
+    const dataPoints = trend.map(weight => ({ weight }));
     const signed = (n: number, digits = 1) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(digits)}`;
 
     // Sparkline
@@ -170,9 +172,9 @@ export const WeightCard: React.FC<{
             <p className="text-2xl font-display font-extrabold leading-7">
                 {weight !== null ? weight.toFixed(1) : '–'}<span className="text-sm font-semibold"> kg</span>
             </p>
-            <p className="text-xs font-semibold">
+            <p className="text-xs font-semibold" title={scale !== null && lastLabel ? `Last weigh-in ${scale.toFixed(1)} kg on ${lastLabel}. The trend smooths out day-to-day water changes.` : undefined}>
                 {weight === null ? 'No weigh-ins yet'
-                    : sinceLast !== null ? `${signed(sinceLast)} kg since last · ${lastLabel}`
+                    : scale !== null ? `Trend · scale ${scale.toFixed(1)}`
                     : `Weighed ${lastLabel}`}
             </p>
             {size !== 'sm' && (

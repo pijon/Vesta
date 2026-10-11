@@ -8,12 +8,15 @@ import { AnalyticsDay, AnalyticsPeriod, PERIODS, buildDays, insightsFor, summari
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { addDays } from '../utils/planUtils';
 import { ChartContainer } from './analytics/ChartContainer';
+import { EnergyPanel } from './EnergyCheckIn';
+import { weightTrend } from '../utils/energyModel';
 
 interface TrackAnalyticsProps {
     todayPlan: DayPlan;
     stats: UserStats;
     dailyLog: DailyLog;
     fastingState: FastingState;
+    onUpdateStats: (stats: UserStats) => void;
 }
 
 const PERIOD_KEY = 'vesta_analytics_period';
@@ -48,7 +51,7 @@ const ChartTip: React.FC<{ active?: boolean; label?: string | number; lines: (la
         <div className="rounded-[12px] border border-border bg-surface px-3 py-2 text-sm shadow-[var(--elev-md)]">{lines(label)}</div>
     ) : null;
 
-export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState }) => {
+export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats }) => {
     const summaries = usePrewarmed(analyticsSummariesData) ?? [];
     const dayTypes = usePrewarmed(analyticsDayTypesData) ?? {};
     const [period, setPeriod] = useState<AnalyticsPeriod>(() => {
@@ -85,7 +88,25 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     const fastData = days.map(d => ({ ...d, fast: d.fastHours }));
     const moveData = days.map(d => ({ ...d, kcal: d.burned > 0 ? d.burned : null }));
 
-    // --- Weight chart geometry ---
+    // --- Weight chart: the smoothed trend as a line, scale readings as dots ---
+    const weightData = useMemo(() => {
+        if (weight.points.length < 2) return [];
+        const from = weight.points[0].date;
+        const to = weight.points[weight.points.length - 1].date;
+        const rows: { time: number; date: string; trend: number | null; scale: number | null }[] = [];
+        weightTrend(stats.weightHistory).filter(p => p.date >= from && p.date <= to).forEach((p, i, all) => {
+            // Break the line where a long gap started a new trend
+            if (i > 0 && all[i - 1].run !== p.run) rows.push({ time: p.time - 43_200_000, date: p.date, trend: null, scale: null });
+            rows.push({ time: p.time, date: p.date, trend: Math.round(p.trend * 100) / 100, scale: p.scale });
+        });
+        return rows;
+    }, [weight.points, stats.weightHistory]);
+    const lastTrend = [...weightData].reverse().find(r => r.trend !== null);
+    // Headline weight is the smoothed trend, as on Today
+    const trendNow = useMemo(() => {
+        const points = weightTrend(stats.weightHistory);
+        return points.length ? points[points.length - 1].trend : null;
+    }, [stats.weightHistory]);
     const weightDomain = (() => {
         if (weight.points.length === 0) return undefined;
         // Fit the weigh-ins; include the goal only when projecting towards it
@@ -103,7 +124,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     const tiles: { label: string; icon: React.ElementType; tone: string; value: string; sub: string }[] = [
         {
             label: 'Weight', icon: Scale, tone: 'tile-weight',
-            value: weight.current !== null ? `${weight.current.toFixed(1)} kg` : '—',
+            value: trendNow !== null ? `${trendNow.toFixed(1)} kg` : '—',
             sub: weight.current === null ? 'No weigh-ins yet'
                 : weight.change !== null && !weight.fallback ? `${signed(weight.change)} kg this ${period === 'quarter' ? 'quarter' : period}`
                 : weight.toGoal !== null ? `${Math.abs(weight.toGoal).toFixed(1)} kg to goal` : 'Latest weigh-in',
@@ -205,15 +226,19 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                     <>
                         <div className="h-56 md:h-64">
                             <ChartContainer>
-                                <LineChart data={weight.points} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
+                                <LineChart data={weightData} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
                                     <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="time" type="number" scale="time" domain={xDomain} tick={AXIS} tickLine={false} axisLine={false}
                                         tickFormatter={t => shortDate(localDateString(new Date(t)))} minTickGap={24} />
                                     <YAxis domain={weightDomain} allowDecimals={false} tickCount={5} tick={AXIS} tickLine={false} axisLine={false} width={44} />
                                     <Tooltip content={({ active, label }) => (
                                         <ChartTip active={active} label={label} lines={l => {
-                                            const p = weight.points.find(x => x.time === l);
-                                            return p ? <><p className="text-muted">{longDate(p.date)}</p><p className="font-semibold">{p.weight.toFixed(1)} kg</p></> : null;
+                                            const p = weightData.find(x => x.time === l);
+                                            return p && p.trend !== null ? <>
+                                                <p className="text-muted">{longDate(p.date)}</p>
+                                                <p className="font-semibold">Trend {p.trend.toFixed(1)} kg</p>
+                                                {p.scale !== null && <p>Scale {p.scale.toFixed(1)} kg</p>}
+                                            </> : null;
                                         }} />
                                     )} />
                                     {stats.goalWeight > 0 && (
@@ -221,18 +246,26 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                             label={{ value: `Goal ${stats.goalWeight}`, position: 'insideBottomRight', fill: 'var(--weight-text)', fontSize: 12 }} />
                                     )}
                                     {projectionEnd && (
-                                        <ReferenceLine segment={[{ x: lastPoint.time, y: lastPoint.weight }, projectionEnd]} stroke="var(--text-muted)" strokeDasharray="6 4" ifOverflow="extendDomain" />
+                                        <ReferenceLine segment={[{ x: lastTrend?.time ?? lastPoint.time, y: lastTrend?.trend ?? lastPoint.weight }, projectionEnd]} stroke="var(--text-muted)" strokeDasharray="6 4" ifOverflow="extendDomain" />
                                     )}
-                                    <Line type="linear" dataKey="weight" stroke="var(--weight)" strokeWidth={2.5} dot={{ r: 3.5, fill: 'var(--weight)' }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                                    <Line type="monotone" dataKey="trend" stroke="var(--weight)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+                                    <Line dataKey="scale" stroke="none" dot={{ r: 3, fill: 'var(--surface)', stroke: 'var(--weight)', strokeWidth: 2 }} activeDot={false} connectNulls={false} isAnimationActive={false} legendType="none" />
                                 </LineChart>
                             </ChartContainer>
                         </div>
+                        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted mt-2">
+                            <span className="inline-flex items-center gap-1.5"><span className="w-4 h-0.5 rounded-full bg-weight" aria-hidden="true" /> Trend, smoothing out day-to-day water changes</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full border-2 border-weight" aria-hidden="true" /> Scale</span>
+                        </p>
                         {showProjection && weight.goalDate && (
                             <p className="text-sm text-muted mt-3">At this pace you'd reach {stats.goalWeight} kg around {parseLocalDate(weight.goalDate).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}.</p>
                         )}
                     </>
                 )}
             </Panel>
+
+            {/* Burn estimate and suggested target */}
+            <EnergyPanel stats={stats} summaries={summaries} dayTypes={dayTypes} onUpdateStats={onUpdateStats} />
 
             {/* Calories */}
             <Panel

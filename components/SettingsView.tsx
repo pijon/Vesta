@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserStats, FastingConfig, FastingProtocol } from '../types';
+import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { Check, Copy, CloudUpload, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import { FamilySettings } from './FamilySettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
@@ -26,6 +26,12 @@ interface SettingsViewProps {
 }
 
 
+const CREDIT_OPTIONS: { value: WorkoutCalorieCredit; label: string; example: string }[] = [
+    { value: 1, label: 'Add all', example: '300 burned → +300' },
+    { value: 0.5, label: 'Add half', example: '300 burned → +150' },
+    { value: 0, label: "Don't add", example: 'Burn not counted' },
+];
+
 export const SettingsView: React.FC<SettingsViewProps> = ({
     stats,
     onUpdateStats,
@@ -44,6 +50,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         nonFastDayCalories: String(st.nonFastDayCalories || 2000),
         dailyWaterGoal: String((st.dailyWaterGoal || 2500) / 1000),
         dailyWorkoutCountGoal: String(st.dailyWorkoutCountGoal || 1),
+        workoutCalorieCredit: String(st.workoutCalorieCredit ?? 1),
     });
     const [form, setForm] = useState(() => toForm(stats));
     const [protocol, setProtocol] = useState<FastingProtocol>(fastingConfig.protocol);
@@ -87,6 +94,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             nonFastDayCalories: Math.round(num(form.nonFastDayCalories)),
             dailyWaterGoal: Math.round(num(form.dailyWaterGoal) * 1000),
             dailyWorkoutCountGoal: num(form.dailyWorkoutCountGoal),
+            workoutCalorieCredit: Number(form.workoutCalorieCredit) as WorkoutCalorieCredit,
         });
         if (protocol !== fastingConfig.protocol) {
             await onUpdateFastingConfig({ ...fastingConfig, protocol, targetFastHours: PROTOCOLS.find(p => p.id === protocol)?.hours ?? fastingConfig.targetFastHours });
@@ -237,6 +245,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             {field('nonFastDayCalories', 'Other days', { unit: 'kcal', hint: 'Calories on nourish days' })}
                             {field('dailyWaterGoal', 'Water', { unit: 'litres', inputMode: 'decimal' })}
                             {field('dailyWorkoutCountGoal', 'Workouts', { unit: 'per day' })}
+                        </div>
+                    </div>
+
+                    <div className="border-t border-border pt-5 space-y-3">
+                        <div>
+                            <h3 className="heading-4" id="credit-heading">Workout calories</h3>
+                            <p className="text-sm text-muted">How much of a workout's burn to add to the day's calories. Watches and machines often overestimate it, so adding half is a safer choice when you're losing weight.</p>
+                        </div>
+                        <div role="radiogroup" aria-labelledby="credit-heading" className="grid grid-cols-3 gap-2">
+                            {CREDIT_OPTIONS.map(o => {
+                                const active = form.workoutCalorieCredit === String(o.value);
+                                return (
+                                    <button
+                                        key={o.value}
+                                        role="radio"
+                                        aria-checked={active}
+                                        onClick={() => { setForm(f => ({ ...f, workoutCalorieCredit: String(o.value) })); setSaveState('idle'); }}
+                                        className={`rounded-[14px] border px-2 py-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
+                                            ? 'bg-workout-bg text-workout-text border-transparent'
+                                            : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                                    >
+                                        <span className="block font-semibold">{o.label}</span>
+                                        <span className={`block text-xs ${active ? '' : 'text-muted'}`}>{o.example}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 

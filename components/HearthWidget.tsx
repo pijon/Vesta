@@ -6,6 +6,8 @@ interface HearthWidgetProps {
     caloriesGoal: number;
     caloriesEaten: number;
     caloriesBurned: number;
+    /** Share of workout calories added to the budget (Settings): 1, 0.5 or 0 */
+    burnCredit?: number;
     isFastDay: boolean;
     onLogFood: () => void;
     size?: 'sm' | 'md' | 'lg';
@@ -15,19 +17,25 @@ const fmt = (n: number) => Math.round(n).toLocaleString();
 
 /**
  * The Today hero: the screen's one solid primary block. Calories left, how that number is made
- * up (target − eaten + burned), the day type, and the main action: log food.
+ * up (target − eaten + workout calories, as much as Settings adds back), the day type, and the main action: log food.
  */
 export const HearthWidget: React.FC<HearthWidgetProps> = ({
     caloriesGoal,
     caloriesEaten,
     caloriesBurned,
+    burnCredit = 1,
     isFastDay,
     onLogFood,
     size = 'lg',
 }) => {
-    const remaining = caloriesGoal - caloriesEaten + caloriesBurned;
+    const credited = Math.round(caloriesBurned * burnCredit);
+    const remaining = caloriesGoal - caloriesEaten + credited;
     const isOver = remaining < 0;
-    const net = caloriesEaten - caloriesBurned;
+    const net = caloriesEaten - credited;
+    const burnedPart = caloriesBurned <= 0 ? ''
+        : burnCredit >= 1 ? ` + ${fmt(caloriesBurned)} burned`
+        : burnCredit > 0 ? ` + ${fmt(credited)} (half of ${fmt(caloriesBurned)} burned)`
+        : ` · ${fmt(caloriesBurned)} burned, not added`;
     const progress = caloriesGoal > 0 ? Math.min(Math.max(net / caloriesGoal, 0), 1) : 0;
 
     const ringSize = size === 'sm' ? 56 : 72;
@@ -50,7 +58,7 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
                         {fmt(Math.abs(remaining))}<span className="text-lg font-bold"> kcal{isOver ? ' over' : ''}</span>
                     </p>
                     <p className="text-sm">
-                        {fmt(caloriesGoal)} target − {fmt(caloriesEaten)} eaten{caloriesBurned > 0 && ` + ${fmt(caloriesBurned)} burned`}
+                        {fmt(caloriesGoal)} target − {fmt(caloriesEaten)} eaten{burnedPart}
                     </p>
                 </div>
 
