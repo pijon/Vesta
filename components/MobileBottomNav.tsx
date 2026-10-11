@@ -1,6 +1,10 @@
 import React from 'react';
 import { AppView } from '../types';
-import { Home, BarChart3, CalendarDays, UtensilsCrossed, ShoppingBag } from 'lucide-react';
+import { Home, BarChart3, CalendarDays, UtensilsCrossed } from 'lucide-react';
+
+/** The shopping list lives inside the Planner, so the Planner item stays current there */
+export const isNavCurrent = (item: AppView, current: AppView) =>
+  item === current || (item === AppView.PLANNER && current === AppView.SHOPPING);
 
 interface MobileBottomNavProps {
   currentView: AppView;
@@ -12,7 +16,6 @@ export const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentTyp
   { view: AppView.ANALYTICS, label: 'Analytics', Icon: BarChart3 },
   { view: AppView.PLANNER, label: 'Planner', Icon: CalendarDays },
   { view: AppView.RECIPES, label: 'Recipes', Icon: UtensilsCrossed },
-  { view: AppView.SHOPPING, label: 'Shopping', Icon: ShoppingBag },
 ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -25,10 +28,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <button
           key={view}
           onClick={() => onNavigate(view)}
-          aria-current={currentView === view ? 'page' : undefined}
+          aria-current={isNavCurrent(view, currentView) ? 'page' : undefined}
           className="tab-item"
         >
-          <Icon size={24} strokeWidth={currentView === view ? 2.25 : 1.75} />
+          <Icon size={24} strokeWidth={isNavCurrent(view, currentView) ? 2.25 : 1.75} />
           <span className="tab-label">{label}</span>
         </button>
       ))}

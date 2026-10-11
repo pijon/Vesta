@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingCart, Sparkles, UsersRound } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, Sparkles, UsersRound } from 'lucide-react';
 import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
 import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan } from '../services/storageService';
 import { familyData } from '../services/pageData';
@@ -30,7 +30,6 @@ const longDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefi
  * With a family group, dinners are shared with the family; the other slots are personal.
  */
 export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
-  const navigate = useNavigate();
   const location = useLocation();
   const today = localDateString();
   const [monday, setMonday] = useState(() => weekStart(today));
@@ -434,7 +433,6 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           <div className="hidden md:flex flex-1 justify-end gap-2">
             <button onClick={copyLastWeek} className="btn-secondary btn-sm"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
             <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
-            <button onClick={() => navigate('/shopping')} className="btn-primary btn-sm"><ShoppingCart size={16} aria-hidden="true" /> Shopping list</button>
           </div>
         </div>
 
@@ -450,9 +448,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         </div>
 
         <div className="flex gap-2 md:hidden">
-          <button onClick={() => navigate('/shopping')} className="btn-primary btn-sm flex-1"><ShoppingCart size={16} aria-hidden="true" /> Shopping list</button>
-          <button onClick={copyLastWeek} className="btn-secondary btn-sm" aria-label="Copy last week"><CopyPlus size={16} aria-hidden="true" /> Copy</button>
-          <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm" aria-label="Fill with AI"><Sparkles size={16} aria-hidden="true" /> AI</button>
+          <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
+          <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
         </div>
       </section>
 

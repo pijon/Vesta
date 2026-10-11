@@ -1,7 +1,7 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
 import { AppView } from '../types';
-import { NAV_ITEMS } from './MobileBottomNav';
+import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
 
 interface SidebarProps {
   currentView: AppView;
@@ -14,10 +14,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
     <button
       key={view}
       onClick={() => onNavigate(view)}
-      aria-current={currentView === view ? 'page' : undefined}
+      aria-current={isNavCurrent(view, currentView) ? 'page' : undefined}
       className="side-item"
     >
-      <Icon size={22} strokeWidth={currentView === view ? 2.25 : 1.75} />
+      <Icon size={22} strokeWidth={isNavCurrent(view, currentView) ? 2.25 : 1.75} />
       <span className="side-label">{label}</span>
     </button>
   );

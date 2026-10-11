@@ -25,6 +25,7 @@ import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { Sidebar } from './components/Sidebar';
+import { PlannerTabs } from './components/PlannerTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DevModeProvider } from './contexts/DevModeContext';
@@ -607,7 +608,7 @@ const TrackerApp: React.FC = () => {
             case AppView.RECIPES:
                 return { title: 'Recipes', subtitle: greeting };
             case AppView.SHOPPING:
-                return { title: 'Shopping', subtitle: greeting };
+                return { title: 'Planner', subtitle: greeting };
             case AppView.SETTINGS:
                 return { title: 'Settings', subtitle: greeting };
             default:
@@ -658,6 +659,9 @@ const TrackerApp: React.FC = () => {
                             showSundayReset={new Date().getDay() === 0}
                             onOpenSundayReset={() => setIsSundayResetOpen(true)}
                         />
+                        {(view === AppView.PLANNER || view === AppView.SHOPPING) && (
+                            <PlannerTabs currentView={view} onNavigate={handleNavigate} />
+                        )}
                     </div>
                     {/* Views switch instantly (no cross-fade). Each has its own Suspense so a
                         loading view never blanks the page; lazy chunks are prefetched at start-up. */}
