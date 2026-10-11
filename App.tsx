@@ -200,6 +200,9 @@ const TrackerApp: React.FC = () => {
         setDailyLog(nextLog);
     }, []);
 
+    // True once today's log has come back from the server (the cached copy may be stale)
+    const [logFresh, setLogFresh] = useState(false);
+
     const updateDailyLog = useCallback(async (updater: (current: DailyLog) => DailyLog) => {
         const nextLog = updater(dailyLogRef.current);
         setDailyLogState(nextLog);
@@ -236,6 +239,7 @@ const TrackerApp: React.FC = () => {
             const history = stats.weightHistory || [];
             setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: history });
             setDailyLogState(log);
+            setLogFresh(true);
             setFastingState(fasting);
 
             if (history.length === 0) {
@@ -325,6 +329,35 @@ const TrackerApp: React.FC = () => {
         // Update TRE tracking - food was just logged (this saves history)
         await updateLastAteTime(now);
     };
+
+    // Food logged without protein (before protein tracking, or a recipe without it) gets an AI
+    // estimate from its name and calories. Each item is tried once per session.
+    const proteinTried = useRef(new Set<string>());
+    useEffect(() => {
+        if (!logFresh) return;
+        const missing = (dailyLog.items || []).filter(item => typeof item.protein !== 'number' && !proteinTried.current.has(item.id));
+        if (!missing.length) return;
+        const timer = window.setTimeout(async () => {
+            missing.forEach(item => proteinTried.current.add(item.id));
+            try {
+                const { estimateProtein } = await import('./services/geminiService');
+                const grams = await estimateProtein(missing.map(({ name, calories }) => ({ name, calories })));
+                const byId = new Map(missing.map((item, i) => [item.id, grams[i]]));
+                if (![...byId.values()].some(g => g !== null)) return;
+                await updateDailyLog(current => ({
+                    ...current,
+                    items: current.items.map(item => {
+                        const g = byId.get(item.id);
+                        // Only fill gaps: never overwrite an amount set meanwhile
+                        return typeof g === 'number' && typeof item.protein !== 'number' ? { ...item, protein: g } : item;
+                    }),
+                }));
+            } catch (e) {
+                console.warn('Protein estimate failed', e);
+            }
+        }, 1500);
+        return () => window.clearTimeout(timer);
+    }, [dailyLog.items, logFresh, updateDailyLog]);
 
     const handleAddWorkout = async (workout: WorkoutItem) => {
         await updateDailyLog((current) => ({

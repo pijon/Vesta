@@ -330,6 +330,31 @@ const toFoodLogItems = (items: RawFoodItem[]): FoodLogItem[] => items.map(item =
   timestamp: Date.now(),
 }));
 
+/**
+ * Protein for foods already logged without it, estimated from the name and calories (which pin
+ * down the portion). Returns grams in the same order; null where the model couldn't say.
+ */
+export const estimateProtein = async (items: { name: string; calories: number }[]): Promise<(number | null)[]> => {
+  if (!apiKey) throw new Error("API Key not found");
+  if (!items.length) return [];
+  const response = await generateWithFallback({
+    model: GEMINI_FAST_MODEL,
+    contents: `Estimate grams of protein for each food. The calories give the portion size.
+Answer with one whole number per food, in the same order. Use -1 only if it isn't a food or drink.
+
+${items.map((item, i) => `${i + 1}. ${scrubPII(item.name)} (${Math.round(item.calories)} kcal)`).join('\n')}`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+    },
+  });
+  const grams = JSON.parse(response.text || '[]') as number[];
+  return items.map((_, i) => {
+    const g = grams[i];
+    return typeof g === 'number' && g >= 0 && g <= 300 ? Math.round(g) : null;
+  });
+};
+
 export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
   if (!apiKey) throw new Error("API Key not found");
 

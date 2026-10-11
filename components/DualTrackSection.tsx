@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
-import { Portal } from './Portal';
+import { Sheet } from './Sheet';
 import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
@@ -84,6 +84,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const [editingFoodItem, setEditingFoodItem] = useState<FoodLogItem | null>(null);
   const [editFoodName, setEditFoodName] = useState('');
   const [editFoodCalories, setEditFoodCalories] = useState('');
+  const [editFoodProtein, setEditFoodProtein] = useState('');
   const [editFoodTime, setEditFoodTime] = useState('');
   const [showAllLoggedItems, setShowAllLoggedItems] = useState(false);
   const [timeSinceMeal, setTimeSinceMeal] = useState<string>('');
@@ -136,6 +137,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     setEditingFoodItem(item);
     setEditFoodName(item.name);
     setEditFoodCalories(item.calories.toString());
+    setEditFoodProtein(typeof item.protein === 'number' ? String(item.protein) : '');
 
     // Format timestamp to HH:mm for input
     const date = new Date(item.timestamp);
@@ -153,10 +155,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     originalDate.setHours(hours);
     originalDate.setMinutes(minutes);
 
+    const protein = parseInt(editFoodProtein, 10);
+    const { protein: _previous, ...rest } = editingFoodItem;
     const updatedItem: FoodLogItem = {
-      ...editingFoodItem,
-      name: editFoodName,
-      calories: parseInt(editFoodCalories) || 0,
+      ...rest,
+      name: editFoodName.trim(),
+      calories: parseInt(editFoodCalories, 10) || 0,
+      // Empty clears it, so the protein estimate can fill it in again
+      ...(Number.isFinite(protein) ? { protein } : {}),
       timestamp: originalDate.getTime()
     };
 
@@ -402,6 +408,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                                 <span className="block font-semibold leading-snug line-clamp-2">{name}</span>
                                 <span className="flex items-center gap-1.5 text-xs text-muted mt-0.5">
                                   <span>{formatTime(entry.timestamp)}</span>
+                                  {isFood && typeof entry.item.protein === 'number' && <span>· {entry.item.protein} g protein</span>}
                                   {isFood && entry.item.isLeftover && <span className="badge badge-neutral !py-0">Leftover</span>}
                                   {isFood && entry.item.isPacked && <span className="badge badge-neutral !py-0">Packed</span>}
                                   {!isFood && <span>Workout</span>}
@@ -442,80 +449,57 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
         </div>
       </div>
 
-      {/* Edit Food Modal */}
+      {/* Edit a logged food */}
       {editingFoodItem && (
-        <Portal>
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-4 animate-fade-in"
-            onClick={handleCancelEditFood}
-          >
-            <div
-              className="bg-stone-50 dark:bg-background w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-border dark:border-white/5"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-charcoal/5 dark:border-white/5 flex justify-between items-center bg-charcoal/5 dark:bg-white/5">
-                <h3 className="heading-3 text-charcoal dark:text-stone-200">Edit Food Entry</h3>
-                <button
-                  onClick={handleCancelEditFood}
-                  className="p-2 bg-surface dark:bg-white/5 border border-border dark:border-white/10 rounded-full text-muted dark:text-muted hover:text-charcoal dark:hover:text-stone-200 transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-              <div className="p-6 space-y-5">
-                <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Food Name</label>
-                  <input
-                    type="text"
-                    value={editFoodName}
-                    onChange={(e) => setEditFoodName(e.target.value)}
-                    className="w-full input bg-charcoal/5 dark:bg-white/5 border-transparent text-charcoal dark:text-stone-200 placeholder-charcoal/40 dark:placeholder-stone-600"
-                    placeholder="e.g. Apple"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Calories</label>
-                  <input
-                    type="number"
-                    value={editFoodCalories}
-                    onChange={(e) => setEditFoodCalories(e.target.value)}
-                    className="w-full input bg-charcoal/5 dark:bg-white/5 border-transparent text-charcoal dark:text-stone-200"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-charcoal dark:text-stone-200 mb-2">Time Eaten</label>
-                  <input
-                    type="time"
-                    value={editFoodTime}
-                    onChange={(e) => setEditFoodTime(e.target.value)}
-                    className="w-full input bg-charcoal/5 dark:bg-white/5 border-transparent text-charcoal dark:text-stone-200"
-                  />
-                </div>
-              </div>
-              <div className="p-6 pt-0 flex gap-3">
-                <button
-                  onClick={handleCancelEditFood}
-                  className="flex-1 py-3 bg-surface dark:bg-white/5 text-charcoal dark:text-stone-200 font-bold rounded-2xl border border-border dark:border-white/10 hover:bg-surface-sunken dark:hover:bg-white/10 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEditFood}
-                  disabled={!editFoodName.trim() || !editFoodCalories}
-                  className={`flex-1 py-3 font-bold rounded-2xl transition-colors shadow-lg ${!editFoodName.trim() || !editFoodCalories
-                    ? 'bg-charcoal/10 text-charcoal/40 cursor-not-allowed shadow-none'
-                    : 'bg-primary text-primary-foreground hover:bg-hearth/90'
-                    }`}
-                >
-                  Save Changes
-                </button>
-              </div>
+        <Sheet
+          title="Edit food"
+          onClose={handleCancelEditFood}
+          footer={
+            <div className="flex gap-2">
+              <button
+                onClick={() => { const id = editingFoodItem.id; handleCancelEditFood(); handleDeleteFood(id); }}
+                className="btn-ghost !text-error hover:!bg-error-bg"
+              >
+                <Trash2 size={16} aria-hidden="true" /> Delete
+              </button>
+              <button onClick={handleSaveEditFood} disabled={!editFoodName.trim() || !editFoodCalories || !editFoodTime} className="btn-primary flex-1">
+                Save
+              </button>
             </div>
-          </div>
-        </Portal>
+          }
+        >
+          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSaveEditFood(); }}>
+            <label className="block">
+              <span className="block text-sm font-semibold mb-1.5">Food</span>
+              <input value={editFoodName} onChange={e => setEditFoodName(e.target.value)} className="input w-full" placeholder="Apple" />
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ['Calories', editFoodCalories, setEditFoodCalories, 'kcal'],
+                ['Protein', editFoodProtein, setEditFoodProtein, 'g'],
+              ] as const).map(([label, value, set, unit]) => (
+                <label key={label} className="block min-w-0">
+                  <span className="block text-sm font-semibold mb-1.5">{label}</span>
+                  <span className="relative block">
+                    <input
+                      value={value}
+                      onChange={e => set(e.target.value.replace(/\D/g, ''))}
+                      inputMode="numeric"
+                      placeholder={label === 'Protein' ? '–' : '0'}
+                      className={`input w-full ${unit === 'kcal' ? '!pr-11' : '!pr-7'}`}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">{unit}</span>
+                  </span>
+                </label>
+              ))}
+              <label className="block min-w-0">
+                <span className="block text-sm font-semibold mb-1.5">Time</span>
+                <input type="time" value={editFoodTime} onChange={e => setEditFoodTime(e.target.value)} className="input w-full !px-2" />
+              </label>
+            </div>
+            <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+          </form>
+        </Sheet>
       )}
     </div>
   );
