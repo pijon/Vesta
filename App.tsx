@@ -24,6 +24,7 @@ import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { Sidebar } from './components/Sidebar';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DevModeProvider } from './contexts/DevModeContext';
@@ -641,10 +642,12 @@ const TrackerApp: React.FC = () => {
             )}
 
 
+            <Sidebar currentView={view} onNavigate={handleNavigate} />
+
             {/* Main Content Wrapper */}
-            <div className="w-full">
+            <div className="w-full md:pl-20 lg:pl-60">
                 {/* Main Content */}
-                <main className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-8 md:pt-12">
+                <main className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 pt-8 md:pt-12">
                     <div className="max-w-6xl mx-auto px-4 md:px-8">
                         <Header
                             title={headerInfo.title}

@@ -47,13 +47,16 @@ export const Header: React.FC<HeaderProps> = ({
                     {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
 
-                <button
-                    onClick={() => onNavigate(AppView.SETTINGS)}
-                    className="icon-btn"
-                    aria-label="Settings"
-                >
-                    <SlidersHorizontal size={20} />
-                </button>
+                {/* Phones only: from md up, Settings is in the sidebar */}
+                <span className="md:hidden">
+                    <button
+                        onClick={() => onNavigate(AppView.SETTINGS)}
+                        className="icon-btn"
+                        aria-label="Settings"
+                    >
+                        <SlidersHorizontal size={20} />
+                    </button>
+                </span>
             </div>
         </div>
     );

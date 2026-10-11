@@ -7,7 +7,7 @@ interface MobileBottomNavProps {
   onNavigate: (view: AppView) => void;
 }
 
-const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }[] = [
+export const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }[] = [
   { view: AppView.TODAY, label: 'Today', Icon: Home },
   { view: AppView.ANALYTICS, label: 'Analytics', Icon: BarChart3 },
   { view: AppView.PLANNER, label: 'Planner', Icon: CalendarDays },

@@ -586,7 +586,7 @@
   /* --- NAV --- */
   /* iOS-style tab bar: full width, fixed to the bottom, icon over label, accent tint for the current tab */
   .tab-bar {
-    @apply fixed inset-x-0 bottom-0 z-50 flex justify-center border-t border-border bg-surface;
+    @apply fixed inset-x-0 bottom-0 z-50 flex justify-center border-t border-border bg-surface md:hidden;
     padding-bottom: env(safe-area-inset-bottom);
   }
   .tab-item {
@@ -599,6 +599,24 @@
   }
   .tab-label {
     @apply text-[11px] leading-none font-semibold tracking-normal;
+  }
+
+  /* Sidebar from md up: icon rail (icon over label) on tablets, icon beside label on desktop */
+  .side-nav {
+    @apply hidden md:flex flex-col fixed inset-y-0 left-0 z-40 w-20 lg:w-60 px-2 lg:px-4 py-6 border-r border-border bg-surface;
+  }
+  .side-item {
+    @apply w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 py-2.5 lg:px-3 rounded-[14px] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
+    color: var(--text-muted);
+    outline-color: var(--focus-ring);
+  }
+  .side-item:hover { color: var(--text-main); background: var(--surface-sunken); }
+  .side-item[aria-current="page"] {
+    color: var(--primary);
+    background: var(--surface-sunken);
+  }
+  .side-label {
+    @apply text-[11px] leading-none lg:text-[15px] lg:leading-6 font-semibold;
   }
 
   /* --- MOBILE TOUCH TARGETS --- */
