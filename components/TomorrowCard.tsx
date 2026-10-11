@@ -19,7 +19,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
   const meals = plan.meals || [];
 
   const dayTag = (
-    <span className={`badge ${fast ? 'badge-fasting' : 'badge-neutral'}`}>
+    <span className={`badge whitespace-nowrap ${fast ? 'badge-fasting' : 'badge-neutral'}`}>
       {fast && <Flame size={12} aria-hidden="true" />}{fast ? 'Fast day' : 'Nourish day'}
     </span>
   );
