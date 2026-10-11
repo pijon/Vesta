@@ -5,7 +5,7 @@ import {
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
-import { MEAL_SLOTS, mealCalories } from '../utils/planUtils';
+import { MEAL_SLOTS, isQuickMeal, mealKcalLabel } from '../utils/planUtils';
 import { parseLocalDate } from '../utils/dateUtils';
 
 interface PlannerMealSheetProps {
@@ -45,7 +45,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
   const [pickSlot, setPickSlot] = useState<MealSlot>(slot);
   const visual = mealVisualFor(meal);
   const portions = meal.cookingServings || 1;
-  const isCustom = meal.description === 'Eat Out / Custom Meal';
+  const isCustom = isQuickMeal(meal);
   const hasRecipe = !isCustom && ((meal.ingredients?.length ?? 0) > 0 || (meal.instructions?.length ?? 0) > 0);
 
   const action = (icon: React.ReactNode, label: string, onClick: () => void, tone: 'default' | 'danger' = 'default', pressed?: boolean) => (
@@ -123,12 +123,13 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
   return (
     <Sheet
       title={meal.name}
-      subtitle={<>{dayName(date)} · {MEAL_SLOTS.find(s => s.slot === slot)!.label.toLowerCase()} · {mealCalories(meal)} kcal</>}
+      subtitle={<>{dayName(date)} · {MEAL_SLOTS.find(s => s.slot === slot)!.label.toLowerCase()} · {mealKcalLabel(meal)}</>}
       onClose={onClose}
     >
       <div className="space-y-4">
         <div className="flex flex-wrap gap-1.5">
-          <span className="badge badge-neutral"><visual.Icon size={12} aria-hidden="true" /> {visual.label}</span>
+          <span className={`badge ${isCustom && meal.quick?.kind ? visual.tint : 'badge-neutral'}`}><visual.Icon size={12} aria-hidden="true" /> {visual.label}</span>
+          {isCustom && <span className="badge badge-neutral">No recipe</span>}
           {meal.familyDinner && (
             <span className="badge badge-workout"><UsersRound size={12} aria-hidden="true" /> Family dinner{addedByName ? ` · planned by ${addedByName}` : ''}</span>
           )}
@@ -157,7 +158,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
               {meal.sides.map((side, i) => (
                 <li key={side.instanceId || `${side.id}-${i}`} className="flex items-center gap-3 py-1.5">
                   <span className="flex-1 min-w-0 truncate font-semibold">{side.name}</span>
-                  <span className="text-sm text-muted">{side.calories} kcal</span>
+                  <span className="text-sm text-muted">{mealKcalLabel(side)}</span>
                   <button onClick={() => onRemoveSide(i)} className="icon-btn size-9" aria-label={`Remove side ${side.name}`}><X size={16} /></button>
                 </li>
               ))}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { CalendarDays, Flame, UsersRound } from 'lucide-react';
 import { DayPlan, UserStats } from '../types';
-import { MEAL_SLOTS, dayCalories, dayTarget, isFastDay, mealCalories, slotFor } from '../utils/planUtils';
+import { MEAL_SLOTS, dayCalories, dayTarget, isFastDay, mealKcalLabel, slotFor } from '../utils/planUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 
 interface TomorrowCardProps {
@@ -65,7 +65,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
                   <span className="block font-semibold leading-snug truncate">{meal.name}</span>
                 </span>
                 {meal.familyDinner && <UsersRound size={14} className="text-workout-text shrink-0" aria-label="Family dinner" />}
-                <span className="text-sm text-muted whitespace-nowrap">{mealCalories(meal)} kcal</span>
+                <span className="text-sm text-muted whitespace-nowrap">{mealKcalLabel(meal)}</span>
               </li>
             );
           })

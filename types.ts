@@ -29,6 +29,20 @@ export interface Recipe {
   addedBy?: string;
   /** Planned reference whose library recipe no longer exists */
   isMissing?: boolean;
+  /** Set on planned meals with no library recipe behind them (quick meals) */
+  quick?: QuickMealInfo;
+}
+
+/** What a quick meal is: cooked at home (can have shopping items), eaten out, or ready-made */
+export type QuickMealKind = 'home' | 'out' | 'ready';
+
+export interface QuickMealInfo {
+  /** Undefined on quick meals planned before kinds existed */
+  kind?: QuickMealKind;
+  /** Calories are a size preset or an AI estimate, shown with ≈ */
+  estimated?: boolean;
+  /** No calories given; `calories` is 0 and the UI says "kcal not set" */
+  noCalories?: boolean;
 }
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -73,7 +87,12 @@ export interface CustomMealInstance extends PlannedMealMeta {
   type: 'custom';
   id: string;            // Generated UUID
   name: string;
-  calories: number;
+  /** Undefined when not given */
+  calories?: number;
+  caloriesEstimated?: boolean;
+  kind?: QuickMealKind;
+  /** Items to buy; hydrated into `ingredients` so the shopping list reads them */
+  shopping?: string[];
   protein?: number;
   fat?: number;
   carbs?: number;
@@ -291,6 +310,8 @@ export interface Group {
 export interface FeatureFlags {
   forceSundayReset: boolean;
   useGeminiExperimental: boolean;
+  /** Plan meals without a recipe from the planner search */
+  quickMeals: boolean;
 }
 
 /** Push reminder choices, stored in reminders/{uid} (the scheduled function reads them) */

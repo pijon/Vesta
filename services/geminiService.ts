@@ -5,7 +5,7 @@ import {
   GEMINI_MODEL_STABLE,
   DEFAULT_FEATURE_FLAGS
 } from "../constants";
-import { Recipe, DayPlan, FoodLogItem, PurchasableItem, FeatureFlags } from "../types";
+import { Recipe, DayPlan, FoodLogItem, PurchasableItem, FeatureFlags, MealSlot, QuickMealKind } from "../types";
 import { scrubPII } from "../utils/piiScrubber";
 import { localDateString } from '../utils/dateUtils';
 
@@ -353,6 +353,23 @@ ${items.map((item, i) => `${i + 1}. ${scrubPII(item.name)} (${Math.round(item.ca
     const g = grams[i];
     return typeof g === 'number' && g >= 0 && g <= 300 ? Math.round(g) : null;
   });
+};
+
+/** Calories in one typical portion of a meal known only by name, for planning. Null when the model can't say. */
+export const estimateMealCalories = async (name: string, kind: QuickMealKind, slot: MealSlot): Promise<number | null> => {
+  if (!apiKey) throw new Error("API Key not found");
+  const where = kind === 'out' ? 'eaten at a restaurant or takeaway' : kind === 'ready' ? 'bought ready-made' : 'cooked at home';
+  const response = await generateWithFallback({
+    model: GEMINI_FAST_MODEL,
+    contents: `Estimate the calories in one typical adult portion of this ${slot === 'snack' ? 'snack' : slot}, ${where}: "${scrubPII(name)}".
+Answer with one whole number of kcal. Use -1 only if it isn't a food or drink.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: { type: Type.OBJECT, properties: { calories: { type: Type.NUMBER } }, required: ['calories'] },
+    },
+  });
+  const { calories } = JSON.parse(response.text || '{}') as { calories?: number };
+  return typeof calories === 'number' && calories > 0 && calories <= 5000 ? Math.round(calories) : null;
 };
 
 export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {

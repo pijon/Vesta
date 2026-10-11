@@ -4,7 +4,7 @@ import { Sheet } from './Sheet';
 import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
-import { MEAL_SLOTS, isMealEaten, mealCalories, slotFor } from '../utils/planUtils';
+import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, slotFor } from '../utils/planUtils';
 import type { FrequentFood } from '../services/pageData';
 
 interface DualTrackSectionProps {
@@ -282,7 +282,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                       <span className="flex-1 min-w-0">
                         <span className={`block font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
                         <span className="block text-xs text-muted mt-0.5">
-                          {visual.label} · <span className="font-semibold text-main">{meal.calories} kcal</span>
+                          {visual.label} · <span className="font-semibold text-main">{mealKcalLabel(meal)}</span>
                           {!!meal.protein && ` · ${meal.protein} g protein`}
                         </span>
                         {(isEaten || meal.isLeftover || meal.isPacked) && (

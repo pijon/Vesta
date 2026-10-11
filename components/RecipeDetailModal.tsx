@@ -6,6 +6,7 @@ import { scaleIngredient } from '../utils/scaleIngredient';
 import { uploadRecipeImage } from '../utils/storageUtils';
 import { auth } from '../services/firebase';
 import { CalendarPlus, Camera, Check, ChefHat, Copy, ExternalLink, Minus, MoreHorizontal, Pencil, Plus, Trash2, UsersRound, X } from 'lucide-react';
+import { isQuickMeal } from '../utils/planUtils';
 
 interface RecipeDetailModalProps {
     recipe: Recipe;
@@ -98,7 +99,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     const sourceHost = (() => {
         try { return importedFrom ? new URL(importedFrom).hostname.replace(/^www\./, '') : null; } catch { return null; }
     })();
-    const description = importedFrom || recipe.description === 'Imported from text' || recipe.description === 'Eat Out / Custom Meal'
+    const description = importedFrom || recipe.description === 'Imported from text' || isQuickMeal(recipe)
         ? null
         : recipe.description;
     const hasMenu = isOwned && (onEdit || onDelete);

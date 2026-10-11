@@ -30,6 +30,29 @@ export const isMealEaten = (plan: Pick<DayPlan, 'completedMealIds'>, meal: Recip
 export const mealCalories = (meal: Recipe) =>
   (meal.calories || 0) + (meal.sides || []).reduce((sum, side) => sum + (side.calories || 0), 0);
 
+/** Description kept on quick meals so older checks still work; test with isQuickMeal instead. */
+export const QUICK_MEAL_DESCRIPTION = 'Eat Out / Custom Meal';
+
+/** A planned meal with no library recipe behind it (a quick meal, or an AI-suggested side). */
+export const isQuickMeal = (meal: Pick<Recipe, 'quick' | 'description'>) =>
+  !!meal.quick || meal.description === QUICK_MEAL_DESCRIPTION;
+
+const withSides = (meal: Recipe) => [meal, ...(meal.sides || [])];
+
+/** No calories given for the meal or any of its sides. */
+export const mealKcalUnset = (meal: Recipe) => withSides(meal).every(m => !!m.quick?.noCalories);
+
+/** Some of the meal's calories are estimated or missing, so its total is approximate. */
+export const mealKcalApprox = (meal: Recipe) => withSides(meal).some(m => !!(m.quick?.estimated || m.quick?.noCalories));
+
+/** "650 kcal", "≈ 650 kcal" or "kcal not set". */
+export const mealKcalLabel = (meal: Recipe) =>
+  mealKcalUnset(meal) ? 'kcal not set' : `${mealKcalApprox(meal) ? '≈ ' : ''}${mealCalories(meal)} kcal`;
+
+/** mealKcalLabel for screen readers, which read "≈" badly. */
+export const mealKcalSpoken = (meal: Recipe) =>
+  mealKcalUnset(meal) ? 'calories not set' : `${mealKcalApprox(meal) ? 'about ' : ''}${mealCalories(meal)} kcal`;
+
 /** Protein in a meal plus its sides, when the recipes say (undefined when none of them do). */
 export const mealProtein = (meal: Recipe): number | undefined => {
   const parts = [meal, ...(meal.sides || [])].map(m => m.protein).filter((p): p is number => typeof p === 'number');
@@ -48,6 +71,12 @@ export const proteinTarget = (stats: Pick<UserStats, 'dailyProteinGoal' | 'goalW
 
 export const dayCalories = (plan?: DayPlan) =>
   plan ? plan.meals.reduce((sum, meal) => sum + mealCalories(meal), 0) : 0;
+
+/** The day's total includes estimated or missing calories. */
+export const dayKcalApprox = (plan?: DayPlan) => !!plan?.meals.some(mealKcalApprox);
+
+/** Planned meals on the day with no calories at all. */
+export const dayMealsWithoutKcal = (plan?: DayPlan) => (plan ? plan.meals.filter(mealKcalUnset).length : 0);
 
 /** Days are nourish days unless marked as a fast day. */
 export const isFastDay = (plan?: Pick<DayPlan, 'type'>) => plan?.type === 'fast';
@@ -82,7 +111,7 @@ export const weekDates = (monday: string) => Array.from({ length: 7 }, (_, i) =>
 /** A fresh planned copy of a recipe for a slot. */
 export const planMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}): Recipe => ({
   ...recipe,
-  originalRecipeId: recipe.description === 'Eat Out / Custom Meal' ? undefined : (recipe.originalRecipeId || recipe.id),
+  originalRecipeId: isQuickMeal(recipe) ? undefined : (recipe.originalRecipeId || recipe.id),
   slot,
   instanceId: crypto.randomUUID(),
   isLeftover: false,

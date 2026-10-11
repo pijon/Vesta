@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { Heart, Plus, Search, Sparkles, UsersRound } from 'lucide-react';
+import React, { useId, useMemo, useState } from 'react';
+import { ArrowLeft, Heart, Plus, Search, Sparkles, UsersRound } from 'lucide-react';
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
-import { slotFor } from '../utils/planUtils';
+import { QUICK_MEAL_DESCRIPTION, slotFor } from '../utils/planUtils';
+import { useDevMode } from '../contexts/DevModeContext';
+import { QuickMealForm } from './QuickMealForm';
 import { suggestSideDishes } from '../services/geminiService';
 
 export type AddMode = 'add' | 'swap' | 'side';
@@ -49,6 +51,10 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
   const [suggested, setSuggested] = useState<Recipe[]>([]);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestError, setSuggestError] = useState('');
+  /** Name for the quick-meal form; null shows the recipe list */
+  const [quickDraft, setQuickDraft] = useState<string | null>(null);
+  const quickFormId = useId();
+  const quickMeals = useDevMode().isFeatureEnabled('quickMeals');
 
   const term = search.trim().toLowerCase();
 
@@ -67,6 +73,11 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
         a.name.localeCompare(b.name));
   }, [recipes, familyRecipes, source, term, fitsOnly, favouritesOnly, caloriesLeft, slot, mode]);
 
+  // Offer to plan the typed text as is, unless it names a recipe exactly
+  const offerQuick = quickMeals && !!term &&
+    ![...recipes, ...familyRecipes].some(r => r.name.trim().toLowerCase() === term);
+  const typedName = search.trim().charAt(0).toUpperCase() + search.trim().slice(1);
+
   const addQuick = () => {
     const kcal = Number(quickKcal);
     if (!quickName.trim()) { setQuickError('Enter a name'); return; }
@@ -79,7 +90,8 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
       instructions: [],
       tags: mode === 'side' ? ['side dish'] : [slot === 'snack' ? 'snack' : slot],
       servings: 1,
-      description: 'Eat Out / Custom Meal',
+      description: QUICK_MEAL_DESCRIPTION,
+      quick: {},
     });
   };
 
@@ -142,6 +154,27 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
     ? `With ${mainMealName}`
     : `${isFastDay ? 'Fast day · ' : ''}${caloriesLeft >= 0 ? `${caloriesLeft} kcal left` : `${-caloriesLeft} kcal over`}`;
 
+  if (quickDraft !== null) {
+    return (
+      <Sheet
+        title={title}
+        subtitle={subtitle}
+        onClose={onClose}
+        size="lg"
+        footer={
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setQuickDraft(null)} className="btn-secondary"><ArrowLeft size={16} aria-hidden="true" /> Back</button>
+            <button type="submit" form={quickFormId} className="btn-primary flex-1">
+              {mode === 'swap' ? 'Swap in' : mode === 'side' ? 'Add side' : 'Add to plan'}
+            </button>
+          </div>
+        }
+      >
+        <QuickMealForm id={quickFormId} initialName={quickDraft} slot={slot} isSide={mode === 'side'} onSubmit={meal => onPick(meal)} />
+      </Sheet>
+    );
+  }
+
   return (
     <Sheet title={title} subtitle={subtitle} onClose={onClose} size="lg">
       <div className="space-y-5">
@@ -153,7 +186,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
               type="search"
               value={search}
               onChange={e => { setSearch(e.target.value); setShown(PAGE); }}
-              placeholder="Search your recipes"
+              placeholder={quickMeals ? 'Search recipes or type any meal' : 'Search your recipes'}
               className="input w-full !pl-11"
             />
           </label>
@@ -164,6 +197,21 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             {familyRecipes.length > 0 && chip(<><UsersRound size={14} className="inline -mt-0.5 mr-1" aria-hidden="true" />Family</>, source === 'family', () => setSource(s => s === 'family' ? 'all' : 'family'))}
           </div>
         </div>
+
+        {offerQuick && (
+          <button
+            onClick={() => setQuickDraft(typedName)}
+            className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+          >
+            <span className="size-12 rounded-[12px] flex items-center justify-center shrink-0 bg-surface-sunken border-[1.5px] border-dashed border-border-control" aria-hidden="true">
+              <Plus size={22} strokeWidth={1.75} />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold leading-snug line-clamp-2">Plan “{search.trim()}” without a recipe</span>
+              <span className="block text-xs text-muted mt-0.5">Name it now, add details if you like</span>
+            </span>
+          </button>
+        )}
 
         {mode !== 'side' && leftovers.length > 0 && !term && (
           <section aria-labelledby="leftovers-heading">
@@ -188,7 +236,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
               </button>
             ) : (
               <ul>
-                {suggested.map((r, i) => row(r, 'Suggested side', () => onPick({ ...r, description: r.description || 'Eat Out / Custom Meal' }), `suggested-${i}`))}
+                {suggested.map((r, i) => row(r, 'Suggested side', () => onPick({ ...r, description: r.description || QUICK_MEAL_DESCRIPTION, quick: {} }), `suggested-${i}`))}
               </ul>
             )}
             {suggestError && <p className="text-sm text-error">{suggestError}</p>}
@@ -201,7 +249,9 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
           </h3>
           {list.length === 0 ? (
             <p className="text-sm text-muted py-4">
-              {fitsOnly ? `Nothing in your recipes fits ${caloriesLeft} kcal. Turn off the filter or add a quick entry below.` : 'No recipes match. Add a quick entry below.'}
+              {quickMeals
+                ? (fitsOnly ? `Nothing in your recipes fits ${caloriesLeft} kcal.` : 'No recipes match.')
+                : (fitsOnly ? `Nothing in your recipes fits ${caloriesLeft} kcal. Turn off the filter or add a quick entry below.` : 'No recipes match. Add a quick entry below.')}
             </p>
           ) : (
             <ul>
@@ -222,6 +272,13 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
           )}
         </section>
 
+        {quickMeals ? (
+          !offerQuick && <div className="border-t border-border pt-4">
+            <button onClick={() => setQuickDraft(typedName)} className="btn-ghost btn-sm -ml-4">
+              <Plus size={16} aria-hidden="true" /> Plan a meal without a recipe
+            </button>
+          </div>
+        ) : (
         <section aria-labelledby="quick-heading" className="border-t border-border pt-4">
           <h3 id="quick-heading" className="text-sm font-semibold text-muted mb-2">Quick entry</h3>
           <form
@@ -241,6 +298,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
           </form>
           {quickError && <p className="text-sm text-error mt-1.5" role="alert">{quickError}</p>}
         </section>
+        )}
       </div>
     </Sheet>
   );

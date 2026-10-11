@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, Sparkles, UsersRound } from 'lucide-react';
+import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingBasket, Sparkles, UsersRound } from 'lucide-react';
 import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
 import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan } from '../services/storageService';
 import { familyData } from '../services/pageData';
@@ -10,8 +10,8 @@ import { getCachedRecipes } from '../utils/cacheService';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import {
-  MEAL_SLOTS, addDays, dayCalories, dayTarget, emptyDayPlan, isFastDay, isMealEaten, mealCalories, mealKey,
-  planMeal, planRecipe, slotFor, slotLabel, weekDates, weekStart,
+  MEAL_SLOTS, addDays, dayCalories, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isFastDay, isMealEaten,
+  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, slotFor, slotLabel, weekDates, weekStart,
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { CookingMode } from './CookingMode';
@@ -122,9 +122,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   };
   const updateDay = (date: string, change: (plan: DayPlan) => DayPlan) => updateDays({ [date]: change });
 
-  /** A planned copy of a recipe for a slot, shared with the family when it's a dinner. */
-  const newMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}) =>
-    planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: myUid }, extra);
+  /**
+   * A planned copy of a recipe for a slot, shared with the family when it's a dinner. A quick meal's
+   * shopping items are what to buy for the portions planned, so they aren't scaled up again.
+   */
+  const newMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}) => {
+    const meal = planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: myUid }, extra);
+    return isQuickMeal(recipe) && !meal.isLeftover ? { ...meal, servings: meal.cookingServings || 1 } : meal;
+  };
 
   const replaceAt = (meals: Recipe[], index: number, meal: Recipe) => meals.map((m, i) => (i === index ? meal : m));
 
@@ -285,7 +290,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       (plans[from]?.meals || []).forEach(meal => {
         const slot = slotFor(meal);
         // Dinners, and lunches cooked for more than one, make leftovers
-        if (meal.isLeftover || meal.description === 'Eat Out / Custom Meal') return;
+        if (meal.isLeftover || (isQuickMeal(meal) && meal.quick?.kind !== 'home')) return;
         if (!(slot === 'dinner' || (slot === 'lunch' && (meal.cookingServings || 1) > 1)) || (back === 0 && slot === 'lunch')) return;
         leftoverDates.current.set(mealKey(meal), from);
         options.push({ meal, from: `${back === 0 ? 'today’s' : longDay(from)} ${slotLabel(slot).toLowerCase()}`.replace(/^t/, 'T') });
@@ -322,6 +327,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     const visual = mealVisualFor(meal);
     const eaten = isMealEaten(plan, meal);
     const addedBy = meal.familyDinner && meal.addedBy && meal.addedBy !== myUid ? family?.names.get(meal.addedBy) : undefined;
+    const quick = isQuickMeal(meal);
+    const toBuy = quick ? (meal.ingredients?.length ?? 0) : 0;
     return (
       <li key={meal.instanceId || `${meal.id}-${index}`}>
         <button
@@ -332,23 +339,24 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           }}
           onClick={() => setMealTarget({ date, index })}
           className="w-full flex items-center gap-2.5 py-1.5 px-1.5 -mx-1.5 rounded-[12px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] xl:cursor-grab"
-          aria-label={`${meal.name}, ${mealCalories(meal)} kcal${meal.familyDinner ? ', family dinner' : ''}${eaten ? ', eaten' : ''}. Open options`}
+          aria-label={`${meal.name}, ${mealKcalSpoken(meal)}${quick ? ', no recipe' : ''}${meal.familyDinner ? ', family dinner' : ''}${eaten ? ', eaten' : ''}. Open options`}
         >
           {meal.isMissing ? (
             <span className="size-9 xl:hidden rounded-[10px] flex items-center justify-center shrink-0 bg-surface-sunken text-muted">
               <CircleAlert size={18} strokeWidth={1.75} aria-hidden="true" />
             </span>
-          ) : meal.image ? (
+          ) : meal.image && !quick ? (
             <img src={meal.image} alt="" loading="lazy" className="size-9 xl:hidden rounded-[10px] object-cover shrink-0" />
           ) : (
-            <span className={`size-9 xl:hidden rounded-[10px] flex items-center justify-center shrink-0 ${visual.tint}`}>
+            <span className={`size-9 xl:hidden rounded-[10px] flex items-center justify-center shrink-0 ${visual.tint} ${quick ? 'border-[1.5px] border-dashed border-border-control' : ''}`}>
               <visual.Icon size={18} strokeWidth={1.75} aria-hidden="true" />
             </span>
           )}
           <span className="flex-1 min-w-0">
             <span className={`block text-[15px] xl:text-sm font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] hyphens-auto ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted mt-0.5">
-              {meal.isMissing ? <span>Swap or remove</span> : <span className="whitespace-nowrap">{mealCalories(meal)} kcal</span>}
+              {meal.isMissing ? <span>Swap or remove</span> : <span className="whitespace-nowrap">{mealKcalLabel(meal)}</span>}
+              {toBuy > 0 && <span className="inline-flex items-center gap-0.5" title={`${toBuy} to buy`}><ShoppingBasket size={12} aria-hidden="true" />{toBuy}</span>}
               {meal.sides && meal.sides.length > 0 && <span>· +{meal.sides.length} side{meal.sides.length > 1 ? 's' : ''}</span>}
               {meal.familyDinner && <UsersRound size={12} className="text-workout-text" aria-hidden="true" />}
               {addedBy && <span className="truncate">{addedBy}</span>}
@@ -463,6 +471,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           {dates.map(date => {
             const plan = plans[date] || emptyDayPlan(date);
             const kcal = dayCalories(plan);
+            const approx = dayKcalApprox(plan);
+            const withoutKcal = dayMealsWithoutKcal(plan);
             const target = dayTarget(plan, stats);
             const fast = isFastDay(plan);
             const isToday = date === today;
@@ -491,10 +501,12 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                     </button>
                   </div>
                   <div>
-                    <div className="flex justify-between text-xs mb-1">
+                    <div className="flex justify-between text-xs mb-1" title={withoutKcal ? `${withoutKcal} meal${withoutKcal > 1 ? 's' : ''} without kcal` : undefined}>
                       <span className={kcal > target ? 'text-warning font-semibold' : 'text-muted'}>
                         {isToday && <span className="text-main font-semibold xl:sr-only">Today · </span>}
-                        {fast && <span className="text-fasting-text font-semibold xl:sr-only">Fast · </span>}{kcal} / {target} kcal
+                        {fast && <span className="text-fasting-text font-semibold xl:sr-only">Fast · </span>}
+                        {approx && <><span aria-hidden="true">≈ </span><span className="sr-only">About </span></>}{kcal} / {target} kcal
+                        {withoutKcal > 0 && <span className="xl:sr-only"> · {withoutKcal} without kcal</span>}
                       </span>
                       {kcal > target && <span className="text-warning font-semibold xl:hidden">{kcal - target} over</span>}
                     </div>

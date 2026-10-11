@@ -1,10 +1,10 @@
 import {
   Apple, Banana, Bean, Beef, Beer, CakeSlice, Candy, Carrot, Cherry, Citrus, Coffee, Cookie, CookingPot,
   Croissant, CupSoda, Donut, Drumstick, EggFried, Fish, GlassWater, Grape, Ham, Hamburger, IceCreamCone,
-  LeafyGreen, Martini, Milk, Nut, Pizza, Popcorn, Salad, Sandwich, Shrimp, Soup, UtensilsCrossed, Wheat, Wine,
+  LeafyGreen, Martini, Milk, Nut, Package, Pizza, Popcorn, Salad, Sandwich, Shrimp, Soup, Store, UtensilsCrossed, Wheat, Wine,
   type LucideIcon,
 } from 'lucide-react';
-import { Recipe } from '../types';
+import { QuickMealKind, Recipe } from '../types';
 import { compileIconRules, matchIcon, type IconRule } from './iconMatch';
 
 export interface MealVisual {
@@ -78,11 +78,21 @@ export const foodIconFor = (meal: Partial<Pick<Recipe, 'name' | 'ingredients'>>)
   return leadIngredients ? matchIcon(leadIngredients, INGREDIENT_PATTERNS) : undefined;
 };
 
+/** Quick meals are labelled and tinted by kind, with the metric tints (no new hues). */
+export const QUICK_MEAL_KINDS: Record<QuickMealKind, { label: string; Icon: LucideIcon; tint: string }> = {
+  home: { label: 'Home cooked', Icon: CookingPot, tint: 'bg-calories-bg text-calories-text' },
+  out: { label: 'Eating out', Icon: Store, tint: 'bg-workout-bg text-workout-text' },
+  ready: { label: 'Ready-made', Icon: Package, tint: 'bg-water-bg text-water-text' },
+};
+
 /** Meal-type label and tint, with an icon for the food itself when the name tells us what it is. */
-export const mealVisualFor = (meal: Pick<Recipe, 'tags'> & Partial<Pick<Recipe, 'name' | 'ingredients'>>): MealVisual => {
+export const mealVisualFor = (meal: Pick<Recipe, 'tags'> & Partial<Pick<Recipe, 'name' | 'ingredients' | 'quick'>>): MealVisual => {
   const tags = (meal.tags || []).map(t => t.toLowerCase());
   const food = foodIconFor(meal);
   const visual = (label: string, Icon: LucideIcon, tint: string): MealVisual => ({ label, Icon: food || Icon, tint });
+
+  const kind = meal.quick?.kind;
+  if (kind) return visual(QUICK_MEAL_KINDS[kind].label, QUICK_MEAL_KINDS[kind].Icon, QUICK_MEAL_KINDS[kind].tint);
 
   if (tags.includes('breakfast')) return visual('Breakfast', Coffee, 'bg-fasting-bg text-fasting-text');
   if (tags.includes('lunch')) return visual('Lunch', Salad, 'bg-weight-bg text-weight-text');

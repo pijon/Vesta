@@ -5,9 +5,6 @@ import { DEFAULT_USER_STATS } from "../constants";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
 
-/** Description that marks a one-off (eat out / quick entry) meal rather than a library recipe */
-const CUSTOM_MEAL_DESCRIPTION = 'Eat Out / Custom Meal';
-
 // Helper to get current user ID or throw
 const getUserId = () => {
   const uid = auth.currentUser?.uid;
@@ -78,6 +75,7 @@ export const deleteRecipe = async (id: string) => {
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
+import { QUICK_MEAL_DESCRIPTION, isQuickMeal } from '../utils/planUtils';
 
 /**
  * Migrates all Base64 images in recipes to Firebase Storage.
@@ -162,7 +160,7 @@ const dehydrateMeal = (meal: Recipe, shared = false): PlannedMeal => {
     addedBy: meal.addedBy,
   };
 
-  const isLibraryRecipe = !!meal.originalRecipeId || (!!meal.id && meal.description !== CUSTOM_MEAL_DESCRIPTION);
+  const isLibraryRecipe = !isQuickMeal(meal) && (!!meal.originalRecipeId || !!meal.id);
 
   if (isLibraryRecipe) {
     const me = auth.currentUser?.uid;
@@ -180,7 +178,10 @@ const dehydrateMeal = (meal: Recipe, shared = false): PlannedMeal => {
     type: 'custom',
     id: meal.id || crypto.randomUUID(),
     name: meal.name,
-    calories: meal.calories,
+    calories: meal.quick?.noCalories ? undefined : meal.calories,
+    caloriesEstimated: meal.quick?.estimated || undefined,
+    kind: meal.quick?.kind,
+    shopping: meal.ingredients?.length ? meal.ingredients : undefined,
     protein: meal.protein,
     fat: meal.fat,
     carbs: meal.carbs,
@@ -267,12 +268,17 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[], userId?: string)
     return {
       id: meal.id,
       name: meal.name,
-      description: CUSTOM_MEAL_DESCRIPTION,
-      calories: meal.calories,
+      description: QUICK_MEAL_DESCRIPTION,
+      calories: meal.calories ?? 0,
+      quick: {
+        kind: meal.kind,
+        estimated: meal.caloriesEstimated || undefined,
+        noCalories: meal.calories === undefined || undefined,
+      },
       protein: meal.protein || 0,
       fat: meal.fat || 0,
       carbs: meal.carbs || 0,
-      ingredients: [],
+      ingredients: meal.shopping || [],
       instructions: [],
       tags: meal.tags || [],
       servings: meal.servings || 1,
