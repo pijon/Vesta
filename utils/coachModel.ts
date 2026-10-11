@@ -5,7 +5,7 @@ import { EnergyEstimate, TargetSuggestion, estimateEnergy, fastDaysPerWeek, sugg
 
 /**
  * The numbers guidance is based on. Everything here is measured from the user's own logs, so the
- * advice (and the AI's answers, which get this object) never rests on made-up figures.
+ * advice never rests on made-up figures.
  */
 export interface CoachFacts {
   today: string;

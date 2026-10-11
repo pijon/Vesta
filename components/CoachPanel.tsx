@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, Check, CircleAlert, Lightbulb, Loader2, Send, Sparkles, ThumbsUp, X } from 'lucide-react';
+import { Check, CircleAlert, Lightbulb, ThumbsUp, X } from 'lucide-react';
 import { AppView, DailyLog, DailySummary, UserStats } from '../types';
-import { CoachAction, CoachFacts, Finding, buildCoachFacts, coachFindings } from '../utils/coachModel';
+import { CoachAction, Finding, buildCoachFacts, coachFindings } from '../utils/coachModel';
 
 export interface CoachHandlers {
   onUpdateStats: (stats: UserStats) => void;
@@ -80,103 +80,21 @@ const FindingRow: React.FC<{ finding: Finding; onAction: (a: CoachAction) => str
   );
 };
 
-const QUESTIONS = ['Why has my weight stalled?', 'What should I change this week?', 'How do I hit my protein today?'];
-
-/** Free-text questions about the user's own progress, answered from the measured facts */
-const AskVesta: React.FC<{ facts: CoachFacts; findings: Finding[] }> = ({ facts, findings }) => {
-  const [question, setQuestion] = useState('');
-  const [asked, setAsked] = useState<string | null>(null);
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const ask = async (q: string) => {
-    const text = q.trim();
-    if (!text || busy) return;
-    setBusy(true);
-    setError(null);
-    setAsked(text);
-    setAnswer(null);
-    setQuestion('');
-    try {
-      const { askCoach } = await import('../services/geminiService');
-      setAnswer(await askCoach(text, facts, findings));
-    } catch (e) {
-      console.error(e);
-      setError("Couldn't get an answer right now. Try again in a moment.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="rounded-[14px] bg-surface-sunken p-4">
-      <p className="flex items-center gap-2 font-semibold"><Sparkles size={16} aria-hidden="true" /> Ask Vesta</p>
-      <p className="text-sm text-muted mt-0.5">Answers come from your own logs and weigh-ins.</p>
-
-      {(asked || busy) && (
-        <div className="mt-3 space-y-2" aria-live="polite">
-          {asked && <p className="text-sm font-semibold">{asked}</p>}
-          {busy && <p className="flex items-center gap-2 text-sm text-muted"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Looking at your numbers…</p>}
-          {answer && (
-            <div className="rounded-[12px] bg-surface border border-border p-3 text-sm leading-relaxed space-y-1.5">
-              {answer.split('\n').filter(Boolean).map((line, i) => (
-                line.startsWith('- ')
-                  ? <p key={i} className="flex gap-2"><ArrowRight size={14} className="shrink-0 mt-1 text-muted" aria-hidden="true" />{line.slice(2)}</p>
-                  : <p key={i}>{line.replace(/\*\*/g, '')}</p>
-              ))}
-            </div>
-          )}
-          {error && <p className="text-sm text-error" role="alert">{error}</p>}
-        </div>
-      )}
-
-      {!asked && (
-        <div className="flex flex-wrap gap-1.5 mt-3">
-          {QUESTIONS.map(q => (
-            <button key={q} onClick={() => ask(q)} className="min-h-9 px-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
-              {q}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <form className="flex gap-2 mt-3" onSubmit={e => { e.preventDefault(); ask(question); }}>
-        <label className="sr-only" htmlFor="ask-vesta">Ask a question about your progress</label>
-        <input
-          id="ask-vesta"
-          value={question}
-          onChange={e => setQuestion(e.target.value)}
-          placeholder={asked ? 'Ask a follow-up' : 'Ask about your progress'}
-          className="input flex-1 min-w-0"
-          maxLength={300}
-        />
-        <button type="submit" disabled={!question.trim() || busy} className="icon-btn shrink-0" aria-label="Ask">
-          <Send size={18} />
-        </button>
-      </form>
-    </div>
-  );
-};
-
-/** Analytics: all guidance, in order of what matters most, plus questions. */
+/** Analytics: all guidance, in order of what matters most. */
 export const CoachPanel: React.FC<CoachInput & CoachHandlers> = props => {
-  const { facts, findings } = useCoach(props);
+  const { findings } = useCoach(props);
   const runAction = useRunAction(props.stats, props);
   return (
     <section className="card p-4 md:p-6" aria-labelledby="coach-title">
       <h2 id="coach-title" className="heading-3">Guidance</h2>
       <p className="text-sm text-muted mt-0.5 mb-4">What your last few weeks say, most important first.</p>
-      <div className="grid gap-5 lg:grid-cols-[1fr_minmax(0,22rem)] lg:gap-8">
-        {findings.length ? (
-          <ul className="divide-y divide-border">
-            {findings.map(f => <FindingRow key={f.id} finding={f} onAction={runAction} />)}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">Nothing to flag. Keep logging and weighing in, and guidance will appear here.</p>
-        )}
-        <AskVesta facts={facts} findings={findings} />
-      </div>
+      {findings.length ? (
+        <ul className="divide-y divide-border">
+          {findings.map(f => <FindingRow key={f.id} finding={f} onAction={runAction} />)}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">Nothing to flag. Keep logging and weighing in, and guidance will appear here.</p>
+      )}
     </section>
   );
 };
@@ -215,7 +133,7 @@ export const CoachCard: React.FC<CoachInput & CoachHandlers> = props => {
               ? <span className="inline-flex items-center gap-1.5 text-sm font-semibold" role="status"><Check size={16} aria-hidden="true" /> {done}</span>
               : <button onClick={() => setDone(runAction(top.action!))} className="btn-secondary btn-sm">{top.action.label}</button>)}
             <button onClick={() => props.onNavigate(AppView.ANALYTICS)} className="btn-ghost btn-sm">
-              {more > 0 ? `${more} more tip${more === 1 ? '' : 's'}` : 'Ask Vesta'}
+              {more > 0 ? `${more} more tip${more === 1 ? '' : 's'}` : 'All guidance'}
             </button>
           </div>
         </div>

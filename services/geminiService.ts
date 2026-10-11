@@ -331,37 +331,6 @@ const toFoodLogItems = (items: RawFoodItem[]): FoodLogItem[] => items.map(item =
 }));
 
 /**
- * Answers a question about the user's own progress, from the facts the app measured (see
- * utils/coachModel.ts). The model is told to use only those numbers and to say when data is missing.
- */
-export const askCoach = async (question: string, facts: object, findings: { title: string; detail: string }[]): Promise<string> => {
-  if (!apiKey) throw new Error("API Key not found");
-  const response = await generateWithFallback({
-    model: GEMINI_MODEL_PRIMARY,
-    contents: `You are Vesta's coach inside a weight-loss and meal-planning app. Answer the user's question about their own progress.
-
-RULES:
-- Use only the numbers in FACTS and FINDINGS. Never invent figures; if something isn't measured, say what to log to find out.
-- Be warm, direct and practical. Lead with the answer, then at most three concrete next steps.
-- Plain sentences, sentence case, no headings, no emoji, under 160 words. Short bullet lines starting with "- " are fine for steps.
-- Calories over target are never a failure; avoid shame.
-- You're not a doctor. For medical conditions, medication, pregnancy, or eating-disorder concerns, suggest talking to a doctor.
-- Mention app features when they help: logging food, weigh-ins, fast days in the planner, the workout calories setting, reminders, the personal target in Analytics.
-
-FACTS (measured from the user's logs; trend weight smooths daily water swings; dates are YYYY-MM-DD):
-${JSON.stringify(facts)}
-
-FINDINGS (what the app already concluded):
-${findings.map(f => `- ${f.title}: ${f.detail}`).join('\n') || '- none'}
-
-QUESTION: ${scrubPII(question)}`,
-  });
-  const text = (response.text || '').trim();
-  if (!text) throw new Error('No answer');
-  return text;
-};
-
-/**
  * Protein for foods already logged without it, estimated from the name and calories (which pin
  * down the portion). Returns grams in the same order; null where the model couldn't say.
  */
