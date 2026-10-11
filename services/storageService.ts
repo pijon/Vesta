@@ -1118,6 +1118,26 @@ export const exportAllData = async (): Promise<string> => {
 
 // --- Daily Log Archival (Database Normalization) ---
 
+/** The lightweight summary kept for a finished day (analytics, streaks, burn estimate). */
+const summarizeLog = (log: DailyLog): DailySummary => {
+  const items = log.items || [];
+  const workouts = log.workouts || [];
+  const caloriesConsumed = items.reduce((sum, item) => sum + (item.calories || 0), 0);
+  const caloriesBurned = workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
+  const withProtein = items.filter(item => typeof item.protein === 'number');
+  return {
+    date: log.date,
+    caloriesConsumed,
+    caloriesBurned,
+    netCalories: caloriesConsumed - caloriesBurned,
+    workoutCount: workouts.length,
+    workoutTypes: Array.from(new Set(workouts.map(w => w.type))),
+    waterIntake: log.waterIntake || 0,
+    maxFastingHours: log.maxFastingHours || 0,
+    ...(withProtein.length ? { proteinConsumed: Math.round(withProtein.reduce((sum, item) => sum + (item.protein || 0), 0)) } : {}),
+  };
+};
+
 /**
  * Archives yesterday's full DailyLog into a lightweight DailySummary.
  * This compresses historical data by 95% (removes item and workout arrays).
@@ -1147,20 +1167,7 @@ export const archiveYesterdaysLog = async (): Promise<{ archived: boolean; date?
     }
 
     // 3. Compute summary
-    const caloriesConsumed = log.items.reduce((sum, item) => sum + item.calories, 0);
-    const caloriesBurned = log.workouts.reduce((sum, w) => sum + w.caloriesBurned, 0);
-    const workoutTypes = Array.from(new Set(log.workouts.map(w => w.type)));
-
-    const summary: DailySummary = {
-      date: dateStr,
-      caloriesConsumed,
-      caloriesBurned,
-      netCalories: caloriesConsumed - caloriesBurned,
-      workoutCount: log.workouts.length,
-      workoutTypes,
-      waterIntake: log.waterIntake,
-      maxFastingHours: log.maxFastingHours
-    };
+    const summary = summarizeLog({ ...log, date: dateStr });
 
     // 4. Save summary to new collection
     await setDoc(summaryRef, summary);
@@ -1211,22 +1218,7 @@ export const getDailySummaries = async (daysBack: number = 90): Promise<DailySum
     logsSnap.forEach(doc => {
       const log = doc.data() as DailyLog;
       // Only compute if we don't have a summary yet
-      if (!summariesMap.has(log.date)) {
-        const caloriesConsumed = (log.items || []).reduce((sum, item) => sum + item.calories, 0);
-        const caloriesBurned = (log.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
-        const workoutTypes = Array.from(new Set((log.workouts || []).map(w => w.type)));
-
-        summariesMap.set(log.date, {
-          date: log.date,
-          caloriesConsumed,
-          caloriesBurned,
-          netCalories: caloriesConsumed - caloriesBurned,
-          workoutCount: (log.workouts || []).length,
-          workoutTypes,
-          waterIntake: log.waterIntake || 0,
-          maxFastingHours: log.maxFastingHours || 0
-        });
-      }
+      if (!summariesMap.has(log.date)) summariesMap.set(log.date, summarizeLog(log));
     });
 
     // 3. Return sorted array
@@ -1264,20 +1256,7 @@ export const migrateAllLogsToSummaries = async (): Promise<{ success: boolean; m
       }
 
       // Compute and save summary
-      const caloriesConsumed = (log.items || []).reduce((sum, item) => sum + item.calories, 0);
-      const caloriesBurned = (log.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
-      const workoutTypes = Array.from(new Set((log.workouts || []).map(w => w.type)));
-
-      const summary: DailySummary = {
-        date: log.date,
-        caloriesConsumed,
-        caloriesBurned,
-        netCalories: caloriesConsumed - caloriesBurned,
-        workoutCount: (log.workouts || []).length,
-        workoutTypes,
-        waterIntake: log.waterIntake || 0,
-        maxFastingHours: log.maxFastingHours || 0
-      };
+      const summary = summarizeLog(log);
 
       await setDoc(getDocRef('summaries', log.date), summary);
       await deleteDoc(logDoc.ref);

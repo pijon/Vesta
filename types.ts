@@ -115,6 +115,7 @@ export interface UserStats {
   dailyWorkoutCountGoal?: number; // Daily target for number of workouts (default 1)
   weeklyLossGoal?: number; // kg per week the suggested calorie target aims for (default 0.5)
   workoutCalorieCredit?: WorkoutCalorieCredit; // Share of workout calories added to the day's budget (default 1)
+  dailyProteinGoal?: number; // grams; defaults to 1.6 g per kg of goal weight (see proteinTarget)
   streaks?: {
     // Global "Perfect Day" Streak
     currentStreak: number;
@@ -184,6 +185,8 @@ export interface FoodLogItem {
   id: string;
   name: string;
   calories: number;
+  /** Grams of protein, when known (AI estimate, recipe or typed in) */
+  protein?: number;
   timestamp: number;
   type?: string;        // e.g. "Breakfast", "Lunch"
   tags?: string[];      // To capture ["Dinner"] etc if type isn't explicit
@@ -215,6 +218,7 @@ export interface DailySummary {
   workoutTypes?: string[]; // List of workout types (e.g. ["Walking", "HIIT"])
   waterIntake?: number; // in ml
   maxFastingHours?: number; // Fasting hours achieved
+  proteinConsumed?: number; // grams, from items with a known protein amount
 }
 
 export interface DailyProgress {

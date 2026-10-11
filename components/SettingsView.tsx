@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
+import { proteinTarget } from '../utils/planUtils';
 import { Check, Copy, CloudUpload, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import { FamilySettings } from './FamilySettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
@@ -51,6 +52,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         dailyWaterGoal: String((st.dailyWaterGoal || 2500) / 1000),
         dailyWorkoutCountGoal: String(st.dailyWorkoutCountGoal || 1),
         workoutCalorieCredit: String(st.workoutCalorieCredit ?? 1),
+        dailyProteinGoal: st.dailyProteinGoal ? String(st.dailyProteinGoal) : '',
     });
     const [form, setForm] = useState(() => toForm(stats));
     const [protocol, setProtocol] = useState<FastingProtocol>(fastingConfig.protocol);
@@ -79,6 +81,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!(num(form.dailyCalorieGoal) >= 400 && num(form.dailyCalorieGoal) <= 5000)) errors.dailyCalorieGoal = 'Enter 400 to 5000 kcal';
     if (!(num(form.nonFastDayCalories) >= 800 && num(form.nonFastDayCalories) <= 6000)) errors.nonFastDayCalories = 'Enter 800 to 6000 kcal';
     if (!(num(form.dailyWaterGoal) >= 0.5 && num(form.dailyWaterGoal) <= 6)) errors.dailyWaterGoal = 'Enter 0.5 to 6 litres';
+    if (form.dailyProteinGoal && !(num(form.dailyProteinGoal) >= 30 && num(form.dailyProteinGoal) <= 400)) errors.dailyProteinGoal = 'Enter 30 to 400 g, or leave empty';
     if (!(Number.isInteger(num(form.dailyWorkoutCountGoal)) && num(form.dailyWorkoutCountGoal) >= 1 && num(form.dailyWorkoutCountGoal) <= 5)) errors.dailyWorkoutCountGoal = 'Enter 1 to 5';
     const hasErrors = Object.keys(errors).length > 0;
     const isDirty = JSON.stringify(form) !== JSON.stringify(toForm(stats)) || protocol !== fastingConfig.protocol;
@@ -95,6 +98,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             dailyWaterGoal: Math.round(num(form.dailyWaterGoal) * 1000),
             dailyWorkoutCountGoal: num(form.dailyWorkoutCountGoal),
             workoutCalorieCredit: Number(form.workoutCalorieCredit) as WorkoutCalorieCredit,
+            dailyProteinGoal: form.dailyProteinGoal ? Math.round(num(form.dailyProteinGoal)) : undefined,
         });
         if (protocol !== fastingConfig.protocol) {
             await onUpdateFastingConfig({ ...fastingConfig, protocol, targetFastHours: PROTOCOLS.find(p => p.id === protocol)?.hours ?? fastingConfig.targetFastHours });
@@ -243,6 +247,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {field('dailyCalorieGoal', 'Fast days', { unit: 'kcal', hint: 'Calories on fast days' })}
                             {field('nonFastDayCalories', 'Other days', { unit: 'kcal', hint: 'Calories on nourish days' })}
+                            {field('dailyProteinGoal', 'Protein', { unit: 'g', placeholder: String(proteinTarget({ ...stats, dailyProteinGoal: undefined })), hint: 'Empty uses 1.6 g per kg of goal weight' })}
                             {field('dailyWaterGoal', 'Water', { unit: 'litres', inputMode: 'decimal' })}
                             {field('dailyWorkoutCountGoal', 'Workouts', { unit: 'per day' })}
                         </div>

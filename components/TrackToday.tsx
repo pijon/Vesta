@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary } from '../types';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
 import { TomorrowCard } from './TomorrowCard';
@@ -240,7 +240,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     return () => window.clearTimeout(timer);
   }, [toast]);
   const handleQuickLog = async (food: FrequentFood) => {
-    const item: FoodLogItem = { id: crypto.randomUUID(), name: food.name, calories: food.calories, timestamp: Date.now() };
+    const item: FoodLogItem = {
+      id: crypto.randomUUID(), name: food.name, calories: food.calories, timestamp: Date.now(),
+      ...(food.protein !== undefined ? { protein: food.protein } : {}),
+    };
     await onAddFoodLogItems([item]);
     setToast({ message: `Logged ${food.name} · ${food.calories} kcal`, undo: () => { onDeleteFoodItem(item.id); } });
   };
@@ -254,6 +257,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           caloriesEaten={consumed}
           caloriesBurned={caloriesBurned}
           burnCredit={stats.workoutCalorieCredit ?? 1}
+          protein={{ eaten: (dailyLog.items || []).reduce((sum, item) => sum + (item.protein || 0), 0), target: proteinTarget(stats) }}
           isFastDay={!isNonFastDay}
           onLogFood={onOpenFoodModal}
         />

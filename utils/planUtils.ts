@@ -30,6 +30,22 @@ export const isMealEaten = (plan: Pick<DayPlan, 'completedMealIds'>, meal: Recip
 export const mealCalories = (meal: Recipe) =>
   (meal.calories || 0) + (meal.sides || []).reduce((sum, side) => sum + (side.calories || 0), 0);
 
+/** Protein in a meal plus its sides, when the recipes say (undefined when none of them do). */
+export const mealProtein = (meal: Recipe): number | undefined => {
+  const parts = [meal, ...(meal.sides || [])].map(m => m.protein).filter((p): p is number => typeof p === 'number');
+  return parts.length ? parts.reduce((a, b) => a + b, 0) : undefined;
+};
+
+/**
+ * Daily protein target in grams: the one set in Settings, else 1.6 g per kg of goal weight
+ * (current weight when there's no goal), a common aim while eating less to keep muscle.
+ */
+export const proteinTarget = (stats: Pick<UserStats, 'dailyProteinGoal' | 'goalWeight' | 'currentWeight'>) => {
+  if (stats.dailyProteinGoal && stats.dailyProteinGoal > 0) return stats.dailyProteinGoal;
+  const basis = stats.goalWeight > 0 ? stats.goalWeight : stats.currentWeight;
+  return basis > 0 ? Math.round((basis * 1.6) / 5) * 5 : 100;
+};
+
 export const dayCalories = (plan?: DayPlan) =>
   plan ? plan.meals.reduce((sum, meal) => sum + mealCalories(meal), 0) : 0;
 

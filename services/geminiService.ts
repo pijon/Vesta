@@ -312,11 +312,23 @@ const foodItemsSchema: Schema = {
     type: Type.OBJECT,
     properties: {
       name: { type: Type.STRING },
-      calories: { type: Type.NUMBER }
+      calories: { type: Type.NUMBER },
+      protein: { type: Type.NUMBER, description: 'Grams of protein in this item' }
     },
-    required: ['name', 'calories']
+    required: ['name', 'calories', 'protein']
   }
 };
+
+interface RawFoodItem { name: string; calories: number; protein?: number }
+
+/** AI items → log items, with local IDs (never trust IDs from the model) */
+const toFoodLogItems = (items: RawFoodItem[]): FoodLogItem[] => items.map(item => ({
+  id: crypto.randomUUID(),
+  name: item.name,
+  calories: Math.round(item.calories),
+  ...(typeof item.protein === 'number' && item.protein >= 0 ? { protein: Math.round(item.protein) } : {}),
+  timestamp: Date.now(),
+}));
 
 export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
   if (!apiKey) throw new Error("API Key not found");
@@ -343,9 +355,11 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
 
     EXAMPLES:
     "2 scrambled eggs with cheese and toast" → [
-      {name: "2 scrambled eggs with cheese", calories: 280},
-      {name: "1 slice toast", calories: 80}
+      {name: "2 scrambled eggs with cheese", calories: 280, protein: 19},
+      {name: "1 slice toast", calories: 80, protein: 3}
     ]
+
+    PROTEIN: grams of protein per item, estimated for the same portion (whole number).
 
     User Input: "${scrubPII(text)}"
 
@@ -365,16 +379,11 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
     const output = response.text;
     if (!output) throw new Error("No response from AI");
 
-    const items = JSON.parse(output);
+    const items = JSON.parse(output) as RawFoodItem[];
     const endTime = performance.now();
     console.log(`[Food Log] Analysis completed in ${((endTime - startTime) / 1000).toFixed(2)}s`);
 
-    return items.map((item: any) => ({
-      id: crypto.randomUUID(),
-      name: item.name,
-      calories: item.calories,
-      timestamp: Date.now()
-    }));
+    return toFoodLogItems(items);
 
   } catch (error) {
     console.error("Error analyzing food log:", error);
@@ -421,10 +430,12 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
 
     EXAMPLE:
     Breakfast plate → [
-      {name: "2 scrambled eggs", calories: 180},
-      {name: "2 slices toast with butter", calories: 200},
-      {name: "Coffee with milk", calories: 20}
+      {name: "2 scrambled eggs", calories: 180, protein: 12},
+      {name: "2 slices toast with butter", calories: 200, protein: 6},
+      {name: "Coffee with milk", calories: 20, protein: 1}
     ]
+
+    PROTEIN: grams of protein per item, estimated for the same portion (whole number).
   `;
 
   try {
@@ -453,16 +464,11 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
     const output = response.text;
     if (!output) throw new Error("No response from AI");
 
-    const items = JSON.parse(output);
+    const items = JSON.parse(output) as RawFoodItem[];
     const endTime = performance.now();
     console.log(`[Food Image] Analysis completed in ${((endTime - startTime) / 1000).toFixed(2)}s`);
 
-    return items.map((item: any) => ({
-      id: crypto.randomUUID(),
-      name: item.name,
-      calories: item.calories,
-      timestamp: Date.now()
-    }));
+    return toFoodLogItems(items);
 
   } catch (error) {
     console.error("Error analyzing food image:", error);

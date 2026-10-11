@@ -19,6 +19,8 @@ export interface AnalyticsDay {
   /** Food logged that day (calories > 0) */
   logged: boolean;
   calories: number;
+  /** Grams, when any of the day's food had a protein amount */
+  protein: number | null;
   calorieTarget: number;
   burned: number;
   workouts: number;
@@ -49,6 +51,9 @@ export const buildDays = (
     workoutCount: (todayLog.workouts || []).length,
     waterIntake: todayLog.waterIntake || 0,
     maxFastingHours: todayLog.maxFastingHours,
+    ...(todayLog.items.some(item => typeof item.protein === 'number')
+      ? { proteinConsumed: todayLog.items.reduce((sum, item) => sum + (item.protein || 0), 0) }
+      : {}),
   });
 
   const waterGoal = stats.dailyWaterGoal || 2000;
@@ -69,6 +74,7 @@ export const buildDays = (
       isFastDay,
       logged: calories > 0,
       calories,
+      protein: s?.proteinConsumed ?? null,
       calorieTarget,
       burned: s?.caloriesBurned || 0,
       workouts,
@@ -99,6 +105,9 @@ export interface PeriodSummary {
   workouts: number;
   burned: number;
   avgWater: number | null;
+  /** Average protein on days where it was tracked, and how many such days */
+  avgProtein: number | null;
+  proteinDays: number;
   waterDaysMet: number;
   waterDaysLogged: number;
 }
@@ -122,6 +131,8 @@ export const summarize = (days: AnalyticsDay[], targetFastHours: number): Period
     workouts: days.reduce((sum, d) => sum + d.workouts, 0),
     burned: days.reduce((sum, d) => sum + d.burned, 0),
     avgWater: average(waterDays.map(d => d.water)),
+    avgProtein: average(days.filter(d => d.protein !== null && d.logged).map(d => d.protein!)),
+    proteinDays: days.filter(d => d.protein !== null && d.logged).length,
     waterDaysMet: days.filter(d => d.goals.water).length,
     waterDaysLogged: waterDays.length,
   };

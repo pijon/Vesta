@@ -22,10 +22,21 @@ const MODES: { value: Mode; label: string; Icon: typeof Camera }[] = [
 ];
 
 /** A food waiting to be logged; calories stay a string while being edited. */
-interface Draft { id: string; name: string; calories: string; type?: string }
+interface Draft { id: string; name: string; calories: string; protein: string; type?: string }
 
-const toDraft = (name: string, calories: number, type?: string): Draft =>
-  ({ id: crypto.randomUUID(), name: name.trim(), calories: String(Math.round(calories)), type });
+const toDraft = (name: string, calories: number, protein?: number, type?: string): Draft => ({
+  id: crypto.randomUUID(),
+  name: name.trim(),
+  calories: String(Math.round(calories)),
+  protein: typeof protein === 'number' ? String(Math.round(protein)) : '',
+  type,
+});
+
+/** Protein in grams, or undefined when left empty */
+const proteinOf = (d: Draft) => {
+  const n = parseInt(d.protein, 10);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+};
 
 const kcalOf = (d: Draft) => {
   const n = parseInt(d.calories, 10);
@@ -69,6 +80,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [manualName, setManualName] = useState('');
   const [manualKcal, setManualKcal] = useState('');
+  const [manualProtein, setManualProtein] = useState('');
 
   const textRef = useRef<HTMLTextAreaElement>(null);
   const manualNameRef = useRef<HTMLInputElement>(null);
@@ -105,7 +117,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
         setError('No food recognised. Add a little more detail, for example "protein shake with milk".');
         return;
       }
-      addDrafts(items.map(i => toDraft(i.name, i.calories, i.type)));
+      addDrafts(items.map(i => toDraft(i.name, i.calories, i.protein, i.type)));
       setText('');
     } catch (e) {
       console.error(e);
@@ -131,7 +143,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
         setError('No food found in that photo. Try another angle, or describe it instead.');
         return;
       }
-      addDrafts(items.map(i => toDraft(i.name, i.calories, i.type)));
+      addDrafts(items.map(i => toDraft(i.name, i.calories, i.protein, i.type)));
       setPhotoPreview(null);
     } catch (e) {
       console.error(e);
@@ -145,14 +157,17 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
   const addManual = () => {
     const kcal = parseInt(manualKcal, 10);
     if (!manualName.trim() || !Number.isFinite(kcal) || kcal < 0) return;
-    addDrafts([toDraft(manualName, kcal)]);
+    const protein = parseInt(manualProtein, 10);
+    addDrafts([toDraft(manualName, kcal, Number.isFinite(protein) ? protein : undefined)]);
     setManualName('');
     setManualKcal('');
+    setManualProtein('');
     manualNameRef.current?.focus();
   };
 
   const valid = drafts.filter(d => d.name.trim());
   const total = valid.reduce((sum, d) => sum + kcalOf(d), 0);
+  const totalProtein = valid.reduce((sum, d) => sum + (proteinOf(d) ?? 0), 0);
 
   const logAll = () => {
     if (!valid.length) return;
@@ -161,6 +176,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
       id: crypto.randomUUID(),
       name: d.name.trim(),
       calories: kcalOf(d),
+      ...(proteinOf(d) !== undefined ? { protein: proteinOf(d) } : {}),
       timestamp: now,
       ...(d.type ? { type: d.type } : {}),
     })));
@@ -225,7 +241,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                     return (
                       <button
                         key={food.name}
-                        onClick={() => addDrafts([toDraft(capitalise(food.name), food.calories)])}
+                        onClick={() => addDrafts([toDraft(capitalise(food.name), food.calories, food.protein)])}
                         aria-label={`Add ${food.name}, ${food.calories} kcal`}
                         className="inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                       >
@@ -275,16 +291,13 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
         )}
 
         {mode === 'manual' && (
-          <form
-            className="flex flex-col sm:flex-row gap-2 sm:items-end"
-            onSubmit={e => { e.preventDefault(); addManual(); }}
-          >
-            <label className="flex-1 min-w-0">
+          <form className="space-y-2" onSubmit={e => { e.preventDefault(); addManual(); }}>
+            <label className="block">
               <span className="block text-sm font-semibold mb-1.5">Food</span>
               <input ref={manualNameRef} value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Chicken salad" className="input w-full" />
             </label>
             <div className="flex gap-2 items-end">
-              <label className="flex-1 sm:w-28">
+              <label className="flex-1 min-w-0">
                 <span className="block text-sm font-semibold mb-1.5">Calories</span>
                 <span className="relative block">
                   <input
@@ -297,7 +310,20 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                   <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">kcal</span>
                 </span>
               </label>
-              <button type="submit" disabled={!manualName.trim() || !manualKcal} className="btn-secondary min-h-11">
+              <label className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold mb-1.5">Protein <span className="font-normal text-muted">(optional)</span></span>
+                <span className="relative block">
+                  <input
+                    value={manualProtein}
+                    onChange={e => setManualProtein(e.target.value.replace(/\D/g, ''))}
+                    inputMode="numeric"
+                    placeholder="30"
+                    className="input w-full !pr-8"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">g</span>
+                </span>
+              </label>
+              <button type="submit" disabled={!manualName.trim() || !manualKcal} className="btn-secondary min-h-11 shrink-0">
                 <Plus size={16} aria-hidden="true" /> Add
               </button>
             </div>
@@ -315,33 +341,43 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
           <section aria-label="To log" className="pt-1">
             <div className="flex items-baseline justify-between mb-1">
               <h3 className="heading-4">To log</h3>
-              <p className="text-xs text-muted">Tap a name or number to change it</p>
+              <p className="text-xs text-muted">{totalProtein > 0 ? `${totalProtein} g protein · ` : ''}tap to change</p>
             </div>
             <ul className="divide-y divide-border">
               {drafts.map(d => {
                 const Icon = foodIconFor({ name: d.name }) ?? UtensilsCrossed;
                 return (
-                  <li key={d.id} className="flex items-center gap-2 py-1.5">
-                    <span className="hidden sm:flex size-9 shrink-0 rounded-[10px] bg-calories-bg text-calories-text items-center justify-center">
+                  <li key={d.id} className="flex items-start gap-2 py-2">
+                    <span className="hidden sm:flex size-9 mt-0.5 shrink-0 rounded-[10px] bg-calories-bg text-calories-text items-center justify-center">
                       <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
                     </span>
-                    <input
-                      value={d.name}
-                      onChange={e => updateDraft(d.id, { name: e.target.value })}
-                      aria-label="Food name"
-                      className="flex-1 min-w-0 min-h-10 px-2 -mx-0.5 rounded-[10px] bg-transparent font-semibold hover:bg-surface-sunken focus:bg-surface focus:outline-2 focus:outline-[var(--focus-ring)]"
-                    />
-                    <span className="relative shrink-0">
+                    <div className="flex-1 min-w-0">
                       <input
-                        value={d.calories}
-                        onChange={e => updateDraft(d.id, { calories: e.target.value.replace(/\D/g, '') })}
-                        inputMode="numeric"
-                        aria-label={`Calories for ${d.name}`}
-                        className="w-[5.25rem] min-h-10 pl-1 pr-10 rounded-[10px] bg-transparent text-right hover:bg-surface-sunken focus:bg-surface focus:outline-2 focus:outline-[var(--focus-ring)]"
+                        value={d.name}
+                        onChange={e => updateDraft(d.id, { name: e.target.value })}
+                        aria-label="Food name"
+                        className="w-full min-h-10 px-2 -mx-0.5 rounded-[10px] bg-transparent font-semibold hover:bg-surface-sunken focus:bg-surface focus:outline-2 focus:outline-[var(--focus-ring)]"
                       />
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted">kcal</span>
-                    </span>
-                    <button onClick={() => removeDraft(d.id)} className="size-9 shrink-0 inline-flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]" aria-label={`Remove ${d.name}`}>
+                      <div className="flex items-center gap-1 -ml-0.5">
+                        {([
+                          ['calories', 'kcal', `Calories for ${d.name}`, 'w-[5rem]'],
+                          ['protein', 'g protein', `Protein for ${d.name}`, 'w-[7rem]'],
+                        ] as const).map(([key, unit, label, width]) => (
+                          <span key={key} className="relative shrink-0">
+                            <input
+                              value={d[key]}
+                              onChange={e => updateDraft(d.id, { [key]: e.target.value.replace(/\D/g, '') })}
+                              inputMode="numeric"
+                              placeholder="–"
+                              aria-label={label}
+                              className={`${width} min-h-9 pl-2 rounded-[10px] bg-transparent text-sm text-right hover:bg-surface-sunken focus:bg-surface focus:outline-2 focus:outline-[var(--focus-ring)] ${key === 'calories' ? 'pr-10' : 'pr-[4.5rem]'}`}
+                            />
+                            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted">{unit}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={() => removeDraft(d.id)} className="size-9 mt-0.5 shrink-0 inline-flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]" aria-label={`Remove ${d.name}`}>
                       <X size={16} />
                     </button>
                   </li>

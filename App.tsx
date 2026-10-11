@@ -1,7 +1,7 @@
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
-import { mealCalories, slotFor, slotLabel } from './utils/planUtils';
+import { mealCalories, mealProtein, slotFor, slotLabel } from './utils/planUtils';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage } from './services/storageService';
 import * as cache from './utils/cacheService';
 // Lazy load non-critical components for performance
@@ -356,6 +356,7 @@ const TrackerApp: React.FC = () => {
                 id: crypto.randomUUID(),
                 name: meal.name,
                 calories: mealCalories(meal),
+                ...(mealProtein(meal) !== undefined ? { protein: mealProtein(meal) } : {}),
                 timestamp: now,
                 // Persist metadata
                 tags: meal.tags,

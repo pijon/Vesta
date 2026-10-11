@@ -72,6 +72,8 @@ export interface FrequentFood {
   name: string;
   /** Calories the last time it was logged */
   calories: number;
+  /** Protein the last time it was logged, when known */
+  protein?: number;
   count: number;
 }
 
@@ -83,10 +85,10 @@ export const frequentFoodsData = defineWarm<FrequentFood[]>('today:frequentFoods
     const key = item.name.trim().toLowerCase();
     if (!key || !(item.calories >= 0)) return;
     const entry = byName.get(key);
-    if (!entry) byName.set(key, { name: item.name.trim(), calories: item.calories, count: 1, last: item.timestamp });
+    if (!entry) byName.set(key, { name: item.name.trim(), calories: item.calories, protein: item.protein, count: 1, last: item.timestamp });
     else {
       entry.count++;
-      if (item.timestamp > entry.last) Object.assign(entry, { name: item.name.trim(), calories: item.calories, last: item.timestamp });
+      if (item.timestamp > entry.last) Object.assign(entry, { name: item.name.trim(), calories: item.calories, protein: item.protein, last: item.timestamp });
     }
   });
   // Repeats first (most often logged), then the most recent one-offs to fill the row
@@ -97,7 +99,7 @@ export const frequentFoodsData = defineWarm<FrequentFood[]>('today:frequentFoods
   const recent = all.filter(f => f.count < 2 && f.last < startOfToday).sort((a, b) => b.last - a.last);
   return [...repeats, ...recent]
     .slice(0, 8)
-    .map(({ name, calories, count }) => ({ name, calories, count }));
+    .map(({ name, calories, protein, count }) => ({ name, calories, protein, count }));
 }, 5 * 60_000);
 
 /** Starts every page's background load, one after another so start-up stays light. */

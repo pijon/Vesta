@@ -6,7 +6,7 @@ import { analyticsDayTypesData, analyticsSummariesData } from '../services/pageD
 import { usePrewarmed } from '../utils/prewarm';
 import { AnalyticsDay, AnalyticsPeriod, PERIODS, buildDays, insightsFor, summarize, weightSummary } from '../utils/analyticsModel';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
-import { addDays } from '../utils/planUtils';
+import { addDays, proteinTarget } from '../utils/planUtils';
 import { ChartContainer } from './analytics/ChartContainer';
 import { EnergyPanel } from './EnergyCheckIn';
 import { weightTrend } from '../utils/energyModel';
@@ -132,7 +132,9 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         {
             label: 'Calories', icon: Flame, tone: 'tile-calories',
             value: summary.avgCalories !== null ? `${fmt(summary.avgCalories)} kcal` : '—',
-            sub: summary.loggedDays ? `Daily average · ${summary.daysOnTarget} of ${summary.loggedDays} days on target` : 'Nothing logged yet',
+            sub: !summary.loggedDays ? 'Nothing logged yet'
+                : summary.avgProtein !== null ? `Daily average · ${fmt(summary.avgProtein)} g protein (target ${proteinTarget(stats)} g)`
+                : `Daily average · ${summary.daysOnTarget} of ${summary.loggedDays} days on target`,
         },
         {
             label: 'Fasting', icon: Timer, tone: 'tile-fasting',

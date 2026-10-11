@@ -9,6 +9,8 @@ interface HearthWidgetProps {
     /** Share of workout calories added to the budget (Settings): 1, 0.5 or 0 */
     burnCredit?: number;
     isFastDay: boolean;
+    /** Protein eaten today (from items with a known amount) and the daily target, in grams */
+    protein?: { eaten: number; target: number };
     onLogFood: () => void;
     size?: 'sm' | 'md' | 'lg';
 }
@@ -25,6 +27,7 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
     caloriesBurned,
     burnCredit = 1,
     isFastDay,
+    protein,
     onLogFood,
     size = 'lg',
 }) => {
@@ -86,9 +89,29 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
                 </svg>
             </div>
 
-            <button onClick={onLogFood} className="btn-primary btn-sm mt-4">
-                <Plus size={16} aria-hidden="true" /> Log food
-            </button>
+            <div className="flex items-center gap-4 mt-4">
+                <button onClick={onLogFood} className="btn-primary btn-sm shrink-0">
+                    <Plus size={16} aria-hidden="true" /> Log food
+                </button>
+                {protein && (
+                    <div className="flex-1 min-w-0 max-w-56 ml-auto">
+                        <p className="flex justify-between gap-2 text-sm">
+                            <span className="font-semibold">Protein</span>
+                            <span>{fmt(protein.eaten)} of {fmt(protein.target)} g</span>
+                        </p>
+                        <div
+                            className="mt-1 h-1.5 rounded-full bg-current/20 overflow-hidden"
+                            role="progressbar"
+                            aria-label="Protein today"
+                            aria-valuemin={0}
+                            aria-valuemax={protein.target}
+                            aria-valuenow={Math.round(protein.eaten)}
+                        >
+                            <div className="h-full rounded-full bg-current transition-[width] duration-700" style={{ width: `${Math.min(protein.eaten / Math.max(protein.target, 1), 1) * 100}%` }} />
+                        </div>
+                    </div>
+                )}
+            </div>
         </section>
     );
 };
