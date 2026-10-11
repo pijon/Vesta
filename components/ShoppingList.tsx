@@ -828,10 +828,10 @@ export const ShoppingList: React.FC = () => {
     <div className="space-y-5 pb-20">
       {stepBar}
 
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+      {/* No heading: the Planner's "Shopping list" tab already names this page */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h2 className="heading-2">Shopping list</h2>
-          <p className="text-sm text-muted mt-0.5">
+          <p className="text-sm text-muted">
             {purchasableItems.length === 0
               ? 'Nothing to buy'
               : toBuy.length === 0
