@@ -35,13 +35,13 @@ export default defineConfig(({ command, mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'vesta-icon-source.png'],
+        includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
         manifest: {
           name: 'Vesta Planner',
           short_name: 'Vesta',
-          description: 'Your Digital Hearth for managing health and nutrition.', // Note: User needs to generate icons
-          theme_color: '#F4F1DE',
-          background_color: '#F4F1DE',
+          description: 'Your Digital Hearth for managing health and nutrition.',
+          theme_color: '#FBF8F3',
+          background_color: '#FBF8F3',
           display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
@@ -57,10 +57,11 @@ export default defineConfig(({ command, mode }) => {
               type: 'image/png'
             },
             {
-              src: 'pwa-512x512.png',
+              // Artwork inside the 80% safe zone, for Android's circle/squircle masks
+              src: 'pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'maskable'
             }
           ]
         },
