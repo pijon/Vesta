@@ -1,4 +1,4 @@
-import { DailyLog, DailySummary, UserStats } from '../types';
+import { CoachReadState, DailyLog, DailySummary, UserStats } from '../types';
 import { localDateString } from './dateUtils';
 import { addDays, proteinTarget } from './planUtils';
 import { EnergyEstimate, TargetSuggestion, estimateEnergy, fastDaysPerWeek, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
@@ -258,3 +258,9 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
   const order = { focus: 0, good: 1, tip: 2 };
   return findings.sort((a, b) => order[a.tone] - order[b.tone]);
 };
+
+/** A read tip comes back after this long if it still applies, so a lasting problem isn't hidden for good */
+export const COACH_READ_DAYS = 30;
+
+export const isFindingRead = (read: CoachReadState, id: string, today = localDateString()) =>
+  !!read[id] && read[id] > addDays(today, -COACH_READ_DAYS);

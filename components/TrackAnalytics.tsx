@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, Droplets, Flame, Lightbulb, Scale, Timer } from 'lucide-react';
-import { AppView, DayPlan, DailyLog, FastingState, UserStats } from '../types';
+import { AppView, DayPlan, DailyLog, FastingState, UserStats, CoachReadState } from '../types';
 import { analyticsDayTypesData, analyticsSummariesData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
 import { AnalyticsDay, AnalyticsPeriod, PERIODS, buildDays, insightsFor, summarize, weightSummary } from '../utils/analyticsModel';
@@ -21,6 +21,8 @@ interface TrackAnalyticsProps {
     onOpenFoodModal: () => void;
     onOpenWeightModal: () => void;
     onNavigate: (view: AppView) => void;
+    coachRead: CoachReadState;
+    onSetCoachRead: (id: string, read: boolean) => void;
 }
 
 const PERIOD_KEY = 'vesta_analytics_period';
@@ -55,7 +57,7 @@ const ChartTip: React.FC<{ active?: boolean; label?: string | number; lines: (la
         <div className="rounded-[12px] border border-border bg-surface px-3 py-2 text-sm shadow-[var(--elev-md)]">{lines(label)}</div>
     ) : null;
 
-export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats, onOpenFoodModal, onOpenWeightModal, onNavigate }) => {
+export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats, onOpenFoodModal, onOpenWeightModal, onNavigate, coachRead, onSetCoachRead }) => {
     const summaries = usePrewarmed(analyticsSummariesData) ?? [];
     const dayTypes = usePrewarmed(analyticsDayTypesData) ?? {};
     const [period, setPeriod] = useState<AnalyticsPeriod>(() => {
@@ -221,6 +223,8 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 onOpenFoodModal={onOpenFoodModal}
                 onOpenWeightModal={onOpenWeightModal}
                 onNavigate={onNavigate}
+                coachRead={coachRead}
+                onSetCoachRead={onSetCoachRead}
             />
 
             {/* Weight */}

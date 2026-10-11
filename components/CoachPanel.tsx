@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { Check, CircleAlert, Lightbulb, ThumbsUp, X } from 'lucide-react';
-import { AppView, DailyLog, DailySummary, UserStats } from '../types';
-import { CoachAction, Finding, buildCoachFacts, coachFindings } from '../utils/coachModel';
+import { Check, ChevronDown, CircleAlert, Lightbulb, ThumbsUp } from 'lucide-react';
+import { AppView, CoachReadState, DailyLog, DailySummary, UserStats } from '../types';
+import { CoachAction, Finding, buildCoachFacts, coachFindings, isFindingRead } from '../utils/coachModel';
 
 export interface CoachHandlers {
   onUpdateStats: (stats: UserStats) => void;
   onOpenFoodModal: () => void;
   onOpenWeightModal: () => void;
   onNavigate: (view: AppView) => void;
+  coachRead: CoachReadState;
+  onSetCoachRead: (id: string, read: boolean) => void;
 }
 
 interface CoachInput {
@@ -22,6 +24,15 @@ export const useCoach = ({ stats, summaries, dayTypes, dailyLog }: CoachInput) =
     const facts = buildCoachFacts(stats, summaries, dayTypes, dailyLog);
     return { facts, findings: coachFindings(facts) };
   }, [stats, summaries, dayTypes, dailyLog]);
+
+/** Findings split into unread and read, each still most important first */
+const useSplitFindings = (input: CoachInput, read: CoachReadState) => {
+  const { findings } = useCoach(input);
+  return useMemo(() => ({
+    unread: findings.filter(f => !isFindingRead(read, f.id)),
+    read: findings.filter(f => isFindingRead(read, f.id)),
+  }), [findings, read]);
+};
 
 const TONE = {
   focus: { Icon: CircleAlert, className: 'tile-calories', label: 'Focus' },
@@ -54,7 +65,7 @@ const useRunAction = (stats: UserStats, handlers: CoachHandlers) => (action: Coa
   }
 };
 
-const FindingRow: React.FC<{ finding: Finding; onAction: (a: CoachAction) => string | null }> = ({ finding, onAction }) => {
+const FindingRow: React.FC<{ finding: Finding; isRead: boolean; onAction: (a: CoachAction) => string | null; onSetRead: (id: string, read: boolean) => void }> = ({ finding, isRead, onAction, onSetRead }) => {
   const { Icon, className, label } = TONE[finding.tone];
   const [done, setDone] = useState<string | null>(null);
   return (
@@ -66,15 +77,20 @@ const FindingRow: React.FC<{ finding: Finding; onAction: (a: CoachAction) => str
       <div className="flex-1 min-w-0">
         <p className="font-semibold leading-snug">{finding.title}</p>
         <p className="text-sm text-muted mt-1">{finding.detail}</p>
-        {finding.action && (
-          done ? (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold" role="status"><Check size={16} aria-hidden="true" /> {done}</p>
-          ) : (
-            <button onClick={() => setDone(onAction(finding.action!))} className="btn-secondary btn-sm mt-2">
-              {finding.action.label}
-            </button>
-          )
-        )}
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          {finding.action && !isRead && (
+            done ? (
+              <p className="inline-flex items-center gap-1.5 text-sm font-semibold" role="status"><Check size={16} aria-hidden="true" /> {done}</p>
+            ) : (
+              <button onClick={() => setDone(onAction(finding.action!))} className="btn-secondary btn-sm">
+                {finding.action.label}
+              </button>
+            )
+          )}
+          <button onClick={() => onSetRead(finding.id, !isRead)} className="btn-ghost btn-sm">
+            {isRead ? 'Mark as unread' : <><Check size={16} aria-hidden="true" /> Mark as read</>}
+          </button>
+        </div>
       </div>
     </li>
   );
@@ -82,44 +98,52 @@ const FindingRow: React.FC<{ finding: Finding; onAction: (a: CoachAction) => str
 
 /** Analytics: all guidance, in order of what matters most. */
 export const CoachPanel: React.FC<CoachInput & CoachHandlers> = props => {
-  const { findings } = useCoach(props);
+  const { unread, read } = useSplitFindings(props, props.coachRead);
   const runAction = useRunAction(props.stats, props);
+  const [showRead, setShowRead] = useState(false);
   return (
     <section className="card p-4 md:p-6" aria-labelledby="coach-title">
       <h2 id="coach-title" className="heading-3">Guidance</h2>
       <p className="text-sm text-muted mt-0.5 mb-4">What your last few weeks say, most important first.</p>
-      {findings.length ? (
+      {unread.length ? (
         <ul className="divide-y divide-border">
-          {findings.map(f => <FindingRow key={f.id} finding={f} onAction={runAction} />)}
+          {unread.map(f => <FindingRow key={f.id} finding={f} isRead={false} onAction={runAction} onSetRead={props.onSetCoachRead} />)}
         </ul>
       ) : (
-        <p className="text-sm text-muted">Nothing to flag. Keep logging and weighing in, and guidance will appear here.</p>
+        <p className="text-sm text-muted">
+          {read.length ? 'You\'re all caught up.' : 'Nothing to flag. Keep logging and weighing in, and guidance will appear here.'}
+        </p>
+      )}
+      {read.length > 0 && (
+        <div className="border-t border-border mt-4 pt-3">
+          <button
+            onClick={() => setShowRead(s => !s)}
+            aria-expanded={showRead}
+            className="btn-ghost btn-sm -ml-3"
+          >
+            {read.length} read <ChevronDown size={16} aria-hidden="true" className={`transition-transform ${showRead ? 'rotate-180' : ''}`} />
+          </button>
+          {showRead && (
+            <ul className="divide-y divide-border mt-3">
+              {read.map(f => <FindingRow key={f.id} finding={f} isRead onAction={runAction} onSetRead={props.onSetCoachRead} />)}
+            </ul>
+          )}
+        </div>
       )}
     </section>
   );
 };
 
-const DISMISS_KEY = 'vesta_coach_dismissed';
-
-/** Today: the single most useful piece of guidance; hidden for three days when dismissed. */
+/** Today: the single most useful unread tip. */
 export const CoachCard: React.FC<CoachInput & CoachHandlers> = props => {
-  const { findings } = useCoach(props);
+  const { unread } = useSplitFindings(props, props.coachRead);
   const runAction = useRunAction(props.stats, props);
-  const [dismissed, setDismissed] = useState<Record<string, number>>(() => {
-    try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '{}'); } catch { return {}; }
-  });
   const [done, setDone] = useState<string | null>(null);
 
-  const top = findings.find(f => f.tone !== 'good' && !(dismissed[f.id] > Date.now() - 3 * 86_400_000));
+  const top = unread.find(f => f.tone !== 'good');
   if (!top) return null;
   const { Icon, className } = TONE[top.tone];
-  const more = findings.length - 1;
-
-  const dismiss = () => {
-    const next = { ...dismissed, [top.id]: Date.now() };
-    setDismissed(next);
-    try { localStorage.setItem(DISMISS_KEY, JSON.stringify(next)); } catch { /* per-device */ }
-  };
+  const more = unread.length - 1;
 
   return (
     <section className="card p-4 md:px-6" aria-label="Guidance">
@@ -132,14 +156,14 @@ export const CoachCard: React.FC<CoachInput & CoachHandlers> = props => {
             {top.action && (done
               ? <span className="inline-flex items-center gap-1.5 text-sm font-semibold" role="status"><Check size={16} aria-hidden="true" /> {done}</span>
               : <button onClick={() => setDone(runAction(top.action!))} className="btn-secondary btn-sm">{top.action.label}</button>)}
+            <button onClick={() => { setDone(null); props.onSetCoachRead(top.id, true); }} className="btn-ghost btn-sm">
+              <Check size={16} aria-hidden="true" /> Mark as read
+            </button>
             <button onClick={() => props.onNavigate(AppView.ANALYTICS)} className="btn-ghost btn-sm">
               {more > 0 ? `${more} more tip${more === 1 ? '' : 's'}` : 'All guidance'}
             </button>
           </div>
         </div>
-        <button onClick={dismiss} className="size-9 -mr-1.5 -mt-1 shrink-0 inline-flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]" aria-label="Hide for three days">
-          <X size={18} />
-        </button>
       </div>
     </section>
   );

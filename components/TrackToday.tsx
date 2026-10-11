@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary } from '../types';
+import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState } from '../types';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
@@ -44,6 +44,8 @@ interface TrackTodayProps {
   onOpenWorkoutModal: (workout?: WorkoutItem) => void;
   onOpenWeightModal: () => void;
   onAddWater: (amount: number) => Promise<void>;
+  coachRead: CoachReadState;
+  onSetCoachRead: (id: string, read: boolean) => void;
 }
 
 export const TrackToday: React.FC<TrackTodayProps> = ({
@@ -66,7 +68,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onOpenFoodModal,
   onOpenWorkoutModal,
   onOpenWeightModal,
-  onAddWater
+  onAddWater,
+  coachRead,
+  onSetCoachRead
 }) => {
   const navigate = useNavigate();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -322,6 +326,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onOpenFoodModal={onOpenFoodModal}
         onOpenWeightModal={onOpenWeightModal}
         onNavigate={onNavigate}
+        coachRead={coachRead}
+        onSetCoachRead={onSetCoachRead}
       />
 
       {/* Tomorrow */}

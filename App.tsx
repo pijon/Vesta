@@ -1,8 +1,8 @@
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig } from './types';
+import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState } from './types';
 import { mealCalories, mealProtein, slotFor, slotLabel } from './utils/planUtils';
-import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, migrateFromLocalStorage } from './services/storageService';
+import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage } from './services/storageService';
 import * as cache from './utils/cacheService';
 // Lazy load non-critical components for performance
 const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
@@ -167,6 +167,8 @@ const TrackerApp: React.FC = () => {
     });
 
 
+    const [coachRead, setCoachRead] = useState<CoachReadState>(() => cache.getCachedCoachRead() || {});
+
     // Dark mode effect
     useEffect(() => {
         if (isDarkMode) {
@@ -230,6 +232,8 @@ const TrackerApp: React.FC = () => {
                 getDailyLog(todayDate),
                 getFastingState()
             ]);
+            // Guidance read state is secondary: don't hold up the rest of the refresh for it
+            getCoachRead().then(setCoachRead);
 
             setTodayPlan(today);
             setTomorrowPlan(tomorrow);
@@ -285,6 +289,13 @@ const TrackerApp: React.FC = () => {
 
     // Saves stats without touching weight history: Settings, streaks and other
     // non-weigh-in updates must not create a weight entry for today.
+    const handleSetCoachRead = (id: string, read: boolean) => {
+        const next = { ...coachRead };
+        if (read) next[id] = localDateString(); else delete next[id];
+        setCoachRead(next);
+        saveCoachRead(next).catch(e => console.error('Failed to save guidance read state', e));
+    };
+
     const handleSaveStats = async (newStats: UserStats) => {
         setUserStatsState(newStats);
         await saveUserStats(newStats);
@@ -511,6 +522,8 @@ const TrackerApp: React.FC = () => {
         dailyLog,
         fastingState,
         onUpdateStats: handleSaveStats,
+        coachRead,
+        onSetCoachRead: handleSetCoachRead,
         onLogMeal: handleLogMeal,
         onAddFoodLogItems: handleAddFoodLogItems,
         onUpdateFoodItem: async (item: FoodLogItem) => {

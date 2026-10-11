@@ -1,4 +1,4 @@
-import { Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference } from "../types";
+import { CoachReadState, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference } from "../types";
 import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
@@ -858,6 +858,26 @@ export const getRecentWorkouts = async (limitCount: number = 5, daysBack: number
 };
 
 // ... (Daily Summaries omitted as they are typically historical)
+
+// --- Guidance read state ---
+const COACH_DOC = 'coach';
+
+export const getCoachRead = async (): Promise<CoachReadState> => {
+  try {
+    const d = await getDoc(getDocRef('data', COACH_DOC));
+    const read: CoachReadState = d.exists() ? (d.data().read ?? {}) : {};
+    saveToCache(getCacheKey('coachRead'), read);
+    return read;
+  } catch (e) {
+    console.error("Error getting guidance read state", e);
+    return {};
+  }
+};
+
+export const saveCoachRead = async (read: CoachReadState) => {
+  saveToCache(getCacheKey('coachRead'), read);
+  await setDoc(getDocRef('data', COACH_DOC), { read });
+};
 
 // --- Fasting ---
 const FASTING_DOC = 'fasting';

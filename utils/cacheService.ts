@@ -1,4 +1,4 @@
-import { DayPlan, DailyLog, UserStats, FastingState, Recipe } from "../types";
+import { CoachReadState, DayPlan, DailyLog, UserStats, FastingState, Recipe } from "../types";
 
 const CACHE_PREFIX = 'fast800_cache_';
 
@@ -26,4 +26,5 @@ export const getCachedDayPlan = (date: string): DayPlan | null => getFromCache<D
 export const getCachedDailyLog = (date: string): DailyLog | null => getFromCache<DailyLog>(getCacheKey('dailyLog', date));
 export const getCachedUserStats = (): UserStats | null => getFromCache<UserStats>(getCacheKey('stats'));
 export const getCachedFastingState = (): FastingState | null => getFromCache<FastingState>(getCacheKey('fasting'));
+export const getCachedCoachRead = (): CoachReadState | null => getFromCache<CoachReadState>(getCacheKey('coachRead'));
 export const getCachedRecipes = (): Recipe[] | null => getFromCache<Recipe[]>(getCacheKey('recipes'));

@@ -261,6 +261,9 @@ export interface FastingConfig {
   targetFastHours: number;
 }
 
+/** Guidance tips marked as read: finding id → the YYYY-MM-DD it was read */
+export type CoachReadState = Record<string, string>;
+
 export interface FastingState {
   lastAteTime: number | null; // Timestamp of last food log - used to calculate time since last ate
   config: FastingConfig;
