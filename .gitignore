@@ -28,3 +28,7 @@ scripts/serviceAccountKey.json
 
 # dora code context index
 .dora/
+
+# Regenerated on every build / deploy
+public/version.json
+.firebase/
