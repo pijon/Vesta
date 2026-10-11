@@ -9,7 +9,8 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(data.title || 'Vesta', {
     body: data.body || '',
     icon: '/pwa-192x192.png',
-    badge: '/pwa-192x192.png',
+    // Android draws only the badge's alpha, so this is a white silhouette on transparent
+    badge: '/notification-badge.png',
     tag: data.tag,
     data: { url: data.url || '/today' },
   }));
