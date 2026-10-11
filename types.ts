@@ -289,3 +289,11 @@ export interface FeatureFlags {
   forceSundayReset: boolean;
   useGeminiExperimental: boolean;
 }
+
+/** Push reminder choices, stored in reminders/{uid} (the scheduled function reads them) */
+export interface ReminderSettings {
+  /** Evening reminder, sent only when nothing is logged that day */
+  log: { enabled: boolean; time: string };
+  /** Morning weigh-in reminder on the chosen weekdays (0 = Sunday), only without a weigh-in that day */
+  weighIn: { enabled: boolean; time: string; days: number[] };
+}

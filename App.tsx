@@ -139,6 +139,12 @@ const TrackerApp: React.FC = () => {
     const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
     const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+    // A weigh-in reminder opens /today?weigh=1: go straight to the weight sheet
+    useEffect(() => {
+        if (new URLSearchParams(location.search).get('weigh') !== '1') return;
+        setIsWeightModalOpen(true);
+        navigate(location.pathname, { replace: true });
+    }, [location.search, location.pathname, navigate]);
     const [isSundayResetOpen, setIsSundayResetOpen] = useState(false);
     const [editingWorkout, setEditingWorkout] = useState<WorkoutItem | null>(null);
     const [recentWorkouts, setRecentWorkouts] = useState<WorkoutItem[]>([]);

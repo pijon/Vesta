@@ -234,3 +234,5 @@ const copyPageImage = async (uid: string, pageUrl: string, recipeId: string): Pr
     url: `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`,
   };
 };
+
+export { sendReminders, sendTestReminder } from './reminders';

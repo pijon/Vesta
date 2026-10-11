@@ -30,6 +30,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Push reminder settings and this user's device subscriptions; the scheduled function
+    // reads them with admin access
+    match /reminders/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
     // User Data
     match /users/{userId} {
       // User profile document - owner only
