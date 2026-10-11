@@ -215,7 +215,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
 
     return (
-        <div className="space-y-6 pb-20 max-w-3xl">
+        <div className="space-y-6 pb-20">
             {/* Account */}
             <section className="card p-5 md:p-6 flex items-center gap-4">
                 <span className="size-14 shrink-0 rounded-full bg-calories-bg text-calories-text flex items-center justify-center font-display font-extrabold text-2xl" aria-hidden="true">

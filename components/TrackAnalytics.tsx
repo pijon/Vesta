@@ -369,10 +369,13 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 </Panel>
             </div>
 
-            {/* Consistency */}
-            <Panel title="Consistency" subtitle="Each square is a day: darker means more goals met (calories, water, movement)">
-                <div className="overflow-x-auto no-scrollbar">
-                    <div className="inline-grid grid-flow-col gap-1.5" style={{ gridTemplateRows: 'auto repeat(7, 1fr)' }}>
+            <div className="grid lg:grid-cols-2 gap-4 md:gap-5 items-start">
+                {/* Consistency: squares stretch to fill the card, capped so a short period doesn't blow them up */}
+                <Panel title="Consistency" subtitle="Each square is a day: darker means more goals met (calories, water, movement)">
+                    <div
+                        className="grid grid-flow-col gap-1 md:gap-1.5 w-full"
+                        style={{ gridTemplateRows: 'auto repeat(7, auto)', gridTemplateColumns: `auto repeat(${weeks}, minmax(0, 1fr))`, maxWidth: `${weeks * 3 + 2.5}rem` }}
+                    >
                         <span aria-hidden="true" />
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
                             <span key={d} className="text-xs text-muted pr-2 self-center">{i % 2 === 0 ? d : ''}</span>
@@ -388,7 +391,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                             role="img"
                                             aria-label={cellLabel(day, date)}
                                             title={cellLabel(day, date)}
-                                            className={`size-6 md:size-7 rounded-[6px] ${date === today ? 'ring-2 ring-ink ring-offset-1 ring-offset-[var(--surface)]' : ''}`}
+                                            className={`w-full aspect-square rounded-[4px] md:rounded-[6px] ${date === today ? 'ring-2 ring-ink ring-offset-1 ring-offset-[var(--surface)]' : ''}`}
                                             style={cellStyle(day, date)}
                                         />
                                     );
@@ -396,30 +399,30 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                             </React.Fragment>
                         ))}
                     </div>
-                </div>
-                <div className="flex items-center gap-1.5 mt-3 text-xs text-muted">
-                    <span>Not logged</span>
-                    <span className="size-3 rounded-[3px]" style={{ background: 'var(--surface-sunken)' }} aria-hidden="true" />
-                    {[22, 45, 70, 100].map(p => (
-                        <span key={p} className="size-3 rounded-[3px]" style={{ background: `color-mix(in srgb, var(--weight) ${p}%, var(--surface-sunken))` }} aria-hidden="true" />
-                    ))}
-                    <span>All three goals</span>
-                </div>
-            </Panel>
-
-            {/* Insights */}
-            {insights.length > 0 && (
-                <Panel title="Insights">
-                    <ul className="space-y-2.5">
-                        {insights.map(text => (
-                            <li key={text} className="flex items-start gap-2.5">
-                                <span className="mt-0.5 size-6 shrink-0 rounded-full bg-surface-sunken flex items-center justify-center text-muted" aria-hidden="true"><Lightbulb size={14} /></span>
-                                <span className="leading-relaxed">{text}</span>
-                            </li>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-3 text-xs text-muted">
+                        <span>Not logged</span>
+                        <span className="size-3 rounded-[3px]" style={{ background: 'var(--surface-sunken)' }} aria-hidden="true" />
+                        {[22, 45, 70, 100].map(p => (
+                            <span key={p} className="size-3 rounded-[3px]" style={{ background: `color-mix(in srgb, var(--weight) ${p}%, var(--surface-sunken))` }} aria-hidden="true" />
                         ))}
-                    </ul>
+                        <span>All three goals</span>
+                    </div>
                 </Panel>
-            )}
+
+                {/* Insights */}
+                {insights.length > 0 && (
+                    <Panel title="Insights">
+                        <ul className="space-y-2.5">
+                            {insights.map(text => (
+                                <li key={text} className="flex items-start gap-2.5">
+                                    <span className="mt-0.5 size-6 shrink-0 rounded-full bg-surface-sunken flex items-center justify-center text-muted" aria-hidden="true"><Lightbulb size={14} /></span>
+                                    <span className="leading-relaxed">{text}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </Panel>
+                )}
+            </div>
         </div>
     );
 };
