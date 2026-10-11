@@ -149,6 +149,9 @@
   --color-on-ink: var(--on-ink);
   --color-on-ink-muted: var(--on-ink-muted);
 
+  /* Dim layer behind sheets and dialogs. Not ink at an opacity: ink flips to cream in dark mode. */
+  --color-scrim: var(--scrim);
+
   /* Metrics: mark (rings, charts) + -bg (tile, track) + -text (text on tile) */
   --color-calories: var(--calories);
   --color-calories-bg: var(--calories-bg);
@@ -309,6 +312,7 @@
     --on-ink: #FBF8F3;
     --on-ink-muted: #9CA0AB;       /* 5.93:1 on ink */
     --focus-ring: #1F2430;
+    --scrim: rgba(31, 36, 48, 0.4);
 
     --calories: #C9573D;
     --calories-bg: #F8E4DC;
@@ -375,6 +379,7 @@
     --on-ink: #17181D;
     --on-ink-muted: #5D6270;       /* 5.32:1 on ink */
     --focus-ring: #F3EFE8;
+    --scrim: rgba(8, 9, 12, 0.64);
 
     --calories: #E07A5F;
     --calories-bg: #3A241D;
@@ -486,6 +491,35 @@
     color: var(--text-main);
   }
   .icon-btn:hover { background: var(--surface-sunken); }
+
+  /* --- CHIPS: selectable pills; selected is ink. Set aria-pressed (or aria-checked) for the state. --- */
+  .chip {
+    @apply inline-flex items-center justify-center gap-1.5 min-h-9 px-3.5 rounded-full border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-main);
+  }
+  .chip:hover { background: var(--surface-sunken); }
+  .chip[aria-pressed="true"], .chip[aria-checked="true"] {
+    background: var(--ink);
+    border-color: transparent;
+    color: var(--on-ink);
+  }
+  /* Grid chips in sheets (days, meal slots) */
+  .chip-tile { @apply min-h-11 px-3 rounded-[14px]; }
+
+  /* --- SEGMENTED: switch between sibling views; the current segment is raised on surface --- */
+  .segmented { @apply inline-flex p-1 rounded-full; background: var(--surface-sunken); }
+  .segment {
+    @apply min-h-9 px-4 inline-flex items-center gap-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
+    color: var(--text-muted);
+  }
+  .segment:hover { color: var(--text-main); }
+  .segment[aria-current="page"], .segment[aria-selected="true"] {
+    background: var(--surface);
+    color: var(--text-main);
+    box-shadow: var(--elev-sm);
+  }
 
   /* --- SURFACES --- */
   .card, .card-hover {

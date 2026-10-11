@@ -49,9 +49,6 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
     }
   };
 
-  const choice = (active: boolean) =>
-    `min-h-11 px-3 rounded-[14px] border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${active ? 'bg-ink text-on-ink border-transparent' : 'bg-surface border-border hover:bg-surface-sunken'}`;
-
   return (
     <Sheet
       title="Add to plan"
@@ -67,7 +64,7 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
         <legend className="text-sm font-semibold text-muted mb-2">Day</legend>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {dates.map(d => (
-            <button key={d} onClick={() => setDate(d)} aria-pressed={date === d} className={`${choice(date === d)} text-left`}>
+            <button key={d} onClick={() => setDate(d)} aria-pressed={date === d} className="chip chip-tile justify-start text-left">
               {dayLabel(d, today)}
             </button>
           ))}
@@ -77,7 +74,7 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
         <legend className="text-sm font-semibold text-muted mb-2">Meal</legend>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {MEAL_SLOTS.map(s => (
-            <button key={s.slot} onClick={() => setSlot(s.slot)} aria-pressed={slot === s.slot} className={choice(slot === s.slot)}>
+            <button key={s.slot} onClick={() => setSlot(s.slot)} aria-pressed={slot === s.slot} className="chip chip-tile">
               {s.label}
             </button>
           ))}

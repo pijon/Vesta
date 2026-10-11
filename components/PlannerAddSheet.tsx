@@ -101,7 +101,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`shrink-0 min-h-9 px-3.5 rounded-full text-sm font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active ? 'bg-ink text-on-ink border-transparent' : 'bg-surface border-border text-main hover:bg-surface-sunken'}`}
+      className="chip shrink-0"
     >
       {label}
     </button>

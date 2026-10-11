@@ -66,7 +66,7 @@ const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
                     type="button"
                     aria-pressed={active}
                     onClick={() => { setType(w.type); setKcal(String(w.caloriesBurned)); kcalRef.current?.focus(); }}
-                    className={`inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active ? 'bg-ink text-on-ink border-transparent' : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                    className="chip pl-2.5 pr-3"
                   >
                     <span className={active ? '' : 'text-workout-text'}><WorkoutIcon type={w.type} size={16} /></span>
                     <span className="max-w-[10rem] truncate">{w.type}</span>

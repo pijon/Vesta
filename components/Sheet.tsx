@@ -41,7 +41,7 @@ export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-ink/40 animate-fade-in"
+        className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-scrim animate-fade-in"
         onClick={onClose}
       >
         <div

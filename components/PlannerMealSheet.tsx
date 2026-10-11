@@ -89,7 +89,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
                 key={d}
                 onClick={() => setPickDate(d)}
                 aria-pressed={pickDate === d}
-                className={`min-h-11 px-3 rounded-[14px] border text-sm font-semibold text-left transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${pickDate === d ? 'bg-ink text-on-ink border-transparent' : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                className="chip chip-tile justify-start text-left"
               >
                 {dayName(d, 'short')}
               </button>
@@ -104,7 +104,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
                 key={s.slot}
                 onClick={() => setPickSlot(s.slot)}
                 aria-pressed={pickSlot === s.slot}
-                className={`min-h-11 px-3 rounded-[14px] border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${pickSlot === s.slot ? 'bg-ink text-on-ink border-transparent' : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                className="chip chip-tile"
               >
                 {s.label}
               </button>

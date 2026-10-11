@@ -216,7 +216,7 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose }) => 
                         <button
                             onClick={() => setShowIngredients(s => !s)}
                             aria-pressed={showIngredients}
-                            className={`lg:hidden shrink-0 inline-flex items-center gap-1.5 min-h-11 px-4 rounded-full text-sm font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${showIngredients ? 'bg-ink text-on-ink border-transparent' : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                            className="chip lg:hidden shrink-0 min-h-11 px-4"
                         >
                             <ListChecks size={16} aria-hidden="true" /> Ingredients
                         </button>
