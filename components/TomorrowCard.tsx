@@ -38,7 +38,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
   }
 
   return (
-    <section className="card p-5 md:p-6" aria-label="Tomorrow">
+    <section className="card p-5 md:p-6 @container" aria-label="Tomorrow">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
           <div className="flex items-center gap-2.5">
@@ -51,12 +51,13 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
         </div>
         <button onClick={onPlan} className="btn-ghost btn-sm"><CalendarDays size={16} aria-hidden="true" /> Open planner</button>
       </div>
-      <ul className="grid sm:grid-cols-2 gap-x-6">
+      {/* Two columns only when the card itself is wide (it sits in a half-width column on desktop) */}
+      <ul className="grid @lg:grid-cols-2 gap-x-6">
         {MEAL_SLOTS.flatMap(({ slot, label }) =>
           meals.filter(m => slotFor(m) === slot).map((meal, i) => {
             const visual = mealVisualFor(meal);
             return (
-              <li key={meal.instanceId || `${meal.id}-${slot}-${i}`} className="flex items-center gap-3 py-2 border-t border-border first:border-t-0 sm:[&:nth-child(2)]:border-t-0">
+              <li key={meal.instanceId || `${meal.id}-${slot}-${i}`} className="flex items-center gap-3 py-2 border-t border-border first:border-t-0 @lg:[&:nth-child(2)]:border-t-0">
                 <span className={`size-9 shrink-0 rounded-[10px] flex items-center justify-center ${visual.tint}`}>
                   <visual.Icon size={18} strokeWidth={1.75} aria-hidden="true" />
                 </span>

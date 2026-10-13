@@ -362,6 +362,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     setToast({ message: `Logged ${food.name} · ${food.calories} kcal`, undo: () => { onDeleteFoodItem(item.id); } });
   };
 
+  const tomorrowCard = <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />;
+
   return (
     <div className="space-y-8">
       {/* Today: one hero block, then metric tiles */}
@@ -438,6 +440,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         dayStatus={dailyLog.status}
         dayCounts={isCompleteDay(consumed, dailyTarget, dailyLog.status)}
         onSetDayStatus={onSetDayStatus}
+        planAside={tomorrowCard}
       />
 
       {/* The most useful piece of guidance right now (all of it is on Analytics) */}
@@ -454,8 +457,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onSetCoachRead={onSetCoachRead}
       />
 
-      {/* Tomorrow */}
-      <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />
+      {/* Tomorrow: here on phones, beside the plan from lg up */}
+      <div className="lg:hidden">{tomorrowCard}</div>
 
       {caloriesAsk && (
         <MealCaloriesSheet
