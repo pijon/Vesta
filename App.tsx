@@ -224,7 +224,11 @@ const TrackerApp: React.FC = () => {
         loadRecentWorkouts();
     }, [loadRecentWorkouts]);
 
+    // Refreshes overlap (every planner edit starts one, so does focus); only the newest may set state,
+    // or a slow earlier one lands last and puts back the plan from before the latest change
+    const refreshSeq = useRef(0);
     const refreshData = useCallback(async () => {
+        const seq = ++refreshSeq.current;
         try {
             const [today, tomorrow, stats, log, fasting] = await Promise.all([
                 getDayPlan(todayDate),
@@ -233,6 +237,7 @@ const TrackerApp: React.FC = () => {
                 getDailyLog(todayDate),
                 getFastingState()
             ]);
+            if (seq !== refreshSeq.current) return;
             // Guidance read state is secondary: don't hold up the rest of the refresh for it
             getCoachRead().then(setCoachRead);
 
@@ -254,6 +259,13 @@ const TrackerApp: React.FC = () => {
             console.error("Failed to refresh data", error);
         }
     }, [todayDate, tomorrowDate, setDailyLogState]);
+
+    // Coming back to Today reloads it: plans also change from Recipes ("Add to plan") and other family members
+    const lastView = useRef(view);
+    useEffect(() => {
+        if (view === AppView.TODAY && lastView.current !== AppView.TODAY) refreshData();
+        lastView.current = view;
+    }, [view, refreshData]);
 
     // Revalidate on focus (SWR)
     useEffect(() => {
