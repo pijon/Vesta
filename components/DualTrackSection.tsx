@@ -1,20 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
-import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';
+import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
-import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor } from '../utils/planUtils';
+import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel } from '../utils/planUtils';
 import type { FrequentFood } from '../services/pageData';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
   dailyLog: DailyLog;
-  lastAteTime?: number | null;
   onToggleMeal: (index: number) => void;
   onViewRecipe: (recipe: Recipe) => void;
   onEditWorkout: (workout: WorkoutItem) => void;
-  onDeleteWorkout: (workoutId: string) => void;
   onUpdateFoodItem: (item: FoodLogItem) => void;
   onDeleteFoodItem: (itemId: string) => void;
   onNavigate: (view: AppView) => void;
@@ -54,22 +52,19 @@ const periodFor = (timestamp: number) => {
   return PERIODS.find(p => hour >= p.from && hour < p.to) ?? PERIODS[4];
 };
 
-// Icon for what was eaten (from the name), else the meal type, else the time of day.
-const logIconFor = (item: FoodLogItem) => {
-  const food = foodIconFor(item);
-  if (food) return food;
-  const kind = (item.type || item.tags?.[0] || '').toLowerCase();
-  if (kind.includes('breakfast')) return Coffee;
-  if (kind.includes('lunch')) return Salad;
-  if (kind.includes('snack')) return Cookie;
-  if (kind.includes('dinner')) return UtensilsCrossed;
-  return periodFor(item.timestamp).Icon;
-};
+/** Clock time in the device's 12/24-hour style. AM/PM is left out: the period heading (Morning, Evening) says it. */
+const clockTime = (timestamp: number) =>
+  new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+    .formatToParts(new Date(timestamp))
+    .filter(part => part.type === 'hour' || part.type === 'minute' || (part.type === 'literal' && part.value.trim()))
+    .map(part => part.value)
+    .join('');
 
-const formatTime = (timestamp: number) =>
-  new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+/** Long days show the latest entries, with the earlier ones a tap away */
+const COLLAPSED_COUNT = 6;
 
-const COLLAPSED_COUNT = 5;
+/** Time | name | protein | kcal, shared by the column header, period headings and rows so the numbers line up */
+const LOG_GRID = 'grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem_2.75rem] gap-x-2 px-1.5';
 
 /** From this hour the day's log is mostly done, so Today says whether it will count */
 const STATUS_FROM_HOUR = 17;
@@ -94,11 +89,9 @@ const DayStatusRow: React.FC<{ status?: DayLogStatus; counts: boolean; onSet: (s
 export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   todayPlan,
   dailyLog,
-  lastAteTime,
   onToggleMeal,
   onViewRecipe,
   onEditWorkout,
-  onDeleteWorkout,
   onUpdateFoodItem,
   onDeleteFoodItem,
   onNavigate,
@@ -131,42 +124,17 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     window.addEventListener('resize', updateChipsFade);
     return () => window.removeEventListener('resize', updateChipsFade);
   }, [frequentFoods.length]);
-  const [timeSinceMeal, setTimeSinceMeal] = useState<string>('');
-
-  useEffect(() => {
-    if (!lastAteTime) {
-      setTimeSinceMeal('');
-      return;
-    }
-
-    const updateTime = () => {
-      const now = Date.now();
-      const diff = Math.max(0, now - lastAteTime);
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-
-      if (hours > 0) {
-        setTimeSinceMeal(`${hours}h ${minutes}m`);
-      } else {
-        setTimeSinceMeal(`${minutes}m`);
-      }
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 60000); // Update every minute
-    return () => clearInterval(interval);
-  }, [lastAteTime]);
 
   const sortedFoodItems = [...(dailyLog.items || [])].sort((a, b) => b.timestamp - a.timestamp);
   const sortedWorkouts = [...(dailyLog.workouts || [])].sort((a, b) => b.timestamp - a.timestamp);
 
-  // One timeline, newest first, grouped by period of the day
+  // One timeline through the day, morning at the top, grouped by period
   const logEntries: LogEntry[] = [
     ...sortedFoodItems.map(item => ({ kind: 'food' as const, id: item.id, timestamp: item.timestamp, item })),
     ...sortedWorkouts.map(workout => ({ kind: 'workout' as const, id: workout.id, timestamp: workout.timestamp, workout })),
-  ].sort((a, b) => b.timestamp - a.timestamp);
-  const visibleEntries = showAllLoggedItems ? logEntries : logEntries.slice(0, COLLAPSED_COUNT);
+  ].sort((a, b) => a.timestamp - b.timestamp);
+  const hiddenCount = !showAllLoggedItems && logEntries.length > COLLAPSED_COUNT + 1 ? logEntries.length - COLLAPSED_COUNT : 0;
+  const visibleEntries = logEntries.slice(hiddenCount);
   const entryGroups = visibleEntries.reduce<{ key: string; label: string; entries: LogEntry[] }[]>((groups, entry) => {
     const period = periodFor(entry.timestamp);
     const last = groups[groups.length - 1];
@@ -174,8 +142,6 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     else groups.push({ key: period.key, label: period.label, entries: [entry] });
     return groups;
   }, []);
-  const caloriesEaten = sortedFoodItems.reduce((sum, i) => sum + i.calories, 0);
-  const caloriesBurned = sortedWorkouts.reduce((sum, w) => sum + w.caloriesBurned, 0);
 
   const handleStartEditFood = (item: FoodLogItem) => {
     setEditingFoodItem(item);
@@ -226,9 +192,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
 
   // Deletes at once; Today offers Undo
   const handleDeleteFood = (itemId: string) => onDeleteFoodItem(itemId);
-  const handleDeleteWorkout = (workoutId: string) => onDeleteWorkout(workoutId);
 
-  const totalLoggedItems = sortedFoodItems.length + sortedWorkouts.length;
 
   const plannedMeals = todayPlan.meals || [];
   const eatenCount = plannedMeals.filter(m => isMealEaten(todayPlan, m)).length;
@@ -248,8 +212,10 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     .filter(group => group.entries.length > 0);
   const eatenCalories = eatenMeals.reduce((sum, { meal }) => sum + mealCalories(meal), 0);
   const fits = remainingPlannedCalories <= caloriesLeft;
-  // Instance ids of planned meals, to mark the log entries they created
-  const plannedKeys = new Set(plannedMeals.map(mealKey));
+  // The planned meal an entry was logged from, if it's still in today's plan
+  const editingPlanned = editingFoodItem?.planInstanceId
+    ? plannedMeals.find(meal => mealKey(meal) === editingFoodItem.planInstanceId)
+    : undefined;
 
   const renderMeal = ({ meal, index }: { meal: Recipe; index: number }) => {
                 const isEaten = isMealEaten(todayPlan, meal);
@@ -400,19 +366,9 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
 
       {/* Right: Today's log, a single timeline */}
       <div className="card flex flex-col">
-        <div className="px-5 md:px-6 pt-5 pb-4 flex justify-between items-start gap-3">
-          <div className="min-w-0">
-            <h3 className="heading-3 text-lg">Today's log</h3>
-            <p className="text-sm text-muted mt-0.5">
-              {totalLoggedItems === 0
-                ? 'Nothing logged yet'
-                : [
-                    `${caloriesEaten.toLocaleString()} kcal eaten`,
-                    caloriesBurned > 0 ? `${caloriesBurned.toLocaleString()} burned` : null,
-                    timeSinceMeal ? (timeSinceMeal === '0m' ? 'last meal just now' : `last meal ${timeSinceMeal} ago`) : null,
-                  ].filter(Boolean).join(' · ')}
-            </p>
-          </div>
+        {/* The day's totals are in the hero and the period headings, so the header is just the title */}
+        <div className="px-5 md:px-6 pt-5 pb-4 flex justify-between items-center gap-3">
+          <h3 className="heading-3 text-lg">Today's log</h3>
           <button onClick={onLogFood} className="btn-secondary btn-sm shrink-0"><Plus size={16} aria-hidden="true" /> Add</button>
         </div>
 
@@ -452,58 +408,71 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             </div>
           ) : (
             <>
+              {(hiddenCount > 0 || showAllLoggedItems) && (
+                <button
+                  onClick={() => setShowAllLoggedItems(!showAllLoggedItems)}
+                  className="btn-ghost btn-sm w-full mb-1"
+                  aria-expanded={showAllLoggedItems}
+                >
+                  {showAllLoggedItems ? 'Show fewer' : `Show ${hiddenCount} earlier ${hiddenCount === 1 ? 'entry' : 'entries'}`}
+                  <ChevronDown size={16} className={`transition-transform ${showAllLoggedItems ? '' : 'rotate-180'}`} />
+                </button>
+              )}
+
+              {/* Column labels once; the units live here, not on every row */}
+              <div className={`${LOG_GRID} text-xs text-muted pb-0.5`} aria-hidden="true">
+                <span className="col-start-3 text-right">Protein</span>
+                <span className="text-right">kcal</span>
+              </div>
+
               {entryGroups.map((group) => {
-                // Subtotal counts food only; a workout-only period shows what was burned
-                const eaten = group.entries.reduce((sum, e) => sum + (e.kind === 'food' ? e.item.calories : 0), 0);
-                const burned = group.entries.reduce((sum, e) => sum + (e.kind === 'workout' ? e.workout.caloriesBurned : 0), 0);
+                // Period totals sit in the same columns as the rows, and count food only
+                const food = group.entries.flatMap(e => (e.kind === 'food' ? [e.item] : []));
+                const kcal = food.reduce((sum, item) => sum + item.calories, 0);
+                const withProtein = food.filter(item => typeof item.protein === 'number');
+                const protein = withProtein.reduce((sum, item) => sum + (item.protein || 0), 0);
                 return (
-                  <section key={group.key} className="mt-1 first:mt-0">
-                    <div className="flex justify-between items-baseline pl-2 pr-[3.25rem] pt-3 pb-1.5">
-                      <h4 className="font-sans text-xs font-semibold text-muted">{group.label}</h4>
-                      <span className="text-xs font-semibold text-muted">
-                        {eaten > 0 ? `${eaten.toLocaleString()} kcal` : `−${burned.toLocaleString()} kcal`}
-                      </span>
+                  <section key={group.key}>
+                    <div className={`${LOG_GRID} items-baseline pt-3 pb-1.5 text-xs font-semibold`}>
+                      <h4 className="col-span-2 font-sans text-xs font-semibold">{group.label}</h4>
+                      {food.length > 0 && (
+                        <>
+                          <span className="text-right text-muted tabular-nums">{withProtein.length ? `${Math.round(protein)} g` : '–'}</span>
+                          <span className="text-right text-muted tabular-nums">{kcal.toLocaleString()}</span>
+                        </>
+                      )}
                     </div>
                     <ul>
                       {group.entries.map((entry) => {
                         const isFood = entry.kind === 'food';
-                        const FoodIcon = isFood ? logIconFor(entry.item) : null;
-                        const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
                         const name = displayName(isFood ? entry.item.name : entry.workout.type);
-                        const kcal = isFood ? entry.item.calories : entry.workout.caloriesBurned;
+                        const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
                         return (
-                          <li key={entry.id} className="group relative flex items-center gap-1 rounded-[14px] hover:bg-surface-sunken transition-colors">
+                          <li key={entry.id} className="border-t border-border">
                             <button
                               onClick={() => (isFood ? handleStartEditFood(entry.item) : onEditWorkout(entry.workout))}
-                              className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
+                              className={`${LOG_GRID} w-full items-baseline py-2.5 text-left rounded-[10px] hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]`}
                               aria-label={`Edit ${name}`}
                             >
-                              <span className={`size-10 shrink-0 rounded-[12px] flex items-center justify-center ${isFood ? 'bg-calories-bg text-calories-text' : 'bg-workout-bg text-workout-text'}`}>
-                                {FoodIcon && <FoodIcon size={20} strokeWidth={2} aria-hidden="true" />}
-                                {WorkoutIcon && <WorkoutIcon size={22} stroke={1.75} aria-hidden="true" />}
-                              </span>
-                              <span className="flex-1 min-w-0">
-                                <span className="font-semibold leading-snug line-clamp-2">{name}</span>
-                                <span className="flex items-center gap-1.5 text-xs text-muted mt-0.5">
-                                  <span className="whitespace-nowrap">{formatTime(entry.timestamp)}</span>
-                                  {isFood && !!entry.item.protein && <span className="whitespace-nowrap">· {entry.item.protein} g protein</span>}
-                                  {isFood && entry.item.planInstanceId && plannedKeys.has(entry.item.planInstanceId) && <span className="badge badge-weight !py-0">Planned</span>}
-                                  {isFood && entry.item.isLeftover && <span className="badge badge-neutral !py-0">Leftover</span>}
-                                  {isFood && entry.item.isPacked && <span className="badge badge-neutral !py-0">Packed</span>}
-                                  {!isFood && <span>Workout</span>}
+                              <span className="text-[13px] text-muted tabular-nums">{clockTime(entry.timestamp)}</span>
+                              {isFood ? (
+                                <>
+                                  <span className="text-[15px] font-semibold leading-snug line-clamp-2">{name}</span>
+                                  <span className={`text-sm text-right tabular-nums ${typeof entry.item.protein === 'number' ? '' : 'text-muted'}`}>
+                                    {typeof entry.item.protein === 'number' ? `${entry.item.protein} g` : '–'}
+                                  </span>
+                                  <span className="text-right font-semibold tabular-nums">{entry.item.calories.toLocaleString()}</span>
+                                </>
+                              ) : (
+                                // Workouts sit on the timeline but stay out of the food columns, so the totals add up
+                                <span className="col-span-3 min-w-0 text-workout-text">
+                                  <span className="flex items-center gap-1.5 font-semibold leading-snug">
+                                    {WorkoutIcon && <WorkoutIcon size={16} stroke={2} aria-hidden="true" className="shrink-0" />}
+                                    <span className="truncate">{name}</span>
+                                  </span>
+                                  <span className="block text-xs mt-0.5">{entry.workout.caloriesBurned.toLocaleString()} kcal burned</span>
                                 </span>
-                              </span>
-                              <span className={`shrink-0 text-right font-display font-extrabold text-lg leading-6 ${isFood ? 'text-main' : 'text-workout-text'}`}>
-                                {isFood ? kcal.toLocaleString() : `−${kcal.toLocaleString()}`}
-                                <span className="block font-sans text-[11px] font-semibold text-muted leading-3">kcal</span>
-                              </span>
-                            </button>
-                            <button
-                              onClick={() => (isFood ? handleDeleteFood(entry.id) : handleDeleteWorkout(entry.id))}
-                              className="hit-target size-9 shrink-0 mr-1 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-                              aria-label={`Delete ${name}`}
-                            >
-                              <Trash2 size={16} />
+                              )}
                             </button>
                           </li>
                         );
@@ -512,17 +481,6 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   </section>
                 );
               })}
-
-              {logEntries.length > COLLAPSED_COUNT && (
-                <button
-                  onClick={() => setShowAllLoggedItems(!showAllLoggedItems)}
-                  className="btn-ghost btn-sm w-full mt-2"
-                  aria-expanded={showAllLoggedItems}
-                >
-                  {showAllLoggedItems ? 'Show less' : `Show all ${logEntries.length} entries`}
-                  <ChevronDown size={16} className={`transition-transform ${showAllLoggedItems ? 'rotate-180' : ''}`} />
-                </button>
-              )}
 
               {sortedFoodItems.length > 0 && (dayStatus || new Date().getHours() >= STATUS_FROM_HOUR) && (
                 <DayStatusRow status={dayStatus} counts={dayCounts} onSet={onSetDayStatus} />
@@ -552,6 +510,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           }
         >
           <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSaveEditFood(); }}>
+            {editingPlanned && (
+              <div className="flex items-center justify-between gap-3 rounded-[14px] bg-surface-sunken pl-3 pr-1.5 py-1.5">
+                <span className="text-sm text-muted">From your plan · {slotLabel(slotFor(editingPlanned))}</span>
+                <button type="button" onClick={() => { const meal = editingPlanned; handleCancelEditFood(); onViewRecipe(meal); }} className="btn-ghost btn-sm">
+                  <BookOpen size={16} aria-hidden="true" /> View recipe
+                </button>
+              </div>
+            )}
             <label className="block">
               <span className="block text-sm font-semibold mb-1.5">Food</span>
               <input value={editFoodName} onChange={e => setEditFoodName(e.target.value)} className="input w-full" placeholder="Apple" />

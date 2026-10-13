@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { WorkoutItem } from '../types';
 import { workoutIconFor } from '../utils/workoutVisual';
 import { Sheet } from './Sheet';
@@ -9,6 +10,8 @@ interface WorkoutEntryModalProps {
   onSave: (workout: WorkoutItem) => void;
   editingWorkout?: WorkoutItem | null;
   recentWorkouts?: WorkoutItem[];
+  /** Deletes the workout being edited; shown only when editing */
+  onDelete?: () => void;
 }
 
 const WorkoutIcon: React.FC<{ type: string; size: number }> = ({ type, size }) =>
@@ -19,6 +22,7 @@ const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
   onSave,
   editingWorkout = null,
   recentWorkouts = [],
+  onDelete,
 }) => {
   const [type, setType] = useState(editingWorkout?.type ?? '');
   const [kcal, setKcal] = useState(editingWorkout ? String(editingWorkout.caloriesBurned) : '');
@@ -45,11 +49,19 @@ const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
     onClose();
   };
 
-  const footer = (
+  const saveButton = (
     <button onClick={save} disabled={!canSave} className="btn-primary btn-block">
       {editingWorkout ? 'Save changes' : kcal ? `Log workout · ${parseInt(kcal, 10).toLocaleString()} kcal` : 'Log workout'}
     </button>
   );
+  const footer = editingWorkout && onDelete ? (
+    <div className="flex gap-2">
+      <button onClick={() => { onClose(); onDelete(); }} className="btn-ghost !text-error hover:!bg-error-bg">
+        <Trash2 size={16} aria-hidden="true" /> Delete
+      </button>
+      <div className="flex-1">{saveButton}</div>
+    </div>
+  ) : saveButton;
 
   return (
     <Sheet title={editingWorkout ? 'Edit workout' : 'Log workout'} onClose={onClose} footer={footer} initialFocus={typeRef}>

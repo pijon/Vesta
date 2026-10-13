@@ -148,6 +148,8 @@ const TrackerApp: React.FC = () => {
     }, [location.search, location.pathname, navigate]);
     const [isSundayResetOpen, setIsSundayResetOpen] = useState(false);
     const [editingWorkout, setEditingWorkout] = useState<WorkoutItem | null>(null);
+    // Delete for the workout being edited, from whoever opened the sheet (Today adds Undo)
+    const [deleteEditingWorkout, setDeleteEditingWorkout] = useState<(() => void) | undefined>();
     const [recentWorkouts, setRecentWorkouts] = useState<WorkoutItem[]>([]);
 
     const [userStats, setUserStatsState] = useState<UserStats>(() => cache.getCachedUserStats() || DEFAULT_USER_STATS);
@@ -634,9 +636,10 @@ const TrackerApp: React.FC = () => {
         onNavigate: handleNavigate,
         // Modal Handlers
         onOpenFoodModal: () => setIsFoodModalOpen(true),
-        onOpenWorkoutModal: (workout?: WorkoutItem) => {
+        onOpenWorkoutModal: (workout?: WorkoutItem, onDelete?: () => void) => {
             if (workout) setEditingWorkout(workout);
             else setEditingWorkout(null);
+            setDeleteEditingWorkout(() => onDelete);
             setIsWorkoutModalOpen(true);
         },
         onOpenWeightModal: () => setIsWeightModalOpen(true),
@@ -759,6 +762,7 @@ const TrackerApp: React.FC = () => {
                         setEditingWorkout(null);
                     }}
                     onSave={handleWorkoutSave}
+                    onDelete={editingWorkout ? deleteEditingWorkout : undefined}
                     editingWorkout={editingWorkout}
                     recentWorkouts={recentWorkouts}
                 />

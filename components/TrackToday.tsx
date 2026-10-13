@@ -55,7 +55,8 @@ interface TrackTodayProps {
   refreshData: () => void;
   onNavigate: (view: AppView) => void;
   onOpenFoodModal: () => void;
-  onOpenWorkoutModal: (workout?: WorkoutItem) => void;
+  /** `onDelete` gives the edit sheet a Delete button (with Today's Undo) */
+  onOpenWorkoutModal: (workout?: WorkoutItem, onDelete?: () => void) => void;
   onOpenWeightModal: () => void;
   onAddWater: (amount: number) => Promise<void>;
   coachRead: CoachReadState;
@@ -181,7 +182,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
 
   const handleEditWorkout = (workout: WorkoutItem) => {
-    onOpenWorkoutModal(workout);
+    onOpenWorkoutModal(workout, () => handleDeleteWorkout(workout.id));
   };
 
   const [caloriesAsk, setCaloriesAsk] = useState<CaloriesAsk | null>(null);
@@ -424,11 +425,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       <DualTrackSection
         todayPlan={todayPlan}
         dailyLog={dailyLog}
-        lastAteTime={fastingState.lastAteTime}
         onToggleMeal={toggleMeal}
         onViewRecipe={setSelectedRecipe}
         onEditWorkout={handleEditWorkout}
-        onDeleteWorkout={handleDeleteWorkout}
         onUpdateFoodItem={onUpdateFoodItem}
         onDeleteFoodItem={handleDeleteFoodItem}
         onNavigate={onNavigate}
