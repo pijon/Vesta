@@ -32,7 +32,8 @@ export interface AnalyticsDay {
 
 /**
  * One entry per calendar day in the period (oldest first), so charts show unlogged days as gaps
- * instead of drawing logged days next to each other. Today uses the live log.
+ * instead of drawing logged days next to each other. Today uses the live log. The period ends
+ * today unless `end` says otherwise.
  */
 export const buildDays = (
   periodDays: number,
@@ -40,6 +41,7 @@ export const buildDays = (
   dayTypes: Record<string, string>,
   stats: UserStats,
   todayLog: DailyLog,
+  end = localDateString(),
 ): AnalyticsDay[] => {
   const today = localDateString();
   const byDate = new Map(summaries.map(s => [s.date, s]));
@@ -60,7 +62,7 @@ export const buildDays = (
   const workoutGoal = stats.dailyWorkoutCountGoal || 1;
 
   return Array.from({ length: periodDays }, (_, i) => {
-    const date = addDays(today, i - periodDays + 1);
+    const date = addDays(end, i - periodDays + 1);
     const s = byDate.get(date);
     const isFastDay = dayTypes[date] === 'fast';
     const calorieTarget = isFastDay ? stats.dailyCalorieGoal : (stats.nonFastDayCalories || 2000);
@@ -192,35 +194,128 @@ export const weightSummary = (history: WeightEntry[], periodDays: number, goal: 
   return { points, fallback, inPeriod, current, change, toGoal: current !== null && goal > 0 ? current - goal : null, ratePerWeek, goalDate };
 };
 
-/** Short, factual observations; only when there's enough data to say them. */
-export const insightsFor = (days: AnalyticsDay[], summary: PeriodSummary, workoutTypes: string[]): string[] => {
-  const insights: string[] = [];
-  const total = days.length;
-  if (summary.loggedDays < total) {
-    insights.push(`You logged food on ${summary.loggedDays} of the last ${total} days. Charts only include logged days.`);
+export interface Insight {
+  id: string;
+  /** win = better than the period before (or on target), watch = worse, steady = about the same */
+  tone: 'win' | 'watch' | 'steady';
+  text: string;
+}
+
+const MAX_INSIGHTS = 4;
+const round10 = (n: number) => Math.round(n / 10) * 10;
+const pct = (n: number, of: number) => Math.round((n / of) * 100);
+const kcal = (n: number) => `${round10(n).toLocaleString()} kcal`;
+
+/** A period has enough food logged to say something about it */
+const enoughLogged = (s: PeriodSummary) => s.loggedDays >= 3;
+
+/** Average calories more a day at weekends than on weekdays, when both have enough logged days */
+const weekendGap = (days: AnalyticsDay[]) => {
+  const logged = days.filter(d => d.logged);
+  const isWeekend = (d: AnalyticsDay) => [0, 6].includes(parseLocalDate(d.date).getDay());
+  const weekend = logged.filter(isWeekend);
+  const weekday = logged.filter(d => !isWeekend(d));
+  if (weekend.length < 2 || weekday.length < 3) return null;
+  return average(weekend.map(d => d.calories))! - average(weekday.map(d => d.calories))!;
+};
+
+/**
+ * How the period went compared with the one before it, wins first. Each insight needs enough data
+ * in both periods to compare; a few also stand alone against a target. What to change is the
+ * Guidance panel's job, so logging gaps and protein shortfalls aren't repeated here.
+ */
+export const insightsFor = (
+  current: AnalyticsDay[],
+  previous: AnalyticsDay[],
+  targetFastHours: number,
+  fastTarget: number,
+): { insights: Insight[]; compared: boolean } => {
+  const insights: Insight[] = [];
+  const cur = summarize(current, targetFastHours);
+  const prev = summarize(previous, targetFastHours);
+  const hasPrev = enoughLogged(prev);
+  if (!enoughLogged(cur)) return { insights, compared: false };
+  const change = (now: number, before: number, step: number): Insight['tone'] =>
+    now - before >= step ? 'win' : before - now >= step ? 'watch' : 'steady';
+
+  // Days within the calorie target
+  const onTarget = pct(cur.daysOnTarget, cur.loggedDays);
+  if (hasPrev) {
+    const before = pct(prev.daysOnTarget, prev.loggedDays);
+    const tone = change(onTarget, before, 10);
+    insights.push({
+      id: 'on-target', tone,
+      text: tone === 'steady'
+        ? `Within your calorie target on ${onTarget}% of logged days, about the same as before.`
+        : `Within your calorie target on ${onTarget}% of logged days, ${tone === 'win' ? 'up' : 'down'} from ${before}%.`,
+    });
+  } else {
+    insights.push({ id: 'on-target', tone: onTarget >= 70 ? 'win' : 'steady', text: `Within your calorie target on ${cur.daysOnTarget} of ${cur.loggedDays} logged days.` });
   }
-  if (summary.loggedDays >= 3 && summary.daysOnTarget > 0) {
-    insights.push(`${summary.daysOnTarget} of ${summary.loggedDays} logged days were within your calorie target.`);
+
+  // Weekends against weekdays
+  const gap = weekendGap(current);
+  const gapBefore = hasPrev ? weekendGap(previous) : null;
+  if (gap !== null && gapBefore !== null && gapBefore >= 250 && gap < 150) {
+    insights.push({ id: 'weekends', tone: 'win', text: `Weekends now match your weekdays, down from ${kcal(gapBefore)} a day more.` });
+  } else if (gap !== null && gap >= 150) {
+    const tone = gapBefore === null ? 'watch' : change(gapBefore, gap, 100);
+    insights.push({
+      id: 'weekends', tone,
+      text: gapBefore === null || tone === 'steady'
+        ? `You eat about ${kcal(gap)} more a day at weekends.`
+        : `Weekends are ${kcal(gap)} a day over weekdays, ${tone === 'win' ? 'down' : 'up'} from ${kcal(gapBefore)}.`,
+    });
   }
-  if (summary.avgFastDayCalories !== null) {
-    insights.push(`Fast days averaged ${Math.round(summary.avgFastDayCalories).toLocaleString()} kcal.`);
+
+  // Fast days against their target
+  const fastDays = current.filter(d => d.logged && d.isFastDay).length;
+  if (fastDays >= 2 && cur.avgFastDayCalories !== null && fastTarget > 0) {
+    const avg = cur.avgFastDayCalories;
+    insights.push(avg <= fastTarget * 1.05
+      ? { id: 'fast-days', tone: 'win', text: `Fast days averaged ${kcal(avg)}, ${avg < fastTarget * 0.95 ? 'under' : 'right on'} your ${kcal(fastTarget)} target.` }
+      : avg <= fastTarget * 1.1
+        ? { id: 'fast-days', tone: 'steady', text: `Fast days averaged ${kcal(avg)}, close to your ${kcal(fastTarget)} target.` }
+        : { id: 'fast-days', tone: 'watch', text: `Fast days averaged ${kcal(avg)}, ${kcal(avg - fastTarget)} over your ${kcal(fastTarget)} target.` });
   }
-  if (summary.fastCount >= 3 && summary.avgFast !== null) {
-    insights.push(`Your fasts averaged ${summary.avgFast.toFixed(1)} hours; ${summary.fastsReachingTarget} of ${summary.fastCount} reached your target.`);
+
+  // Protein
+  if (hasPrev && cur.avgProtein !== null && prev.avgProtein !== null && cur.proteinDays >= 3 && prev.proteinDays >= 3) {
+    const now = Math.round(cur.avgProtein);
+    const before = Math.round(prev.avgProtein);
+    const tone = change(now, before, Math.max(5, before * 0.1));
+    insights.push({
+      id: 'protein', tone,
+      text: tone === 'steady' ? `Protein steady at about ${now} g a day.` : `Protein ${tone === 'win' ? 'up' : 'down'} to ${now} g a day, from ${before} g.`,
+    });
   }
-  if (workoutTypes.length >= 3) {
-    const counts = new Map<string, number>();
-    workoutTypes.forEach(t => counts.set(t, (counts.get(t) || 0) + 1));
-    const [top, n] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-    if (n >= 2) insights.push(`Your most common workout is ${top.toLowerCase()} (${n} of ${workoutTypes.length}).`);
-  }
-  const loggedWeekdays = days.filter(d => d.logged);
-  if (loggedWeekdays.length >= 14) {
-    const weekend = average(loggedWeekdays.filter(d => [0, 6].includes(parseLocalDate(d.date).getDay())).map(d => d.calories));
-    const weekday = average(loggedWeekdays.filter(d => ![0, 6].includes(parseLocalDate(d.date).getDay())).map(d => d.calories));
-    if (weekend !== null && weekday !== null && Math.abs(weekend - weekday) >= 200) {
-      insights.push(`You eat about ${Math.round(Math.abs(weekend - weekday) / 10) * 10} kcal ${weekend > weekday ? 'more' : 'less'} a day at weekends.`);
+
+  // Fasts reaching their target length
+  if (cur.fastCount >= 3) {
+    const reached = pct(cur.fastsReachingTarget, cur.fastCount);
+    const base = `${cur.fastsReachingTarget} of ${cur.fastCount} fasts reached ${targetFastHours} h`;
+    if (hasPrev && prev.fastCount >= 3) {
+      const before = pct(prev.fastsReachingTarget, prev.fastCount);
+      const tone = change(reached, before, 15);
+      insights.push({ id: 'fasts', tone, text: tone === 'steady' ? `${base}, about the same as before.` : `${base}, ${tone === 'win' ? 'up' : 'down'} from ${before}% of them.` });
+    } else {
+      insights.push({ id: 'fasts', tone: reached >= 70 ? 'win' : 'steady', text: `${base}.` });
     }
   }
-  return insights;
+
+  // Workouts
+  if (hasPrev && (cur.workouts >= 2 || prev.workouts >= 2)) {
+    const tone = change(cur.workouts, prev.workouts, Math.max(2, prev.workouts * 0.2));
+    const n = `${cur.workouts} workout${cur.workouts === 1 ? '' : 's'}`;
+    insights.push({ id: 'workouts', tone, text: tone === 'steady' ? `${n}, the same pace as before.` : `${n}, ${tone === 'win' ? 'up' : 'down'} from ${prev.workouts}.` });
+  }
+
+  // Water goal
+  if (hasPrev && cur.waterDaysLogged >= 3 && prev.waterDaysLogged >= 3) {
+    const tone = change(cur.waterDaysMet, prev.waterDaysMet, 2);
+    if (tone !== 'steady') insights.push({ id: 'water', tone, text: `Water goal met on ${cur.waterDaysMet} days, ${tone === 'win' ? 'up' : 'down'} from ${prev.waterDaysMet}.` });
+  }
+
+  const order = { win: 0, watch: 1, steady: 2 };
+  return { insights: insights.sort((a, b) => order[a.tone] - order[b.tone]).slice(0, MAX_INSIGHTS), compared: hasPrev };
 };

@@ -12,7 +12,8 @@ const daysFromToday = (days: number) => {
   return localDateString(d);
 };
 
-export const analyticsSummariesData = defineWarm('analytics:summaries', () => getDailySummaries(), 30_000);
+/** Six months of daily summaries: the analytics periods (up to 90 days) and the 90 before, for comparisons. */
+export const analyticsSummariesData = defineWarm('analytics:summaries', () => getDailySummaries(180), 30_000);
 
 /** Fast/nourish type of each day over the analytics period (last ~90 days). */
 export const analyticsDayTypesData = defineWarm('analytics:dayTypes', async () => {

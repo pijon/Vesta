@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, Droplets, Flame, Lightbulb, Scale, Timer } from 'lucide-react';
+import { Activity, CircleAlert, Droplets, Equal, Flame, Scale, ThumbsUp, Timer } from 'lucide-react';
 import { AppView, DayPlan, DailyLog, FastingState, UserStats, CoachReadState } from '../types';
 import { analyticsDayTypesData, analyticsSummariesData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
-import { AnalyticsDay, AnalyticsPeriod, PERIODS, buildDays, insightsFor, summarize, weightSummary } from '../utils/analyticsModel';
+import { AnalyticsDay, AnalyticsPeriod, Insight, PERIODS, buildDays, insightsFor, summarize, weightSummary } from '../utils/analyticsModel';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { addDays, proteinTarget } from '../utils/planUtils';
 import { ChartContainer } from './analytics/ChartContainer';
@@ -51,6 +51,12 @@ const Empty: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="h-40 flex items-center justify-center rounded-[14px] bg-surface-sunken text-sm text-muted text-center px-6">{children}</div>
 );
 
+const INSIGHT_TONE: Record<Insight['tone'], { Icon: typeof ThumbsUp; className: string; label: string }> = {
+    win: { Icon: ThumbsUp, className: 'tile-weight', label: 'Better' },
+    watch: { Icon: CircleAlert, className: 'bg-warning-bg text-warning', label: 'Worth a look' },
+    steady: { Icon: Equal, className: 'tile-neutral', label: 'Steady' },
+};
+
 /** Tooltip in the app's card style */
 const ChartTip: React.FC<{ active?: boolean; label?: string | number; lines: (label: string | number) => React.ReactNode }> = ({ active, label, lines }) =>
     active && label !== undefined ? (
@@ -75,14 +81,13 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     const byDate = useMemo(() => new Map(days.map(d => [d.date, d])), [days]);
     const summary = useMemo(() => summarize(days, targetFast), [days, targetFast]);
     const weight = useMemo(() => weightSummary(stats.weightHistory, periodDays, stats.goalWeight), [stats.weightHistory, periodDays, stats.goalWeight]);
-    const workoutTypes = useMemo(() => {
-        const since = days[0].date;
-        return [
-            ...summaries.filter(s => s.date >= since && s.date !== localDateString()).flatMap(s => s.workoutTypes || []),
-            ...(dailyLog.workouts || []).map(w => w.type),
-        ];
-    }, [summaries, days, dailyLog]);
-    const insights = useMemo(() => insightsFor(days, summary, workoutTypes), [days, summary, workoutTypes]);
+    // The period up to yesterday (today is still in progress) against the same length before it
+    const { insights, compared } = useMemo(() => {
+        const yesterday = addDays(localDateString(), -1);
+        const current = buildDays(periodDays, summaries, dayTypes, stats, dailyLog, yesterday);
+        const previous = buildDays(periodDays, summaries, dayTypes, stats, dailyLog, addDays(yesterday, -periodDays));
+        return insightsFor(current, previous, targetFast, stats.dailyCalorieGoal);
+    }, [periodDays, summaries, dayTypes, stats, dailyLog, targetFast]);
 
     const tickDate = (date: string) => period === 'week'
         ? parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })
@@ -226,6 +231,22 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 coachRead={coachRead}
                 onSetCoachRead={onSetCoachRead}
             />
+
+            {insights.length > 0 && (
+                <Panel title="Insights" subtitle={compared ? `The last ${periodDays} days against the ${periodDays} before` : `The last ${periodDays} days; comparisons start once the ${periodDays} before have 3 logged days`}>
+                    <ul className="space-y-2.5">
+                        {insights.map(insight => {
+                            const { Icon, className, label } = INSIGHT_TONE[insight.tone];
+                            return (
+                                <li key={insight.id} className="flex items-start gap-2.5">
+                                    <span className={`mt-0.5 size-6 shrink-0 rounded-full flex items-center justify-center ${className}`}><Icon size={14} aria-hidden="true" /></span>
+                                    <span className="leading-relaxed"><span className="sr-only">{label}: </span>{insight.text}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </Panel>
+            )}
 
             {/* Weight */}
             <Panel
@@ -413,19 +434,6 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                     </div>
                 </Panel>
 
-                {/* Insights */}
-                {insights.length > 0 && (
-                    <Panel title="Insights">
-                        <ul className="space-y-2.5">
-                            {insights.map(text => (
-                                <li key={text} className="flex items-start gap-2.5">
-                                    <span className="mt-0.5 size-6 shrink-0 rounded-full bg-surface-sunken flex items-center justify-center text-muted" aria-hidden="true"><Lightbulb size={14} /></span>
-                                    <span className="leading-relaxed">{text}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </Panel>
-                )}
             </div>
         </div>
     );
