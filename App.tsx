@@ -396,49 +396,60 @@ const TrackerApp: React.FC = () => {
         loadRecentWorkouts();
     };
 
-    const handleLogMeal = async (meal: Recipe, isAdding: boolean) => {
-        // Use current state instead of fetching fresh to avoid extra DB read
-        const currentLog = dailyLogRef.current;
-        let newItems = [...(currentLog.items || [])];
-        let currentFastingMax = currentLog.maxFastingHours || 0;
+    /**
+     * Logs planned meals as eaten, each at its own time. The fast ends at the earliest of them and
+     * the last meal becomes the last time eaten, so logging the day in the evening keeps fasts right.
+     */
+    const handleLogMeals = async (entries: { meal: Recipe; at: number }[]) => {
+        if (!entries.length) return;
+        const sorted = [...entries].sort((a, b) => a.at - b.at);
+        const first = sorted[0].at;
+        const last = sorted[sorted.length - 1].at;
+        let currentFastingMax = dailyLogRef.current.maxFastingHours || 0;
 
-        if (isAdding) {
-            const now = Date.now();
-            newItems.push({
-                id: crypto.randomUUID(),
-                name: meal.name,
-                calories: mealCalories(meal),
-                ...(mealProtein(meal) !== undefined ? { protein: mealProtein(meal) } : {}),
-                timestamp: now,
-                // Persist metadata
-                tags: meal.tags,
-                isLeftover: meal.isLeftover,
-                isPacked: meal.isPacked,
-                type: slotLabel(slotFor(meal))
-            });
-
-            // Check active fast duration before breaking it
-            if (fastingState.lastAteTime) {
-                const diffHours = (now - fastingState.lastAteTime) / (1000 * 60 * 60);
-                if (diffHours > currentFastingMax && diffHours <= MAX_PLAUSIBLE_FAST_HOURS) {
-                    currentFastingMax = diffHours;
-                }
-            }
-
-            // Update TRE tracking when adding a meal
-            await updateLastAteTime(now);
-        } else {
-            for (let i = newItems.length - 1; i >= 0; i--) {
-                if (newItems[i].name === meal.name && newItems[i].calories === mealCalories(meal)) {
-                    newItems.splice(i, 1);
-                    // When removing, we don't recalculate maxFastingHours or revert persistence
-                    // as the fast WAS broken/achieved at that time.
-                    break;
-                }
+        // Check active fast duration before breaking it
+        if (fastingState.lastAteTime && first > fastingState.lastAteTime) {
+            const diffHours = (first - fastingState.lastAteTime) / (1000 * 60 * 60);
+            if (diffHours > currentFastingMax && diffHours <= MAX_PLAUSIBLE_FAST_HOURS) {
+                currentFastingMax = diffHours;
             }
         }
 
-        await updateDailyLog((current) => ({ ...current, items: newItems, maxFastingHours: currentFastingMax }));
+        const items: FoodLogItem[] = sorted.map(({ meal, at }) => ({
+            id: crypto.randomUUID(),
+            name: meal.name,
+            calories: mealCalories(meal),
+            ...(mealProtein(meal) !== undefined ? { protein: mealProtein(meal) } : {}),
+            timestamp: at,
+            // Persist metadata
+            tags: meal.tags,
+            isLeftover: meal.isLeftover,
+            isPacked: meal.isPacked,
+            type: slotLabel(slotFor(meal))
+        }));
+        await updateDailyLog((current) => ({ ...current, items: [...(current.items || []), ...items], maxFastingHours: currentFastingMax }));
+
+        // Update TRE tracking: meals logged after the fact may be older than the last time eaten
+        await updateLastAteTime(first, Math.max(last, fastingState.lastAteTime || 0));
+    };
+
+    const handleLogMeal = async (meal: Recipe, isAdding: boolean) => {
+        if (isAdding) {
+            await handleLogMeals([{ meal, at: Date.now() }]);
+            return;
+        }
+        // Use current state instead of fetching fresh to avoid extra DB read
+        const newItems = [...(dailyLogRef.current.items || [])];
+        for (let i = newItems.length - 1; i >= 0; i--) {
+            if (newItems[i].name === meal.name && newItems[i].calories === mealCalories(meal)) {
+                newItems.splice(i, 1);
+                // When removing, we don't recalculate maxFastingHours or revert persistence
+                // as the fast WAS broken/achieved at that time.
+                break;
+            }
+        }
+
+        await updateDailyLog((current) => ({ ...current, items: newItems }));
     };
 
     const handleUpdateWeight = (weight: number) => {
@@ -462,7 +473,8 @@ const TrackerApp: React.FC = () => {
         setEditingWorkout(null);
     };
 
-    const updateLastAteTime = async (timestamp: number) => {
+    /** `timestamp` ends the current fast; `lastAte` (default the same) is the new last time eaten. */
+    const updateLastAteTime = async (timestamp: number, lastAte = timestamp) => {
         // Check if we completed a successful fast before eating
         if (fastingState.lastAteTime) {
             const fastDuration = timestamp - fastingState.lastAteTime;
@@ -483,7 +495,7 @@ const TrackerApp: React.FC = () => {
         // Update to new eating time
         const newState: FastingState = {
             ...fastingState,
-            lastAteTime: timestamp
+            lastAteTime: lastAte
         };
         setFastingState(newState);
         await saveFastingState(newState);
@@ -527,6 +539,7 @@ const TrackerApp: React.FC = () => {
         coachRead,
         onSetCoachRead: handleSetCoachRead,
         onLogMeal: handleLogMeal,
+        onLogMeals: handleLogMeals,
         onAddFoodLogItems: handleAddFoodLogItems,
         onUpdateFoodItem: async (item: FoodLogItem) => {
             const updatedLog = await updateDailyLog((current) => ({

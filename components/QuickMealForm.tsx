@@ -15,14 +15,14 @@ interface QuickMealFormProps {
 }
 
 /** Size presets per slot: light, regular, hearty */
-const PRESETS: Record<MealSlot | 'side', [number, number, number]> = {
+export const QUICK_MEAL_PRESETS: Record<MealSlot | 'side', [number, number, number]> = {
   breakfast: [300, 450, 600],
   lunch: [400, 650, 900],
   dinner: [400, 650, 900],
   snack: [150, 250, 400],
   side: [100, 200, 300],
 };
-const PRESET_LABELS = ['Light', 'Regular', 'Hearty'];
+export const PRESET_LABELS = ['Light', 'Regular', 'Hearty'];
 const KINDS: QuickMealKind[] = ['home', 'out', 'ready'];
 
 /** Plan a meal without a recipe. Only the name is required; calories may be a preset, an estimate or left out. */
@@ -37,7 +37,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
   const [estimating, setEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState('');
 
-  const presets = PRESETS[isSide ? 'side' : slot];
+  const presets = QUICK_MEAL_PRESETS[isSide ? 'side' : slot];
 
   const estimate = async () => {
     if (!name.trim()) { setError('Enter a name first'); return; }

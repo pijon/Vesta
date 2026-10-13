@@ -209,7 +209,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-start">
       {/* Left: From Your Plan */}
-      <div className="card flex flex-col">
+      <div id="from-your-plan" className="card flex flex-col scroll-mt-24">
         <div className="px-5 md:px-6 pt-5 pb-4">
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">

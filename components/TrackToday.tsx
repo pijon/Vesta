@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState } from '../types';
+import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot } from '../types';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, mealKey, planMeal, slotFor } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, mealCalories, mealKey, planMeal, slotFor } from '../utils/planUtils';
+import { AtePlannedCard } from './AtePlannedCard';
+import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { DualTrackSection } from './DualTrackSection';
 import { HearthWidget } from './HearthWidget';
 import { TomorrowCard } from './TomorrowCard';
@@ -23,6 +25,17 @@ import { analyzeActivityStreaks } from '../utils/analytics';
 
 const EMPTY_DAY_TYPES: Record<string, string> = {};
 
+/** When a meal logged after the fact is assumed to have been eaten (never later than now) */
+const SLOT_TIMES: Record<MealSlot, [number, number]> = { breakfast: [7, 30], lunch: [12, 30], snack: [15, 30], dinner: [18, 30] };
+const plannedTime = (slot: MealSlot, now: number) => {
+  const d = new Date(now);
+  d.setHours(SLOT_TIMES[slot][0], SLOT_TIMES[slot][1], 0, 0);
+  return Math.min(d.getTime(), now);
+};
+
+/** Meals being logged, and the quick meals among them still to be asked for calories */
+interface CaloriesAsk { indices: number[]; plan: DayPlan; timed: boolean; queue: number[]; total: number }
+
 interface TrackTodayProps {
   todayPlan: DayPlan;
   tomorrowPlan: DayPlan;
@@ -31,6 +44,7 @@ interface TrackTodayProps {
   fastingState: FastingState;
   onUpdateStats: (stats: UserStats) => void;
   onLogMeal: (meal: Recipe, isAdding: boolean) => Promise<void>;
+  onLogMeals: (entries: { meal: Recipe; at: number }[]) => Promise<void>;
   onAddFoodLogItems: (items: FoodLogItem[]) => Promise<void>;
   onUpdateFoodItem: (item: FoodLogItem) => Promise<void>;
   onDeleteFoodItem: (itemId: string) => Promise<void>;
@@ -56,6 +70,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   fastingState,
   onUpdateStats,
   onLogMeal,
+  onLogMeals,
   onAddFoodLogItems,
   onUpdateFoodItem,
   onDeleteFoodItem,
@@ -167,9 +182,59 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     onOpenWorkoutModal(workout);
   };
 
+  const [caloriesAsk, setCaloriesAsk] = useState<CaloriesAsk | null>(null);
+
+  /** Ticks planned meals off and logs them: at their slot's usual time (`timed`), or now. */
+  const logPlannedMeals = async (indices: number[], plan: DayPlan, timed: boolean) => {
+    const now = Date.now();
+    const meals = indices.map(i => plan.meals[i]).filter(Boolean);
+    if (!meals.length) return;
+    const completedMealIds = [...new Set([...plan.completedMealIds, ...meals.map(mealKey)])];
+    await saveDayPlan({ ...plan, completedMealIds });
+    await onLogMeals(meals.map(meal => ({ meal, at: timed ? plannedTime(slotFor(meal), now) : now })));
+    refreshData();
+    if (timed) {
+      const kcal = meals.reduce((sum, meal) => sum + mealCalories(meal), 0);
+      setToast({ message: `Logged ${meals.length} meal${meals.length === 1 ? '' : 's'} · ${kcal.toLocaleString()} kcal` });
+    }
+  };
+
+  /** Quick meals planned without calories are asked for them first, so nothing is logged as 0 kcal. */
+  const logPlanned = async (indices: number[], timed: boolean, plan: DayPlan = todayPlan) => {
+    const queue = indices.filter(i => plan.meals[i]?.quick?.noCalories);
+    if (queue.length) {
+      setCaloriesAsk({ indices, plan, timed, queue, total: queue.length });
+      return;
+    }
+    await logPlannedMeals(indices, plan, timed);
+  };
+
+  const answerCalories = (calories: number | null, estimated = false) => {
+    if (!caloriesAsk) return;
+    const [current, ...rest] = caloriesAsk.queue;
+    let { indices, plan } = caloriesAsk;
+    if (calories === null) {
+      indices = indices.filter(i => i !== current);
+    } else {
+      const meal = plan.meals[current];
+      const updated: Recipe = { ...meal, calories, quick: { ...meal.quick, noCalories: undefined, estimated: estimated || undefined } };
+      plan = { ...plan, meals: plan.meals.map((m, i) => (i === current ? updated : m)) };
+    }
+    if (rest.length) {
+      setCaloriesAsk({ ...caloriesAsk, indices, plan, queue: rest });
+      return;
+    }
+    setCaloriesAsk(null);
+    if (indices.length) logPlannedMeals(indices, plan, caloriesAsk.timed);
+  };
+
   const toggleMeal = async (mealIndex: number) => {
     const meal = todayPlan.meals[mealIndex];
     if (!meal) return;
+    if (!todayPlan.completedMealIds.includes(mealKey(meal)) && meal.quick?.noCalories) {
+      await logPlanned([mealIndex], false);
+      return;
+    }
 
     let newCompleted = [...todayPlan.completedMealIds];
     const uniqueId = mealKey(meal);
@@ -297,6 +362,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         </div>
       </div>
 
+      {/* Evening: log the rest of the plan in one tap */}
+      <AtePlannedCard plan={todayPlan} onLogAll={indices => logPlanned(indices, true)} />
+
       {/* Dual-Track Section */}
       <DualTrackSection
         todayPlan={todayPlan}
@@ -332,6 +400,17 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
       {/* Tomorrow */}
       <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />
+
+      {caloriesAsk && (
+        <MealCaloriesSheet
+          key={caloriesAsk.queue[0]}
+          meal={caloriesAsk.plan.meals[caloriesAsk.queue[0]]}
+          progress={caloriesAsk.total > 1 ? `${caloriesAsk.total - caloriesAsk.queue.length + 1} of ${caloriesAsk.total}` : undefined}
+          onSave={(calories, estimated) => answerCalories(calories, estimated)}
+          onSkip={() => answerCalories(null)}
+          onClose={() => setCaloriesAsk(null)}
+        />
+      )}
 
       {toast && (
         <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] flex items-center gap-3 badge-ink !rounded-full pl-4 pr-1.5 py-1.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in max-w-[calc(100vw-32px)]">
