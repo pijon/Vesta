@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
 import { isCompleteDay } from '../utils/logCompleteness';
+import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, mealCalories, mealKey, planMeal, slotFor } from '../utils/planUtils';
@@ -13,7 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
 import { CoachCard } from './CoachPanel';
 import { usePrewarmed } from '../utils/prewarm';
-import { weightSummary } from '../utils/analyticsModel';
+import { buildDays, weekendGap, weightSummary } from '../utils/analyticsModel';
+import { WeekendPlanCard } from './WeekendPlanCard';
 import { weightTrend } from '../utils/energyModel';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
@@ -305,6 +307,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   // One-tap re-logging of frequent foods, with undo
   const frequentFoods = usePrewarmed(frequentFoodsData) ?? [];
   const dayTypes = usePrewarmed(analyticsDayTypesData) ?? EMPTY_DAY_TYPES;
+
+  // Extra calories a day at weekends over the last eight weeks of fully logged days
+  const recentWeekendGap = React.useMemo(
+    () => weekendGap(buildDays(56, activityHistory, dayTypes, stats, dailyLog, addDays(localDateString(), -1))),
+    [activityHistory, dayTypes, stats, dailyLog],
+  );
   const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
   useEffect(() => {
     if (!toast) return;
@@ -367,6 +375,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
       {/* Evening: log the rest of the plan in one tap */}
       <AtePlannedCard plan={todayPlan} onLogAll={indices => logPlanned(indices, true)} />
+
+      {/* Thursday and Friday: plan the weekend ahead */}
+      <WeekendPlanCard weekendGap={recentWeekendGap} onPlan={date => navigate('/mealplanner', { state: { date } })} />
 
       {/* Dual-Track Section */}
       <DualTrackSection

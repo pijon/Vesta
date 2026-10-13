@@ -216,7 +216,7 @@ const kcal = (n: number) => `${round10(n).toLocaleString()} kcal`;
 const enoughLogged = (s: PeriodSummary) => s.loggedDays >= 3;
 
 /** Average calories more a day at weekends than on weekdays, when both have enough logged days */
-const weekendGap = (days: AnalyticsDay[]) => {
+export const weekendGap = (days: AnalyticsDay[]) => {
   const logged = days.filter(d => d.complete);
   const isWeekend = (d: AnalyticsDay) => [0, 6].includes(parseLocalDate(d.date).getDay());
   const weekend = logged.filter(isWeekend);

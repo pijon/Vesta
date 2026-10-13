@@ -72,10 +72,11 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     setLoadedWeeks(prev => new Set(prev).add(start));
   }, []);
 
-  // Opened with a date (e.g. "Plan tomorrow" on Today): show that week
+  // Opened with a date (e.g. "Plan tomorrow" on Today): show that week, scrolled to the day
+  const [scrollToDate, setScrollToDate] = useState<string | null>(null);
   useEffect(() => {
     const date = (location.state as { date?: string } | null)?.date;
-    if (date) setMonday(weekStart(date));
+    if (date) { setMonday(weekStart(date)); setScrollToDate(date); }
   }, [location.key]);
 
   // Also re-runs each time the page is shown again (App keeps it in an Activity), so meals
@@ -88,6 +89,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       .then(fresh => { if (fresh.length > 0 || !getCachedRecipes()) setRecipes(fresh); })
       .catch(e => console.error('Failed to load recipes', e));
   }, []);
+
+  useEffect(() => {
+    if (!scrollToDate || !loadedWeeks.has(weekStart(scrollToDate))) return;
+    didScroll.current = true;
+    document.getElementById(`day-${scrollToDate}`)?.scrollIntoView({ block: 'start' });
+    setScrollToDate(null);
+  }, [scrollToDate, loadedWeeks]);
 
   // Phones: start at today in the current week
   useEffect(() => {
@@ -481,6 +489,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
               <article
                 key={date}
                 ref={isToday ? todayRef : undefined}
+                id={`day-${date}`}
                 aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
                 className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isToday ? 'ring-2 ring-ink' : ''}`}
               >
