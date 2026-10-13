@@ -32,6 +32,8 @@ export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {
  * not recorded as a fast (it once produced "fasts" of 1,600+ hours) and analytics ignores it.
  */
 export const MAX_PLAUSIBLE_FAST_HOURS = 72;
+/** Default for FastingConfig.fastBreakCalories: a coffee with a splash of milk keeps the fast */
+export const DEFAULT_FAST_BREAK_CALORIES = 50;
 
 /** Public Web Push (VAPID) key; must match VAPID_PUBLIC_KEY in functions/.env */
 export const VAPID_PUBLIC_KEY = 'BPgElQDY9AsCh3kcZ1ArUy1vCmMPv7YixH7Cz071DKpHbXyXHabOpBMfI95PGVc6N6EVHj9g2YOzqUke4CbkDA4';

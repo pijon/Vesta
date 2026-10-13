@@ -26,7 +26,7 @@ import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { Sidebar } from './components/Sidebar';
 import { PlannerTabs } from './components/PlannerTabs';
-import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS } from './constants';
+import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
@@ -320,7 +320,15 @@ const TrackerApp: React.FC = () => {
         await saveUserStats(finalStats);
     };
 
+    // Small amounts (a coffee, tea with milk) are logged but don't end the fast
+    const fastBreakCalories = fastingState.config.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES;
+
     const handleAddFoodLogItems = async (items: FoodLogItem[]) => {
+        // Items logged together count as one sitting
+        if (items.reduce((sum, item) => sum + (item.calories || 0), 0) <= fastBreakCalories) {
+            await updateDailyLog((current) => ({ ...current, items: [...current.items, ...items] }));
+            return;
+        }
         const now = Date.now();
         let currentFastingMax = dailyLogRef.current.maxFastingHours || 0;
 
@@ -402,12 +410,14 @@ const TrackerApp: React.FC = () => {
     const handleLogMeals = async (entries: { meal: Recipe; at: number }[]) => {
         if (!entries.length) return;
         const sorted = [...entries].sort((a, b) => a.at - b.at);
-        const first = sorted[0].at;
-        const last = sorted[sorted.length - 1].at;
+        // Only meals over the limit end the fast
+        const breaking = sorted.filter(({ meal }) => mealCalories(meal) > fastBreakCalories);
+        const first = breaking[0]?.at;
+        const last = breaking[breaking.length - 1]?.at;
         let currentFastingMax = dailyLogRef.current.maxFastingHours || 0;
 
         // Check active fast duration before breaking it
-        if (fastingState.lastAteTime && first > fastingState.lastAteTime) {
+        if (fastingState.lastAteTime && first !== undefined && first > fastingState.lastAteTime) {
             const diffHours = (first - fastingState.lastAteTime) / (1000 * 60 * 60);
             if (diffHours > currentFastingMax && diffHours <= MAX_PLAUSIBLE_FAST_HOURS) {
                 currentFastingMax = diffHours;
@@ -429,7 +439,9 @@ const TrackerApp: React.FC = () => {
         await updateDailyLog((current) => ({ ...current, items: [...(current.items || []), ...items], maxFastingHours: currentFastingMax }));
 
         // Update TRE tracking: meals logged after the fact may be older than the last time eaten
-        await updateLastAteTime(first, Math.max(last, fastingState.lastAteTime || 0));
+        if (first !== undefined && last !== undefined) {
+            await updateLastAteTime(first, Math.max(last, fastingState.lastAteTime || 0));
+        }
     };
 
     const handleLogMeal = async (meal: Recipe, isAdding: boolean) => {

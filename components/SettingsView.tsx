@@ -8,6 +8,7 @@ import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLoca
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { localDateString } from '../utils/dateUtils';
+import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 
 const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label: string }[] = [
     { id: '12:12', hours: 12, label: 'Gentle' },
@@ -45,7 +46,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
 
     // Form fields are kept as strings so a field can be cleared while typing
-    const toForm = (st: UserStats) => ({
+    const toForm = (st: UserStats, fc: FastingConfig) => ({
         name: st.name || '',
         goalWeight: st.goalWeight ? String(st.goalWeight) : '',
         dailyCalorieGoal: String(st.dailyCalorieGoal || ''),
@@ -54,8 +55,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         dailyWorkoutCountGoal: String(st.dailyWorkoutCountGoal || 1),
         workoutCalorieCredit: String(st.workoutCalorieCredit ?? 1),
         dailyProteinGoal: st.dailyProteinGoal ? String(st.dailyProteinGoal) : '',
+        fastBreakCalories: String(fc.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES),
     });
-    const [form, setForm] = useState(() => toForm(stats));
+    const [form, setForm] = useState(() => toForm(stats, fastingConfig));
     const [protocol, setProtocol] = useState<FastingProtocol>(fastingConfig.protocol);
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [dataStatus, setDataStatus] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [hasCopiedId, setHasCopiedId] = useState(false);
 
     // Sync local state when the saved values change elsewhere
-    useEffect(() => { setForm(toForm(stats)); }, [stats]);
+    useEffect(() => { setForm(toForm(stats, fastingConfig)); }, [stats, fastingConfig]);
     useEffect(() => { setProtocol(fastingConfig.protocol); }, [fastingConfig]);
     useEffect(() => { if (showDebug) setDebugInfo(getLocalStorageDebugInfo()); }, [showDebug]);
 
@@ -84,8 +86,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!(num(form.dailyWaterGoal) >= 0.5 && num(form.dailyWaterGoal) <= 6)) errors.dailyWaterGoal = 'Enter 0.5 to 6 litres';
     if (form.dailyProteinGoal && !(num(form.dailyProteinGoal) >= 30 && num(form.dailyProteinGoal) <= 400)) errors.dailyProteinGoal = 'Enter 30 to 400 g, or leave empty';
     if (!(Number.isInteger(num(form.dailyWorkoutCountGoal)) && num(form.dailyWorkoutCountGoal) >= 1 && num(form.dailyWorkoutCountGoal) <= 5)) errors.dailyWorkoutCountGoal = 'Enter 1 to 5';
+    if (!(Number.isInteger(num(form.fastBreakCalories)) && num(form.fastBreakCalories) >= 0 && num(form.fastBreakCalories) <= 200)) errors.fastBreakCalories = 'Enter 0 to 200 kcal';
     const hasErrors = Object.keys(errors).length > 0;
-    const isDirty = JSON.stringify(form) !== JSON.stringify(toForm(stats)) || protocol !== fastingConfig.protocol;
+    const isDirty = JSON.stringify(form) !== JSON.stringify(toForm(stats, fastingConfig)) || protocol !== fastingConfig.protocol;
 
     const handleSave = async () => {
         if (hasErrors || !isDirty) return;
@@ -101,8 +104,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             workoutCalorieCredit: Number(form.workoutCalorieCredit) as WorkoutCalorieCredit,
             dailyProteinGoal: form.dailyProteinGoal ? Math.round(num(form.dailyProteinGoal)) : undefined,
         });
-        if (protocol !== fastingConfig.protocol) {
-            await onUpdateFastingConfig({ ...fastingConfig, protocol, targetFastHours: PROTOCOLS.find(p => p.id === protocol)?.hours ?? fastingConfig.targetFastHours });
+        const fastBreakCalories = num(form.fastBreakCalories);
+        if (protocol !== fastingConfig.protocol || fastBreakCalories !== (fastingConfig.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES)) {
+            await onUpdateFastingConfig({
+                ...fastingConfig,
+                protocol,
+                targetFastHours: protocol === fastingConfig.protocol ? fastingConfig.targetFastHours : PROTOCOLS.find(p => p.id === protocol)?.hours ?? fastingConfig.targetFastHours,
+                fastBreakCalories,
+            });
         }
         setSaveState('saved');
         setTimeout(() => setSaveState(s => (s === 'saved' ? 'idle' : s)), 2500);
@@ -307,6 +316,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {fastingConfig.protocol === 'custom' && protocol === 'custom' && (
                             <p className="text-xs text-muted">You're on a custom {fastingConfig.targetFastHours}-hour fast.</p>
                         )}
+                        <div className="sm:w-1/2 sm:pr-2">
+                            {field('fastBreakCalories', 'Allowed while fasting', { unit: 'kcal', hint: 'Food or drink up to this much, like a coffee, is logged without ending your fast. 0 means anything ends it.' })}
+                        </div>
                     </div>
                 </div>
 

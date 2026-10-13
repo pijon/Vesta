@@ -283,6 +283,8 @@ export type FastingProtocol = '12:12' | '16:8' | '14:10' | '18:6' | '20:4' | 'cu
 export interface FastingConfig {
   protocol: FastingProtocol;
   targetFastHours: number;
+  /** Food logged at or under this many kcal (e.g. a coffee) doesn't end the fast; unset uses the default */
+  fastBreakCalories?: number;
 }
 
 /** Guidance tips marked as read: finding id → the YYYY-MM-DD it was read */
