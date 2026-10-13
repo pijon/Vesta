@@ -4,7 +4,7 @@ import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, mealCalories, mealKey, planMeal, slotFor } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
 import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { DualTrackSection } from './DualTrackSection';
@@ -21,7 +21,7 @@ import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGri
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
-import { Portal } from './Portal';
+import { Sheet } from './Sheet';
 import { useAchievements } from '../hooks/useAchievements';
 import { analyzeActivityStreaks } from '../utils/analytics';
 
@@ -259,6 +259,16 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     refreshData();
   };
 
+  // The hero's "Next up": the earliest planned meal by slot time that isn't eaten yet
+  const nextMealIndex = todayPlan.meals
+    .map((meal, index) => ({ meal, index }))
+    .filter(({ meal }) => !isMealEaten(todayPlan, meal))
+    .sort((a, b) => {
+      const [ah, am] = SLOT_TIMES[slotFor(a.meal)];
+      const [bh, bm] = SLOT_TIMES[slotFor(b.meal)];
+      return ah * 60 + am - (bh * 60 + bm) || a.index - b.index;
+    })[0]?.index;
+
   const handleSwapMeal = (index: number) => {
     setActiveMealIndexToSwap(index);
     setIsMealSelectorOpen(true);
@@ -340,6 +350,11 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           protein={{ eaten: (dailyLog.items || []).reduce((sum, item) => sum + (item.protein || 0), 0), target: proteinTarget(stats) }}
           isFastDay={!isNonFastDay}
           onLogFood={onOpenFoodModal}
+          nextMeal={nextMealIndex === undefined ? undefined : {
+            meal: todayPlan.meals[nextMealIndex],
+            onAte: () => toggleMeal(nextMealIndex),
+            onView: () => setSelectedRecipe(todayPlan.meals[nextMealIndex]),
+          }}
         />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
           <HydrationCard
@@ -457,33 +472,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       />
 
       {isMealSelectorOpen && (
-        <Portal>
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 px-4 py-4 animate-fade-in" onClick={() => setIsMealSelectorOpen(false)}>
-            <div className="bg-stone-50 dark:bg-background w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden h-[90vh] flex flex-col scale-100 animate-scale-in" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center p-6 border-b border-border bg-surface dark:bg-white/5 shrink-0">
-                <h2 className="text-2xl text-charcoal dark:text-stone-200 font-display font-extrabold">Swap Meal</h2>
-                <button
-                  onClick={() => setIsMealSelectorOpen(false)}
-                  className="p-2 bg-surface dark:bg-white/5 border border-border rounded-full text-muted dark:text-muted hover:text-charcoal dark:text-stone-200 transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6">
-                <React.Suspense fallback={<div className="p-8 text-center">Loading recipes...</div>}>
-                  <RecipeLibrary onSelect={handleMealSelected} />
-                </React.Suspense>
-              </div>
-            </div>
-          </div>
-        </Portal>
+        <Sheet title="Swap meal" size="xl" onClose={() => setIsMealSelectorOpen(false)}>
+          <React.Suspense fallback={<p className="p-8 text-center text-muted">Loading recipes…</p>}>
+            <RecipeLibrary onSelect={handleMealSelected} />
+          </React.Suspense>
+        </Sheet>
       )}
-
-      {/* Portal for Meal Selector Only */}
-      {/* Weight Portal moved to App.tsx */}
     </div>
   );
 };

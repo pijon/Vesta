@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, WorkoutItem, AppView } from '../types';
+import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
 import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
@@ -12,7 +12,7 @@ interface DualTrackSectionProps {
   dailyLog: DailyLog;
   lastAteTime?: number | null;
   onToggleMeal: (index: number) => void;
-  onViewRecipe: (recipe: any) => void;
+  onViewRecipe: (recipe: Recipe) => void;
   onEditWorkout: (workout: WorkoutItem) => void;
   onDeleteWorkout: (workoutId: string) => void;
   onUpdateFoodItem: (item: FoodLogItem) => void;
@@ -297,13 +297,13 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   >
                     <button
                       onClick={() => onViewRecipe(meal)}
-                      className={`flex-1 min-w-0 flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] ${isEaten ? 'opacity-60' : ''}`}
+                      className={`flex-1 min-w-0 flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]`}
                       aria-label={`View recipe: ${meal.name}`}
                     >
                       {meal.image ? (
-                        <img src={meal.image} alt="" className="size-12 shrink-0 rounded-[12px] object-cover" />
+                        <img src={meal.image} alt="" className={`size-12 shrink-0 rounded-[12px] object-cover ${isEaten ? 'opacity-60' : ''}`} />
                       ) : (
-                        <span className={`size-12 shrink-0 rounded-[12px] flex items-center justify-center ${visual.tint}`}>
+                        <span className={`size-12 shrink-0 rounded-[12px] flex items-center justify-center ${visual.tint} ${isEaten ? 'opacity-60' : ''}`}>
                           <visual.Icon size={22} strokeWidth={2} aria-hidden="true" />
                         </span>
                       )}

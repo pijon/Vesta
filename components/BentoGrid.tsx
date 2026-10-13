@@ -32,12 +32,21 @@ const MiniRing: React.FC<{ percent: number; color: string; label: string }> = ({
 
 const QuickAction: React.FC<{ onClick: () => void; children: React.ReactNode; label?: string }> = ({ onClick, children, label }) => (
     <button
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        onClick={onClick}
         aria-label={label}
-        className="min-h-9 px-3 rounded-full bg-surface text-sm font-bold whitespace-nowrap active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+        className="relative z-[1] min-h-9 px-3 rounded-full bg-surface text-sm font-bold whitespace-nowrap active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
     >
         {children}
     </button>
+);
+
+/** Makes a whole tile open its detail view. A full-size button under the content, since the tile already holds a quick action button. */
+const TileLink: React.FC<{ onClick: () => void; label: string }> = ({ onClick, label }) => (
+    <button
+        onClick={onClick}
+        aria-label={label}
+        className="absolute inset-0 rounded-[14px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+    />
 );
 
 const tileHeight = (size: string) => (size === 'sm' ? 'min-h-[144px]' : 'min-h-[176px]');
@@ -47,16 +56,14 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
 }) => {
     const isActive = workoutsCompleted > 0;
     return (
-        <div
-            onClick={onClick}
-            className={`tile tile-workout gap-1 ${tileHeight(size)} ${onClick ? 'cursor-pointer' : ''}`}
-        >
+        <div className={`tile tile-workout gap-1 relative ${tileHeight(size)}`}>
+            {onClick && <TileLink onClick={onClick} label="Workout overview" />}
             <div className="flex justify-between items-start gap-2">
                 <h3 className="font-sans text-sm font-semibold text-workout-text">Workouts</h3>
                 {streak > 0 && (
                     <span className="badge badge-fasting whitespace-nowrap" aria-label={`${streak}-day streak`}>
                         <StreakFlame className="w-3.5 h-3.5" isActive={isActive} />
-                        {streak} days
+                        {streak} {streak === 1 ? 'day' : 'days'}
                     </span>
                 )}
             </div>
@@ -162,7 +169,8 @@ export const WeightCard: React.FC<{
     const lastLabel = lastDate ? new Date(lastDate + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null;
 
     return (
-        <div onClick={onClick} className={`tile tile-weight gap-1 ${tileHeight(size)} ${onClick ? 'cursor-pointer' : ''}`}>
+        <div className={`tile tile-weight gap-1 relative ${tileHeight(size)}`}>
+            {onClick && <TileLink onClick={onClick} label="Weight trends" />}
             <div className="flex justify-between items-start gap-2">
                 <h3 className="font-sans text-sm font-semibold text-weight-text">Weight</h3>
                 {ratePerWeek !== null && (

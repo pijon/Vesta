@@ -1,5 +1,7 @@
 import React from 'react';
-import { Flame, Plus } from 'lucide-react';
+import { Check, Flame, Plus } from 'lucide-react';
+import { Recipe } from '../types';
+import { mealKcalLabel, slotFor, slotLabel } from '../utils/planUtils';
 
 interface HearthWidgetProps {
     /** Today's calorie target (depends on fast or nourish day) */
@@ -12,6 +14,8 @@ interface HearthWidgetProps {
     /** Protein eaten today (from items with a known amount) and the daily target, in grams */
     protein?: { eaten: number; target: number };
     onLogFood: () => void;
+    /** The next planned meal not yet eaten, with one tap to tick it off */
+    nextMeal?: { meal: Recipe; onAte: () => void; onView: () => void };
     size?: 'sm' | 'md' | 'lg';
 }
 
@@ -19,7 +23,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString();
 
 /**
  * The Today hero: the screen's one solid primary block. Calories left, how that number is made
- * up (target − eaten + workout calories, as much as Settings adds back), the day type, and the main action: log food.
+ * up (target − eaten + workout calories, as much as Settings adds back), the day type, the next planned meal and the main action: log food.
  */
 export const HearthWidget: React.FC<HearthWidgetProps> = ({
     caloriesGoal,
@@ -29,6 +33,7 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
     isFastDay,
     protein,
     onLogFood,
+    nextMeal,
     size = 'lg',
 }) => {
     const credited = Math.round(caloriesBurned * burnCredit);
@@ -112,6 +117,26 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
                     </div>
                 )}
             </div>
+
+            {nextMeal && (
+                <div className="flex items-center gap-3 mt-4 pt-3 border-t border-current/20">
+                    <button
+                        onClick={nextMeal.onView}
+                        className="flex-1 min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+                        aria-label={`View recipe: ${nextMeal.meal.name}`}
+                    >
+                        <span className="block text-xs font-semibold">Next up · {slotLabel(slotFor(nextMeal.meal))} · {mealKcalLabel(nextMeal.meal)}</span>
+                        <span className="block font-semibold truncate">{nextMeal.meal.name}</span>
+                    </button>
+                    <button
+                        onClick={nextMeal.onAte}
+                        className="shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full bg-ink/15 hover:bg-ink/25 text-sm font-semibold transition-colors active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+                        aria-label={`Mark ${nextMeal.meal.name} as eaten`}
+                    >
+                        <Check size={16} strokeWidth={3} aria-hidden="true" /> Ate it
+                    </button>
+                </div>
+            )}
         </section>
     );
 };
