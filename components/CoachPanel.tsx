@@ -134,13 +134,13 @@ export const CoachPanel: React.FC<CoachInput & CoachHandlers> = props => {
   );
 };
 
-/** Today: the single most useful unread tip. */
+/** Today: weight-loss progress when there's news, else the single most useful unread tip. */
 export const CoachCard: React.FC<CoachInput & CoachHandlers> = props => {
   const { unread } = useSplitFindings(props, props.coachRead);
   const runAction = useRunAction(props.stats, props);
   const [done, setDone] = useState<string | null>(null);
 
-  const top = unread.find(f => f.tone !== 'good');
+  const top = unread.find(f => f.id === 'progress') ?? unread.find(f => f.tone !== 'good');
   if (!top) return null;
   const { Icon, className } = TONE[top.tone];
   const more = unread.length - 1;

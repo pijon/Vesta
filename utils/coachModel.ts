@@ -161,11 +161,22 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
       action: { kind: 'openReminders', label: 'Set weigh-in reminders' },
     });
   } else if (losing) {
+    const perWeek = -f.trendChange14! / 2;
+    const onPace = perWeek >= f.weeklyLossGoal * 1.1 ? ` That's ahead of your ${kg(f.weeklyLossGoal)} a week goal.`
+      : perWeek >= f.weeklyLossGoal * 0.9 ? ` That's right on your ${kg(f.weeklyLossGoal)} a week goal.`
+      : '';
+    const toGo = f.goalWeight > 0 && f.trendNow !== null && f.trendNow > f.goalWeight ? f.trendNow - f.goalWeight : 0;
+    const weeksToGo = toGo > 0 ? Math.ceil(toGo / perWeek) : 0;
+    const sinceStart = f.longChange && f.longChange.kg < -0.5 ? ` Since ${shortDate(f.longChange.from)} you're down ${kg(f.longChange.kg)}.` : '';
     findings.push({
       id: 'progress',
       tone: 'good',
-      title: `Down ${kg(f.trendChange14!)} in two weeks`,
-      detail: `Your trend weight is ${f.trendNow} kg${f.goalWeight > 0 && f.trendNow !== null && f.trendNow > f.goalWeight ? `, ${kg(f.trendNow - f.goalWeight)} from your goal` : ''}. Whatever you're doing is working; keep it steady.`,
+      title: `Good job: you're losing ${kg(perWeek)} a week`,
+      detail: `Your trend is down ${kg(f.trendChange14!)} in two weeks.${onPace}${sinceStart}`
+        + (toGo > 0
+          ? ` ${kg(toGo)} to your goal${weeksToGo <= 104 ? `, about ${weeksToGo} week${weeksToGo === 1 ? '' : 's'} at this pace` : ''}.`
+          : f.goalWeight > 0 ? ' You\'ve reached your goal weight.' : '')
+        + ' Keep doing what you\'re doing.',
     });
   } else if (flat && f.loggedDays14 >= 12 && f.suggestion) {
     findings.push({
@@ -255,8 +266,10 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
     });
   }
 
+  // Progress leads, so the news about how it's going comes before what to change
   const order = { focus: 0, good: 1, tip: 2 };
-  return findings.sort((a, b) => order[a.tone] - order[b.tone]);
+  const rank = (x: Finding) => (x.id === 'progress' ? -1 : order[x.tone]);
+  return findings.sort((a, b) => rank(a) - rank(b));
 };
 
 /** A read tip comes back after this long if it still applies, so a lasting problem isn't hidden for good */
