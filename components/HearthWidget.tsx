@@ -130,7 +130,7 @@ export const HearthWidget: React.FC<HearthWidgetProps> = ({
                     </button>
                     <button
                         onClick={nextMeal.onAte}
-                        className="shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full bg-ink/15 hover:bg-ink/25 text-sm font-semibold transition-colors active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+                        className="hit-target shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full bg-ink/15 hover:bg-ink/25 text-sm font-semibold transition-colors active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
                         aria-label={`Mark ${nextMeal.meal.name} as eaten`}
                     >
                         <Check size={16} strokeWidth={3} aria-hidden="true" /> Ate it

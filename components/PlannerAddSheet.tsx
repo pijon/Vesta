@@ -135,7 +135,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             </span>
           )}
           <span className="flex-1 min-w-0">
-            <span className="block font-semibold leading-snug line-clamp-2">{recipe.name}</span>
+            <span className="font-semibold leading-snug line-clamp-2">{recipe.name}</span>
             <span className="block text-xs text-muted mt-0.5">{meta}</span>
           </span>
           <span className="shrink-0 text-right">
@@ -207,7 +207,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
               <Plus size={22} strokeWidth={1.75} />
             </span>
             <span className="flex-1 min-w-0">
-              <span className="block font-semibold leading-snug line-clamp-2">Plan “{search.trim()}” without a recipe</span>
+              <span className="font-semibold leading-snug line-clamp-2">Plan “{search.trim()}” without a recipe</span>
               <span className="block text-xs text-muted mt-0.5">Name it now, add details if you like</span>
             </span>
           </button>

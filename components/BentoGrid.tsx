@@ -34,7 +34,7 @@ const QuickAction: React.FC<{ onClick: () => void; children: React.ReactNode; la
     <button
         onClick={onClick}
         aria-label={label}
-        className="relative z-[1] min-h-9 px-3 rounded-full bg-surface text-sm font-bold whitespace-nowrap active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+        className="hit-target z-[1] min-h-9 px-3 rounded-full bg-surface text-sm font-bold whitespace-nowrap active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
     >
         {children}
     </button>

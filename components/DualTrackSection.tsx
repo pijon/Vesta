@@ -254,7 +254,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                         </span>
                       )}
                       <span className="flex-1 min-w-0">
-                        <span className={`block font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
+                        <span className={`font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
                         <span className="block text-xs text-muted mt-0.5">
                           {visual.label} · <span className="font-semibold text-main">{mealKcalLabel(meal)}</span>
                           {!!meal.protein && ` · ${meal.protein} g protein`}
@@ -272,7 +272,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     {!isEaten && (
                       <button
                         onClick={() => onSwapMeal(index)}
-                        className="size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:bg-surface hover:text-main transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                        className="hit-target size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:bg-surface hover:text-main transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                         aria-label={`Swap ${meal.name}`}
                       >
                         <Shuffle size={16} />
@@ -337,7 +337,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             <div className="tile tile-neutral items-center text-center py-8 mx-2">
               <p className="font-semibold">Nothing planned for today</p>
               <p className="text-sm text-muted mt-1 mb-4">Pick a few meals and we'll track them here.</p>
-              <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-primary btn-sm">
+              <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-secondary btn-sm">
                 Plan my day
               </button>
             </div>
@@ -406,7 +406,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     key={food.name}
                     onClick={() => onQuickLog(food)}
                     aria-label={`Log ${food.name}, ${food.calories} kcal`}
-                    className="shrink-0 inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                    className="hit-target shrink-0 inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                   >
                     {Icon ? <Icon size={15} className="text-calories-text" aria-hidden="true" /> : <Plus size={15} className="text-muted" aria-hidden="true" />}
                     <span className="max-w-[11rem] truncate">{displayName(food.name)}</span>
@@ -423,7 +423,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             <div className="tile tile-neutral items-center text-center py-8 mx-2">
               <p className="font-semibold">Your day starts here</p>
               <p className="text-sm text-muted mt-1 mb-4">Log a meal or a workout and it will show up on this timeline.</p>
-              <button onClick={onLogFood} className="btn-primary btn-sm"><Plus size={16} aria-hidden="true" /> Log food</button>
+              <button onClick={onLogFood} className="btn-secondary btn-sm"><Plus size={16} aria-hidden="true" /> Log food</button>
             </div>
           ) : (
             <>
@@ -458,10 +458,10 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                                 {WorkoutIcon && <WorkoutIcon size={22} stroke={1.75} aria-hidden="true" />}
                               </span>
                               <span className="flex-1 min-w-0">
-                                <span className="block font-semibold leading-snug line-clamp-2">{name}</span>
+                                <span className="font-semibold leading-snug line-clamp-2">{name}</span>
                                 <span className="flex items-center gap-1.5 text-xs text-muted mt-0.5">
-                                  <span>{formatTime(entry.timestamp)}</span>
-                                  {isFood && typeof entry.item.protein === 'number' && <span>· {entry.item.protein} g protein</span>}
+                                  <span className="whitespace-nowrap">{formatTime(entry.timestamp)}</span>
+                                  {isFood && typeof entry.item.protein === 'number' && <span className="whitespace-nowrap">· {entry.item.protein} g protein</span>}
                                   {isFood && entry.item.planInstanceId && plannedKeys.has(entry.item.planInstanceId) && <span className="badge badge-weight !py-0">Planned</span>}
                                   {isFood && entry.item.isLeftover && <span className="badge badge-neutral !py-0">Leftover</span>}
                                   {isFood && entry.item.isPacked && <span className="badge badge-neutral !py-0">Packed</span>}
@@ -475,7 +475,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                             </button>
                             <button
                               onClick={() => (isFood ? handleDeleteFood(entry.id) : handleDeleteWorkout(entry.id))}
-                              className="size-9 shrink-0 mr-1 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                              className="hit-target size-9 shrink-0 mr-1 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                               aria-label={`Delete ${name}`}
                             >
                               <Trash2 size={16} />

@@ -481,6 +481,19 @@
     cursor: not-allowed;
   }
   .btn-sm { @apply min-h-9 px-4 py-1.5 text-sm; }
+
+  /* Tap area of at least 44×44 around a control drawn smaller (36px pills, chips, icon buttons).
+     The invisible ::after belongs to the control, so taps on it reach the control. */
+  .btn-sm, .hit-target { position: relative; }
+  .btn-sm::after, .hit-target::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
   .btn-lg { @apply px-8 py-3.5 text-lg; }
   .btn-block { @apply flex w-full; }
 

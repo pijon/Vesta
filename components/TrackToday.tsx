@@ -472,7 +472,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] flex items-center gap-3 badge-ink !rounded-full pl-4 pr-1.5 py-1.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in max-w-[calc(100vw-32px)]">
           <span className="truncate">{toast.message}</span>
           {toast.undo && (
-            <button onClick={() => { toast.undo!(); setToast(null); }} className="shrink-0 min-h-8 px-3 rounded-full bg-on-ink/15 hover:bg-on-ink/25 font-semibold">Undo</button>
+            <button onClick={() => { toast.undo!(); setToast(null); }} className="hit-target shrink-0 min-h-8 px-3 rounded-full bg-on-ink/15 hover:bg-on-ink/25 font-semibold">Undo</button>
           )}
         </div>
       )}

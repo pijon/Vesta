@@ -361,7 +361,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             </span>
           )}
           <span className="flex-1 min-w-0">
-            <span className={`block text-[15px] xl:text-sm font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] hyphens-auto ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
+            <span className={`text-[15px] xl:text-sm font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] hyphens-auto ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted mt-0.5">
               {meal.isMissing ? <span>Swap or remove</span> : <span className="whitespace-nowrap">{mealKcalLabel(meal)}</span>}
               {toBuy > 0 && <span className="inline-flex items-center gap-0.5" title={`${toBuy} to buy`}><ShoppingBasket size={12} aria-hidden="true" />{toBuy}</span>}

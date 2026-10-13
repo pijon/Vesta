@@ -697,7 +697,7 @@ export const ShoppingList: React.FC = () => {
                                 <Check size={20} strokeWidth={3} aria-hidden="true" />
                               </span>
                               <span className={`flex-1 min-w-0 ${isSelected ? '' : 'text-muted'}`}>
-                                <span className="block font-semibold leading-snug line-clamp-2">{meal.name}</span>
+                                <span className="font-semibold leading-snug line-clamp-2">{meal.name}</span>
                                 <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted mt-0.5">
                                   {meal.isLeftover
                                     ? 'Leftover · nothing to buy'

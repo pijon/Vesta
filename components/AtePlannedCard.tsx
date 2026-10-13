@@ -58,12 +58,12 @@ export const AtePlannedCard: React.FC<AtePlannedCardProps> = ({ plan, onLogAll }
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button onClick={logAll} disabled={busy} className="btn-primary btn-sm">
+            <button onClick={logAll} disabled={busy} className="btn-secondary btn-sm">
               {busy ? 'Logging…' : count === 1 ? 'Yes, log it' : `Yes, log all ${count}`}
             </button>
             <button
               onClick={() => document.getElementById('from-your-plan')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="btn-secondary btn-sm"
+              className="btn-ghost btn-sm"
             >
               Some were different
             </button>

@@ -191,7 +191,7 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
       >
         <RecipeThumb meal={meal} className="size-12 sm:size-14 rounded-[12px] shrink-0" iconSize={16} />
         <span className="flex-1 min-w-0">
-          <span className="block font-semibold leading-snug line-clamp-2">{meal.name}</span>
+          <span className="font-semibold leading-snug line-clamp-2">{meal.name}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-xs text-muted">
             <span><span className="font-semibold text-main">{meal.calories}</span> kcal</span>
             {!!meal.protein && <span>· {meal.protein} g protein</span>}
