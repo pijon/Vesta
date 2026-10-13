@@ -97,11 +97,17 @@ export interface EnergyEstimate {
  * burn ≈ average intake − (weight change per day × 7,700 kcal/kg).
  * Only days with food logged count towards intake, so the estimate is only as good as the logging.
  */
-export const estimateEnergy = (summaries: DailySummary[], history: WeightEntry[], today = localDateString()): EnergyEstimate => {
+export const estimateEnergy = (
+  summaries: DailySummary[],
+  history: WeightEntry[],
+  today = localDateString(),
+  /** Which days' food logs are full enough to count (see isCompleteDay); default any food at all */
+  isComplete: (s: DailySummary) => boolean = s => (s.caloriesConsumed || 0) > 0,
+): EnergyEstimate => {
   const to = addDays(today, -1);
   const from = addDays(to, -(ESTIMATE_WINDOW_DAYS - 1));
   const inWindow = summaries.filter(s => s.date >= from && s.date <= to);
-  const logged = inWindow.filter(s => (s.caloriesConsumed || 0) > 0);
+  const logged = inWindow.filter(isComplete);
   const weighIns = (history || [])
     .filter(e => e.weight > 0 && e.date >= from && e.date <= to)
     .sort((a, b) => a.date.localeCompare(b.date))

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot } from '../types';
+import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
+import { isCompleteDay } from '../utils/logCompleteness';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, mealCalories, mealKey, planMeal, slotFor } from '../utils/planUtils';
@@ -45,6 +46,7 @@ interface TrackTodayProps {
   onUpdateStats: (stats: UserStats) => void;
   onLogMeal: (meal: Recipe, isAdding: boolean) => Promise<void>;
   onLogMeals: (entries: { meal: Recipe; at: number }[]) => Promise<void>;
+  onSetDayStatus: (status: DayLogStatus | undefined) => Promise<DailyLog>;
   onAddFoodLogItems: (items: FoodLogItem[]) => Promise<void>;
   onUpdateFoodItem: (item: FoodLogItem) => Promise<void>;
   onDeleteFoodItem: (itemId: string) => Promise<void>;
@@ -71,6 +73,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onUpdateStats,
   onLogMeal,
   onLogMeals,
+  onSetDayStatus,
   onAddFoodLogItems,
   onUpdateFoodItem,
   onDeleteFoodItem,
@@ -382,6 +385,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         frequentFoods={frequentFoods}
         onQuickLog={handleQuickLog}
         onLogFood={onOpenFoodModal}
+        dayStatus={dailyLog.status}
+        dayCounts={isCompleteDay(consumed, dailyTarget, dailyLog.status)}
+        onSetDayStatus={onSetDayStatus}
       />
 
       {/* The most useful piece of guidance right now (all of it is on Analytics) */}

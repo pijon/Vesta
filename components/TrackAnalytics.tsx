@@ -313,7 +313,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
             {/* Calories */}
             <Panel
                 title="Calories"
-                subtitle={summary.loggedDays ? `Each day against that day's target · ${summary.loggedDays} of ${days.length} days logged` : undefined}
+                subtitle={summary.loggedDays ? `Each day against that day's target · ${summary.loggedDays} of ${days.length} days fully logged` : undefined}
             >
                 {summary.loggedDays === 0 ? <Empty>No food logged in this period.</Empty> : (
                     <>

@@ -5,6 +5,7 @@ import {
   DEFAULT_LOSS_RATE, EnergyEstimate, LOSS_RATES, MIN_LOGGED_DAYS, MIN_NOURISH_TARGET, MIN_WEIGH_INS, MIN_WEIGH_SPAN_DAYS,
   TargetSuggestion, estimateEnergy, fastDaysPerWeek, suggestTargets,
 } from '../utils/energyModel';
+import { completeDayFor } from '../utils/logCompleteness';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
 /** Burn is an estimate; tens are as precise as it gets */
@@ -25,7 +26,7 @@ export interface EnergyState {
 /** Burn estimate and suggested target from the last four weeks of logs, weigh-ins and day types. */
 export const useEnergy = (stats: UserStats, summaries: DailySummary[], dayTypes: Record<string, string>, rateOverride?: number): EnergyState =>
   useMemo(() => {
-    const estimate = estimateEnergy(summaries, stats.weightHistory);
+    const estimate = estimateEnergy(summaries, stats.weightHistory, undefined, completeDayFor(stats, dayTypes));
     const rate = rateOverride ?? stats.weeklyLossGoal ?? DEFAULT_LOSS_RATE;
     const suggestion = suggestTargets(estimate, stats, fastDaysPerWeek(dayTypes, estimate), rate);
     const current = stats.nonFastDayCalories || 2000;
@@ -48,7 +49,7 @@ const Progress: React.FC<{ label: string; value: number; of: number; hint?: stri
 /** What's still needed before the estimate can be made */
 const Requirements: React.FC<{ estimate: EnergyEstimate }> = ({ estimate }) => (
   <div className="space-y-3">
-    <Progress label="Days with food logged" value={estimate.loggedDays} of={MIN_LOGGED_DAYS} hint="In the last four weeks. Log everything on those days, drinks included." />
+    <Progress label="Fully logged days" value={estimate.loggedDays} of={MIN_LOGGED_DAYS} hint="In the last four weeks, drinks included. A day under 40% of its target only counts if you mark it complete on Today." />
     <Progress
       label="Weigh-ins"
       value={estimate.weighIns}
@@ -100,7 +101,7 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
           <div>
             <p className="font-display font-extrabold text-4xl leading-tight">≈ {approx(estimate.expenditure)}<span className="text-lg font-bold"> kcal a day</span></p>
             <p className="text-sm text-muted mt-2">
-              You ate {fmt(estimate.avgIntake!)} kcal a day on average ({estimate.loggedDays} days logged) and your weight moved
+              You ate {fmt(estimate.avgIntake!)} kcal a day on average ({estimate.loggedDays} fully logged days) and your weight moved
               {' '}{estimate.weightChangePerWeek! > 0 ? '+' : '−'}{kg(Math.abs(estimate.weightChangePerWeek!))} kg a week over the last four weeks.
               {estimate.avgWorkoutBurn > 0 && ` That includes about ${fmt(estimate.avgWorkoutBurn)} kcal a day from workouts.`}
             </p>

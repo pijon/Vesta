@@ -2,6 +2,7 @@ import { DailyLog, DailySummary, UserStats, WeightEntry } from '../types';
 import { MAX_PLAUSIBLE_FAST_HOURS } from '../constants';
 import { localDateString, parseLocalDate } from './dateUtils';
 import { addDays } from './planUtils';
+import { isCompleteDay } from './logCompleteness';
 
 export type AnalyticsPeriod = 'week' | 'month' | 'quarter';
 
@@ -18,6 +19,8 @@ export interface AnalyticsDay {
   isFastDay: boolean;
   /** Food logged that day (calories > 0) */
   logged: boolean;
+  /** Logged fully enough to count in averages (see isCompleteDay) */
+  complete: boolean;
   calories: number;
   /** Grams, when any of the day's food had a protein amount */
   protein: number | null;
@@ -56,6 +59,7 @@ export const buildDays = (
     ...(todayLog.items.some(item => typeof item.protein === 'number')
       ? { proteinConsumed: todayLog.items.reduce((sum, item) => sum + (item.protein || 0), 0) }
       : {}),
+    ...(todayLog.status ? { status: todayLog.status } : {}),
   });
 
   const waterGoal = stats.dailyWaterGoal || 2000;
@@ -75,6 +79,7 @@ export const buildDays = (
       time: parseLocalDate(date).getTime(),
       isFastDay,
       logged: calories > 0,
+      complete: isCompleteDay(calories, calorieTarget, s?.status),
       calories,
       protein: s?.proteinConsumed ?? null,
       calorieTarget,
@@ -115,7 +120,8 @@ export interface PeriodSummary {
 }
 
 export const summarize = (days: AnalyticsDay[], targetFastHours: number): PeriodSummary => {
-  const logged = days.filter(d => d.logged);
+  // Averages only use fully logged days; a half-logged day would look like an easy day on target
+  const logged = days.filter(d => d.complete);
   const fasts = days.map(d => d.fastHours).filter((h): h is number => h !== null);
   const fastDaysLogged = logged.filter(d => d.isFastDay);
   const waterDays = days.filter(d => d.water > 0);
@@ -133,8 +139,8 @@ export const summarize = (days: AnalyticsDay[], targetFastHours: number): Period
     workouts: days.reduce((sum, d) => sum + d.workouts, 0),
     burned: days.reduce((sum, d) => sum + d.burned, 0),
     avgWater: average(waterDays.map(d => d.water)),
-    avgProtein: average(days.filter(d => d.protein !== null && d.logged).map(d => d.protein!)),
-    proteinDays: days.filter(d => d.protein !== null && d.logged).length,
+    avgProtein: average(logged.filter(d => d.protein !== null).map(d => d.protein!)),
+    proteinDays: logged.filter(d => d.protein !== null).length,
     waterDaysMet: days.filter(d => d.goals.water).length,
     waterDaysLogged: waterDays.length,
   };
@@ -211,7 +217,7 @@ const enoughLogged = (s: PeriodSummary) => s.loggedDays >= 3;
 
 /** Average calories more a day at weekends than on weekdays, when both have enough logged days */
 const weekendGap = (days: AnalyticsDay[]) => {
-  const logged = days.filter(d => d.logged);
+  const logged = days.filter(d => d.complete);
   const isWeekend = (d: AnalyticsDay) => [0, 6].includes(parseLocalDate(d.date).getDay());
   const weekend = logged.filter(isWeekend);
   const weekday = logged.filter(d => !isWeekend(d));
@@ -269,7 +275,7 @@ export const insightsFor = (
   }
 
   // Fast days against their target
-  const fastDays = current.filter(d => d.logged && d.isFastDay).length;
+  const fastDays = current.filter(d => d.complete && d.isFastDay).length;
   if (fastDays >= 2 && cur.avgFastDayCalories !== null && fastTarget > 0) {
     const avg = cur.avgFastDayCalories;
     insights.push(avg <= fastTarget * 1.05

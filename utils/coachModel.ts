@@ -1,6 +1,17 @@
 import { CoachReadState, DailyLog, DailySummary, UserStats } from '../types';
 import { localDateString } from './dateUtils';
-import { addDays, proteinTarget } from './planUtils';
+import { addDays, proteinTarget, weekStart } from './planUtils';
+import { completeDayFor } from './logCompleteness';
+
+/**
+ * Logging thresholds, in fully logged days out of 14. Logging on most days is what predicts weight
+ * loss; in the SMART trial people logging 30–59% of days did as well at 18 months as those logging
+ * more. So about 9 of 14 is praised, and only fewer than 5 is the thing to fix.
+ */
+const LOGGING_GOOD = 9;
+const LOGGING_LOW = 5;
+/** Fully logged days that make a week count towards the steady-logging streak */
+const STEADY_WEEK_DAYS = 4;
 import { EnergyEstimate, TargetSuggestion, estimateEnergy, fastDaysPerWeek, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
 
 /**
@@ -12,6 +23,8 @@ export interface CoachFacts {
   /** Days with food logged, out of the last 14 and 28 (yesterday back) */
   loggedDays14: number;
   loggedDays28: number;
+  /** Weeks in a row with at least STEADY_WEEK_DAYS fully logged days */
+  steadyWeeks: number;
   /** Average calories on the days that were logged (last 28) */
   avgLoggedIntake: number | null;
   /** Average calorie target on those same days (nourish or fast) */
@@ -56,7 +69,9 @@ export const buildCoachFacts = (
   const yesterday = addDays(today, -1);
   const since = (days: number) => addDays(yesterday, -(days - 1));
   const inLast = (days: number) => summaries.filter(s => s.date >= since(days) && s.date <= yesterday);
-  const logged = (list: DailySummary[]) => list.filter(s => (s.caloriesConsumed || 0) > 0);
+  // Only fully logged days count; a day with just breakfast logged would read as a very low intake
+  const isComplete = completeDayFor(stats, dayTypes);
+  const logged = (list: DailySummary[]) => list.filter(isComplete);
 
   const logged28 = logged(inLast(28));
   const targetFor = (date: string) => (dayTypes[date] === 'fast' ? stats.dailyCalorieGoal : (stats.nonFastDayCalories || 2000));
@@ -74,8 +89,16 @@ export const buildCoachFacts = (
     return from ? Math.round((latest.trend - from.trend) * 10) / 10 : null;
   };
 
-  const protein14 = inLast(14).filter(s => typeof s.proteinConsumed === 'number' && (s.caloriesConsumed || 0) > 0);
-  const estimate = estimateEnergy(summaries, stats.weightHistory, today);
+  const protein14 = logged(inLast(14)).filter(s => typeof s.proteinConsumed === 'number');
+  const estimate = estimateEnergy(summaries, stats.weightHistory, today, isComplete);
+
+  // Weeks in a row (Monday to Sunday) with at least STEADY_WEEK_DAYS fully logged days, counting
+  // back from last week; this week joins in once it has reached that too
+  const completeDates = new Set(summaries.filter(isComplete).map(s => s.date));
+  const weekLogged = (monday: string) => Array.from({ length: 7 }, (_, i) => addDays(monday, i)).filter(d => d <= yesterday && completeDates.has(d)).length;
+  const thisMonday = weekStart(today);
+  let steadyWeeks = weekLogged(thisMonday) >= STEADY_WEEK_DAYS ? 1 : 0;
+  for (let monday = addDays(thisMonday, -7); weekLogged(monday) >= STEADY_WEEK_DAYS; monday = addDays(monday, -7)) steadyWeeks++;
   const weeklyLossGoal = stats.weeklyLossGoal ?? DEFAULT_LOSS_RATE;
   const last = history[history.length - 1];
   const first90 = history.find(e => e.date >= addDays(today, -90));
@@ -87,6 +110,7 @@ export const buildCoachFacts = (
     today,
     loggedDays14: logged(inLast(14)).length,
     loggedDays28: logged28.length,
+    steadyWeeks,
     avgLoggedIntake: average(logged28.map(s => s.caloriesConsumed)),
     avgLoggedTarget: average(logged28.map(s => targetFor(s.date))),
     weighIns14: weighInsSince(14),
@@ -178,12 +202,12 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
           : f.goalWeight > 0 ? ' You\'ve reached your goal weight.' : '')
         + ' Keep doing what you\'re doing.',
     });
-  } else if (flat && f.loggedDays14 >= 12 && f.suggestion) {
+  } else if (flat && f.loggedDays14 >= 10 && f.suggestion) {
     findings.push({
       id: 'plateau',
       tone: 'focus',
       title: 'A real plateau: flat for two weeks on complete logs',
-      detail: `You've logged nearly every day and the trend hasn't moved, so your current intake is close to what you burn (about ${kcal(f.estimate.expenditure!)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(f.suggestion.weeklyLoss)} a week.`,
+      detail: `You've fully logged most days and the trend hasn't moved, so your current intake is close to what you burn (about ${kcal(f.estimate.expenditure!)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(f.suggestion.weeklyLoss)} a week.`,
       action: f.suggestion.nourish < f.nourishTarget ? { kind: 'applyTarget', label: `Use ${kcal(f.suggestion.nourish)}`, nourish: f.suggestion.nourish } : undefined,
     });
   } else if (flat) {
@@ -195,8 +219,10 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
     });
   }
 
-  // 2. Logging: the biggest lever, and what the logged days say
-  if (f.loggedDays14 < 11) {
+  // 2. Logging: the biggest lever, and what the logged days say. Most days is enough.
+  const streak = f.steadyWeeks >= 2 ? `${f.steadyWeeks} weeks in a row of steady logging. ` : '';
+  const unlock = f.estimate.ready ? '' : ` It also unlocks your personal target, which needs 14 fully logged days in four weeks (you have ${f.estimate.loggedDays}).`;
+  if (f.loggedDays14 < LOGGING_LOW) {
     const underTarget = f.avgLoggedIntake !== null && f.avgLoggedTarget !== null && f.avgLoggedIntake < f.avgLoggedTarget * 0.85;
     findings.push({
       id: 'logging',
@@ -204,12 +230,25 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
       title: `Food logged on ${f.loggedDays14} of the last 14 days`,
       detail: (underTarget && !losing
         ? `On the days you logged you averaged ${kcal(f.avgLoggedIntake!)}, under your target. If that were every day you'd be losing steadily, so the extra calories are most likely on unlogged days (often weekends and evenings) or in things that slip through: cooking oil, drinks, tastes. `
-        : 'Unlogged days are where calories usually hide, and they make it impossible to tell what\'s working. ')
-        + `Logging every day for two weeks${f.estimate.ready ? '' : ` also unlocks your personal target, which needs 14 logged days in four weeks (you have ${f.estimate.loggedDays})`}.`,
+        : 'Unlogged days are where calories usually hide, and they make it hard to tell what\'s working. ')
+        + `You don't need every day: logging most days, about ${LOGGING_GOOD} of 14, is enough.${unlock}`,
       action: { kind: 'logFood', label: 'Log food' },
     });
-  } else if (f.loggedDays14 >= 12) {
-    findings.push({ id: 'logging-good', tone: 'good', title: `Logged ${f.loggedDays14} of the last 14 days`, detail: 'That\'s what makes everything else here reliable. Remember drinks and cooking fat.' });
+  } else if (f.loggedDays14 < LOGGING_GOOD) {
+    findings.push({
+      id: 'logging-most',
+      tone: 'tip',
+      title: `${f.loggedDays14} of 14 days logged, nearly there`,
+      detail: `${streak}Most days is enough: about ${LOGGING_GOOD} of 14 makes your averages and trend reliable. The days from Thursday to Sunday are the ones most people skip.${unlock}`,
+      action: { kind: 'logFood', label: 'Log food' },
+    });
+  } else {
+    findings.push({
+      id: 'logging-good',
+      tone: 'good',
+      title: `Logged ${f.loggedDays14} of the last 14 days`,
+      detail: `${streak}That's enough for everything here to be reliable. Remember drinks and cooking fat.`,
+    });
   }
 
   // 3. A better target, once the burn estimate is ready (if the plateau finding hasn't offered it)

@@ -1,6 +1,6 @@
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState } from './types';
+import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus } from './types';
 import { mealCalories, mealProtein, slotFor, slotLabel } from './utils/planUtils';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage } from './services/storageService';
 import * as cache from './utils/cacheService';
@@ -540,6 +540,7 @@ const TrackerApp: React.FC = () => {
         onSetCoachRead: handleSetCoachRead,
         onLogMeal: handleLogMeal,
         onLogMeals: handleLogMeals,
+        onSetDayStatus: (status: DayLogStatus | undefined) => updateDailyLog(current => ({ ...current, status })),
         onAddFoodLogItems: handleAddFoodLogItems,
         onUpdateFoodItem: async (item: FoodLogItem) => {
             const updatedLog = await updateDailyLog((current) => ({

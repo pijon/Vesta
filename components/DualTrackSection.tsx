@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DayPlan, DailyLog, FoodLogItem, WorkoutItem, AppView } from '../types';
+import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
 import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
@@ -24,6 +24,11 @@ interface DualTrackSectionProps {
   frequentFoods: FrequentFood[];
   onQuickLog: (food: FrequentFood) => void;
   onLogFood: () => void;
+  /** The user's own mark on today's log, if any */
+  dayStatus?: DayLogStatus;
+  /** Today counts in averages and the burn estimate (see isCompleteDay) */
+  dayCounts: boolean;
+  onSetDayStatus: (status: DayLogStatus | undefined) => void;
 }
 
 /** Shows a logged name with a capital first letter; what the user typed is stored unchanged. */
@@ -64,6 +69,26 @@ const formatTime = (timestamp: number) =>
 
 const COLLAPSED_COUNT = 5;
 
+/** From this hour the day's log is mostly done, so Today says whether it will count */
+const STATUS_FROM_HOUR = 17;
+
+/** Whether today's log counts in averages, with a one-tap way to say otherwise. */
+const DayStatusRow: React.FC<{ status?: DayLogStatus; counts: boolean; onSet: (status: DayLogStatus | undefined) => void }> = ({ status, counts, onSet }) => {
+  const [text, action] = status === 'complete'
+    ? ['Marked as everything you ate today.', <button key="a" onClick={() => onSet(undefined)} className="btn-ghost btn-sm shrink-0">Undo</button>]
+    : status === 'incomplete'
+      ? ["Marked as not fully logged, so it's left out of your averages.", <button key="a" onClick={() => onSet(undefined)} className="btn-ghost btn-sm shrink-0">Undo</button>]
+      : counts
+        ? ['Counts towards your averages and daily burn.', <button key="a" onClick={() => onSet('incomplete')} className="btn-ghost btn-sm shrink-0">Not everything is logged</button>]
+        : ["Under 40% of today's target, so it won't count in your averages.", <button key="a" onClick={() => onSet('complete')} className="btn-secondary btn-sm shrink-0">That's all I ate</button>];
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border mt-3 pt-3 px-2">
+      <p className="text-xs text-muted flex-1 min-w-[12rem]">{text}</p>
+      {action}
+    </div>
+  );
+};
+
 export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   todayPlan,
   dailyLog,
@@ -80,6 +105,9 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   frequentFoods,
   onQuickLog,
   onLogFood,
+  dayStatus,
+  dayCounts,
+  onSetDayStatus,
 }) => {
   const [editingFoodItem, setEditingFoodItem] = useState<FoodLogItem | null>(null);
   const [editFoodName, setEditFoodName] = useState('');
@@ -443,6 +471,10 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   {showAllLoggedItems ? 'Show less' : `Show all ${logEntries.length} entries`}
                   <ChevronDown size={16} className={`transition-transform ${showAllLoggedItems ? 'rotate-180' : ''}`} />
                 </button>
+              )}
+
+              {sortedFoodItems.length > 0 && (dayStatus || new Date().getHours() >= STATUS_FROM_HOUR) && (
+                <DayStatusRow status={dayStatus} counts={dayCounts} onSet={onSetDayStatus} />
               )}
             </>
           )}

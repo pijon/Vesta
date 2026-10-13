@@ -1161,6 +1161,7 @@ const summarizeLog = (log: DailyLog): DailySummary => {
     waterIntake: log.waterIntake || 0,
     maxFastingHours: log.maxFastingHours || 0,
     ...(withProtein.length ? { proteinConsumed: Math.round(withProtein.reduce((sum, item) => sum + (item.protein || 0), 0)) } : {}),
+    ...(log.status ? { status: log.status } : {}),
   };
 };
 
@@ -1243,8 +1244,10 @@ export const getDailySummaries = async (daysBack: number = 90): Promise<DailySum
 
     logsSnap.forEach(doc => {
       const log = doc.data() as DailyLog;
-      // Only compute if we don't have a summary yet
-      if (!summariesMap.has(log.date)) summariesMap.set(log.date, summarizeLog(log));
+      // Only compute if we don't have a summary yet; a stored summary still takes the day's status
+      const stored = summariesMap.get(log.date);
+      if (!stored) summariesMap.set(log.date, summarizeLog(log));
+      else if (log.status) summariesMap.set(log.date, { ...stored, status: log.status });
     });
 
     // 3. Return sorted array

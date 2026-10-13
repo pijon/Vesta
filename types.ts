@@ -220,12 +220,16 @@ export interface WorkoutItem {
   timestamp: number;
 }
 
+/** The user's own word on a day's food log; unset means judged from calories (see isCompleteDay) */
+export type DayLogStatus = 'complete' | 'incomplete';
+
 export interface DailyLog {
   date: string;
   items: FoodLogItem[];
   workouts: WorkoutItem[];
   waterIntake: number; // in ml
   maxFastingHours?: number; // Maximum fast achieved/broken on this day
+  status?: DayLogStatus;
 }
 
 export interface DailySummary {
@@ -238,6 +242,7 @@ export interface DailySummary {
   waterIntake?: number; // in ml
   maxFastingHours?: number; // Fasting hours achieved
   proteinConsumed?: number; // grams, from items with a known protein amount
+  status?: DayLogStatus;
 }
 
 export interface DailyProgress {
