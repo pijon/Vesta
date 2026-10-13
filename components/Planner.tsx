@@ -5,7 +5,7 @@ import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
 import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan } from '../services/storageService';
 import { familyData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
-import { auth } from '../services/firebase';
+import { currentUid } from '../services/firebase';
 import { getCachedRecipes } from '../utils/cacheService';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
@@ -54,7 +54,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const didScroll = useRef(false);
 
   const inFamily = !!family;
-  const myUid = auth.currentUser?.uid;
+  const myUid = currentUid();
 
   const showToast = (message: string) => {
     setToast(message);

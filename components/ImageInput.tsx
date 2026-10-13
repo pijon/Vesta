@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { uploadRecipeImage } from '../utils/storageUtils';
-import { auth } from '../services/firebase';
+import { currentUid } from '../services/firebase';
 import { Camera } from 'lucide-react';
 
 interface ImageInputProps {
@@ -49,7 +49,7 @@ export const ImageInput: React.FC<ImageInputProps> = ({
     }
 
     // Check authentication
-    const userId = auth.currentUser?.uid;
+    const userId = currentUid();
     if (!userId) {
       onError('Sign in again to upload photos.');
       return;

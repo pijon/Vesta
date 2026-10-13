@@ -1,6 +1,6 @@
 import { arrayRemove, arrayUnion, doc, getDoc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { auth, db, functions } from './firebase';
+import { currentUid, db, functions } from './firebase';
 import { ReminderSettings } from '../types';
 import { VAPID_PUBLIC_KEY } from '../constants';
 
@@ -25,7 +25,7 @@ export const pushSupport = (): PushSupport => {
 };
 
 const reminderDoc = () => {
-  const uid = auth.currentUser?.uid;
+  const uid = currentUid();
   if (!uid) throw new Error('Not signed in');
   return doc(db, 'reminders', uid);
 };

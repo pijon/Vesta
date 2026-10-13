@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { auth, lastSignedInUid } from '../services/firebase';
 
 interface AuthContextType {
     user: User | null;
+    /** True until Firebase has restored the saved session */
     loading: boolean;
+    /** The signed-in uid; while loading, the uid of the previous session (if any) */
+    uid: string | null;
     isDeveloper: boolean;
     logout: () => Promise<void>;
 }
@@ -12,6 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
     user: null,
     loading: true,
+    uid: null,
     isDeveloper: false,
     logout: async () => { },
 });
@@ -50,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const value = {
         user,
         loading,
+        uid: loading ? lastSignedInUid : user?.uid ?? null,
         isDeveloper,
         logout
     };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Group } from '../types';
 import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode } from '../services/groupService';
-import { auth } from '../services/firebase';
+import { currentUid } from '../services/firebase';
 import { AlertCircle, Check, Copy, LogIn, LogOut, UsersRound, UtensilsCrossed } from 'lucide-react';
 
 export const FamilySettings: React.FC = () => {
@@ -171,7 +171,7 @@ export const FamilySettings: React.FC = () => {
                             <h3 className="heading-3 truncate">{group.name}</h3>
                             <p className="text-sm text-muted">
                                 {group.memberIds.length} {group.memberIds.length === 1 ? 'member' : 'members'}
-                                {group.ownerId === auth.currentUser?.uid ? ' · You manage this family' : ''}
+                                {group.ownerId === currentUid() ? ' · You manage this family' : ''}
                             </p>
                         </div>
                         <button
@@ -188,7 +188,7 @@ export const FamilySettings: React.FC = () => {
                     <ul className="space-y-1">
                         {members.map(member => {
                             const isOwner = member.id === group.ownerId;
-                            const isYou = member.id === auth.currentUser?.uid;
+                            const isYou = member.id === currentUid();
                             return (
                                 <li key={member.id} className="flex items-center gap-3 px-2 py-2 rounded-[14px]">
                                     <span className={`size-10 shrink-0 rounded-full flex items-center justify-center font-display font-extrabold ${isOwner ? 'bg-fasting-bg text-fasting-text' : 'bg-workout-bg text-workout-text'}`} aria-hidden="true">

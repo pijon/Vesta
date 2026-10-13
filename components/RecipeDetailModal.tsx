@@ -4,7 +4,7 @@ import { Portal } from './Portal';
 import { mealVisualFor } from '../utils/mealVisual';
 import { scaleIngredient } from '../utils/scaleIngredient';
 import { uploadRecipeImage } from '../utils/storageUtils';
-import { auth } from '../services/firebase';
+import { currentUid } from '../services/firebase';
 import { CalendarPlus, Camera, Check, ChefHat, Copy, ExternalLink, Minus, MoreHorizontal, Pencil, Plus, Trash2, UsersRound, X } from 'lucide-react';
 import { isQuickMeal } from '../utils/planUtils';
 
@@ -68,7 +68,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
     const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        const uid = auth.currentUser?.uid;
+        const uid = currentUid();
         e.target.value = '';
         if (!file || !uid || !onSetImage) return;
         if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {

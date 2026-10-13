@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { getDayPlan, saveDayPlan } from '../services/storageService';
-import { auth } from '../services/firebase';
+import { currentUid } from '../services/firebase';
 import { familyData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
 import { MEAL_SLOTS, addDays, planRecipe, slotFor, slotLabel } from '../utils/planUtils';
@@ -39,7 +39,7 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
     setSaving(true);
     try {
       const plan = await getDayPlan(date);
-      const meal = planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: auth.currentUser?.uid });
+      const meal = planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: currentUid() });
       await saveDayPlan({ ...plan, meals: [...plan.meals, meal] });
       onAdded(`Added ${recipe.name} to ${target}`, date);
     } catch (e) {

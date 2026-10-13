@@ -1,4 +1,4 @@
-import { db, auth } from "./firebase";
+import { db, currentUid } from "./firebase";
 import {
     doc,
     getDoc,
@@ -35,9 +35,9 @@ const isCurrentInviteFormat = (code: string) =>
     code.length === INVITE_CODE_LENGTH && [...code].every(c => INVITE_CODE_ALPHABET.includes(c));
 
 const getCurrentUser = () => {
-    const user = auth.currentUser;
-    if (!user) throw new Error("User not authenticated");
-    return user;
+    const uid = currentUid();
+    if (!uid) throw new Error("User not authenticated");
+    return { uid };
 };
 
 // --- Group Management ---
@@ -46,7 +46,7 @@ const getCurrentUser = () => {
 let myGroupId: { uid: string; promise: Promise<string | null> } | null = null;
 
 export const getMyGroupId = (): Promise<string | null> => {
-    const uid = auth.currentUser?.uid;
+    const uid = currentUid();
     if (!uid) return Promise.resolve(null);
     if (myGroupId?.uid !== uid) {
         myGroupId = {

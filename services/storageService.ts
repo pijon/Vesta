@@ -2,12 +2,12 @@ import { CoachReadState, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, Pant
 import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
-import { auth, db } from "./firebase";
+import { currentUid, db } from "./firebase";
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
 
 // Helper to get current user ID or throw
 const getUserId = () => {
-  const uid = auth.currentUser?.uid;
+  const uid = currentUid();
   if (!uid) throw new Error("User not authenticated");
   return uid;
 };
@@ -163,7 +163,7 @@ const dehydrateMeal = (meal: Recipe, shared = false): PlannedMeal => {
   const isLibraryRecipe = !isQuickMeal(meal) && (!!meal.originalRecipeId || !!meal.id);
 
   if (isLibraryRecipe) {
-    const me = auth.currentUser?.uid;
+    const me = currentUid();
     const ownerId = meal.ownerId || (shared ? me : undefined);
     return {
       type: 'reference',
@@ -603,8 +603,8 @@ export const getCachedPlansInRange = (startDate: string, endDate: string): Recor
  * tagged with their owner. Family dinners are included once.
  */
 export const getFamilyPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
-  const user = auth.currentUser;
-  if (!user) return {};
+  const uid = currentUid();
+  if (!uid) return {};
 
   try {
     const group = await getUserGroup();
@@ -633,7 +633,7 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
             ...meal,
             ownerId: memberId,
             ownerName: memberNameMap.get(memberId) || 'Family member',
-            isShared: memberId !== user.uid,
+            isShared: memberId !== uid,
           })),
         } as DayPlan;
       }));
@@ -649,7 +649,7 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
     allMemberPlans.forEach(({ memberId, memberPlans }) => {
       Object.entries(memberPlans).forEach(([date, plan]) => {
         const target = merged[date] || (merged[date] = { date, meals: [], completedMealIds: [] });
-        if (memberId === user.uid) {
+        if (memberId === uid) {
           target.type = plan.type;
           target.tips = plan.tips;
           target.completedMealIds.push(...plan.completedMealIds);

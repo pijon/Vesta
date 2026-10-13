@@ -751,25 +751,26 @@ const TrackerApp: React.FC = () => {
 };
 
 const AuthGuard: React.FC = () => {
-    const { user, loading } = useAuth();
+    const { uid, loading } = useAuth();
+    // Firebase restores the session over the network, which can take seconds on a slow
+    // connection. A returning user gets the app straight away, drawn from the local cache
+    // (data calls wait for auth inside Firestore); anyone else sees the splash until then.
+    const ready = !loading || !!uid;
 
-    // Firebase restores the session over the network (token refresh + account lookup), which
-    // can take seconds on a slow connection. Keep the HTML splash up until then, and fade it
-    // out once there is something to show.
     useEffect(() => {
-        if (loading) return;
+        if (!ready) return;
         const initialLoader = document.getElementById('initial-loader');
         if (!initialLoader) return;
         initialLoader.classList.add('fade-out');
         const timer = setTimeout(() => initialLoader.remove(), 300);
         return () => clearTimeout(timer);
-    }, [loading]);
+    }, [ready]);
 
-    if (loading) {
+    if (!ready) {
         return null;
     }
 
-    if (!user) {
+    if (!uid) {
         return <LoginScreen />;
     }
 
