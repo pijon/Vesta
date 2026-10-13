@@ -211,6 +211,8 @@ export interface FoodLogItem {
   tags?: string[];      // To capture ["Dinner"] etc if type isn't explicit
   isLeftover?: boolean;
   isPacked?: boolean;
+  /** The planned meal (its mealKey) this entry was logged from, so Today shows it once and unticking removes it */
+  planInstanceId?: string;
 }
 
 export interface WorkoutItem {

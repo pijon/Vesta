@@ -8,6 +8,16 @@ export const MEAL_SLOTS: { slot: MealSlot; label: string }[] = [
   { slot: 'snack', label: 'Snacks' },
 ];
 
+/** When each slot's meal is usually eaten [hour, minute]: where planned meals sit on Today's timeline and when late-logged ones are assumed eaten */
+export const SLOT_TIMES: Record<MealSlot, [number, number]> = { breakfast: [7, 30], lunch: [12, 30], snack: [15, 30], dinner: [18, 30] };
+
+/** Today's time for a slot, in ms */
+export const slotTime = (slot: MealSlot, now = Date.now()) => {
+  const d = new Date(now);
+  d.setHours(SLOT_TIMES[slot][0], SLOT_TIMES[slot][1], 0, 0);
+  return d.getTime();
+};
+
 export const slotLabel = (slot: MealSlot) => MEAL_SLOTS.find(s => s.slot === slot)!.label;
 
 /** The meal's slot, or one guessed from its tags for plans made before slots existed. */

@@ -1,7 +1,7 @@
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus } from './types';
-import { mealCalories, mealProtein, slotFor, slotLabel } from './utils/planUtils';
+import { mealCalories, mealKey, mealProtein, slotFor, slotLabel } from './utils/planUtils';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage } from './services/storageService';
 import * as cache from './utils/cacheService';
 // Lazy load non-critical components for performance
@@ -446,7 +446,8 @@ const TrackerApp: React.FC = () => {
             tags: meal.tags,
             isLeftover: meal.isLeftover,
             isPacked: meal.isPacked,
-            type: slotLabel(slotFor(meal))
+            type: slotLabel(slotFor(meal)),
+            planInstanceId: mealKey(meal),
         }));
         await updateDailyLog((current) => ({ ...current, items: [...(current.items || []), ...items], maxFastingHours: currentFastingMax }));
 
@@ -463,8 +464,11 @@ const TrackerApp: React.FC = () => {
         }
         // Use current state instead of fetching fresh to avoid extra DB read
         const newItems = [...(dailyLogRef.current.items || [])];
+        const key = mealKey(meal);
+        // Entries logged before planInstanceId existed are matched by name and calories
+        const linked = newItems.some(item => item.planInstanceId === key);
         for (let i = newItems.length - 1; i >= 0; i--) {
-            if (newItems[i].name === meal.name && newItems[i].calories === mealCalories(meal)) {
+            if (linked ? newItems[i].planInstanceId === key : (newItems[i].name === meal.name && newItems[i].calories === mealCalories(meal))) {
                 newItems.splice(i, 1);
                 // When removing, we don't recalculate maxFastingHours or revert persistence
                 // as the fast WAS broken/achieved at that time.

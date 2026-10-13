@@ -4,7 +4,7 @@ import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
 import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { DualTrackSection } from './DualTrackSection';
@@ -29,12 +29,7 @@ import { analyzeActivityStreaks } from '../utils/analytics';
 const EMPTY_DAY_TYPES: Record<string, string> = {};
 
 /** When a meal logged after the fact is assumed to have been eaten (never later than now) */
-const SLOT_TIMES: Record<MealSlot, [number, number]> = { breakfast: [7, 30], lunch: [12, 30], snack: [15, 30], dinner: [18, 30] };
-const plannedTime = (slot: MealSlot, now: number) => {
-  const d = new Date(now);
-  d.setHours(SLOT_TIMES[slot][0], SLOT_TIMES[slot][1], 0, 0);
-  return Math.min(d.getTime(), now);
-};
+const plannedTime = (slot: MealSlot, now: number) => Math.min(slotTime(slot, now), now);
 
 /** Meals being logged, and the quick meals among them still to be asked for calories */
 interface CaloriesAsk { indices: number[]; plan: DayPlan; timed: boolean; queue: number[]; total: number }
@@ -263,11 +258,17 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const nextMealIndex = todayPlan.meals
     .map((meal, index) => ({ meal, index }))
     .filter(({ meal }) => !isMealEaten(todayPlan, meal))
-    .sort((a, b) => {
-      const [ah, am] = SLOT_TIMES[slotFor(a.meal)];
-      const [bh, bm] = SLOT_TIMES[slotFor(b.meal)];
-      return ah * 60 + am - (bh * 60 + bm) || a.index - b.index;
-    })[0]?.index;
+    .sort((a, b) => slotTime(slotFor(a.meal)) - slotTime(slotFor(b.meal)) || a.index - b.index)[0]?.index;
+
+  /** Deleting an entry logged from the plan also unticks that meal, so it shows as planned again */
+  const handleDeleteFoodItem = async (itemId: string) => {
+    const key = dailyLog.items?.find(item => item.id === itemId)?.planInstanceId;
+    await onDeleteFoodItem(itemId);
+    if (key && todayPlan.completedMealIds.includes(key)) {
+      await saveDayPlan({ ...todayPlan, completedMealIds: todayPlan.completedMealIds.filter(id => id !== key) });
+      refreshData();
+    }
+  };
 
   const handleSwapMeal = (index: number) => {
     setActiveMealIndexToSwap(index);
@@ -404,7 +405,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onEditWorkout={handleEditWorkout}
         onDeleteWorkout={onDeleteWorkout}
         onUpdateFoodItem={onUpdateFoodItem}
-        onDeleteFoodItem={onDeleteFoodItem}
+        onDeleteFoodItem={handleDeleteFoodItem}
         onNavigate={onNavigate}
         onSwapMeal={handleSwapMeal}
         caloriesLeft={dailyTarget - consumed + creditedBurn(caloriesBurned, stats)}

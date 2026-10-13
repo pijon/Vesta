@@ -4,7 +4,7 @@ import { Sheet } from './Sheet';
 import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
-import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, slotFor } from '../utils/planUtils';
+import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor } from '../utils/planUtils';
 import type { FrequentFood } from '../services/pageData';
 
 interface DualTrackSectionProps {
@@ -115,6 +115,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const [editFoodProtein, setEditFoodProtein] = useState('');
   const [editFoodTime, setEditFoodTime] = useState('');
   const [showAllLoggedItems, setShowAllLoggedItems] = useState(false);
+  const [showEaten, setShowEaten] = useState(false);
   const [timeSinceMeal, setTimeSinceMeal] = useState<string>('');
 
   useEffect(() => {
@@ -228,66 +229,19 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const remainingPlannedCalories = plannedMeals
     .filter(m => !isMealEaten(todayPlan, m))
     .reduce((sum, m) => sum + mealCalories(m), 0);
-  // Meals in slot order (breakfast → snacks); toggling still uses the plan index
+  // Meals in slot order (breakfast → snacks); toggling still uses the plan index.
+  // Eaten ones fold into one row (they're in Today's log too); the rest are grouped by slot.
+  const inSlotOrder = MEAL_SLOTS.flatMap(({ slot, label }) =>
+    plannedMeals.map((meal, index) => ({ meal, index, label })).filter(({ meal }) => slotFor(meal) === slot));
+  const eatenMeals = inSlotOrder.filter(({ meal }) => isMealEaten(todayPlan, meal));
   const mealsBySlot = MEAL_SLOTS
-    .map(({ slot, label }) => ({ label, entries: plannedMeals.map((meal, index) => ({ meal, index })).filter(({ meal }) => slotFor(meal) === slot) }))
+    .map(({ label }) => ({ label, entries: inSlotOrder.filter(e => e.label === label && !isMealEaten(todayPlan, e.meal)) }))
     .filter(group => group.entries.length > 0);
   const fits = remainingPlannedCalories <= caloriesLeft;
+  // Instance ids of planned meals, to mark the log entries they created
+  const plannedKeys = new Set(plannedMeals.map(mealKey));
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-start">
-      {/* Left: From Your Plan */}
-      <div id="from-your-plan" className="card flex flex-col scroll-mt-24">
-        <div className="px-5 md:px-6 pt-5 pb-4">
-          <div className="flex justify-between items-start gap-3">
-            <div className="min-w-0">
-              <h3 className="heading-3 text-lg">From your plan</h3>
-              <p className="text-sm text-muted mt-0.5">
-                {plannedMeals.length === 0
-                  ? 'Nothing planned yet'
-                  : eatenCount === plannedMeals.length
-                    ? `All ${plannedMeals.length} meals eaten · ${plannedCalories} kcal`
-                    : `${eatenCount} of ${plannedMeals.length} eaten · ${remainingPlannedCalories} kcal to go`}
-              </p>
-              {remainingPlannedCalories > 0 && (
-                <p className={`text-sm mt-0.5 font-semibold ${fits ? 'text-weight-text' : 'text-warning'}`}>
-                  {fits
-                    ? `Fits your ${Math.max(caloriesLeft, 0).toLocaleString()} kcal left`
-                    : `${(remainingPlannedCalories - Math.max(caloriesLeft, 0)).toLocaleString()} kcal more than you have left`}
-                </p>
-              )}
-            </div>
-            <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-ghost btn-sm shrink-0">
-              Planner
-            </button>
-          </div>
-          {plannedMeals.length > 0 && (
-            <div className="flex gap-1 mt-3" role="img" aria-label={`${eatenCount} of ${plannedMeals.length} planned meals eaten`}>
-              {plannedMeals.map((meal) => (
-                <span
-                  key={meal.id}
-                  className={`h-1.5 flex-1 rounded-full transition-colors ${isMealEaten(todayPlan, meal) ? 'bg-primary' : 'bg-surface-sunken'}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="px-3 md:px-4 pb-4">
-          {plannedMeals.length === 0 ? (
-            <div className="tile tile-neutral items-center text-center py-8 mx-2">
-              <p className="font-semibold">Nothing planned for today</p>
-              <p className="text-sm text-muted mt-1 mb-4">Pick a few meals and we'll track them here.</p>
-              <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-primary btn-sm">
-                Plan my day
-              </button>
-            </div>
-          ) : (
-            mealsBySlot.map(group => (
-            <section key={group.label}>
-            {mealsBySlot.length > 1 && <h4 className="font-sans text-xs font-semibold text-muted px-2 pt-2 pb-1">{group.label}</h4>}
-            <ul>
-              {group.entries.map(({ meal, index }) => {
+  const renderMeal = ({ meal, index }: { meal: Recipe; index: number }) => {
                 const isEaten = isMealEaten(todayPlan, meal);
                 const visual = mealVisualFor(meal);
                 return (
@@ -344,10 +298,89 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     </button>
                   </li>
                 );
-              })}
+  };
+
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-start">
+      {/* Left: From Your Plan */}
+      <div id="from-your-plan" className="card flex flex-col scroll-mt-24">
+        <div className="px-5 md:px-6 pt-5 pb-4">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0">
+              <h3 className="heading-3 text-lg">From your plan</h3>
+              <p className="text-sm text-muted mt-0.5">
+                {plannedMeals.length === 0
+                  ? 'Nothing planned yet'
+                  : eatenCount === plannedMeals.length
+                    ? `All ${plannedMeals.length} meals eaten · ${plannedCalories} kcal`
+                    : `${eatenCount} of ${plannedMeals.length} eaten · ${remainingPlannedCalories} kcal to go`}
+              </p>
+              {remainingPlannedCalories > 0 && (
+                <p className={`text-sm mt-0.5 font-semibold ${fits ? 'text-weight-text' : 'text-warning'}`}>
+                  {fits
+                    ? `Fits your ${Math.max(caloriesLeft, 0).toLocaleString()} kcal left`
+                    : `${(remainingPlannedCalories - Math.max(caloriesLeft, 0)).toLocaleString()} kcal more than you have left`}
+                </p>
+              )}
+            </div>
+            <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-ghost btn-sm shrink-0">
+              Planner
+            </button>
+          </div>
+          {plannedMeals.length > 0 && (
+            <div className="flex gap-1 mt-3" role="img" aria-label={`${eatenCount} of ${plannedMeals.length} planned meals eaten`}>
+              {plannedMeals.map((meal) => (
+                <span
+                  key={meal.id}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${isMealEaten(todayPlan, meal) ? 'bg-primary' : 'bg-surface-sunken'}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-3 md:px-4 pb-4">
+          {plannedMeals.length === 0 ? (
+            <div className="tile tile-neutral items-center text-center py-8 mx-2">
+              <p className="font-semibold">Nothing planned for today</p>
+              <p className="text-sm text-muted mt-1 mb-4">Pick a few meals and we'll track them here.</p>
+              <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-primary btn-sm">
+                Plan my day
+              </button>
+            </div>
+          ) : (
+            <>
+            {eatenMeals.length > 0 && (
+              <section>
+                <button
+                  onClick={() => setShowEaten(v => !v)}
+                  aria-expanded={showEaten}
+                  className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
+                >
+                  <span className="size-12 shrink-0 flex items-center justify-center">
+                    <span className="size-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                      <Check size={18} strokeWidth={3} aria-hidden="true" />
+                    </span>
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-semibold">{eatenMeals.length} eaten · {eatenMeals.reduce((sum, { meal }) => sum + mealCalories(meal), 0).toLocaleString()} kcal</span>
+                    <span className="block text-xs text-muted truncate">{eatenMeals.map(({ meal }) => meal.name).join(', ')}</span>
+                  </span>
+                  <ChevronDown size={18} className={`shrink-0 mr-3 text-muted transition-transform ${showEaten ? 'rotate-180' : ''}`} aria-hidden="true" />
+                </button>
+                {showEaten && <ul>{eatenMeals.map(renderMeal)}</ul>}
+              </section>
+            )}
+            {mealsBySlot.map(group => (
+            <section key={group.label}>
+            {mealsBySlot.length > 1 && <h4 className="font-sans text-xs font-semibold text-muted px-2 pt-2 pb-1">{group.label}</h4>}
+            <ul>
+              {group.entries.map(renderMeal)}
             </ul>
             </section>
-            ))
+            ))}
+            </>
           )}
         </div>
       </div>
@@ -437,6 +470,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                                 <span className="flex items-center gap-1.5 text-xs text-muted mt-0.5">
                                   <span>{formatTime(entry.timestamp)}</span>
                                   {isFood && typeof entry.item.protein === 'number' && <span>· {entry.item.protein} g protein</span>}
+                                  {isFood && entry.item.planInstanceId && plannedKeys.has(entry.item.planInstanceId) && <span className="badge badge-weight !py-0">Planned</span>}
                                   {isFood && entry.item.isLeftover && <span className="badge badge-neutral !py-0">Leftover</span>}
                                   {isFood && entry.item.isPacked && <span className="badge badge-neutral !py-0">Packed</span>}
                                   {!isFood && <span>Workout</span>}
