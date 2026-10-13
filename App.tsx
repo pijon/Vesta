@@ -34,7 +34,6 @@ import { OnboardingWizard, OnboardingResult } from './components/OnboardingWizar
 import { FoodEntryModal } from './components/FoodEntryModal';
 import { WorkoutEntryModal } from './components/WorkoutEntryModal';
 import { WeightEntryModal } from './components/WeightEntryModal';
-import { LoadingScreen } from './components/LoadingScreen';
 import { ViewSkeleton } from './components/ViewSkeleton';
 
 
@@ -742,8 +741,20 @@ const TrackerApp: React.FC = () => {
 const AuthGuard: React.FC = () => {
     const { user, loading } = useAuth();
 
+    // Firebase restores the session over the network (token refresh + account lookup), which
+    // can take seconds on a slow connection. Keep the HTML splash up until then, and fade it
+    // out once there is something to show.
+    useEffect(() => {
+        if (loading) return;
+        const initialLoader = document.getElementById('initial-loader');
+        if (!initialLoader) return;
+        initialLoader.classList.add('fade-out');
+        const timer = setTimeout(() => initialLoader.remove(), 300);
+        return () => clearTimeout(timer);
+    }, [loading]);
+
     if (loading) {
-        return <LoadingScreen />;
+        return null;
     }
 
     if (!user) {
@@ -757,20 +768,6 @@ import { ReloadPrompt } from './components/ReloadPrompt';
 import { localDateString } from './utils/dateUtils';
 
 export const App: React.FC = () => {
-    // Smooth handoff: Fade out the HTML initial loader when React mounts
-    useEffect(() => {
-        const initialLoader = document.getElementById('initial-loader');
-        if (initialLoader) {
-            // Add fade-out class for smooth transition
-            initialLoader.classList.add('fade-out');
-            // Remove from DOM after animation completes
-            const timer = setTimeout(() => {
-                initialLoader.remove();
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, []);
-
     // Removed Hard Version Check to allow Service Worker to handle updates gracefully
 
 

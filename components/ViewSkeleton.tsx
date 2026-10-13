@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 /**
  * Lightweight skeleton for Suspense fallback during view transitions.
- * Unlike LoadingScreen, this is minimal and doesn't re-animate the full logo.
+ * Minimal: it does not re-animate the full logo like the start-up splash in index.html.
  */
 export const ViewSkeleton: React.FC = () => {
     return (

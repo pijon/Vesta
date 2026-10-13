@@ -24,23 +24,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isDeveloper, setIsDeveloper] = useState(false);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
-
-            if (user) {
-                // Get the ID token result which contains custom claims
-                try {
-                    const tokenResult = await user.getIdTokenResult();
-                    setIsDeveloper(tokenResult.claims.isDeveloper === true);
-                } catch (e) {
-                    console.warn('Failed to get ID token claims:', e);
-                    setIsDeveloper(false);
-                }
-            } else {
-                setIsDeveloper(false);
-            }
-
+            setIsDeveloper(false);
             setLoading(false);
+
+            // The developer claim only gates dev-mode flags, so don't hold up start-up for it:
+            // getIdTokenResult() goes to the network whenever the cached token has expired.
+            if (user) {
+                user.getIdTokenResult()
+                    .then(tokenResult => {
+                        if (auth.currentUser?.uid === user.uid) {
+                            setIsDeveloper(tokenResult.claims.isDeveloper === true);
+                        }
+                    })
+                    .catch(e => console.warn('Failed to get ID token claims:', e));
+            }
         });
 
         return unsubscribe;
@@ -57,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };
