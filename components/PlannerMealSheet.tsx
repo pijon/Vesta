@@ -5,7 +5,7 @@ import {
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
-import { MEAL_SLOTS, isQuickMeal, mealKcalLabel } from '../utils/planUtils';
+import { MEAL_SLOTS, PLANNABLE_SLOTS, isQuickMeal, mealKcalLabel } from '../utils/planUtils';
 import { parseLocalDate } from '../utils/dateUtils';
 
 interface PlannerMealSheetProps {
@@ -98,8 +98,8 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
         </fieldset>
         <fieldset className="mt-5">
           <legend className="text-sm font-semibold text-muted mb-2">Meal</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {MEAL_SLOTS.map(s => (
+          <div className="grid grid-cols-3 gap-2">
+            {PLANNABLE_SLOTS.map(s => (
               <button
                 key={s.slot}
                 onClick={() => setPickSlot(s.slot)}
@@ -112,7 +112,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
           </div>
           {inFamily && (
             <p className="text-xs text-muted mt-3">
-              {pickSlot === 'dinner' ? 'Dinners are shared with your family.' : 'Breakfast, lunch and snacks are just yours.'}
+              {pickSlot === 'dinner' ? 'Dinners are shared with your family.' : 'Breakfast and lunch are just yours.'}
             </p>
           )}
         </fieldset>

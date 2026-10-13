@@ -112,7 +112,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                     const recipe = recipes.find(rec => rec.id === id);
                     if (!recipe) return;
                     const slot = slotFor(recipe);
-                    if (slot !== 'snack' && taken.has(slot)) return;
+                    if (slot === 'snack' || taken.has(slot)) return;
                     taken.add(slot);
                     added.push(planMeal(recipe, slot, { familyDinner: inFamily && slot === 'dinner' }));
                 });

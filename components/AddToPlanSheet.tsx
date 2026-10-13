@@ -5,7 +5,7 @@ import { getDayPlan, saveDayPlan } from '../services/storageService';
 import { currentUid } from '../services/firebase';
 import { familyData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
-import { MEAL_SLOTS, addDays, planRecipe, slotFor, slotLabel } from '../utils/planUtils';
+import { PLANNABLE_SLOTS, addDays, planRecipe, plannableSlotFor, slotLabel } from '../utils/planUtils';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 
 interface AddToPlanSheetProps {
@@ -27,7 +27,7 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
   const dates = Array.from({ length: 14 }, (_, i) => addDays(today, i));
   const family = usePrewarmed(familyData);
   const [date, setDate] = useState(today);
-  const [slot, setSlot] = useState<MealSlot>(slotFor(recipe));
+  const [slot, setSlot] = useState<MealSlot>(plannableSlotFor(recipe));
   const [saving, setSaving] = useState(false);
 
   // "today's dinner", "tomorrow's lunch", "Thu 16 Oct breakfast"
@@ -72,8 +72,8 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
       </fieldset>
       <fieldset className="mt-5">
         <legend className="text-sm font-semibold text-muted mb-2">Meal</legend>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {MEAL_SLOTS.map(s => (
+        <div className="grid grid-cols-3 gap-2">
+          {PLANNABLE_SLOTS.map(s => (
             <button key={s.slot} onClick={() => setSlot(s.slot)} aria-pressed={slot === s.slot} className="chip chip-tile">
               {s.label}
             </button>
@@ -81,7 +81,7 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
         </div>
         {family && (
           <p className="text-xs text-muted mt-3">
-            {slot === 'dinner' ? `Dinners are shared with your family and cooked for ${family.memberCount}.` : 'Breakfast, lunch and snacks are just yours.'}
+            {slot === 'dinner' ? `Dinners are shared with your family and cooked for ${family.memberCount}.` : 'Breakfast and lunch are just yours.'}
           </p>
         )}
       </fieldset>

@@ -8,7 +8,16 @@ export const MEAL_SLOTS: { slot: MealSlot; label: string }[] = [
   { slot: 'snack', label: 'Snacks' },
 ];
 
-/** When each slot's meal is usually eaten [hour, minute]: where planned meals sit on Today's timeline and when late-logged ones are assumed eaten */
+/** Slots offered when planning. Snacks aren't planned; existing planned snacks still show and count. */
+export const PLANNABLE_SLOTS = MEAL_SLOTS.filter(s => s.slot !== 'snack');
+
+/** Where a recipe goes by default when planned: its own slot, or lunch for a snack */
+export const plannableSlotFor = (meal: Pick<Recipe, 'slot' | 'tags'>): MealSlot => {
+  const slot = slotFor(meal);
+  return slot === 'snack' ? 'lunch' : slot;
+};
+
+/** When each slot's meal is usually eaten [hour, minute]: the order of Today's "Next up" and when late-logged meals are assumed eaten */
 export const SLOT_TIMES: Record<MealSlot, [number, number]> = { breakfast: [7, 30], lunch: [12, 30], snack: [15, 30], dinner: [18, 30] };
 
 /** Today's time for a slot, in ms */

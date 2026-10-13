@@ -269,7 +269,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       const current = planFor(date);
       const taken = new Set(current.meals.map(slotFor));
       const additions = source.meals
-        .filter(m => !m.isLeftover && (slotFor(m) === 'snack' || !taken.has(slotFor(m))))
+        .filter(m => !m.isLeftover && slotFor(m) !== 'snack' && !taken.has(slotFor(m)))
         .map(m => newMeal(m, slotFor(m), { cookingServings: m.cookingServings, isPacked: m.isPacked, sides: m.sides }));
       if (additions.length === 0) return;
       copied += additions.length;
@@ -527,7 +527,9 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                     </div>
                   </div>
                 </header>
-                {MEAL_SLOTS.map(({ slot, label }) => renderSlot(date, plan, slot, label))}
+                {MEAL_SLOTS
+                  .filter(({ slot }) => slot !== 'snack' || plan.meals.some(m => slotFor(m) === 'snack'))
+                  .map(({ slot, label }) => renderSlot(date, plan, slot, label))}
               </article>
             );
           })}
