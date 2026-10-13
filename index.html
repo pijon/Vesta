@@ -66,9 +66,6 @@
       background-color: #17181D !important;
     }
 
-    html.dark .loading-text {
-      color: #F3EFE8 !important;
-    }
   </style>
   <script>
     // Immediate Theme Sync to prevent flash
@@ -102,67 +99,137 @@
     }
 
     .initial-loader {
+      --sp-bg: #FBF8F3;
+      --sp-ink: #1F2430;
+      --sp-muted: #5D6270;
+      --sp-track: #ECE6DC;
+      --sp-primary: #B94E36;
       position: fixed;
       inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background-color: #FBF8F3;
+      background-color: var(--sp-bg);
       z-index: 9999;
+      font-family: 'Figtree', system-ui, sans-serif;
     }
 
-    .logo-pulse {
-      width: 96px;
-      height: 96px;
-      border-radius: 22px; /* the icon is a full-bleed square; platforms round it themselves */
-      margin-bottom: 24px;
-      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    html.dark .initial-loader {
+      --sp-bg: #17181D;
+      --sp-ink: #F3EFE8;
+      --sp-muted: #A3A7B3;
+      --sp-track: #2F323C;
+      --sp-primary: #E07A5F;
+    }
+
+    .splash-logo {
+      width: 104px;
+      height: 104px;
+      margin-bottom: 28px;
+      animation: splashIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .splash-logo svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .splash-flame,
+    .splash-core {
+      transform-box: fill-box;
+      transform-origin: 50% 100%;
+    }
+
+    .splash-flame {
+      animation: flicker 1.6s ease-in-out infinite;
+    }
+
+    .splash-core {
+      animation: flicker 1.1s ease-in-out infinite reverse;
+    }
+
+    .splash-ember {
+      opacity: 0;
+      animation: ember 2.4s ease-out infinite;
+    }
+
+    .splash-ember:nth-of-type(2) { animation-delay: 0.8s; }
+    .splash-ember:nth-of-type(3) { animation-delay: 1.6s; }
+
+    .splash-greeting {
+      margin: 0 0 6px;
+      font-family: 'Nunito', 'Figtree', system-ui, sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      line-height: 28px;
+      letter-spacing: -0.01em;
+      color: var(--sp-ink);
+      animation: splashIn 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
     .loading-text {
-      font-family: 'Figtree', sans-serif;
-      color: #1F2430;
-      font-size: 1rem;
-      font-weight: 700;
-      opacity: 0.8;
-      animation: fadeText 3s ease-in-out infinite;
+      min-height: 20px;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      color: var(--sp-muted);
+      transition: opacity 0.25s ease;
+      animation: splashIn 0.5s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
-    @keyframes pulse {
-
-      0%,
-      100% {
-        opacity: 1;
-        transform: scale(1);
-      }
-
-      50% {
-        opacity: 0.8;
-        transform: scale(0.95);
-      }
+    .loading-text.is-swapping {
+      opacity: 0;
     }
 
-    @keyframes fadeText {
+    .splash-track {
+      position: relative;
+      width: 120px;
+      height: 4px;
+      margin-top: 20px;
+      border-radius: 2px;
+      overflow: hidden;
+      background: var(--sp-track);
+    }
 
-      0%,
-      100% {
-        opacity: 0.8;
-      }
+    .splash-track::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40%;
+      border-radius: 2px;
+      background: var(--sp-primary);
+      animation: slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    }
 
-      50% {
-        opacity: 0.4;
-      }
+    @keyframes splashIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes flicker {
+      0%, 100% { transform: scale(1, 1) skewX(0deg); }
+      25% { transform: scale(0.96, 1.06) skewX(-2deg); }
+      50% { transform: scale(1.03, 0.95) skewX(1.5deg); }
+      75% { transform: scale(0.98, 1.04) skewX(-1deg); }
+    }
+
+    @keyframes ember {
+      0% { opacity: 0; transform: translate(0, 0); }
+      15% { opacity: 1; }
+      100% { opacity: 0; transform: translate(var(--drift, 0px), -22px); }
+    }
+
+    @keyframes slide {
+      from { left: -40%; }
+      to { left: 100%; }
     }
 
     @keyframes fadeOut {
-      from {
-        opacity: 1;
-      }
-
-      to {
-        opacity: 0;
-      }
+      from { opacity: 1; }
+      to { opacity: 0; }
     }
 
     .initial-loader.fade-out {
@@ -170,13 +237,60 @@
       pointer-events: none;
     }
 
-    /* Dark mode support if user has system preference */
-    /* Dark mode handled by html.dark class via script above */
+    @media (prefers-reduced-motion: reduce) {
+      .splash-logo, .splash-greeting, .loading-text, .splash-flame, .splash-core, .splash-track::after {
+        animation: none;
+      }
+      .splash-ember { display: none; }
+      .splash-track::after { left: 30%; }
+    }
   </style>
-  <div id="initial-loader" class="initial-loader">
-    <img src="/pwa-192x192.png" alt="Vesta" class="logo-pulse">
-    <div class="loading-text">Warming the hearth…</div>
+  <div id="initial-loader" class="initial-loader" role="status" aria-live="polite">
+    <div class="splash-logo" aria-hidden="true">
+      <svg viewBox="0 0 100 100">
+        <rect width="100" height="100" rx="22" fill="#B94E36"/>
+        <circle class="splash-ember" cx="36" cy="34" r="1.8" fill="#F6C9A8" style="--drift: -4px"/>
+        <circle class="splash-ember" cx="64" cy="30" r="1.4" fill="#F6C9A8" style="--drift: 4px"/>
+        <circle class="splash-ember" cx="60" cy="38" r="1.6" fill="#F6C9A8" style="--drift: 6px"/>
+        <path class="splash-flame" d="M50 10 C58 22 68 31 68 47 C68 59 60 66 50 66 C40 66 32 59 32 47 C32 39 36 34 41 28 C42 35 45 39 48 40 C46 30 47 20 50 10 Z" fill="#F6C9A8"/>
+        <path class="splash-core" d="M50 38 C54 44 58 48 58 54 C58 60 54 64 50 64 C46 64 42 60 42 54 C42 48 46 44 50 38 Z" fill="#B94E36"/>
+        <rect x="17" y="54" width="66" height="8" rx="4" fill="#FBF3E8" stroke="#B94E36" stroke-width="3"/>
+        <path d="M23 62 H77 C77 75 65 83 50 83 C35 83 23 75 23 62 Z" fill="#FBF3E8"/>
+        <rect x="39" y="84" width="22" height="5" rx="2.5" fill="#FBF3E8"/>
+      </svg>
+    </div>
+    <h1 class="splash-greeting" id="splash-greeting">Vesta</h1>
+    <div class="loading-text" id="splash-message">Warming the hearth…</div>
+    <div class="splash-track" aria-hidden="true"></div>
   </div>
+  <script>
+    // Greet returning users by name (from the stats cache) and cycle a few short messages
+    // until AuthGuard removes the splash.
+    (function () {
+      try {
+        var stats = JSON.parse(localStorage.getItem('fast800_cache_stats') || 'null');
+        var name = stats && typeof stats.name === 'string' ? stats.name.trim() : '';
+        if (name) {
+          var hour = new Date().getHours();
+          var part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+          document.getElementById('splash-greeting').textContent = part + ', ' + name;
+        }
+      } catch (e) { /* the default greeting is fine */ }
+
+      var messages = ['Warming the hearth…', 'Setting the table…', 'Checking the pantry…', 'Stirring the pot…', 'Gathering the family…'];
+      var el = document.getElementById('splash-message');
+      var i = 0;
+      var timer = setInterval(function () {
+        if (!el.isConnected) return clearInterval(timer);
+        el.classList.add('is-swapping');
+        setTimeout(function () {
+          i = (i + 1) % messages.length;
+          el.textContent = messages[i];
+          el.classList.remove('is-swapping');
+        }, 250);
+      }, 1800);
+    })();
+  </script>
   <div id="root"></div>
   <script type="module" src="index.tsx"></script>
 </body>
