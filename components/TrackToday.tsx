@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
 import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
-import { saveDayPlan, getDailySummaries } from '../services/storageService';
+import { saveDayPlan, getDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
@@ -47,6 +47,7 @@ interface TrackTodayProps {
   onAddFoodLogItems: (items: FoodLogItem[]) => Promise<void>;
   onUpdateFoodItem: (item: FoodLogItem) => Promise<void>;
   onDeleteFoodItem: (itemId: string) => Promise<void>;
+  onRestoreFoodItem: (item: FoodLogItem) => Promise<void>;
   onAddWorkout: (workout: WorkoutItem) => Promise<void>;
   onUpdateWorkout: (workout: WorkoutItem) => Promise<void>;
   onDeleteWorkout: (workoutId: string) => Promise<void>;
@@ -74,6 +75,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onAddFoodLogItems,
   onUpdateFoodItem,
   onDeleteFoodItem,
+  onRestoreFoodItem,
   onAddWorkout,
   onUpdateWorkout,
   onDeleteWorkout,
@@ -260,14 +262,35 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     .filter(({ meal }) => !isMealEaten(todayPlan, meal))
     .sort((a, b) => slotTime(slotFor(a.meal)) - slotTime(slotFor(b.meal)) || a.index - b.index)[0]?.index;
 
-  /** Deleting an entry logged from the plan also unticks that meal, so it shows as planned again */
+  /** Deletes at once with Undo. An entry logged from the plan also unticks that meal (and Undo ticks it again). */
   const handleDeleteFoodItem = async (itemId: string) => {
-    const key = dailyLog.items?.find(item => item.id === itemId)?.planInstanceId;
+    const item = dailyLog.items?.find(i => i.id === itemId);
+    if (!item) return;
+    const key = item.planInstanceId;
+    const untick = !!key && todayPlan.completedMealIds.includes(key);
     await onDeleteFoodItem(itemId);
-    if (key && todayPlan.completedMealIds.includes(key)) {
+    if (untick) {
       await saveDayPlan({ ...todayPlan, completedMealIds: todayPlan.completedMealIds.filter(id => id !== key) });
       refreshData();
     }
+    setToast({
+      message: `Deleted ${item.name}`,
+      undo: async () => {
+        await onRestoreFoodItem(item);
+        if (untick) {
+          const plan = await getDayPlan(todayPlan.date);
+          await saveDayPlan({ ...plan, completedMealIds: [...new Set([...plan.completedMealIds, key])] });
+          refreshData();
+        }
+      },
+    });
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    const workout = dailyLog.workouts?.find(w => w.id === workoutId);
+    if (!workout) return;
+    await onDeleteWorkout(workoutId);
+    setToast({ message: `Deleted ${workout.type}`, undo: () => { onAddWorkout(workout); } });
   };
 
   const handleSwapMeal = (index: number) => {
@@ -403,7 +426,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onToggleMeal={toggleMeal}
         onViewRecipe={setSelectedRecipe}
         onEditWorkout={handleEditWorkout}
-        onDeleteWorkout={onDeleteWorkout}
+        onDeleteWorkout={handleDeleteWorkout}
         onUpdateFoodItem={onUpdateFoodItem}
         onDeleteFoodItem={handleDeleteFoodItem}
         onNavigate={onNavigate}

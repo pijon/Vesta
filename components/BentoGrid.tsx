@@ -68,7 +68,10 @@ export const ActivityCard: React.FC<{ caloriesBurned: number; workoutsCompleted:
                 )}
             </div>
             <p className="text-2xl font-display font-extrabold leading-7">
-                {workoutsCompleted}<span className="text-sm font-semibold"> of {workoutsGoal}</span>
+                {workoutsCompleted}
+                <span className="text-sm font-semibold">
+                    {workoutsCompleted > workoutsGoal ? ` workout${workoutsCompleted === 1 ? '' : 's'}` : ` of ${workoutsGoal}`}
+                </span>
             </p>
             <p className="text-xs font-semibold">
                 {caloriesBurned > 0 ? `${caloriesBurned} kcal burned` : 'No activity yet'}
@@ -149,7 +152,11 @@ export const WeightCard: React.FC<{
     size?: TileSize;
 }> = ({ weight, ratePerWeek, scale, lastDate, trend, onAddWeight, onClick, size = 'md' }) => {
     const dataPoints = trend.map(weight => ({ weight }));
-    const signed = (n: number, digits = 1) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(digits)}`;
+    // Sign from the rounded value, so −0.04 reads ±0.0 rather than −0.0
+    const signed = (n: number, digits = 1) => {
+        const r = Number(n.toFixed(digits));
+        return `${r > 0 ? '+' : r < 0 ? '−' : '±'}${Math.abs(r).toFixed(digits)}`;
+    };
 
     // Sparkline
     const WIDTH = 100;

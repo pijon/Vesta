@@ -402,45 +402,48 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           {familyCount > 0 && ` · ${familyCount} from family`}
           {filtersActive && ` · ${filteredRecipes.length} shown`}
         </p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setIsAdding(!isAdding); setImportError(null); }}
-            aria-expanded={isAdding}
-            className={isAdding ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
-          >
-            {isAdding ? <X size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}
-            {isAdding ? 'Close' : 'Import'}
-          </button>
-          <div className="relative">
+        {/* Picking a meal (onSelect) is no place to import or write one */}
+        {!onSelect && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={(e) => { e.stopPropagation(); setAddMenuOpen(v => !v); }}
-              className="icon-btn !size-9"
-              aria-label="More ways to add recipes"
-              aria-haspopup="menu"
-              aria-expanded={addMenuOpen}
+              onClick={() => { setIsAdding(!isAdding); setImportError(null); }}
+              aria-expanded={isAdding}
+              className={isAdding ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
             >
-              <Plus size={18} />
+              {isAdding ? <X size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}
+              {isAdding ? 'Close' : 'Import'}
             </button>
-            {addMenuOpen && (
-              <div role="menu" className="absolute right-0 top-11 z-30 w-56 p-1.5 rounded-[16px] bg-surface border border-border shadow-[var(--elev-md)]">
-                {([
-                  [<Plus size={16} aria-hidden="true" />, 'Write a recipe', handleManualAdd],
-                  [<Sparkles size={16} aria-hidden="true" />, 'Create from ingredients', () => setShowIngredientModal(true)],
-                  [<Download size={16} aria-hidden="true" />, 'Export all as JSON', handleExport],
-                ] as const).map(([icon, label, action]) => (
-                  <button
-                    key={label}
-                    role="menuitem"
-                    onClick={() => { setAddMenuOpen(false); action(); }}
-                    className="w-full flex items-center gap-2.5 min-h-10 px-3 rounded-[10px] text-sm font-semibold text-left hover:bg-surface-sunken"
-                  >
-                    {icon} {label}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setAddMenuOpen(v => !v); }}
+                className="icon-btn !size-9"
+                aria-label="More ways to add recipes"
+                aria-haspopup="menu"
+                aria-expanded={addMenuOpen}
+              >
+                <Plus size={18} />
+              </button>
+              {addMenuOpen && (
+                <div role="menu" className="absolute right-0 top-11 z-30 w-56 p-1.5 rounded-[16px] bg-surface border border-border shadow-[var(--elev-md)]">
+                  {([
+                    [<Plus size={16} aria-hidden="true" />, 'Write a recipe', handleManualAdd],
+                    [<Sparkles size={16} aria-hidden="true" />, 'Create from ingredients', () => setShowIngredientModal(true)],
+                    [<Download size={16} aria-hidden="true" />, 'Export all as JSON', handleExport],
+                  ] as const).map(([icon, label, action]) => (
+                    <button
+                      key={label}
+                      role="menuitem"
+                      onClick={() => { setAddMenuOpen(false); action(); }}
+                      className="w-full flex items-center gap-2.5 min-h-10 px-3 rounded-[10px] text-sm font-semibold text-left hover:bg-surface-sunken"
+                    >
+                      {icon} {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Import panel */}
@@ -584,7 +587,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
                 : 'Try a different search or clear a filter.'}
             </p>
             {recipes.length === 0 ? (
-              <button onClick={() => setIsAdding(true)} className="btn-primary btn-sm mt-4"><Link2 size={16} aria-hidden="true" /> Import a recipe</button>
+              !onSelect && <button onClick={() => setIsAdding(true)} className="btn-primary btn-sm mt-4"><Link2 size={16} aria-hidden="true" /> Import a recipe</button>
             ) : (
               <button onClick={clearFilters} className="btn-secondary btn-sm mt-4">
                 Clear filters

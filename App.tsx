@@ -206,7 +206,10 @@ const TrackerApp: React.FC = () => {
     // True once today's log has come back from the server (the cached copy may be stale)
     const [logFresh, setLogFresh] = useState(false);
 
+    // Counts local edits to today's log, so a refresh that started before one doesn't put back the older log
+    const logEdits = useRef(0);
     const updateDailyLog = useCallback(async (updater: (current: DailyLog) => DailyLog) => {
+        logEdits.current++;
         const nextLog = updater(dailyLogRef.current);
         setDailyLogState(nextLog);
         await saveDailyLog(nextLog);
@@ -229,6 +232,7 @@ const TrackerApp: React.FC = () => {
     const refreshSeq = useRef(0);
     const refreshData = useCallback(async () => {
         const seq = ++refreshSeq.current;
+        const editsAtStart = logEdits.current;
         try {
             const [today, tomorrow, stats, log, fasting] = await Promise.all([
                 getDayPlan(todayDate),
@@ -248,7 +252,8 @@ const TrackerApp: React.FC = () => {
             // (Assuming DEFAULT_USER_STATS has empty history, and existing users have history)
             const history = stats.weightHistory || [];
             setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: history });
-            setDailyLogState(log);
+            // Edited while loading: the local log is newer (and being saved), keep it
+            if (logEdits.current === editsAtStart) setDailyLogState(log);
             setLogFresh(true);
             setFastingState(fasting);
 
@@ -585,6 +590,15 @@ const TrackerApp: React.FC = () => {
                     ...fastingState,
                     lastAteTime: latestItem.timestamp
                 };
+                setFastingState(newState);
+                await saveFastingState(newState);
+            }
+        },
+        /** Undo of a delete: puts the entry back as it was, without counting it as eating now */
+        onRestoreFoodItem: async (item: FoodLogItem) => {
+            await updateDailyLog((current) => ({ ...current, items: [...current.items, item] }));
+            if (item.timestamp > (fastingState.lastAteTime || 0)) {
+                const newState: FastingState = { ...fastingState, lastAteTime: item.timestamp };
                 setFastingState(newState);
                 await saveFastingState(newState);
             }

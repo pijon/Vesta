@@ -209,17 +209,9 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     setEditFoodTime('');
   };
 
-  const handleDeleteFood = (itemId: string) => {
-    if (confirm('Delete this food entry?')) {
-      onDeleteFoodItem(itemId);
-    }
-  };
-
-  const handleDeleteWorkout = (workoutId: string) => {
-    if (confirm('Delete this workout?')) {
-      onDeleteWorkout(workoutId);
-    }
-  };
+  // Deletes at once; Today offers Undo
+  const handleDeleteFood = (itemId: string) => onDeleteFoodItem(itemId);
+  const handleDeleteWorkout = (workoutId: string) => onDeleteWorkout(workoutId);
 
   const totalLoggedItems = sortedFoodItems.length + sortedWorkouts.length;
 
