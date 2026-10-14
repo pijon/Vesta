@@ -19,6 +19,7 @@ import { WeekendPlanCard } from './WeekendPlanCard';
 import { weightTrend } from '../utils/energyModel';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
+import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Sheet } from './Sheet';
@@ -166,6 +167,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   // Calculate calories
   const consumed = (dailyLog.items || []).reduce((sum, item) => sum + item.calories, 0);
   const caloriesBurned = (dailyLog.workouts || []).reduce((sum, w) => sum + w.caloriesBurned, 0);
+  // Today's first meal that broke the fast (a coffee doesn't), which opens the eating window
+  const fastBreakCalories = fastingState.config.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES;
+  const firstMealTimes = (dailyLog.items || []).filter(item => item.calories > fastBreakCalories).map(item => item.timestamp);
+  const firstMealTime = firstMealTimes.length ? Math.min(...firstMealTimes) : null;
 
 
   // Determine Daily Target based on Day Type
@@ -400,9 +405,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           />
           <ActivityCard
             caloriesBurned={caloriesBurned}
-            workoutsCompleted={(dailyLog.workouts || []).length}
-            workoutsGoal={stats.dailyWorkoutCountGoal || 1}
+            workoutTypes={(dailyLog.workouts || []).map(w => w.type)}
             history={effectiveHistory}
+            today={dailyLog.date}
             onAddWorkout={() => onOpenWorkoutModal()}
             onClick={() => setIsWorkoutOverviewOpen(true)}
             streak={analyzeActivityStreaks(effectiveHistory).currentStreak}
@@ -411,6 +416,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             elapsedHours={elapsedFastingHours}
             targetHours={fastingState.config.targetFastHours}
             lastAteTime={fastingState.lastAteTime}
+            firstMealTime={firstMealTime}
+            history={effectiveHistory}
+            today={dailyLog.date}
           />
         </div>
       </div>

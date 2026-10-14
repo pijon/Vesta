@@ -585,8 +585,23 @@
   @keyframes ringFill {
     from { stroke-dashoffset: var(--ring-empty); }
   }
+  /* The Today water bottle: the level rises from empty when shown (--water-empty is the empty
+     offset) and eases to new levels; the surface slides one wave period when water is added. */
+  .water-level {
+    transition: transform 0.9s cubic-bezier(0.22, 0.8, 0.3, 1);
+    animation: waterRise 1.1s cubic-bezier(0.22, 0.8, 0.3, 1) 0.08s backwards;
+  }
+  @keyframes waterRise {
+    from { transform: translateY(var(--water-empty)); }
+  }
+  .water-slosh {
+    animation: waterSlosh 1.4s cubic-bezier(0.22, 0.8, 0.3, 1);
+  }
+  @keyframes waterSlosh {
+    from { transform: translateX(-20px); }
+  }
   @media (prefers-reduced-motion: reduce) {
-    .ring-fill { animation: none; }
+    .ring-fill, .water-level, .water-slosh { animation: none; transition: none; }
   }
   .tile-calories { background: var(--calories-bg); color: var(--calories-text); }
   .tile-water { background: var(--water-bg); color: var(--water-text); }
