@@ -7,9 +7,8 @@ import {
   GEMINI_MODEL_STABLE,
   DEFAULT_FEATURE_FLAGS
 } from "../constants";
-import { Recipe, DayPlan, FoodLogItem, PurchasableItem, FeatureFlags, MealSlot, QuickMealKind } from "../types";
+import { Recipe, FoodLogItem, KnownFood, PurchasableItem, FeatureFlags, MealSlot, QuickMealKind } from "../types";
 import { scrubPII } from "../utils/piiScrubber";
-import { localDateString } from '../utils/dateUtils';
 
 // Helper to determine active model
 const getModel = (): string => {
@@ -196,106 +195,6 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
   }
 };
 
-const dayPlanSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    tips: { type: Type.STRING },
-    totalCalories: { type: Type.NUMBER },
-    meals: {
-      type: Type.ARRAY,
-      items: recipeSchema
-    }
-  },
-  required: ['meals', 'totalCalories']
-};
-
-export const generateMealPlan = async (preferences: string): Promise<DayPlan> => {
-  const prompt = `
-    You are an expert nutritionist specializing in Mediterranean-style nutrition. Create a balanced, nutritious one-day meal plan.
-
-    TARGET: Approximately 800 calories total for the entire day
-
-    DIETARY PREFERENCES: "${scrubPII(preferences)}"
-
-    MEAL STRUCTURE:
-    - Generate 2-3 meals (breakfast + 1-2 main meals OR breakfast + main meal + light snack)
-    - Breakfast: 200-300 calories
-    - Main meal(s): 300-500 calories each
-    - Light meal/snack: 100-200 calories (optional)
-    - Use tag "main meal" for lunch/dinner type meals
-    - Use tag "light meal" for lighter options under 250 calories
-
-    NUTRITIONAL BALANCE:
-    - Prioritize protein: Each meal should include quality protein (meat, fish, eggs, legumes, dairy)
-    - Include healthy fats: Olive oil, nuts, avocado (in moderation)
-    - Low-carb vegetables: Prioritize non-starchy vegetables (leafy greens, cruciferous, etc.)
-    - Minimize refined carbs: Avoid white bread, pasta, rice, sugar
-    - Fiber-rich: Include vegetables, salads, or low-sugar fruits
-    - Target macros for the day: ~80-100g protein, ~30-40g fat, ~50-70g carbs
-
-    NUTRITION PRINCIPLES:
-    - Mediterranean-style diet emphasis (olive oil, fish, vegetables, legumes)
-    - High protein to support lean body composition
-    - Low glycemic index foods to stabilize blood sugar
-    - Nutrient-dense, minimally processed foods
-    - Meals should be satisfying and reduce hunger
-
-    PRACTICAL REQUIREMENTS:
-    - Each meal must have complete ingredients list
-    - Each meal must have step-by-step instructions
-    - Servings should be 1 (single portion)
-    - Recipes should be simple enough for home cooking
-    - Use common, accessible ingredients
-
-    HELPFUL TIP:
-    - Include one practical tip for following healthy nutrition successfully
-    - Tips could cover: hydration, meal timing, exercise, sleep, mindset, food prep, etc.
-    - Keep tips actionable and encouraging
-
-    IMPORTANT: Respect the dietary preferences provided. If "vegetarian", use no meat/fish. If "vegan", use no animal products. If "gluten-free", avoid wheat/gluten.
-  `;
-
-  try {
-    const activeModel = getModel();
-    console.log(`[Gemini Service] generateMealPlan using: ${activeModel}`);
-
-    const response = await generateWithFallback({
-      model: activeModel,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: dayPlanSchema
-      }
-    });
-
-    const output = response.text;
-    if (!output) throw new Error("No response from AI");
-
-    const data = JSON.parse(output);
-
-    // Ensure meals have IDs and arrays
-    const mealsWithIds = data.meals.map((m: any) => ({
-      ...m,
-      id: crypto.randomUUID(),
-      ingredients: m.ingredients || [],
-      instructions: m.instructions || [],
-      servings: m.servings || 1
-    }));
-
-    return {
-      date: localDateString(),
-      meals: mealsWithIds,
-      completedMealIds: [],
-      tips: data.tips || "Stay hydrated!",
-      totalCalories: data.totalCalories
-    };
-
-  } catch (error) {
-    console.error("Error generating meal plan:", error);
-    throw error;
-  }
-};
-
 const foodItemsSchema: Schema = {
   type: Type.ARRAY,
   items: {
@@ -360,7 +259,15 @@ Answer with one whole number of kcal. Use -1 only if it isn't a food or drink.`,
   return typeof calories === 'number' && calories > 0 && calories <= 5000 ? Math.round(calories) : null;
 };
 
-export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
+/** The user's own numbers for foods they mention, so the AI reuses them instead of guessing */
+const knownFoodsPrompt = (known: KnownFood[]) => known.length ? `
+    THE USER'S OWN FOODS (their numbers for one portion):
+${known.map(f => `    - ${scrubPII(f.name)}: ${f.calories} kcal${typeof f.protein === 'number' ? `, ${f.protein} g protein` : ''}`).join('\n')}
+    When an item is one of these, use that name and those values, scaled by the amount eaten
+    ("half", "2 portions"). Estimate everything else as usual.
+` : '';
+
+export const analyzeFoodLog = async (text: string, known: KnownFood[] = []): Promise<FoodLogItem[]> => {
   const startTime = performance.now();
 
   const prompt = `
@@ -378,7 +285,7 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
     - Split combined items: "coffee and toast" → ["coffee", "toast"]
     - Include condiments if mentioned: "toast with butter" → ["toast", "butter"]
     - Account for cooking method: "fried" adds oil calories
-    - Be conservative: estimate on HIGHER side for 800 kcal goal
+    - Estimate realistically for the amount described; don't pad or trim calories to suit a diet
     - Round to nearest 5 calories
 
     EXAMPLES:
@@ -388,7 +295,7 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
     ]
 
     PROTEIN: grams of protein per item, estimated for the same portion (whole number).
-
+${knownFoodsPrompt(known)}
     User Input: "${scrubPII(text)}"
 
     Return empty array if text is too vague to identify specific foods.
@@ -451,7 +358,7 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
     - Be specific: "Grilled chicken breast (150g)" not just "chicken"
     - Include cooking method: "Fried rice" vs "Steamed rice"
     - Separate items: Don't combine "chicken and rice" into one
-    - Be conservative: estimate HIGHER for 800 kcal goal
+    - Estimate realistically for the portion you can see; don't pad or trim calories to suit a diet
     - If image unclear or no food visible, return empty array
 
     EXAMPLE:
@@ -513,6 +420,8 @@ export type DayConfig = {
 export const planSpecificDays = async (
   recipes: Recipe[],
   dayConfigs: DayConfig[],
+  /** The user's own calorie targets (dayTarget in utils/planUtils.ts) */
+  targets: { fast: number; nourish: number },
   season: string = 'Current'
 ): Promise<{ date: string, mealIds: string[], type?: 'fast' | 'non-fast' }[]> => {
   // Filter out ignored days
@@ -534,7 +443,7 @@ export const planSpecificDays = async (
 
   const schedulePrompt = activeDays.map(day => `
     DATE: ${day.date}
-    TYPE: ${day.type} (${day.type === 'fast' ? '~800 kcal' : 'Standard nourishment'})
+    TYPE: ${day.type} (target ~${day.type === 'fast' ? targets.fast : targets.nourish} kcal)
     MEALS: ${day.meals} meals
     LEFTOVERS: ${day.useLeftovers ? 'MUST use leftovers from previous dinner for lunch' : 'No constraint'}
   `).join('\n');
@@ -551,7 +460,7 @@ export const planSpecificDays = async (
 
     RECIPE SELECTION RULES:
     1. Use ONLY the recipes provided in the JSON list below (return simple IDs like "1", "2")
-    2. Match calorie targets: Fast days (~800), Standard (~2000)
+    2. Pick meals whose calories add up close to each day's target, without going over it
     3. SEASONAL PREFERENCE: Current season is "${season}".
 
     AVAILABLE RECIPES:

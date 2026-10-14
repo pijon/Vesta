@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Camera, Loader2, MessageSquareText, PenLine, Plus, Sparkles, UtensilsCrossed, X } from 'lucide-react';
-import { FoodLogItem } from '../types';
+import { AlertCircle, Camera, Loader2, MessageSquareText, PenLine, Plus, ScanBarcode, Sparkles, UtensilsCrossed, X } from 'lucide-react';
+import { FoodLogItem, KnownFood } from '../types';
 import { analyzeFoodLog, analyzeFoodImage } from '../services/geminiService';
-import { frequentFoodsData } from '../services/pageData';
+import { frequentFoodsData, knownFoodsData } from '../services/pageData';
+import { exactKnownFood, knownFoodsMentioned, searchKnownFoods } from '../utils/foodMatch';
 import { usePrewarmed } from '../utils/prewarm';
 import { foodIconFor } from '../utils/mealVisual';
 import { Sheet } from './Sheet';
+import { BarcodeScanner } from './BarcodeScanner';
 
 interface FoodEntryModalProps {
   isOpen: boolean;
@@ -13,11 +15,12 @@ interface FoodEntryModalProps {
   onAddItems: (items: FoodLogItem[]) => void;
 }
 
-type Mode = 'describe' | 'photo' | 'manual';
+type Mode = 'describe' | 'photo' | 'scan' | 'manual';
 
 const MODES: { value: Mode; label: string; Icon: typeof Camera }[] = [
   { value: 'describe', label: 'Describe', Icon: MessageSquareText },
   { value: 'photo', label: 'Photo', Icon: Camera },
+  { value: 'scan', label: 'Scan', Icon: ScanBarcode },
   { value: 'manual', label: 'Manual', Icon: PenLine },
 ];
 
@@ -94,6 +97,15 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
   useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
 
   const recent = (usePrewarmed(frequentFoodsData) ?? []).slice(0, 6);
+  const known = usePrewarmed(knownFoodsData) ?? [];
+  // While typing, the user's own foods that match replace the Recent row
+  const matches = text.trim().length >= 2 ? searchKnownFoods(text, known) : [];
+  const addKnown = (food: KnownFood) => {
+    addDrafts([toDraft(food.name, food.calories, food.protein)]);
+    setText('');
+    setError(null);
+    textRef.current?.focus();
+  };
 
   const addDrafts = (items: Draft[]) => setDrafts(prev => [...prev, ...items]);
   const updateDraft = (id: string, patch: Partial<Draft>) => setDrafts(prev => prev.map(d => (d.id === id ? { ...d, ...patch } : d)));
@@ -108,10 +120,13 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
 
   const estimate = async () => {
     if (!text.trim() || busy) return;
+    // A food the user already has numbers for needs no estimate
+    const exact = exactKnownFood(text, known);
+    if (exact) { addKnown(exact); return; }
     setBusy(true);
     setError(null);
     try {
-      const items = await analyzeFoodLog(text);
+      const items = await analyzeFoodLog(text, knownFoodsMentioned(text, known));
       if (!open.current) return;
       if (items.length === 0) {
         setError('No food recognised. Add a little more detail, for example "protein shake with milk".');
@@ -195,7 +210,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
     <Sheet title="Log food" onClose={onClose} footer={footer} initialFocus={textRef}>
       <div className="space-y-4">
         {/* Mode */}
-        <div role="radiogroup" aria-label="How to add food" className="grid grid-cols-3 p-1 rounded-full bg-surface-sunken">
+        <div role="radiogroup" aria-label="How to add food" className="grid grid-cols-4 p-1 rounded-full bg-surface-sunken">
           {MODES.map(({ value, label, Icon }) => (
             <button
               key={value}
@@ -232,7 +247,34 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
               </button>
             </div>
 
-            {recent.length > 0 && (
+            {matches.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted mb-1.5">Your foods</p>
+                <ul className="divide-y divide-border rounded-[14px] border border-border">
+                  {matches.map(food => {
+                    const Icon = foodIconFor({ name: food.name }) ?? Plus;
+                    return (
+                      <li key={food.name}>
+                        <button
+                          onClick={() => addKnown(food)}
+                          aria-label={`Add ${food.name}, ${food.calories} kcal`}
+                          className="w-full flex items-center gap-2.5 min-h-11 px-3 py-2 text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] first:rounded-t-[14px] last:rounded-b-[14px]"
+                        >
+                          <Icon size={16} className="shrink-0 text-calories-text" aria-hidden="true" />
+                          <span className="flex-1 min-w-0">
+                            <span className="block truncate font-semibold text-sm">{capitalise(food.name)}</span>
+                            {food.source === 'recipe' && <span className="block text-xs text-muted">Your recipe, 1 portion</span>}
+                          </span>
+                          <span className="shrink-0 text-sm text-muted">{food.calories} kcal</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {matches.length === 0 && recent.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-muted mb-1.5">Recent</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -288,6 +330,13 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
               </button>
             )}
           </div>
+        )}
+
+        {mode === 'scan' && (
+          <BarcodeScanner
+            onAdd={food => addDrafts([toDraft(food.name, food.calories, food.protein)])}
+            onManual={() => switchMode('manual')}
+          />
         )}
 
         {mode === 'manual' && (
@@ -391,6 +440,6 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
   );
 };
 
-/** Log food by describing it, from a photo or by hand. Every estimate lands in an editable list before it's logged. */
+/** Log food by describing it, from a photo, by scanning a barcode or by hand. Every estimate lands in an editable list before it's logged. */
 export const FoodEntryModal: React.FC<FoodEntryModalProps> = ({ isOpen, ...props }) =>
   isOpen ? <FoodEntrySheet {...props} /> : null;

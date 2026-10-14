@@ -199,6 +199,14 @@ export interface EnhancedShoppingState {
   selectedMealIds?: string[];
 }
 
+/** A food the user already has numbers for: one of their recipes (per portion) or something they logged */
+export interface KnownFood {
+  name: string;
+  calories: number;
+  protein?: number;
+  source: 'recipe' | 'log';
+}
+
 export interface FoodLogItem {
   id: string;
   name: string;

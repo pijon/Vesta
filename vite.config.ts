@@ -70,6 +70,17 @@ export default defineConfig(({ command, mode }) => {
           importScripts: ['push-sw.js'],
           runtimeCaching: [
             {
+              // The barcode reader (zxing-wasm, ~1 MB): cached on first scan rather than
+              // precached, so people who never scan don't download it
+              urlPattern: /\/assets\/zxing_reader-.*\.wasm$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'barcode-reader',
+                expiration: { maxEntries: 2 },
+                cacheableResponse: { statuses: [200] },
+              },
+            },
+            {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',
               options: {
@@ -87,10 +98,6 @@ export default defineConfig(({ command, mode }) => {
         }
       })
     ],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -1,8 +1,9 @@
-import { DayPlan, Recipe } from '../types';
-import { getDailySummaries, getDayPlansInRange, getEnhancedShoppingState, getFamilyPlansInRange, getPantryInventory, getRecipePlanDates, getFoodItemsSince } from './storageService';
+import { DayPlan, KnownFood, Recipe } from '../types';
+import { getDailySummaries, getDayPlansInRange, getEnhancedShoppingState, getFamilyPlansInRange, getPantryInventory, getRecipePlanDates, getFoodItemsSince, getRecipes } from './storageService';
 import { getFamilyMemberRecipes, getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
+import { normalizeFoodName } from '../utils/foodMatch';
 
 /** Data the slower pages need, loaded in the background after sign-in (see utils/prewarm.ts). */
 
@@ -103,9 +104,32 @@ export const frequentFoodsData = defineWarm<FrequentFood[]>('today:frequentFoods
     .map(({ name, calories, protein, count }) => ({ name, calories, protein, count }));
 }, 5 * 60_000);
 
+/**
+ * Foods the user has their own numbers for, so logging reuses them instead of asking the AI:
+ * their recipes (per portion) and anything logged in the last 90 days (latest values).
+ * A recipe wins over a logged food of the same name.
+ */
+export const knownFoodsData = defineWarm<KnownFood[]>('food:known', async () => {
+  const [recipes, items] = await Promise.all([getRecipes(), getFoodItemsSince(daysFromToday(-90))]);
+  const byName = new Map<string, KnownFood & { last: number }>();
+  items.forEach(item => {
+    const key = normalizeFoodName(item.name);
+    if (!key || !(item.calories >= 0)) return;
+    const entry = byName.get(key);
+    if (!entry || item.timestamp > entry.last) {
+      byName.set(key, { name: item.name.trim(), calories: item.calories, protein: item.protein, source: 'log', last: item.timestamp });
+    }
+  });
+  recipes.forEach(r => {
+    const key = normalizeFoodName(r.name);
+    if (key && r.calories > 0) byName.set(key, { name: r.name.trim(), calories: Math.round(r.calories), protein: typeof r.protein === 'number' ? Math.round(r.protein) : undefined, source: 'recipe', last: 0 });
+  });
+  return [...byName.values()].map(({ last: _last, ...food }) => food);
+}, 10 * 60_000);
+
 /** Starts every page's background load, one after another so start-up stays light. */
 export const prewarmPages = async () => {
-  for (const warm of [frequentFoodsData, familyData, recipeHistoryData, analyticsSummariesData, shoppingData, analyticsDayTypesData]) {
+  for (const warm of [frequentFoodsData, knownFoodsData, familyData, recipeHistoryData, analyticsSummariesData, shoppingData, analyticsDayTypesData]) {
     try {
       await ensureWarm(warm as Parameters<typeof ensureWarm>[0]);
     } catch (e) {

@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Utensils, Check, Sparkles, RefreshCw } from 'lucide-react';
 import { planSpecificDays, DayConfig } from '../services/geminiService';
-import { getDayPlan, getRecipes, saveDayPlan } from '../services/storageService';
+import { getDayPlan, getRecipes, getUserStats, saveDayPlan } from '../services/storageService';
 import { getMyGroupId } from '../services/groupService';
-import { planMeal, slotFor } from '../utils/planUtils';
+import { dayTarget, planMeal, slotFor } from '../utils/planUtils';
 import { Recipe } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { localDateString } from '../utils/dateUtils';
@@ -87,8 +87,9 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
         setStep('planning');
         setIsLoading(true);
         try {
-            // Use the new specific days planner
-            const plan = await planSpecificDays(recipes, dayConfigs, season);
+            const stats = await getUserStats();
+            const targets = { fast: dayTarget({ type: 'fast' }, stats), nourish: dayTarget(undefined, stats) };
+            const plan = await planSpecificDays(recipes, dayConfigs, targets, season);
             setGeneratedPlan(plan);
             setStep('review');
         } catch (error) {
