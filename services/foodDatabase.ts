@@ -30,18 +30,20 @@ const CACHE_KEY = 'vesta_barcode_cache';
 const CACHE_LIMIT = 200;
 const FIELDS = 'product_name,generic_name,brands,quantity,serving_size,serving_quantity,nutriments';
 
-const readCache = (): Record<string, PackagedFood> => {
-  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch { return {}; }
+// A list, oldest first: as object keys, 8-digit (EAN-8) codes would sort ahead of the rest
+// and always be the first evicted.
+const readCache = (): [string, PackagedFood][] => {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
+    return Array.isArray(stored) ? stored : Object.entries(stored as Record<string, PackagedFood>); // the first release stored an object
+  } catch { return []; }
 };
 
 const writeCache = (food: PackagedFood) => {
   try {
-    const cache = readCache();
-    delete cache[food.code];
-    cache[food.code] = food;
-    const codes = Object.keys(cache);
-    codes.slice(0, Math.max(0, codes.length - CACHE_LIMIT)).forEach(code => delete cache[code]);
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    const cache = readCache().filter(([code]) => code !== food.code);
+    cache.push([food.code, food]);
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache.slice(-CACHE_LIMIT)));
   } catch { /* storage full or blocked */ }
 };
 
@@ -52,8 +54,8 @@ const num = (value: unknown): number | undefined => {
 
 const toPackagedFood = (code: string, p: OffProduct): PackagedFood | null => {
   const n = p.nutriments ?? {};
-  // Some products only list energy in kJ
-  const kj = num(n['energy-kj_100g']) ?? (n['energy_100g_unit'] === 'kcal' ? undefined : num(n['energy_100g']));
+  // Some products only list energy in kJ; energy_100g is always kJ
+  const kj = num(n['energy-kj_100g']) ?? num(n['energy_100g']);
   const kcal = num(n['energy-kcal_100g']) ?? (kj !== undefined ? kj / 4.184 : undefined);
   const name = (p.product_name || p.generic_name || '').trim();
   if (!name || kcal === undefined) return null;
@@ -75,7 +77,7 @@ const toPackagedFood = (code: string, p: OffProduct): PackagedFood | null => {
  * rejects when Open Food Facts can't be reached.
  */
 export const lookupBarcode = async (code: string): Promise<PackagedFood | null> => {
-  const cached = readCache()[code];
+  const cached = readCache().find(([c]) => c === code)?.[1];
   if (cached) return cached;
 
   const lang = (navigator.language || 'en').split('-')[0];
