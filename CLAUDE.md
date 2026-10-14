@@ -11,14 +11,15 @@ npm install
 npm run dev          # Vite dev server on http://localhost:3000
 npm run build        # writes public/version.json, then vite build → dist/
 npm run preview
-npx tsc --noEmit     # type check (there is no lint or test script)
+npm test             # Vitest, about 0.3 s (npm run test:watch to re-run on save)
+npx tsc --noEmit     # type check (there is no lint script)
 firebase deploy --only hosting            # serves dist/ (SPA rewrite to index.html)
 firebase deploy --only firestore:rules    # also firestore:indexes, storage
 ```
 
 - `.env.local` (gitignored) must define the six `VITE_FIREBASE_*` keys; `npm run build` fails if any is missing. Recover them with `npx firebase-tools apps:sdkconfig WEB`.
 - The Gemini key lives only in the `GEMINI_API_KEY` Functions secret (`firebase functions:secrets:set GEMINI_API_KEY`). Never put it in a `VITE_` variable: those ship in the bundle.
-- There is no test runner. `scripts/test-recipe-parsing.ts` is an ad-hoc script.
+- Tests are Vitest, in `*.test.ts` files next to the code they cover (`vitest.config.ts`, kept separate from `vite.config.ts`). They run in America/Los_Angeles so local-vs-UTC date bugs show up, with an in-memory `localStorage` (`test/setup.ts`). `services/storageService.test.ts` runs the real day-plan save and load against an in-memory Firestore; extend it when changing how plans or family dinners are stored. No test needs Firebase, the network or Java. `scripts/test-recipe-parsing.ts` is an ad-hoc script, not part of `npm test`.
 - Admin scripts in `scripts/` (`copyRecipes.cjs`, `setDeveloperClaim.cjs <uid>`) need `scripts/serviceAccountKey.json`, which is gitignored. See `scripts/README.md`.
 
 ## Architecture
