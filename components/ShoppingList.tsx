@@ -14,6 +14,7 @@ import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../type
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
 import { localDateString } from '../utils/dateUtils';
+import { useDevMode } from '../contexts/DevModeContext';
 import { AlertCircle, ArrowLeft, CalendarDays, Check, Copy, CopyCheck, ListChecks, PartyPopper, RotateCcw, ShoppingBasket } from 'lucide-react';
 
 type Phase = 'selection' | 'requirements' | 'shopping';
@@ -32,6 +33,7 @@ interface PlanMeal {
 }
 
 export const ShoppingList: React.FC = () => {
+  const market = useDevMode().isFeatureEnabled('marketTheme');
   const [phase, setPhase] = useState<Phase>('selection');
   const [availableMeals, setAvailableMeals] = useState<PlanMeal[]>([]);
   const [selectedMealIds, setSelectedMealIds] = useState<Set<string>>(new Set());
@@ -828,6 +830,42 @@ export const ShoppingList: React.FC = () => {
     <div className="space-y-5 pb-20">
       {stepBar}
 
+      {market && purchasableItems.length > 0 ? (
+        <>
+          {/* "Market day": what's left to buy is the page's one bold block */}
+          <section className="hero p-5 md:p-6 flex flex-col gap-4" aria-label="Shopping progress">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[15px] font-bold">{toBuy.length === 0 ? 'All in the basket' : 'Left to buy'}</p>
+              <p className="text-sm font-medium tabular-nums">{inBasket.length} of {purchasableItems.length} in the basket</p>
+            </div>
+            <p className="font-display font-extrabold text-[80px] leading-[0.9] tracking-[-0.05em] tabular-nums">
+              {toBuy.length}<span className="sr-only"> {toBuy.length === 1 ? 'item' : 'items'} left to buy</span>
+            </p>
+            <div className="h-2.5 rounded-full bg-current/20 overflow-hidden" aria-hidden="true">
+              <div className="h-full rounded-full bg-current transition-[width] duration-300" style={{ width: `${(inBasket.length / purchasableItems.length) * 100}%` }} />
+            </div>
+            {toBuy.length > 0 && (
+              <button
+                onClick={handleCopyList}
+                className="btn-base btn-block min-h-[52px] text-base hover:opacity-90"
+                style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
+              >
+                {listCopied ? <CopyCheck size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+                {listCopied ? 'Copied' : 'Copy list'}
+              </button>
+            )}
+          </section>
+          <div className="flex justify-end gap-1 -mt-2">
+            <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
+              <ArrowLeft size={16} aria-hidden="true" /> Pantry
+            </button>
+            <button onClick={handleResetList} className="btn-ghost btn-sm">
+              <RotateCcw size={16} aria-hidden="true" /> Start over
+            </button>
+          </div>
+        </>
+      ) : (
+      <>
       {/* No heading: the Planner's "Shopping list" tab already names this page */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
@@ -859,6 +897,8 @@ export const ShoppingList: React.FC = () => {
         <div className="h-2 rounded-full bg-surface-sunken overflow-hidden" role="img" aria-label={`${inBasket.length} of ${purchasableItems.length} items in the basket`}>
           <div className="h-full rounded-full bg-secondary transition-[width] duration-300" style={{ width: `${(inBasket.length / purchasableItems.length) * 100}%` }} />
         </div>
+      )}
+      </>
       )}
 
       {purchasableItems.length === 0 ? (
