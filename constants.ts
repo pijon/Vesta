@@ -17,8 +17,7 @@ export const DEFAULT_USER_STATS = {
   dailyWaterGoal: 2000,
   weightHistory: [], // Empty history triggers onboarding
   dietMode: 'daily' as const,
-  nonFastDayCalories: 2000,
-  dailyWorkoutCountGoal: 1
+  nonFastDayCalories: 2000
 };
 
 export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {

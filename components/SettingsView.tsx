@@ -52,7 +52,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         dailyCalorieGoal: String(st.dailyCalorieGoal || ''),
         nonFastDayCalories: String(st.nonFastDayCalories || 2000),
         dailyWaterGoal: String((st.dailyWaterGoal || 2500) / 1000),
-        dailyWorkoutCountGoal: String(st.dailyWorkoutCountGoal || 1),
         workoutCalorieCredit: String(st.workoutCalorieCredit ?? 1),
         dailyProteinGoal: st.dailyProteinGoal ? String(st.dailyProteinGoal) : '',
         fastBreakCalories: String(fc.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES),
@@ -85,7 +84,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!(num(form.nonFastDayCalories) >= 800 && num(form.nonFastDayCalories) <= 6000)) errors.nonFastDayCalories = 'Enter 800 to 6000 kcal';
     if (!(num(form.dailyWaterGoal) >= 0.5 && num(form.dailyWaterGoal) <= 6)) errors.dailyWaterGoal = 'Enter 0.5 to 6 litres';
     if (form.dailyProteinGoal && !(num(form.dailyProteinGoal) >= 30 && num(form.dailyProteinGoal) <= 400)) errors.dailyProteinGoal = 'Enter 30 to 400 g, or leave empty';
-    if (!(Number.isInteger(num(form.dailyWorkoutCountGoal)) && num(form.dailyWorkoutCountGoal) >= 1 && num(form.dailyWorkoutCountGoal) <= 5)) errors.dailyWorkoutCountGoal = 'Enter 1 to 5';
     if (!(Number.isInteger(num(form.fastBreakCalories)) && num(form.fastBreakCalories) >= 0 && num(form.fastBreakCalories) <= 200)) errors.fastBreakCalories = 'Enter 0 to 200 kcal';
     const hasErrors = Object.keys(errors).length > 0;
     const isDirty = JSON.stringify(form) !== JSON.stringify(toForm(stats, fastingConfig)) || protocol !== fastingConfig.protocol;
@@ -100,7 +98,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             dailyCalorieGoal: Math.round(num(form.dailyCalorieGoal)),
             nonFastDayCalories: Math.round(num(form.nonFastDayCalories)),
             dailyWaterGoal: Math.round(num(form.dailyWaterGoal) * 1000),
-            dailyWorkoutCountGoal: num(form.dailyWorkoutCountGoal),
             workoutCalorieCredit: Number(form.workoutCalorieCredit) as WorkoutCalorieCredit,
             dailyProteinGoal: form.dailyProteinGoal ? Math.round(num(form.dailyProteinGoal)) : undefined,
         });
@@ -259,7 +256,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             {field('nonFastDayCalories', 'Other days', { unit: 'kcal', hint: 'Calories on nourish days' })}
                             {field('dailyProteinGoal', 'Protein', { unit: 'g', placeholder: String(proteinTarget({ ...stats, dailyProteinGoal: undefined })), hint: 'Empty uses 1.6 g per kg of goal weight' })}
                             {field('dailyWaterGoal', 'Water', { unit: 'litres', inputMode: 'decimal' })}
-                            {field('dailyWorkoutCountGoal', 'Workouts', { unit: 'per day' })}
                         </div>
                     </div>
 

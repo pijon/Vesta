@@ -64,7 +64,6 @@ export const buildDays = (
   });
 
   const waterGoal = stats.dailyWaterGoal || 2000;
-  const workoutGoal = stats.dailyWorkoutCountGoal || 1;
 
   return Array.from({ length: periodDays }, (_, i) => {
     const date = addDays(end, i - periodDays + 1);
@@ -91,7 +90,7 @@ export const buildDays = (
       goals: {
         calories: calories > 0 && calories <= calorieTarget,
         water: water >= waterGoal,
-        movement: workouts >= workoutGoal,
+        movement: workouts > 0,
       },
     };
   });

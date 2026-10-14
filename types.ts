@@ -131,7 +131,6 @@ export interface UserStats {
   dietMode?: 'daily' | '5:2'; // Default 'daily'
   nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
   dailyWorkoutCalorieGoal?: number; // Daily calorie burn target for workouts
-  dailyWorkoutCountGoal?: number; // Daily target for number of workouts (default 1)
   weeklyLossGoal?: number; // kg per week the suggested calorie target aims for (default 0.5)
   workoutCalorieCredit?: WorkoutCalorieCredit; // Share of workout calories added to the day's budget (default 1)
   dailyProteinGoal?: number; // grams; defaults to 1.6 g per kg of goal weight (see proteinTarget)
