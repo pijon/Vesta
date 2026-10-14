@@ -62,7 +62,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [dataStatus, setDataStatus] = useState<string | null>(null);
     const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
     const [showDebug, setShowDebug] = useState(false);
-    const { isDevMode, featureFlags, toggleFeatureFlag, resetFlags } = useDevMode();
+    const { isDevMode, featureFlags, toggleFeatureFlag, resetFlags, isFeatureEnabled } = useDevMode();
+    const market = isFeatureEnabled('marketTheme');
     const { user, logout } = useAuth();
     const [hasCopiedId, setHasCopiedId] = useState(false);
 
@@ -222,7 +223,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     return (
         <div className="space-y-6 pb-20">
-            {/* Account */}
+            {/* Account. "Market day": the page's one bold block, the name set large */}
+            {market ? (
+                <section className="hero p-5 md:p-6 flex flex-wrap items-center gap-4" aria-label="Account">
+                    <span className="size-16 shrink-0 rounded-full bg-surface text-main flex items-center justify-center font-display font-extrabold text-3xl" aria-hidden="true">
+                        {displayName.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-display font-extrabold text-[32px] leading-9 tracking-tight truncate">{displayName}</p>
+                        {user?.email && <p className="text-sm font-medium truncate">{user.email}</p>}
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="btn-base btn-sm shrink-0 hover:opacity-90"
+                        style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
+                    >
+                        <LogOut size={16} aria-hidden="true" /> Log out
+                    </button>
+                </section>
+            ) : (
             <section className="card p-5 md:p-6 flex items-center gap-4">
                 <span className="size-14 shrink-0 rounded-full bg-calories-bg text-calories-text flex items-center justify-center font-display font-extrabold text-2xl" aria-hidden="true">
                     {displayName.charAt(0).toUpperCase()}
@@ -235,6 +254,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <LogOut size={16} aria-hidden="true" /> Log out
                 </button>
             </section>
+            )}
 
             {/* Goals */}
             <section className="card" aria-labelledby="goals-heading">
