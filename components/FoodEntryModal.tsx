@@ -210,16 +210,17 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
     <Sheet title="Log food" onClose={onClose} footer={footer} initialFocus={textRef}>
       <div className="space-y-4">
         {/* Mode */}
-        <div role="radiogroup" aria-label="How to add food" className="grid grid-cols-4 p-1 rounded-full bg-surface-sunken">
+        <div role="radiogroup" aria-label="How to add food" className="segmented grid grid-cols-4 w-full">
           {MODES.map(({ value, label, Icon }) => (
             <button
               key={value}
               role="radio"
               aria-checked={mode === value}
               onClick={() => switchMode(value)}
-              className={`min-h-9 inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${mode === value ? 'bg-surface text-main shadow-sm' : 'text-muted hover:text-main'}`}
+              className="segment justify-center gap-1.5 px-1"
             >
-              <Icon size={15} aria-hidden="true" /> {label}
+              {/* Phones: labels only, so four fit across */}
+              <Icon size={15} className="hidden sm:block" aria-hidden="true" /> {label}
             </button>
           ))}
         </div>
@@ -285,7 +286,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                         key={food.name}
                         onClick={() => addDrafts([toDraft(capitalise(food.name), food.calories, food.protein)])}
                         aria-label={`Add ${food.name}, ${food.calories} kcal`}
-                        className="inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                        className="chip pl-2.5 pr-3"
                       >
                         <Icon size={15} className="text-calories-text" aria-hidden="true" />
                         <span className="max-w-[10rem] truncate">{capitalise(food.name)}</span>

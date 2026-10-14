@@ -387,7 +387,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     key={food.name}
                     onClick={() => onQuickLog(food)}
                     aria-label={`Log ${food.name}, ${food.calories} kcal`}
-                    className="hit-target shrink-0 inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                    className="chip hit-target shrink-0 pl-2.5 pr-3"
                   >
                     {Icon ? <Icon size={15} className="text-calories-text" aria-hidden="true" /> : <Plus size={15} className="text-muted" aria-hidden="true" />}
                     <span className="max-w-[11rem] truncate">{displayName(food.name)}</span>
