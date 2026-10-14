@@ -854,6 +854,23 @@
     background: var(--ink);
     color: var(--on-ink);
   }
+  /* Phone tab bar: a floating ink pill; the current tab is a pill of the page colour */
+  .theme-market .tab-bar {
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    padding: 6px;
+    gap: 2px;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--ink);
+    box-shadow: var(--elev-md);
+  }
+  .theme-market .tab-item { @apply rounded-full; color: var(--on-ink-muted); outline-color: var(--on-ink); }
+  .theme-market .tab-item[aria-current="page"] {
+    background: var(--on-ink);
+    color: var(--ink);
+  }
   .theme-market .side-brand {
     text-transform: lowercase;
     letter-spacing: -0.03em;

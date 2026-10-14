@@ -668,11 +668,17 @@ const TrackerApp: React.FC = () => {
         return 'Good evening';
     };
 
-    const getHeaderInfo = () => {
+    const getHeaderInfo = (): { title: string; subtitle: string; large?: boolean } => {
         const greeting = `${getGreeting()}, ${userStats.name || 'Family'}`;
 
         switch (view) {
             case AppView.TODAY:
+                // "Market day": the greeting is the title, the date under it
+                if (marketTheme) return {
+                    title: userStats.name ? `Hey ${userStats.name}, what’s cooking?` : 'Hey, what’s cooking?',
+                    subtitle: new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }),
+                    large: true,
+                };
                 return { title: 'Today', subtitle: greeting };
             case AppView.ANALYTICS:
                 return { title: 'Analytics', subtitle: greeting };
@@ -721,11 +727,13 @@ const TrackerApp: React.FC = () => {
             {/* Main Content Wrapper */}
             <div className="w-full md:pl-20 lg:pl-60">
                 {/* Main Content */}
-                <main className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 pt-8 md:pt-12">
+                {/* "Market day" floats the tab bar above the bottom edge, so the page needs more room under it */}
+                <main className={`${marketTheme ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'} md:pb-0 pt-8 md:pt-12`}>
                     <div className="max-w-6xl mx-auto px-4 md:px-8">
                         <Header
                             title={headerInfo.title}
                             subtitle={headerInfo.subtitle}
+                            large={headerInfo.large}
                             isDarkMode={isDarkMode}
                             onToggleDarkMode={toggleDarkMode}
                             onNavigate={handleNavigate}

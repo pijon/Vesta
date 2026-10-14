@@ -126,13 +126,7 @@ const TimelineTrack: React.FC<{ percent: number; done: boolean; caption: string;
     );
 };
 
-/**
- * The overnight fast. Before the first meal of the day it counts the fast live. Once you've eaten, the
- * timer would only restart at every meal, so until the eating window closes it shows last night's fast
- * and the window instead: from the first meal to the time to stop eating to reach the target by the
- * same time tomorrow. After that the live timer takes over again.
- */
-export const FastingCard: React.FC<{
+export interface FastingInput {
     elapsedHours: number;
     targetHours: number;
     lastAteTime: number | null;
@@ -140,25 +134,42 @@ export const FastingCard: React.FC<{
     firstMealTime: number | null;
     history?: DailySummary[];
     today: string;
-    size?: TileSize;
-}> = ({ elapsedHours, targetHours, lastAteTime, firstMealTime, history = [], today, size = 'md' }) => {
-    const fmtDuration = (hours: number) => `${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`;
-    const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    // Skip gaps too long to be a real fast (usually days nothing was logged), as Analytics does
-    const plausible = (h: number) => (h <= MAX_PLAUSIBLE_FAST_HOURS ? h : 0);
+}
 
+export const fmtDuration = (hours: number) => `${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`;
+const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// Skip gaps too long to be a real fast (usually days nothing was logged), as Analytics does
+const plausible = (h: number) => (h <= MAX_PLAUSIBLE_FAST_HOURS ? h : 0);
+
+/** The last seven fasts, last night's, and the eating window if today's first meal opened one (see FastingCard) */
+export const fastingProgress = ({ elapsedHours, targetHours, lastAteTime, firstMealTime, history = [], today }: FastingInput) => {
     // Today's fast is the one that ended at the first meal; before that, the one still running
     const week = lastSevenDays(history, today).map(({ date, summary }) => {
         const live = date === today && lastAteTime && firstMealTime === null ? plausible(elapsedHours) : 0;
         const hours = Math.max(plausible(summary?.maxFastingHours ?? 0), live);
         return { date, hours, hit: hours >= targetHours };
     });
-    const hits = week.filter(d => d.hit).length;
-    const lastNight = week[week.length - 1].hours;
-
     const windowHours = 24 - targetHours;
     const closesAt = firstMealTime !== null && windowHours > 0 ? firstMealTime + windowHours * 3_600_000 : null;
-    const inWindow = closesAt !== null && Date.now() < closesAt;
+    return {
+        week,
+        hits: week.filter(d => d.hit).length,
+        lastNight: week[week.length - 1].hours,
+        windowHours,
+        closesAt,
+        inWindow: closesAt !== null && Date.now() < closesAt,
+    };
+};
+
+/**
+ * The overnight fast. Before the first meal of the day it counts the fast live. Once you've eaten, the
+ * timer would only restart at every meal, so until the eating window closes it shows last night's fast
+ * and the window instead: from the first meal to the time to stop eating to reach the target by the
+ * same time tomorrow. After that the live timer takes over again.
+ */
+export const FastingCard = ({ size = 'md', ...input }: FastingInput & { size?: TileSize }) => {
+    const { elapsedHours, targetHours, lastAteTime, firstMealTime } = input;
+    const { week, hits, lastNight, windowHours, closesAt, inWindow } = fastingProgress(input);
 
     let stage: string | null = null;
     let figure: React.ReactNode = '–';
@@ -256,7 +267,7 @@ const WaterBottle: React.FC<{ fill: number; goal: number }> = ({ fill, goal }) =
 };
 
 /** How today's water compares with the goal spread evenly over 7:00 to 21:00, or null early on with nothing drunk */
-const waterPace = (liters: number, goal: number, now = new Date()) => {
+export const waterPace = (liters: number, goal: number, now = new Date()) => {
     if (liters >= goal) return 'Goal reached';
     const dayShare = Math.min(Math.max((now.getHours() + now.getMinutes() / 60 - 7) / 14, 0), 1);
     if (dayShare === 0 && liters === 0) return null;

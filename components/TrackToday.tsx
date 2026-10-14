@@ -20,6 +20,10 @@ import { weightTrend } from '../utils/energyModel';
 import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
+import { useDevMode } from '../contexts/DevModeContext';
+import { CaloriesHero } from './CaloriesHero';
+import { TonightCard } from './TonightCard';
+import { TodayStrip } from './TodayStrip';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Sheet } from './Sheet';
@@ -92,6 +96,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onSetCoachRead
 }) => {
   const navigate = useNavigate();
+  const market = useDevMode().isFeatureEnabled('marketTheme');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isWorkoutOverviewOpen, setIsWorkoutOverviewOpen] = useState(false);
 
@@ -372,9 +377,57 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   const tomorrowCard = <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />;
 
+  // "Market day" look: tonight's dinner, else the next meal still to eat
+  const dinnerIndex = todayPlan.meals.findIndex(meal => slotFor(meal) === 'dinner');
+  const tonightIndex = dinnerIndex >= 0 ? dinnerIndex : nextMealIndex;
+  const tonightMeal = tonightIndex === undefined ? undefined : todayPlan.meals[tonightIndex];
+  const proteinToday = { eaten: (dailyLog.items || []).reduce((sum, item) => sum + (item.protein || 0), 0), target: proteinTarget(stats) };
+
   return (
     <div className="space-y-8">
-      {/* Today: one hero block, then metric tiles */}
+      {market ? (
+        <div className="space-y-3">
+          <div className="grid md:grid-cols-2 gap-3">
+            <CaloriesHero
+              caloriesGoal={dailyTarget}
+              caloriesEaten={consumed}
+              caloriesBurned={caloriesBurned}
+              burnCredit={stats.workoutCalorieCredit ?? 1}
+              protein={proteinToday}
+              isFastDay={!isNonFastDay}
+              meals={{ total: todayPlan.meals.length, eaten: todayPlan.meals.filter(meal => isMealEaten(todayPlan, meal)).length }}
+              onLogFood={onOpenFoodModal}
+            />
+            <TonightCard
+              meal={tonightMeal}
+              eaten={!!tonightMeal && isMealEaten(todayPlan, tonightMeal)}
+              onView={() => tonightMeal && setSelectedRecipe(tonightMeal)}
+              onSwap={() => tonightIndex !== undefined && handleSwapMeal(tonightIndex)}
+              onPlan={() => navigate('/mealplanner', { state: { date: todayPlan.date } })}
+            />
+          </div>
+          <TodayStrip
+            water={{ liters: (dailyLog.waterIntake || 0) / 1000, goal: stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5, onAdd: handleAddWaterClick }}
+            weight={{ kg: weightInfo.current, ratePerWeek: weightInfo.ratePerWeek, onUpdate: onOpenWeightModal, onOpen: () => onNavigate(AppView.ANALYTICS) }}
+            workouts={{
+              caloriesBurned,
+              types: (dailyLog.workouts || []).map(w => w.type),
+              streak: analyzeActivityStreaks(effectiveHistory).currentStreak,
+              onLog: () => onOpenWorkoutModal(),
+              onOpen: () => setIsWorkoutOverviewOpen(true),
+            }}
+            fasting={{
+              elapsedHours: elapsedFastingHours,
+              targetHours: fastingState.config.targetFastHours,
+              lastAteTime: fastingState.lastAteTime,
+              firstMealTime,
+              history: effectiveHistory,
+              today: dailyLog.date,
+            }}
+          />
+        </div>
+      ) : (
+      /* Today: one hero block, then metric tiles */
       <div className="space-y-3">
         <HearthWidget
           caloriesGoal={dailyTarget}
@@ -427,6 +480,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           />
         </div>
       </div>
+      )}
 
       {/* Evening: log the rest of the plan in one tap */}
       <AtePlannedCard plan={todayPlan} onLogAll={indices => logPlanned(indices, true)} />
