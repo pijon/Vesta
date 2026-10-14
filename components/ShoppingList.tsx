@@ -615,7 +615,7 @@ export const ShoppingList: React.FC = () => {
 
   // Sticky footer for each phase's main action, kept clear of the bottom nav
   const stickyAction = (children: React.ReactNode) => (
-    <div className="sticky bottom-24 z-20 flex justify-center pt-4 pointer-events-none">
+    <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-20 flex justify-center pt-4 pointer-events-none">
       <div className="pointer-events-auto">{children}</div>
     </div>
   );

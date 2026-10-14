@@ -2,6 +2,7 @@ import React from 'react';
 import { Settings } from 'lucide-react';
 import { AppView } from '../types';
 import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface SidebarProps {
   currentView: AppView;
@@ -10,6 +11,7 @@ interface SidebarProps {
 
 /** Primary navigation from md up: an icon rail on tablets, a labelled sidebar on desktop. Phones use MobileBottomNav. */
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
+  const market = useDevMode().isFeatureEnabled('marketTheme');
   const item = ({ view, label, Icon }: (typeof NAV_ITEMS)[number]) => (
     <button
       key={view}
@@ -25,21 +27,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
   return (
     <nav aria-label="Main" className="side-nav">
       <div className="flex items-center justify-center lg:justify-start gap-3 lg:px-3 mb-6">
-        {/* The Vesta mark (public/favicon.svg) inline, so its colours follow the theme */}
-        <svg viewBox="0 0 100 100" className="size-9 shrink-0" aria-hidden="true">
-          <rect width="100" height="100" rx="22" fill="var(--mark-bg)" />
-          <path d="M50 10 C58 22 68 31 68 47 C68 59 60 66 50 66 C40 66 32 59 32 47 C32 39 36 34 41 28 C42 35 45 39 48 40 C46 30 47 20 50 10 Z" fill="var(--mark-flame)" />
-          <path d="M50 38 C54 44 58 48 58 54 C58 60 54 64 50 64 C46 64 42 60 42 54 C42 48 46 44 50 38 Z" fill="var(--mark-bg)" />
-          <rect x="17" y="54" width="66" height="8" rx="4" fill="var(--mark-bowl)" stroke="var(--mark-bg)" strokeWidth="3" />
-          <path d="M23 62 H77 C77 75 65 83 50 83 C35 83 23 75 23 62 Z" fill="var(--mark-bowl)" />
-          <rect x="39" y="84" width="22" height="5" rx="2.5" fill="var(--mark-bowl)" />
-        </svg>
-        <span className="side-brand hidden lg:block font-display font-extrabold text-xl text-main">Vesta</span>
+        {market ? (
+          // "Market day" mark: the hearth as two shapes, a butter flame over a cream bowl, on a tomato tile
+          <svg viewBox="0 0 100 100" className="size-9 shrink-0" aria-hidden="true">
+            <rect width="100" height="100" rx="30" fill="#FF5533" />
+            <path d="M50 13 C61 26 69 34 69 46 C69 55 61 60 50 60 C39 60 31 55 31 46 C31 38 35 33 41 27 C42 35 45 39 48 40 C46 31 47 22 50 13 Z" fill="#FFD23F" />
+            <path d="M19 55 H81 C81 74 67 85 50 85 C33 85 19 74 19 55 Z" fill="#FFF1D6" />
+          </svg>
+        ) : (
+          <img src="/favicon.svg" alt="" className="size-9 rounded-[10px]" />
+        )}
+        <span className="side-brand hidden lg:block font-display font-extrabold text-xl">Vesta</span>
       </div>
       <div className="flex flex-col gap-1">
         {NAV_ITEMS.map(item)}
       </div>
-      <div className="mt-auto pt-4 border-t border-border">
+      <div className="side-foot mt-auto pt-4 border-t">
         {item({ view: AppView.SETTINGS, label: 'Settings', Icon: Settings })}
       </div>
     </nav>

@@ -644,7 +644,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       />
 
       {toast && (
-        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in max-w-[calc(100vw-32px)] text-center">
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in max-w-[calc(100vw-32px)] text-center">
           {toast}
         </div>
       )}

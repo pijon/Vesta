@@ -284,11 +284,6 @@
 @layer base {
   :root {
     /* Direction C, light. Contrast ratios are on `background` unless noted. */
-    /* The sidebar's Vesta mark, as in public/favicon.svg (the same in dark mode) */
-    --mark-bg: #B94E36;
-    --mark-flame: #F6C9A8;
-    --mark-bowl: #FBF3E8;
-
     --background: #FBF8F3;
     --surface: #FFFDF9;
     --surface-sunken: #F3EEE6;
@@ -488,17 +483,17 @@
     --fasting-bg: #FFE9A8;
     --fasting-text: #6B5310;       /* 6.1:1 */
 
+    /* A saturated dark amber: clearly apart from tomato in charts (darker), and passes as text */
+    --warning: #A05200;            /* 5.1:1 on background */
+    --warning-bg: #FFEBC7;         /* warning text 4.9:1 on it */
+    --warning-border: rgba(160, 82, 0, 0.3);
+
     --color-charcoal: #1B1B1B;
     --color-stone: #FFF1D6;
     --color-stone-50: #FFF1D6;
 
     /* Rounder cards (the same in both modes) */
     --radius-3xl: 1.5rem;
-
-    /* The sidebar's Vesta mark: a tomato tile, butter-yellow flame, cream bowl (both modes) */
-    --mark-bg: #FF5533;
-    --mark-flame: #FFD23F;
-    --mark-bowl: #FFF1D6;
   }
 
   .theme-market.dark {
@@ -559,6 +554,10 @@
     --fasting: #F0C030;
     --fasting-bg: #3A2E10;
     --fasting-text: #FFDD80;
+
+    --warning: #F5B83D;            /* 10:1 on background */
+    --warning-bg: #3A2A10;
+    --warning-border: rgba(245, 184, 61, 0.3);
 
     --color-charcoal: #FFF1D6;
     --color-stone: #1A1714;
@@ -824,6 +823,7 @@
     color: var(--primary);
     background: var(--surface-sunken);
   }
+  .side-foot { border-color: var(--border); }
   .side-label {
     @apply text-[11px] leading-none lg:text-[15px] lg:leading-6 font-semibold;
   }
@@ -843,33 +843,63 @@
   .theme-market .card, .theme-market .card-hover { border-radius: 24px; }
   .theme-market .tile { border-radius: 20px; }
 
-  /* Sidebar: on the page itself (no panel or divider), the current item an ink pill as on the
-     mockups' tab bar, and the lowercase wordmark */
+  /* Sidebar: a floating panel in the card colour, inset from the window edges (it still fills the
+     md:pl-20 / lg:pl-60 gutter) and shaped like the cards, so it sits with the content instead of
+     competing with it. The current item is the one strong mark: an ink pill, as on the phone tab bar. */
   .theme-market .side-nav {
-    background: var(--background);
-    border-right-color: transparent;
+    top: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: calc(5rem - 12px);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    background: var(--surface);
+  }
+  @media (width >= 64rem) {
+    .theme-market .side-nav { width: calc(15rem - 12px); }
   }
   .theme-market .side-item { @apply rounded-[20px] lg:rounded-full; }
+  /* Navigation labels in the display face, so they carry the look rather than read as UI text */
+  .theme-market .side-label,
+  .theme-market .tab-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  @media (width >= 64rem) {
+    .theme-market .side-label { font-size: 17px; letter-spacing: -0.02em; }
+  }
   .theme-market .side-item[aria-current="page"] {
     background: var(--ink);
     color: var(--on-ink);
   }
-  /* Phone tab bar: a floating ink pill; the current tab is a pill of the page colour */
+  /* Segmented switches: the current option is an ink pill (a raised surface barely shows in dark mode) */
+  .theme-market .segment[aria-current="page"],
+  .theme-market .segment[aria-selected="true"],
+  .theme-market .segment[aria-checked="true"] {
+    background: var(--ink);
+    color: var(--on-ink);
+    box-shadow: none;
+  }
+
+  /* Phone tab bar: a floating pill in the card colour, like the sidebar panel, with the current tab
+     the one ink mark. Solid rather than glass: blur would make the labels' contrast depend on what
+     scrolls underneath. The shadow keeps it apart from that content. */
   .theme-market .tab-bar {
     left: 12px;
     right: 12px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     padding: 6px;
     gap: 2px;
-    border: 0;
+    border: 1px solid var(--border);
     border-radius: 9999px;
-    background: var(--ink);
+    background: var(--surface);
     box-shadow: var(--elev-md);
   }
-  .theme-market .tab-item { @apply rounded-full; color: var(--on-ink-muted); outline-color: var(--on-ink); }
+  .theme-market .tab-item { @apply rounded-full; color: var(--text-muted); }
   .theme-market .tab-item[aria-current="page"] {
-    background: var(--on-ink);
-    color: var(--ink);
+    background: var(--ink);
+    color: var(--on-ink);
   }
   .theme-market .side-brand {
     text-transform: lowercase;
