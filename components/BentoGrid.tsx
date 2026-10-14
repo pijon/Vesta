@@ -296,7 +296,10 @@ export const HydrationCard: React.FC<{ liters: number; onAddWater: (amount: numb
     );
 };
 
-/** Latest weight with the same trend as Analytics, the change since the previous weigh-in and a sparkline. */
+/**
+ * Latest trend weight (as on Analytics), how far it is to the goal, and the last month as a chart:
+ * the trend line, each weigh-in as a dot, today marked, and a dashed week ahead at the current pace.
+ */
 export const WeightCard: React.FC<{
     /** Smoothed trend weight (falls back to the latest weigh-in) */
     weight: number | null;
@@ -305,35 +308,39 @@ export const WeightCard: React.FC<{
     /** Latest scale reading and its date */
     scale: number | null;
     lastDate: string | null;
-    /** Daily trend values for the sparkline, oldest first */
-    trend: number[];
+    /** Daily trend values for the chart, oldest first */
+    trend: { date: string; weight: number }[];
+    /** Scale readings over the same days */
+    readings: { date: string; weight: number }[];
+    goalWeight: number;
+    today: string;
     onAddWeight: () => void;
     onClick?: () => void;
     size?: TileSize;
-}> = ({ weight, ratePerWeek, scale, lastDate, trend, onAddWeight, onClick, size = 'md' }) => {
-    const dataPoints = trend.map(weight => ({ weight }));
+}> = ({ weight, ratePerWeek, scale, lastDate, trend, readings, goalWeight, today, onAddWeight, onClick, size = 'md' }) => {
     // Sign from the rounded value, so −0.04 reads ±0.0 rather than −0.0
     const signed = (n: number, digits = 1) => {
         const r = Number(n.toFixed(digits));
         return `${r > 0 ? '+' : r < 0 ? '−' : '±'}${Math.abs(r).toFixed(digits)}`;
     };
-
-    // Sparkline
-    const WIDTH = 100;
-    const HEIGHT = 28;
-    const PADDING = 3;
-    let pathD = `M 0 ${HEIGHT / 2} L ${WIDTH} ${HEIGHT / 2}`;
-    if (dataPoints.length > 1) {
-        const min = Math.min(...dataPoints.map(d => d.weight)) - 0.5;
-        const max = Math.max(...dataPoints.map(d => d.weight)) + 0.5;
-        const points = dataPoints.map((d, i) => ({
-            x: (i / (dataPoints.length - 1)) * WIDTH,
-            y: HEIGHT - (((d.weight - min) / (max - min)) * (HEIGHT - PADDING * 2) + PADDING)
-        }));
-        pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    }
-
     const lastLabel = lastDate ? new Date(lastDate + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null;
+    const toGoal = weight !== null && goalWeight > 0 ? weight - goalWeight : null;
+    const caption = weight === null ? 'No weigh-ins yet'
+        : toGoal === null ? `Weighed ${lastLabel}`
+        : Math.abs(toGoal) < 0.25 ? 'At your goal'
+        : `${Math.abs(toGoal).toFixed(1)} kg to go`;
+
+    // Chart: 30 days back to 7 ahead. Days run along x; dots are zero-length round-capped lines, so they
+    // stay round while the chart stretches to the tile's width.
+    const WIDTH = 100, HEIGHT = 32, PAD = 4, BACK = 30, AHEAD = 7;
+    const dayOf = (date: string) => (new Date(date + 'T00:00').getTime() - new Date(today + 'T00:00').getTime()) / 86_400_000;
+    const last = trend[trend.length - 1];
+    const ahead = last && ratePerWeek !== null ? { day: dayOf(last.date) + AHEAD, weight: last.weight + ratePerWeek } : null;
+    const values = [...trend, ...readings].map(p => p.weight).concat(ahead ? [ahead.weight] : []);
+    const min = Math.min(...values) - 0.3, max = Math.max(...values) + 0.3;
+    const x = (day: number) => ((day + BACK) / (BACK + AHEAD)) * WIDTH;
+    const y = (w: number) => HEIGHT - PAD - ((w - min) / (max - min)) * (HEIGHT - PAD * 2);
+    const line = trend.map((p, i) => `${i ? 'L' : 'M'} ${x(dayOf(p.date))} ${y(p.weight)}`).join(' ');
 
     return (
         <div className={`tile tile-weight gap-1 relative ${tileHeight(size)}`}>
@@ -347,14 +354,20 @@ export const WeightCard: React.FC<{
             <p className="text-2xl font-display font-extrabold leading-7">
                 {weight !== null ? weight.toFixed(1) : '–'}<span className="text-sm font-semibold"> kg</span>
             </p>
-            <p className="text-xs font-semibold" title={scale !== null && lastLabel ? `Last weigh-in ${scale.toFixed(1)} kg on ${lastLabel}. The trend smooths out day-to-day water changes.` : undefined}>
-                {weight === null ? 'No weigh-ins yet'
-                    : scale !== null ? `Trend · scale ${scale.toFixed(1)}`
-                    : `Weighed ${lastLabel}`}
+            <p className="text-xs font-semibold" title={scale !== null && lastLabel ? `Last weigh-in ${scale.toFixed(1)} kg on ${lastLabel}. The figure is the trend, which smooths out day-to-day water changes.` : undefined}>
+                {caption}
             </p>
-            {size !== 'sm' && (
-                <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-7 mt-1" preserveAspectRatio="none" aria-hidden="true">
-                    <path d={pathD} fill="none" stroke="var(--weight)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            {size !== 'sm' && trend.length > 1 && (
+                <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-8 mt-1 overflow-visible" preserveAspectRatio="none" aria-hidden="true">
+                    {readings.map(r => (
+                        <path key={r.date} d={`M ${x(dayOf(r.date))} ${y(r.weight)} h 0`} stroke="var(--weight)" strokeOpacity="0.45" strokeWidth="4" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                    ))}
+                    {ahead && (
+                        <path d={`M ${x(dayOf(last.date))} ${y(last.weight)} L ${x(ahead.day)} ${y(ahead.weight)}`} fill="none" stroke="var(--weight)" strokeWidth="2" strokeDasharray="2 3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                    )}
+                    <path d={line} fill="none" stroke="var(--weight)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                    <path d={`M ${x(dayOf(last.date))} ${y(last.weight)} h 0`} stroke="var(--surface)" strokeWidth="9" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                    <path d={`M ${x(dayOf(last.date))} ${y(last.weight)} h 0`} stroke="var(--weight)" strokeWidth="6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                 </svg>
             )}
             <div className="mt-auto pt-2">

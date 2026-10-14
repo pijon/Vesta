@@ -333,13 +333,15 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     const last = history[history.length - 1];
     const points = weightTrend(history);
     const latest = points[points.length - 1];
-    // Sparkline: the current run of the trend over the last 30 days
-    const recent = latest ? points.filter(p => p.run === latest.run && p.date >= addDays(latest.date, -30)).map(p => p.trend) : [];
+    // Chart: the current run of the trend over the last 30 days, and the weigh-ins in it
+    const recent = latest ? points.filter(p => p.run === latest.run && p.date >= addDays(latest.date, -30)) : [];
+    const from = recent.length ? recent[0].date : '';
     return {
       current: latest ? Math.round(latest.trend * 10) / 10 : null,
       scale: last ? last.weight : null,
       lastDate: last ? last.date : null,
-      trend: recent,
+      trend: recent.map(p => ({ date: p.date, weight: p.trend })),
+      readings: recent.length ? history.filter(e => e.date >= from).map(e => ({ date: e.date, weight: e.weight })) : [],
       ratePerWeek: weightSummary(history, 30, stats.goalWeight).ratePerWeek,
     };
   }, [stats.weightHistory, stats.goalWeight]);
@@ -400,6 +402,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             scale={weightInfo.scale}
             lastDate={weightInfo.lastDate}
             trend={weightInfo.trend}
+            readings={weightInfo.readings}
+            goalWeight={stats.goalWeight}
+            today={dailyLog.date}
             onAddWeight={onOpenWeightModal}
             onClick={() => onNavigate(AppView.ANALYTICS)}
           />
