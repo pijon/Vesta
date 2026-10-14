@@ -236,3 +236,4 @@ const copyPageImage = async (uid: string, pageUrl: string, recipeId: string): Pr
 };
 
 export { sendReminders, sendTestReminder } from './reminders';
+export { generateAi } from './ai';

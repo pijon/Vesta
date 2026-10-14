@@ -1,4 +1,6 @@
-import { GoogleGenAI, Type, Schema, ApiError, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
+import { Type, Schema, GenerateContentParameters } from "@google/genai";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "./firebase";
 import {
   GEMINI_FAST_MODEL,
   GEMINI_MODEL_PRIMARY,
@@ -45,21 +47,17 @@ const SIDE_DISH_PROMPT = `
   Return JSON array of 3 Recipe objects.
 `;
 
-const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey });
+interface AiRequest {
+  model: string;
+  contents: GenerateContentParameters['contents'];
+  config?: { responseMimeType?: string; responseSchema?: Schema; urlContext?: boolean };
+}
+interface AiResponse { text: string; urlRetrieved: boolean }
 
-// The free tier often answers 3.8 Flash requests with 503 (overloaded) or 429 (rate
-// limited). Retry those once on Flash-Lite so the user gets an answer instead of an error.
-const generateWithFallback = async (params: GenerateContentParameters): Promise<GenerateContentResponse> => {
-  try {
-    return await ai.models.generateContent(params);
-  } catch (error) {
-    const overloaded = error instanceof ApiError && (error.status === 503 || error.status === 429);
-    if (!overloaded || params.model === GEMINI_MODEL_STABLE) throw error;
-    console.warn(`[Gemini] ${params.model} unavailable (${error.status}), retrying on ${GEMINI_MODEL_STABLE}`);
-    return ai.models.generateContent({ ...params, model: GEMINI_MODEL_STABLE });
-  }
-};
+// Gemini runs in the generateAi Cloud Function so the API key stays server-side. The function
+// checks the model, enforces a daily per-user limit and falls back to Flash-Lite on 503/429.
+const generateAi = httpsCallable<AiRequest, AiResponse>(functions, 'generateAi', { timeout: 120_000 });
+const generateWithFallback = async (params: AiRequest): Promise<AiResponse> => (await generateAi(params)).data;
 
 const recipeSchema: Schema = {
   type: Type.OBJECT,
@@ -97,17 +95,13 @@ export const getRecipeUrl = (input: string): string | null => {
 // urlContext tool reads the page and copies the recipe out as plain text.
 // Without this step the model only sees the URL and invents a recipe from the slug.
 export const fetchRecipeFromUrl = async (url: string): Promise<string> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const response = await generateWithFallback({
     model: getModel(),
     contents: `Read the recipe at ${url}. Copy it out verbatim as plain text, in its original language: title, number of servings/portions, any nutrition values stated on the page (and whether they are per portion), the full ingredient list with quantities, and every instruction step. Do not add, translate, scale or invent anything. If you cannot read the page or it contains no recipe, reply exactly FETCH_FAILED.`,
-    config: { tools: [{ urlContext: {} }] }
+    config: { urlContext: true }
   });
 
-  const retrieved = response.candidates?.[0]?.urlContextMetadata?.urlMetadata?.some(
-    m => m.urlRetrievalStatus === 'URL_RETRIEVAL_STATUS_SUCCESS'
-  );
+  const retrieved = response.urlRetrieved;
   const text = response.text?.trim();
   if (!retrieved || !text || text.includes('FETCH_FAILED')) {
     throw new Error("Could not read a recipe from that link. Try pasting the recipe text instead.");
@@ -116,8 +110,6 @@ export const fetchRecipeFromUrl = async (url: string): Promise<string> => {
 };
 
 export const parseRecipeText = async (text: string, attempt = 1): Promise<Partial<Recipe>> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const prompt = `
     You are an expert nutritionist specializing in Mediterranean-style nutrition. Extract and structure recipe details from the text below.
 
@@ -218,8 +210,6 @@ const dayPlanSchema: Schema = {
 };
 
 export const generateMealPlan = async (preferences: string): Promise<DayPlan> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const prompt = `
     You are an expert nutritionist specializing in Mediterranean-style nutrition. Create a balanced, nutritious one-day meal plan.
 
@@ -335,7 +325,6 @@ const toFoodLogItems = (items: RawFoodItem[]): FoodLogItem[] => items.map(item =
  * down the portion). Returns grams in the same order; null where the model couldn't say.
  */
 export const estimateProtein = async (items: { name: string; calories: number }[]): Promise<(number | null)[]> => {
-  if (!apiKey) throw new Error("API Key not found");
   if (!items.length) return [];
   const response = await generateWithFallback({
     model: GEMINI_FAST_MODEL,
@@ -357,7 +346,6 @@ ${items.map((item, i) => `${i + 1}. ${scrubPII(item.name)} (${Math.round(item.ca
 
 /** Calories in one typical portion of a meal known only by name, for planning. Null when the model can't say. */
 export const estimateMealCalories = async (name: string, kind: QuickMealKind, slot: MealSlot): Promise<number | null> => {
-  if (!apiKey) throw new Error("API Key not found");
   const where = kind === 'out' ? 'eaten at a restaurant or takeaway' : kind === 'ready' ? 'bought ready-made' : 'cooked at home';
   const response = await generateWithFallback({
     model: GEMINI_FAST_MODEL,
@@ -373,8 +361,6 @@ Answer with one whole number of kcal. Use -1 only if it isn't a food or drink.`,
 };
 
 export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const startTime = performance.now();
 
   const prompt = `
@@ -434,8 +420,6 @@ export const analyzeFoodLog = async (text: string): Promise<FoodLogItem[]> => {
 };
 
 export const analyzeFoodImage = async (imageBase64: string, mimeType: string): Promise<FoodLogItem[]> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const startTime = performance.now();
 
   const prompt = `
@@ -531,8 +515,6 @@ export const planSpecificDays = async (
   dayConfigs: DayConfig[],
   season: string = 'Current'
 ): Promise<{ date: string, mealIds: string[], type?: 'fast' | 'non-fast' }[]> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   // Filter out ignored days
   const activeDays = dayConfigs.filter(d => !d.ignore);
   if (activeDays.length === 0) return [];
@@ -636,8 +618,6 @@ const ingredientParseSchema: Schema = {
 const INGREDIENT_CACHE_KEY = 'vesta_ingredient_cache';
 
 export const parseIngredients = async (ingredientTexts: string[]): Promise<Array<{ name: string, quantity: number, unit: string }>> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   // 1. Load Cache
   let cache: Record<string, { name: string, quantity: number, unit: string }> = {};
   try {
@@ -783,8 +763,6 @@ const purchasableItemSchema: Schema = {
 export const convertToPurchasableQuantities = async (
   aggregatedIngredients: Array<{ name: string, quantity: number, unit: string }>
 ): Promise<PurchasableItem[]> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const prompt = `
     You are a grocery shopping assistant specializing in converting recipe quantities to realistic store - buyable amounts.
 
@@ -864,8 +842,6 @@ export const generateRecipeFromIngredients = async (
   targetCalories: number = 400,
   mealType: 'breakfast' | 'main meal' | 'light meal' = 'main meal'
 ): Promise<Partial<Recipe>> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const prompt = `
     You are an expert nutritionist.Create a single recipe using the ingredients provided.
 
@@ -942,8 +918,6 @@ OUTPUT: Complete recipe with name, ingredients list with quantities, instruction
 };
 
 export const suggestSideDishes = async (mainMealName: string, mainMealCalories: number): Promise<Recipe[]> => {
-  if (!apiKey) throw new Error("API Key not found");
-
   const prompt = SIDE_DISH_PROMPT
     .replace("{mainMealName}", scrubPII(mainMealName))
     .replace("{mainMealCalories}", mainMealCalories.toString());

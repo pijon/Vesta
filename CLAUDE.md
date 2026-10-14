@@ -16,7 +16,8 @@ firebase deploy --only hosting            # serves dist/ (SPA rewrite to index.h
 firebase deploy --only firestore:rules    # also firestore:indexes, storage
 ```
 
-- `.env.local` (gitignored) must define `VITE_GOOGLE_GENAI_API_KEY` and the six `VITE_FIREBASE_*` keys; `npm run build` fails if any is missing. Recover the Firebase values with `npx firebase-tools apps:sdkconfig WEB`.
+- `.env.local` (gitignored) must define the six `VITE_FIREBASE_*` keys; `npm run build` fails if any is missing. Recover them with `npx firebase-tools apps:sdkconfig WEB`.
+- The Gemini key lives only in the `GEMINI_API_KEY` Functions secret (`firebase functions:secrets:set GEMINI_API_KEY`). Never put it in a `VITE_` variable: those ship in the bundle.
 - There is no test runner. `scripts/test-recipe-parsing.ts` is an ad-hoc script.
 - Admin scripts in `scripts/` (`copyRecipes.cjs`, `setDeveloperClaim.cjs <uid>`) need `scripts/serviceAccountKey.json`, which is gitignored. See `scripts/README.md`.
 
@@ -33,7 +34,7 @@ Flat layout with no `src/`: `App.tsx`, `index.tsx`, `types.ts` and `constants.ts
   - Recipe images go to Firebase Storage at `users/{uid}/recipe-images/`, not base64 in Firestore.
 - **Family groups (`services/groupService.ts`):** `groups/{groupId}` with `shared_recipes` and `dinners/{YYYY-MM-DD}` (the family's shared dinner plan: meals planned in the dinner slot while in a group are stored there, keyed by `instanceId`, and merged into every member's `DayPlan` with `familyDinner: true`; `saveDayPlan` splits them back out). Users carry a `groupId`. Family plans and recipes are read across member uids, so check `firestore.rules` whenever you add a cross-user read.
 - **Security rules:** a new Firestore subcollection needs a matching `match` block in `firestore.rules`, or reads fail at runtime.
-- **AI (`services/geminiService.ts`):** uses `@google/genai` with JSON `responseSchema` structured output. Model IDs are in `constants.ts` (`GEMINI_MODEL_PRIMARY`, `GEMINI_MODEL_STABLE`, and `GEMINI_FAST_MODEL` for quick calls). Generate IDs locally with `crypto.randomUUID()`; never trust IDs returned by the AI.
+- **AI (`services/geminiService.ts`):** builds the prompts and JSON `responseSchema`s, and sends every request through the `generateAi` callable (`functions/src/ai.ts`), which holds the key, allowlists models, enforces a per-user daily limit (`aiUsage/{uid}`) and falls back to Flash-Lite on 503/429. A new model ID must be added to that function's allowlist too. Model IDs are in `constants.ts` (`GEMINI_MODEL_PRIMARY`, `GEMINI_MODEL_STABLE`, and `GEMINI_FAST_MODEL` for quick calls). Generate IDs locally with `crypto.randomUUID()`; never trust IDs returned by the AI.
 - **Feature flags:** `useDevMode().isFeatureEnabled('flag')` from `contexts/DevModeContext.tsx`. Dev status comes from a Firebase custom claim set by `scripts/setDeveloperClaim.cjs`. See `.agent/skills/feature-switch/SKILL.md`.
 - **Modals** render through `components/Portal.tsx`.
 

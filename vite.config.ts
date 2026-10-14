@@ -14,7 +14,6 @@ const REQUIRED_BUILD_ENV = [
   'VITE_FIREBASE_STORAGE_BUCKET',
   'VITE_FIREBASE_MESSAGING_SENDER_ID',
   'VITE_FIREBASE_APP_ID',
-  'VITE_GOOGLE_GENAI_API_KEY',
 ];
 
 export default defineConfig(({ command, mode }) => {
