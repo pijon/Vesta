@@ -18,6 +18,7 @@ import { CookingMode } from './CookingMode';
 import BatchPlannerModal from './BatchPlannerModal';
 import { AddMode, LeftoverOption, PlannerAddSheet } from './PlannerAddSheet';
 import { PlannerMealSheet } from './PlannerMealSheet';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface AddTarget { date: string; slot: MealSlot; mode: AddMode; index?: number }
 interface MealTarget { date: string; index: number }
@@ -72,11 +73,20 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     setLoadedWeeks(prev => new Set(prev).add(start));
   }, []);
 
+  // "Market day" on phones: one day at a time, picked from a strip of the week's days
+  const market = useDevMode().isFeatureEnabled('marketTheme');
+  const [selectedDate, setSelectedDate] = useState(today);
+  // A new week keeps the picked day if it's in it, else picks today in this week and Monday in others
+  useEffect(() => {
+    setSelectedDate(d => (weekStart(d) === monday ? d : weekStart(today) === monday ? today : monday));
+  }, [monday, today]);
+  const isPhone = () => window.matchMedia('(max-width: 767px)').matches;
+
   // Opened with a date (e.g. "Plan tomorrow" on Today): show that week, scrolled to the day
   const [scrollToDate, setScrollToDate] = useState<string | null>(null);
   useEffect(() => {
     const date = (location.state as { date?: string } | null)?.date;
-    if (date) { setMonday(weekStart(date)); setScrollToDate(date); }
+    if (date) { setMonday(weekStart(date)); setScrollToDate(date); setSelectedDate(date); }
   }, [location.key]);
 
   // Also re-runs each time the page is shown again (App keeps it in an Activity), so meals
@@ -93,7 +103,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   useEffect(() => {
     if (!scrollToDate || !loadedWeeks.has(weekStart(scrollToDate))) return;
     didScroll.current = true;
-    document.getElementById(`day-${scrollToDate}`)?.scrollIntoView({ block: 'start' });
+    // With the day strip the day is already picked and shown, so phones stay at the top
+    if (!(market && isPhone())) document.getElementById(`day-${scrollToDate}`)?.scrollIntoView({ block: 'start' });
     setScrollToDate(null);
   }, [scrollToDate, loadedWeeks]);
 
@@ -101,7 +112,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   useEffect(() => {
     if (didScroll.current || monday !== weekStart(today) || !loadedWeeks.has(monday)) return;
     didScroll.current = true;
-    if (today !== monday && window.matchMedia('(max-width: 767px)').matches) {
+    if (today !== monday && isPhone() && !market) {
       todayRef.current?.scrollIntoView({ block: 'start' });
     }
   }, [loadedWeeks, monday, today]);
@@ -331,6 +342,16 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
   // --- Render ---
 
+  const phoneWeekActions = (
+    <div className="flex gap-2 md:hidden">
+      <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
+      <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
+    </div>
+  );
+
+  // Meal thumbnails: round plates in the "Market day" look
+  const thumb = market ? 'size-11 xl:hidden rounded-full' : 'size-9 xl:hidden rounded-[10px]';
+
   const renderMeal = (date: string, plan: DayPlan, meal: Recipe, index: number) => {
     const visual = mealVisualFor(meal);
     const eaten = isMealEaten(plan, meal);
@@ -350,13 +371,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           aria-label={`${meal.name}, ${mealKcalSpoken(meal)}${quick ? ', no recipe' : ''}${meal.familyDinner ? ', family dinner' : ''}${eaten ? ', eaten' : ''}. Open options`}
         >
           {meal.isMissing ? (
-            <span className="size-9 xl:hidden rounded-[10px] flex items-center justify-center shrink-0 bg-surface-sunken text-muted">
+            <span className={`${thumb} flex items-center justify-center shrink-0 bg-surface-sunken text-muted`}>
               <CircleAlert size={18} strokeWidth={1.75} aria-hidden="true" />
             </span>
           ) : meal.image && !quick ? (
-            <img src={meal.image} alt="" loading="lazy" className="size-9 xl:hidden rounded-[10px] object-cover shrink-0" />
+            <img src={meal.image} alt="" loading="lazy" className={`${thumb} object-cover shrink-0`} />
           ) : (
-            <span className={`size-9 xl:hidden rounded-[10px] flex items-center justify-center shrink-0 ${visual.tint} ${quick ? 'border-[1.5px] border-dashed border-border-control' : ''}`}>
+            <span className={`${thumb} flex items-center justify-center shrink-0 ${visual.tint} ${quick ? 'border-[1.5px] border-dashed border-border-control' : ''}`}>
               <visual.Icon size={18} strokeWidth={1.75} aria-hidden="true" />
             </span>
           )}
@@ -463,11 +484,35 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           )}
         </div>
 
-        <div className="flex gap-2 md:hidden">
-          <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
-          <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
-        </div>
+        {!market && phoneWeekActions}
       </section>
+
+      {/* "Market day" phones: pick a day; a dot marks days with meals (filled) or nothing yet (ring) */}
+      {market && (
+        <div className="grid grid-cols-7 gap-1 md:hidden" aria-label="Days of the week">
+          {dates.map(date => {
+            const selected = date === selectedDate;
+            const planned = (plans[date]?.meals.length ?? 0) > 0;
+            return (
+              <button
+                key={date}
+                onClick={() => setSelectedDate(date)}
+                aria-pressed={selected}
+                aria-current={date === today ? 'date' : undefined}
+                aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}${planned ? '' : ', nothing planned'}`}
+                className={`min-h-16 rounded-[18px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${selected ? 'bg-ink text-on-ink' : 'hover:bg-surface-sunken'}`}
+              >
+                <span className={`text-xs font-semibold ${selected ? '' : 'text-muted'}`}>{shortDay(date)}</span>
+                <span className={`font-display font-extrabold text-lg leading-6 ${!selected && date === today ? 'text-primary' : ''}`}>{parseLocalDate(date).getDate()}</span>
+                <span
+                  className={`size-1.5 rounded-full ${planned ? (selected ? 'bg-on-ink' : 'bg-primary') : `border ${selected ? 'border-on-ink' : 'border-border-control'}`}`}
+                  aria-hidden="true"
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Days */}
       {isLoading ? (
@@ -491,7 +536,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                 ref={isToday ? todayRef : undefined}
                 id={`day-${date}`}
                 aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
-                className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isToday ? 'ring-2 ring-ink' : ''}`}
+                className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isToday ? 'ring-2 ring-ink' : ''} ${market && date !== selectedDate ? 'max-md:hidden' : ''}`}
               >
                 <header className="pt-3.5 pb-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -535,6 +580,9 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           })}
         </div>
       )}
+
+      {/* "Market day" phones: the week's actions under the day, so the day strip stays near the top */}
+      {market && phoneWeekActions}
 
       <p className="hidden lg:block text-xs text-muted">Drag a meal to move it. Hold Alt (Option) while dropping to copy it instead.</p>
 
