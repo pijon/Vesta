@@ -6,6 +6,7 @@ import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
 import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel } from '../utils/planUtils';
 import type { FrequentFood } from '../services/pageData';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
@@ -105,6 +106,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   onSetDayStatus,
   planAside,
 }) => {
+  const market = useDevMode().isFeatureEnabled('marketTheme');
   const [editingFoodItem, setEditingFoodItem] = useState<FoodLogItem | null>(null);
   const [editFoodName, setEditFoodName] = useState('');
   const [editFoodCalories, setEditFoodCalories] = useState('');
@@ -217,7 +219,100 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     ? plannedMeals.find(meal => mealKey(meal) === editingFoodItem.planInstanceId)
     : undefined;
 
+  // "Market day": a period of the log as a heading with its total, then rows with a round icon, the
+  // name, time and protein under it, and the calories large on the right
+  const renderLogGroup = (group: { key: string; label: string; entries: LogEntry[] }) => {
+    const food = group.entries.flatMap(e => (e.kind === 'food' ? [e.item] : []));
+    const kcal = food.reduce((sum, item) => sum + item.calories, 0);
+    return (
+      <section key={group.key} className="pt-3">
+        <h3 className="font-sans text-sm font-semibold text-muted pb-1">
+          {group.label}{food.length > 0 && ` · ${kcal.toLocaleString()} kcal`}
+        </h3>
+        <ul>
+          {group.entries.map(entry => {
+            const isFood = entry.kind === 'food';
+            const name = displayName(isFood ? entry.item.name : entry.workout.type);
+            const FoodIcon = isFood ? foodIconFor({ name: entry.item.name }) ?? UtensilsCrossed : null;
+            const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
+            const protein = isFood && typeof entry.item.protein === 'number' ? ` · ${entry.item.protein} g protein` : '';
+            return (
+              <li key={entry.id} className="border-t border-border first:border-t-0">
+                <button
+                  onClick={() => (isFood ? handleStartEditFood(entry.item) : onEditWorkout(entry.workout))}
+                  className="w-full flex items-center gap-3.5 py-3 text-left rounded-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                  aria-label={`Edit ${name}`}
+                >
+                  <span className={`size-11 shrink-0 rounded-full flex items-center justify-center ${isFood ? 'tile-calories' : 'tile-workout'}`}>
+                    {FoodIcon && <FoodIcon size={20} strokeWidth={1.75} aria-hidden="true" />}
+                    {WorkoutIcon && <WorkoutIcon size={20} stroke={1.75} aria-hidden="true" />}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-base font-semibold leading-snug line-clamp-2">{name}</span>
+                    <span className="block text-sm text-muted tabular-nums">
+                      {clockTime(entry.timestamp)}{isFood ? protein : ` · ${entry.workout.caloriesBurned.toLocaleString()} kcal burned`}
+                    </span>
+                  </span>
+                  {isFood && (
+                    <span className="shrink-0 font-display font-extrabold text-xl tabular-nums">{entry.item.calories.toLocaleString()}</span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  };
+
+  // "Market day": a planned meal as a row on the page, a round plate, the name large and a big tick
+  const renderPlateRow = ({ meal, index }: { meal: Recipe; index: number }) => {
+    const isEaten = isMealEaten(todayPlan, meal);
+    const visual = mealVisualFor(meal);
+    return (
+      <li key={`${meal.id}-${index}`} className="group flex items-center gap-2 border-t border-border first:border-t-0">
+        <button
+          onClick={() => onViewRecipe(meal)}
+          className="flex-1 min-w-0 flex items-center gap-3.5 py-3 text-left rounded-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+          aria-label={`View recipe: ${meal.name}`}
+        >
+          {meal.image ? (
+            <img src={meal.image} alt="" className="size-14 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span className={`size-14 shrink-0 rounded-full flex items-center justify-center ${visual.tint}`}>
+              <visual.Icon size={24} strokeWidth={1.75} aria-hidden="true" />
+            </span>
+          )}
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm text-muted">{slotLabel(slotFor(meal))} · {mealKcalLabel(meal)}{meal.isLeftover ? ' · leftover' : ''}{meal.isPacked ? ' · packed' : ''}</span>
+            <span className={`block text-[17px] font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
+          </span>
+        </button>
+        {!isEaten && (
+          <button
+            onClick={() => onSwapMeal(index)}
+            className="hit-target size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            aria-label={`Swap ${meal.name}`}
+          >
+            <Shuffle size={16} />
+          </button>
+        )}
+        <button
+          onClick={() => onToggleMeal(index)}
+          className={`size-12 shrink-0 flex items-center justify-center rounded-full border-2 transition-colors active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${isEaten
+            ? 'bg-ink border-ink text-on-ink'
+            : 'border-border-control text-transparent hover:text-muted hover:border-main'}`}
+          aria-pressed={isEaten}
+          aria-label={isEaten ? `Mark ${meal.name} as not eaten` : `Mark ${meal.name} as eaten`}
+        >
+          <Check size={22} strokeWidth={3} />
+        </button>
+      </li>
+    );
+  };
+
   const renderMeal = ({ meal, index }: { meal: Recipe; index: number }) => {
+                if (market) return renderPlateRow({ meal, index });
                 const isEaten = isMealEaten(todayPlan, meal);
                 const visual = mealVisualFor(meal);
                 return (
@@ -280,11 +375,11 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-start">
       {/* Left: From Your Plan (and, on wide screens, what comes after it) */}
       <div className="space-y-6 md:space-y-8">
-      <div id="from-your-plan" className="card flex flex-col scroll-mt-24">
-        <div className={`px-5 md:px-6 pt-5 ${allEaten ? 'pb-1' : 'pb-4'}`}>
+      <div id="from-your-plan" className={`flex flex-col scroll-mt-24 ${market ? '' : 'card'}`}>
+        <div className={market ? 'px-1 pb-2' : `px-5 md:px-6 pt-5 ${allEaten ? 'pb-1' : 'pb-4'}`}>
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
-              <h3 className="heading-3 text-lg">From your plan</h3>
+              {market ? <h2 className="heading-2">Today’s plate</h2> : <h3 className="heading-3 text-lg">From your plan</h3>}
               {!allEaten && (
                 <p className="text-sm text-muted mt-0.5">
                   {plannedMeals.length === 0
@@ -304,7 +399,8 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               Planner
             </button>
           </div>
-          {plannedMeals.length > 1 && !allEaten && (
+          {/* "Market day": the hero's segmented bar already shows this */}
+          {!market && plannedMeals.length > 1 && !allEaten && (
             <div className="flex gap-1 mt-3" role="img" aria-label={`${eatenCount} of ${plannedMeals.length} planned meals eaten`}>
               {plannedMeals.map((meal) => (
                 <span
@@ -316,7 +412,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           )}
         </div>
 
-        <div className="px-3 md:px-4 pb-4">
+        <div className={market ? 'px-1' : 'px-3 md:px-4 pb-4'}>
           {plannedMeals.length === 0 ? (
             <div className="tile tile-neutral items-center text-center py-8 mx-2">
               <p className="font-semibold">Nothing planned for today</p>
@@ -334,7 +430,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   aria-expanded={showEaten}
                   className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
                 >
-                  <span className="size-12 shrink-0 rounded-[12px] tile-weight flex items-center justify-center">
+                  <span className={`shrink-0 tile-weight flex items-center justify-center ${market ? 'size-14 rounded-full' : 'size-12 rounded-[12px]'}`}>
                     <Check size={20} strokeWidth={2.5} aria-hidden="true" />
                   </span>
                   <span className="flex-1 min-w-0">
@@ -350,7 +446,8 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             )}
             {mealsBySlot.map(group => (
             <section key={group.label}>
-            {mealsBySlot.length > 1 && <h4 className="font-sans text-xs font-semibold text-muted px-2 pt-2 pb-1">{group.label}</h4>}
+            {/* "Market day" rows name their slot themselves */}
+            {!market && mealsBySlot.length > 1 && <h4 className="font-sans text-xs font-semibold text-muted px-2 pt-2 pb-1">{group.label}</h4>}
             <ul>
               {group.entries.map(renderMeal)}
             </ul>
@@ -365,15 +462,15 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
       </div>
 
       {/* Right: Today's log, a single timeline */}
-      <div className="card flex flex-col">
+      <div className={`flex flex-col ${market ? '' : 'card'}`}>
         {/* The day's totals are in the hero and the period headings, so the header is just the title */}
-        <div className="px-5 md:px-6 pt-5 pb-4 flex justify-between items-center gap-3">
-          <h3 className="heading-3 text-lg">Today's log</h3>
+        <div className={`flex justify-between items-center gap-3 ${market ? 'px-1 pb-3' : 'px-5 md:px-6 pt-5 pb-4'}`}>
+          {market ? <h2 className="heading-2">What you’ve eaten</h2> : <h3 className="heading-3 text-lg">Today's log</h3>}
           <button onClick={onLogFood} className="btn-secondary btn-sm shrink-0"><Plus size={16} aria-hidden="true" /> Add</button>
         </div>
 
         {frequentFoods.length > 0 && (
-          <div className="px-5 md:px-6 pb-3 -mt-1">
+          <div className={market ? "px-1 pb-2" : "px-5 md:px-6 pb-3 -mt-1"}>
             <p className="text-xs font-semibold text-muted mb-1.5">Log again</p>
             <div
               ref={chipsRef}
@@ -399,7 +496,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           </div>
         )}
 
-        <div className="px-3 md:px-4 pb-4">
+        <div className={market ? "px-1" : "px-3 md:px-4 pb-4"}>
           {logEntries.length === 0 ? (
             <div className="tile tile-neutral items-center text-center py-8 mx-2">
               <p className="font-semibold">Your day starts here</p>
@@ -419,13 +516,16 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 </button>
               )}
 
-              {/* Column labels once; the units live here, not on every row */}
-              <div className={`${LOG_GRID} text-xs text-muted pb-0.5`} aria-hidden="true">
-                <span className="col-start-3 text-right">Protein</span>
-                <span className="text-right">kcal</span>
-              </div>
+              {/* Column labels once; the units live here, not on every row ("Market day" rows say their units) */}
+              {!market && (
+                <div className={`${LOG_GRID} text-xs text-muted pb-0.5`} aria-hidden="true">
+                  <span className="col-start-3 text-right">Protein</span>
+                  <span className="text-right">kcal</span>
+                </div>
+              )}
 
               {entryGroups.map((group) => {
+                if (market) return renderLogGroup(group);
                 // Period totals sit in the same columns as the rows, and count food only
                 const food = group.entries.flatMap(e => (e.kind === 'food' ? [e.item] : []));
                 const kcal = food.reduce((sum, item) => sum + item.calories, 0);
