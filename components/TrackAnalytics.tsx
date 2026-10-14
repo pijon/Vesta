@@ -29,6 +29,11 @@ const PERIOD_KEY = 'vesta_analytics_period';
 const AXIS = { fontSize: 12, fill: 'var(--text-muted)' };
 
 const shortDate = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+/** A date that may be months away, with the year when it isn't this one */
+const goalDay = (date: string) => {
+    const d = parseLocalDate(date);
+    return d.toLocaleDateString(undefined, d.getFullYear() === new Date().getFullYear() ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
+};
 const longDate = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 const fmt = (n: number) => Math.round(n).toLocaleString();
 const signed = (n: number, digits = 1) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(digits)}`;
@@ -73,7 +78,6 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         setPeriod(next);
         try { localStorage.setItem(PERIOD_KEY, next); } catch { /* per-device preference */ }
     };
-    const [showProjection, setShowProjection] = useState(false);
 
     const periodDays = PERIODS.find(p => p.value === period)!.days;
     const targetFast = fastingState.config.targetFastHours || 16;
@@ -112,30 +116,21 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         });
         return rows;
     }, [weight.points, stats.weightHistory]);
-    const lastTrend = [...weightData].reverse().find(r => r.trend !== null);
-    // Headline weight is the smoothed trend, as on Today
-    const trendNow = useMemo(() => {
-        const points = weightTrend(stats.weightHistory);
-        return points.length ? points[points.length - 1].trend : null;
-    }, [stats.weightHistory]);
     const weightDomain = (() => {
         if (weight.points.length === 0) return undefined;
-        // Fit the weigh-ins; include the goal only when projecting towards it
-        const ys = weight.points.map(p => p.weight).concat(showProjection && stats.goalWeight > 0 ? [stats.goalWeight] : []);
+        const ys = weight.points.map(p => p.weight);
         return [Math.floor(Math.min(...ys) - 1), Math.ceil(Math.max(...ys) + 1)] as [number, number];
     })();
     const lastPoint = weight.points[weight.points.length - 1];
-    const projectionEnd = showProjection && weight.goalDate && lastPoint
-        ? { x: parseLocalDate(weight.goalDate).getTime(), y: stats.goalWeight }
-        : null;
+    const projection = weight.projection;
     const xDomain: [number, number] | undefined = weight.points.length
-        ? [weight.points[0].time, Math.max(lastPoint.time, projectionEnd?.x ?? 0) + 86_400_000]
+        ? [weight.points[0].time, lastPoint.time + 86_400_000]
         : undefined;
 
     const tiles: { label: string; icon: React.ElementType; tone: string; value: string; sub: string }[] = [
         {
             label: 'Weight', icon: Scale, tone: 'tile-weight',
-            value: trendNow !== null ? `${trendNow.toFixed(1)} kg` : '—',
+            value: weight.current !== null ? `${weight.current.toFixed(1)} kg` : '—',
             sub: weight.current === null ? 'No weigh-ins yet'
                 : weight.change !== null && !weight.fallback ? `${signed(weight.change)} kg this ${period === 'quarter' ? 'quarter' : period}`
                 : weight.toGoal !== null ? `${Math.abs(weight.toGoal).toFixed(1)} kg to goal` : 'Latest weigh-in',
@@ -256,12 +251,6 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                         : weight.ratePerWeek !== null ? `Trend ${signed(weight.ratePerWeek, 2)} kg a week${stats.goalWeight ? ` · goal ${stats.goalWeight} kg` : ''}`
                         : stats.goalWeight ? `Goal ${stats.goalWeight} kg` : undefined
                 }
-                action={weight.goalDate ? (
-                    <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer shrink-0">
-                        <input type="checkbox" checked={showProjection} onChange={e => setShowProjection(e.target.checked)} className="size-4 accent-[var(--weight)]" />
-                        Projection
-                    </label>
-                ) : undefined}
             >
                 {weight.points.length < 2 ? (
                     <Empty>{weight.points.length === 1 ? 'One weigh-in so far. Weigh in again to see a trend.' : 'No weigh-ins yet. Log your weight on Today to see a trend.'}</Empty>
@@ -288,9 +277,6 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                         <ReferenceLine y={stats.goalWeight} ifOverflow="hidden" stroke="var(--weight)" strokeDasharray="4 4"
                                             label={{ value: `Goal ${stats.goalWeight}`, position: 'insideBottomRight', fill: 'var(--weight-text)', fontSize: 12 }} />
                                     )}
-                                    {projectionEnd && (
-                                        <ReferenceLine segment={[{ x: lastTrend?.time ?? lastPoint.time, y: lastTrend?.trend ?? lastPoint.weight }, projectionEnd]} stroke="var(--text-muted)" strokeDasharray="6 4" ifOverflow="extendDomain" />
-                                    )}
                                     <Line type="monotone" dataKey="trend" stroke="var(--weight)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
                                     <Line dataKey="scale" stroke="none" dot={{ r: 3, fill: 'var(--surface)', stroke: 'var(--weight)', strokeWidth: 2 }} activeDot={false} connectNulls={false} isAnimationActive={false} legendType="none" />
                                 </LineChart>
@@ -300,8 +286,11 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                             <span className="inline-flex items-center gap-1.5"><span className="w-4 h-0.5 rounded-full bg-weight" aria-hidden="true" /> Trend, smoothing out day-to-day water changes</span>
                             <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full border-2 border-weight" aria-hidden="true" /> Scale</span>
                         </p>
-                        {showProjection && weight.goalDate && (
-                            <p className="text-sm text-muted mt-3">At this pace you'd reach {stats.goalWeight} kg around {parseLocalDate(weight.goalDate).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}.</p>
+                        {projection && (
+                            <p className="text-sm text-muted mt-3">
+                                At your pace over the last four weeks ({signed(projection.ratePerWeek, 2)} kg a week) you'd reach {stats.goalWeight} kg around {goalDay(projection.date)},
+                                {projection.latest ? ` likely between ${goalDay(projection.earliest)} and ${goalDay(projection.latest)}.` : ` or later if the pace slows; ${goalDay(projection.earliest)} at the earliest.`}
+                            </p>
                         )}
                     </>
                 )}

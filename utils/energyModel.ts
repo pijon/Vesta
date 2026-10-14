@@ -5,8 +5,8 @@ import { addDays } from './planUtils';
 /** Energy in a kilogram of body weight change (mostly fat), the usual rule of thumb. */
 export const KCAL_PER_KG = 7700;
 
-/** Smoothing for the trend weight: each day moves 10% towards the scale (the "Hacker's Diet" average). */
-const TREND_ALPHA = 0.1;
+/** Smoothing for the trend weight: each day moves 15% towards the scale (a faster "Hacker's Diet" average, lagging about six days). */
+const TREND_ALPHA = 0.15;
 /** A longer break between weigh-ins starts a fresh trend instead of drawing a line across it. */
 const TREND_GAP_DAYS = 21;
 

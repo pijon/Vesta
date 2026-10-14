@@ -3,6 +3,7 @@ import { MAX_PLAUSIBLE_FAST_HOURS } from '../constants';
 import { localDateString, parseLocalDate } from './dateUtils';
 import { addDays } from './planUtils';
 import { isCompleteDay } from './logCompleteness';
+import { weightTrend } from './energyModel';
 
 export type AnalyticsPeriod = 'week' | 'month' | 'quarter';
 
@@ -155,15 +156,86 @@ export interface WeightSummary {
   fallback: boolean;
   /** Weigh-ins within the period */
   inPeriod: number;
+  /** Latest smoothed trend weight */
   current: number | null;
-  /** Change over the shown points */
+  /** Change in the trend across the shown points (within the latest unbroken run) */
   change: number | null;
   toGoal: number | null;
-  /** kg per week from a least-squares fit over the shown points (negative = losing) */
+  /** kg per week: the slope of the trend across the shown points (negative = losing) */
   ratePerWeek: number | null;
-  /** When the goal would be reached at that rate, if heading towards it within two years */
-  goalDate: string | null;
+  /** When the goal would be reached at the recent pace, if heading towards it within two years */
+  projection: WeightProjection | null;
 }
+
+/** Weigh-ins the projection reads, counting back from today, and how much it needs */
+export const PROJECTION_WINDOW_DAYS = 28;
+const PROJECTION_MIN_WEIGH_INS = 4;
+const PROJECTION_MIN_SPAN_DAYS = 14;
+const PROJECTION_MAX_DAYS = 730;
+/** Student's t for an 80% range, by degrees of freedom (weigh-ins − 2); beyond the table it's about 1.3 */
+const T80 = [Infinity, 3.078, 1.886, 1.638, 1.533, 1.476, 1.44, 1.415, 1.397, 1.383, 1.372, 1.363, 1.356, 1.35, 1.345, 1.341];
+const t80 = (df: number) => T80[df] ?? (df < 30 ? 1.32 : 1.3);
+
+export interface WeightProjection {
+  /** Most likely date the goal is reached */
+  date: string;
+  /** Earliest and latest likely dates; latest is null when a slower pace might not get there within two years */
+  earliest: string;
+  latest: string | null;
+  /** kg per week over the window (negative = losing) */
+  ratePerWeek: number;
+}
+
+/**
+ * Fits a straight line through the last four weeks of weigh-ins (one per day, averaged) and follows
+ * it to the goal. Starting from the fitted line rather than the smoothed trend keeps the trend's lag
+ * out of the date. The likely range is where the line's 80% confidence band reaches the goal, so it
+ * allows for doubt about both the pace and where you are now.
+ */
+export const projectGoal = (history: WeightEntry[], goal: number, today = localDateString()): WeightProjection | null => {
+  if (!(goal > 0)) return null;
+  const since = addDays(today, -(PROJECTION_WINDOW_DAYS - 1));
+  const byDate = new Map<string, number[]>();
+  (history || []).filter(e => e.weight > 0 && e.date >= since && e.date <= today)
+    .forEach(e => byDate.set(e.date, [...(byDate.get(e.date) ?? []), e.weight]));
+  const days = [...byDate.entries()]
+    .map(([date, ws]) => ({ date, weight: ws.reduce((a, b) => a + b, 0) / ws.length }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (days.length < PROJECTION_MIN_WEIGH_INS) return null;
+  const last = days[days.length - 1];
+  const xs = days.map(d => Math.round((parseLocalDate(d.date).getTime() - parseLocalDate(days[0].date).getTime()) / 86_400_000));
+  if (xs[xs.length - 1] < PROJECTION_MIN_SPAN_DAYS) return null;
+
+  const mx = average(xs)!;
+  const my = average(days.map(d => d.weight))!;
+  const sxx = xs.reduce((sum, x) => sum + (x - mx) ** 2, 0);
+  const slope = xs.reduce((sum, x, i) => sum + (x - mx) * (days[i].weight - my), 0) / sxx;
+  const fitted = (x: number) => my + slope * (x - mx);
+  const variance = xs.reduce((sum, x, i) => sum + (days[i].weight - fitted(x)) ** 2, 0) / (xs.length - 2);
+  const t = t80(xs.length - 2);
+  const bandAt = (x: number) => t * Math.sqrt(variance * (1 / xs.length + (x - mx) ** 2 / sxx));
+
+  const lastX = xs[xs.length - 1];
+  const start = fitted(lastX);
+  const direction = Math.sign(slope);
+  if (direction === 0 || Math.sign(goal - start) !== direction) return null;
+  const reached = (value: number) => (direction < 0 ? value <= goal : value >= goal);
+  // First day after the last weigh-in when `valueAt` reaches the goal, within two years
+  const firstDay = (valueAt: (x: number) => number) => {
+    for (let k = 0; k <= PROJECTION_MAX_DAYS; k++) if (reached(valueAt(lastX + k))) return k;
+    return null;
+  };
+  const likely = Math.round((goal - start) / slope);
+  if (likely > PROJECTION_MAX_DAYS) return null;
+  const earliest = firstDay(x => fitted(x) + direction * bandAt(x)) ?? likely;
+  const latest = firstDay(x => fitted(x) - direction * bandAt(x));
+  return {
+    date: addDays(last.date, likely),
+    earliest: addDays(last.date, earliest),
+    latest: latest === null ? null : addDays(last.date, latest),
+    ratePerWeek: slope * 7,
+  };
+};
 
 export const weightSummary = (history: WeightEntry[], periodDays: number, goal: number): WeightSummary => {
   const all = [...(history || [])]
@@ -176,28 +248,28 @@ export const weightSummary = (history: WeightEntry[], periodDays: number, goal: 
   const fallback = points.length < 2 && all.length >= 2;
   if (fallback) points = all.slice(-8);
 
-  const current = all.length ? all[all.length - 1].weight : null;
-  const change = points.length >= 2 ? points[points.length - 1].weight - points[0].weight : null;
+  // Everything below reads the smoothed trend, so the numbers match the line on the chart
+  const trend = weightTrend(history);
+  const latest = trend.length ? trend[trend.length - 1] : null;
+  const current = latest ? latest.trend : null;
+  const shown = latest && points.length
+    ? trend.filter(p => p.run === latest.run && p.date >= points[0].date && p.date <= points[points.length - 1].date)
+    : [];
+  const change = shown.length >= 2 ? shown[shown.length - 1].trend - shown[0].trend : null;
 
   let ratePerWeek: number | null = null;
-  let goalDate: string | null = null;
-  if (points.length >= 2) {
-    const days = points.map(p => (p.time - points[0].time) / 86_400_000);
-    const span = days[days.length - 1];
-    if (span >= 3) {
+  if (shown.length >= 2) {
+    const days = shown.map(p => (p.time - shown[0].time) / 86_400_000);
+    if (days[days.length - 1] >= 3) {
       const mx = average(days)!;
-      const my = average(points.map(p => p.weight))!;
-      const slope = days.reduce((sum, x, i) => sum + (x - mx) * (points[i].weight - my), 0) /
+      const my = average(shown.map(p => p.trend))!;
+      const slope = days.reduce((sum, x, i) => sum + (x - mx) * (shown[i].trend - my), 0) /
         days.reduce((sum, x) => sum + (x - mx) ** 2, 0);
       ratePerWeek = slope * 7;
-      if (current !== null && goal > 0 && slope !== 0 && Math.sign(goal - current) === Math.sign(slope)) {
-        const daysToGoal = (goal - current) / slope;
-        if (daysToGoal > 0 && daysToGoal < 730) goalDate = addDays(localDateString(), Math.round(daysToGoal));
-      }
     }
   }
 
-  return { points, fallback, inPeriod, current, change, toGoal: current !== null && goal > 0 ? current - goal : null, ratePerWeek, goalDate };
+  return { points, fallback, inPeriod, current, change, toGoal: current !== null && goal > 0 ? current - goal : null, ratePerWeek, projection: projectGoal(history, goal) };
 };
 
 export interface Insight {
