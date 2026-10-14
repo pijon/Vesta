@@ -284,6 +284,11 @@
 @layer base {
   :root {
     /* Direction C, light. Contrast ratios are on `background` unless noted. */
+    /* The sidebar's Vesta mark, as in public/favicon.svg (the same in dark mode) */
+    --mark-bg: #B94E36;
+    --mark-flame: #F6C9A8;
+    --mark-bowl: #FBF3E8;
+
     --background: #FBF8F3;
     --surface: #FFFDF9;
     --surface-sunken: #F3EEE6;
@@ -418,6 +423,146 @@
 
     /* Existing text-charcoal utilities read as cream text in dark mode */
     --color-charcoal: #F3EFE8;
+  }
+
+  /* "Market day" (the marketTheme dev flag, .theme-market on <html>): a butter page, tomato and
+     leaf colours, Bricolage Grotesque headings over DM Sans. Comes after :root and .dark so it
+     wins over both; .theme-market.dark redefines every variable set here. */
+  .theme-market {
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+
+    --background: #FFF1D6;
+    --surface: #FFF9EC;
+    --surface-sunken: #F7E3BB;
+    --card-bg: #FFF9EC;
+    --input-bg: #FFF9EC;
+
+    --text-main: #1B1B1B;          /* 14.9:1 */
+    --text-muted: #6B5A3A;         /* 5.9:1 */
+
+    --border: #EAD6AC;
+    --border-muted: #F2E3C2;
+    --border-control: #8A7650;     /* 3.9:1 on surface */
+
+    /* Deep tomato, so it also passes as text; the hero uses the bright one (below) */
+    --primary: #C9351A;            /* 4.7:1 on background */
+    --primary-foreground: #FFF9EC; /* 5.0:1 */
+    --primary-hover: #B02C13;
+    --primary-light: #FFD9CC;
+    --hero: #FF5533;
+    --hero-foreground: #1B1B1B;    /* 5.4:1 */
+
+    --secondary: #17714A;          /* leaf */
+    --secondary-foreground: #FFF9EC; /* 5.7:1 */
+    --secondary-hover: #0F5A39;
+    --secondary-light: #D3EEDC;
+
+    --ink: #1B1B1B;
+    --on-ink: #FFF1D6;
+    --on-ink-muted: #A89C86;       /* 6.4:1 on ink */
+    --focus-ring: #1B1B1B;
+    --scrim: rgba(27, 27, 27, 0.4);
+
+    --calories: #FF5533;
+    --calories-bg: #FFD9CC;
+    --calories-text: #8A2A12;      /* 6.7:1 on calories-bg */
+    --calories-border: rgba(255, 85, 51, 0.3);
+
+    --water: #3D8BD9;
+    --water-bg: #D6EBFF;
+    --water-text: #1E4E80;         /* 7.0:1 */
+    --water-border: rgba(61, 139, 217, 0.3);
+
+    --weight: #17714A;
+    --weight-bg: #D3EEDC;
+    --weight-text: #145A3B;        /* 6.7:1 */
+    --weight-border: rgba(23, 113, 74, 0.3);
+
+    --workout: #E86A92;
+    --workout-bg: #FFD9E4;
+    --workout-text: #7A2D48;       /* 7.0:1 */
+    --workout-border: rgba(232, 106, 146, 0.3);
+
+    --fasting: #E0A800;
+    --fasting-bg: #FFE9A8;
+    --fasting-text: #6B5310;       /* 6.1:1 */
+
+    --color-charcoal: #1B1B1B;
+    --color-stone: #FFF1D6;
+    --color-stone-50: #FFF1D6;
+
+    /* Rounder cards (the same in both modes) */
+    --radius-3xl: 1.5rem;
+
+    /* The sidebar's Vesta mark: a tomato tile, butter-yellow flame, cream bowl (both modes) */
+    --mark-bg: #FF5533;
+    --mark-flame: #FFD23F;
+    --mark-bowl: #FFF1D6;
+  }
+
+  .theme-market.dark {
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+
+    --background: #1A1714;
+    --surface: #24201B;
+    --surface-sunken: #1F1B17;
+    --card-bg: #24201B;
+    --input-bg: #1F1B17;
+
+    --text-main: #FFF1D6;          /* 16:1 */
+    --text-muted: #BBAE96;         /* 8.4:1 */
+
+    --border: #3A332A;
+    --border-muted: #2E2822;
+    --border-control: #7A6E5C;     /* 3.3:1 on surface */
+
+    --primary: #FF6A4A;            /* 6.4:1 on background */
+    --primary-foreground: #1B1B1B; /* 6.0:1 */
+    --primary-hover: #FF8466;
+    --primary-light: #3D211A;
+    --hero: #FF6A4A;
+    --hero-foreground: #1B1B1B;
+
+    --secondary: #4CC38A;
+    --secondary-foreground: #1B1B1B;
+    --secondary-hover: #6DD3A1;
+    --secondary-light: #17301F;
+
+    --ink: #FFF1D6;
+    --on-ink: #1B1B1B;
+    --on-ink-muted: #6B5A3A;       /* 5.9:1 on ink */
+    --focus-ring: #FFF1D6;
+    --scrim: rgba(5, 4, 3, 0.64);
+
+    --calories: #FF6A4A;
+    --calories-bg: #3D211A;
+    --calories-text: #FFB8A3;
+    --calories-border: rgba(255, 106, 74, 0.3);
+
+    --water: #6AAEF0;
+    --water-bg: #172B3D;
+    --water-text: #A9D3FF;
+    --water-border: rgba(106, 174, 240, 0.3);
+
+    --weight: #4CC38A;
+    --weight-bg: #16301F;
+    --weight-text: #9FE0BC;
+    --weight-border: rgba(76, 195, 138, 0.3);
+
+    --workout: #F08FB0;
+    --workout-bg: #3A1E29;
+    --workout-text: #FFB8CE;
+    --workout-border: rgba(240, 143, 176, 0.3);
+
+    --fasting: #F0C030;
+    --fasting-bg: #3A2E10;
+    --fasting-text: #FFDD80;
+
+    --color-charcoal: #FFF1D6;
+    --color-stone: #1A1714;
+    --color-stone-50: #1A1714;
   }
 
   body {
@@ -689,6 +834,31 @@
     border: 1px solid var(--border);
   }
 
+  /* "Market day": the hero is bright tomato with ink text, and every container is rounder */
+  .theme-market .hero {
+    background: var(--hero);
+    color: var(--hero-foreground);
+    border-radius: 28px;
+  }
+  .theme-market .card, .theme-market .card-hover { border-radius: 24px; }
+  .theme-market .tile { border-radius: 20px; }
+
+  /* Sidebar: on the page itself (no panel or divider), the current item an ink pill as on the
+     mockups' tab bar, and the lowercase wordmark */
+  .theme-market .side-nav {
+    background: var(--background);
+    border-right-color: transparent;
+  }
+  .theme-market .side-item { @apply rounded-[20px] lg:rounded-full; }
+  .theme-market .side-item[aria-current="page"] {
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+  .theme-market .side-brand {
+    text-transform: lowercase;
+    letter-spacing: -0.03em;
+  }
+
 }
 
 /* Custom Scrollbar */
@@ -724,4 +894,13 @@
   .hearth-glow {
     filter: none;
   }
+}
+
+/* index.html sets the body font and background outside any layer (and `html.dark body` with
+   !important), so they beat @layer base; these unlayered, more specific rules let the
+   "Market day" tokens through */
+html.theme-market body,
+html.theme-market.dark body {
+  background-color: var(--background) !important;
+  font-family: var(--font-sans);
 }

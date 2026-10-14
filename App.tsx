@@ -28,7 +28,7 @@ import { Sidebar } from './components/Sidebar';
 import { PlannerTabs } from './components/PlannerTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { DevModeProvider } from './contexts/DevModeContext';
+import { DevModeProvider, useDevMode } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
 import { OnboardingWizard, OnboardingResult } from './components/OnboardingWizard';
 import { FoodEntryModal } from './components/FoodEntryModal';
@@ -41,6 +41,8 @@ import { ViewSkeleton } from './components/ViewSkeleton';
 
 
 const DARK_MODE_KEY = 'vesta_darkMode';
+const MARKET_FONTS_ID = 'market-fonts';
+const MARKET_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=DM+Sans:opsz,wght@9..40,400..700&display=swap';
 
 const TrackerApp: React.FC = () => {
     const navigate = useNavigate();
@@ -183,6 +185,19 @@ const TrackerApp: React.FC = () => {
     }, [isDarkMode]);
 
     const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+
+    // The "Market day" look (dev flag): .theme-market on <html> swaps the tokens in index.css; its fonts load on first use
+    const marketTheme = useDevMode().isFeatureEnabled('marketTheme');
+    useEffect(() => {
+        document.documentElement.classList.toggle('theme-market', marketTheme);
+        if (marketTheme && !document.getElementById(MARKET_FONTS_ID)) {
+            const link = document.createElement('link');
+            link.id = MARKET_FONTS_ID;
+            link.rel = 'stylesheet';
+            link.href = MARKET_FONTS_URL;
+            document.head.appendChild(link);
+        }
+    }, [marketTheme]);
 
     const [dailyLog, setDailyLog] = useState<DailyLog>(() => {
         const date = localDateString();

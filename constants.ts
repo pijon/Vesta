@@ -24,6 +24,7 @@ export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {
   forceSundayReset: false,
   useGeminiExperimental: true, // Default to Gemini 3.8 Flash
   quickMeals: true,
+  marketTheme: false,
 };
 
 /**

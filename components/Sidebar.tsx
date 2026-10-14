@@ -25,8 +25,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
   return (
     <nav aria-label="Main" className="side-nav">
       <div className="flex items-center justify-center lg:justify-start gap-3 lg:px-3 mb-6">
-        <img src="/favicon.svg" alt="" className="size-9 rounded-[10px]" />
-        <span className="hidden lg:block font-display font-extrabold text-xl text-main">Vesta</span>
+        {/* The Vesta mark (public/favicon.svg) inline, so its colours follow the theme */}
+        <svg viewBox="0 0 100 100" className="size-9 shrink-0" aria-hidden="true">
+          <rect width="100" height="100" rx="22" fill="var(--mark-bg)" />
+          <path d="M50 10 C58 22 68 31 68 47 C68 59 60 66 50 66 C40 66 32 59 32 47 C32 39 36 34 41 28 C42 35 45 39 48 40 C46 30 47 20 50 10 Z" fill="var(--mark-flame)" />
+          <path d="M50 38 C54 44 58 48 58 54 C58 60 54 64 50 64 C46 64 42 60 42 54 C42 48 46 44 50 38 Z" fill="var(--mark-bg)" />
+          <rect x="17" y="54" width="66" height="8" rx="4" fill="var(--mark-bowl)" stroke="var(--mark-bg)" strokeWidth="3" />
+          <path d="M23 62 H77 C77 75 65 83 50 83 C35 83 23 75 23 62 Z" fill="var(--mark-bowl)" />
+          <rect x="39" y="84" width="22" height="5" rx="2.5" fill="var(--mark-bowl)" />
+        </svg>
+        <span className="side-brand hidden lg:block font-display font-extrabold text-xl text-main">Vesta</span>
       </div>
       <div className="flex flex-col gap-1">
         {NAV_ITEMS.map(item)}

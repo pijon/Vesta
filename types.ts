@@ -328,6 +328,8 @@ export interface FeatureFlags {
   useGeminiExperimental: boolean;
   /** Plan meals without a recipe from the planner search */
   quickMeals: boolean;
+  /** The "Market day" look: butter page, tomato and leaf colours, Bricolage Grotesque and DM Sans */
+  marketTheme: boolean;
 }
 
 /** Push reminder choices, stored in reminders/{uid} (the scheduled function reads them) */

@@ -421,6 +421,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <span aria-hidden="true" className="relative shrink-0 w-12 h-7 rounded-full bg-border-control peer-checked:bg-ink transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
                     </label>
 
+                    <label className="flex items-center justify-between gap-4 rounded-[14px] bg-surface-sunken p-4 cursor-pointer">
+                        <span>
+                            <span className="block font-semibold">Market day look</span>
+                            <span className="block text-sm text-muted">New colours and fonts from the redesign, in light and dark</span>
+                        </span>
+                        <input
+                            type="checkbox"
+                            role="switch"
+                            className="sr-only peer"
+                            checked={featureFlags.marketTheme ?? false}
+                            onChange={() => toggleFeatureFlag('marketTheme')}
+                        />
+                        <span aria-hidden="true" className="relative shrink-0 w-12 h-7 rounded-full bg-border-control peer-checked:bg-ink transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
+                    </label>
+
                     <div className="flex flex-wrap gap-2">
                         <button onClick={handleForceSync} className="btn-secondary btn-sm"><CloudUpload size={16} aria-hidden="true" /> Force sync</button>
                         <button onClick={handleTestOnboarding} className="btn-secondary btn-sm"><PlayCircle size={16} aria-hidden="true" /> Preview welcome</button>
