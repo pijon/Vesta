@@ -218,12 +218,12 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                 {(onAddToPlan || (onCook && steps.length > 0) || (!isOwned && onCopyToLibrary)) && (
                                     <div className="md:mt-auto grid grid-cols-2 gap-2 [&>:only-child]:col-span-2">
                                         {onAddToPlan && (
-                                            <button onClick={onAddToPlan} className="btn-primary btn-block">
+                                            <button onClick={onAddToPlan} className="btn-primary btn-block px-4 whitespace-nowrap">
                                                 <CalendarPlus size={18} aria-hidden="true" /> Add to plan
                                             </button>
                                         )}
                                         {onCook && steps.length > 0 && (
-                                            <button onClick={onCook} className="btn-secondary btn-block">
+                                            <button onClick={onCook} className="btn-secondary btn-block px-4 whitespace-nowrap">
                                                 <ChefHat size={18} aria-hidden="true" /> Cook
                                             </button>
                                         )}
