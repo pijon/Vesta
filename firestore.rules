@@ -46,9 +46,13 @@ service cloud.firestore {
         allow read: if canRead(userId);
         allow write: if isOwner(userId);
       }
-      match /data/{document=**} {
+      // The name family members see; everything else about the user stays private
+      match /profile/public {
         allow read: if canRead(userId);
-        allow write: if isOwner(userId);
+        allow write: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['name'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 100;
       }
       match /days/{document=**} {
         allow read: if canRead(userId);
@@ -59,7 +63,11 @@ service cloud.firestore {
         allow write: if isOwner(userId);
       }
 
-      // Owner-only subcollections
+      // Owner-only subcollections. data/* holds stats (weight history, goals), fasting,
+      // pantry, shopping and coach state.
+      match /data/{document=**} {
+        allow read, write: if isOwner(userId);
+      }
       match /logs/{document=**} {
         allow read, write: if isOwner(userId);
       }

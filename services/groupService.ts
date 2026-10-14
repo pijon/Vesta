@@ -10,7 +10,7 @@ import {
     arrayRemove,
     writeBatch
 } from "firebase/firestore";
-import { Group, Recipe, UserStats } from "../types";
+import { Group, Recipe } from "../types";
 import { MAX_FAMILY_GROUP_SIZE } from "../constants";
 
 // --- Collection Refs ---
@@ -165,14 +165,9 @@ export const getUserGroup = async (): Promise<Group | null> => {
 export const getGroupMembersDetails = async (memberIds: string[]): Promise<{ id: string, name: string }[]> => {
     try {
         const promises = memberIds.map(async (uid) => {
-            // Stats are stored in users/{uid}/data/stats
-            const statsRef = doc(db, "users", uid, "data", "stats");
-            const snap = await getDoc(statsRef);
-            let name = "Unknown Member";
-            if (snap.exists()) {
-                const stats = snap.data() as UserStats;
-                if (stats.name) name = stats.name;
-            }
+            // Names come from the public profile; stats (weight) are owner-only
+            const snap = await getDoc(doc(db, "users", uid, "profile", "public"));
+            const name = (snap.data()?.name as string | undefined) || "Family member";
             return { id: uid, name };
         });
         return await Promise.all(promises);

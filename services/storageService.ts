@@ -676,6 +676,20 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
 // Going with 'data/stats' to match other singletons
 const STATS_DOC = 'stats';
 
+// Family members see each other's name through users/{uid}/profile/public. Stats (weight
+// history and goals) stay owner-only, so the name is copied out whenever it might have changed.
+let syncedProfileName: { uid: string; name: string } | null = null;
+const syncPublicProfile = (name: string | undefined) => {
+  const uid = getUserId();
+  const value = name?.trim() ?? '';
+  if (syncedProfileName?.uid === uid && syncedProfileName.name === value) return;
+  syncedProfileName = { uid, name: value };
+  setDoc(getDocRef('profile', 'public'), { name: value }).catch(e => {
+    syncedProfileName = null; // retry on the next load or save
+    console.warn('Could not update public profile', e);
+  });
+};
+
 export const getUserStats = async (): Promise<UserStats> => {
   try {
     const d = await getDoc(getDocRef('data', STATS_DOC));
@@ -683,6 +697,7 @@ export const getUserStats = async (): Promise<UserStats> => {
       const stats = d.data() as UserStats;
       // Update Cache
       saveToCache(getCacheKey('stats'), stats);
+      syncPublicProfile(stats.name);
       return stats;
     }
     // Try legacy
@@ -700,6 +715,7 @@ export const saveUserStats = async (stats: UserStats) => {
   // Optimistic Cache
   saveToCache(getCacheKey('stats'), stats);
   await setDoc(getDocRef('data', STATS_DOC), stats);
+  syncPublicProfile(stats.name);
 };
 
 
