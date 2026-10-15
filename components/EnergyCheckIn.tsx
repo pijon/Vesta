@@ -84,7 +84,7 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
   return (
     <section className="card p-4 md:p-6" aria-labelledby="energy-title">
       <div className="flex items-start gap-3 mb-4">
-        <span className="size-10 shrink-0 rounded-[12px] tile-calories flex items-center justify-center"><Gauge size={20} aria-hidden="true" /></span>
+        <span className="icon-tile size-10 shrink-0 tile-calories flex items-center justify-center"><Gauge size={20} aria-hidden="true" /></span>
         <div className="min-w-0">
           <h2 id="energy-title" className="heading-3">Your daily burn</h2>
           <p className="text-sm text-muted mt-0.5">Worked out from what you eat and how your weight moves, so it fits you rather than an average person.</p>

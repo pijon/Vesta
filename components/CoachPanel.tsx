@@ -71,7 +71,7 @@ const FindingRow: React.FC<{ finding: Finding; isRead: boolean; onAction: (a: Co
   const [done, setDone] = useState<string | null>(null);
   return (
     <li className="flex gap-3 py-4 first:pt-0 last:pb-0">
-      <span className={`size-9 shrink-0 rounded-[10px] flex items-center justify-center ${className}`} title={label}>
+      <span className={`icon-tile size-9 shrink-0 flex items-center justify-center ${className}`} title={label}>
         <Icon size={18} aria-hidden="true" />
         <span className="sr-only">{label}:</span>
       </span>

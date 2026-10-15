@@ -17,13 +17,13 @@ export const ViewSkeleton: React.FC = () => {
             {/* Content skeleton */}
             <div className="space-y-6 animate-pulse">
                 {/* Card skeleton 1 */}
-                <div className="bg-charcoal/5 dark:bg-white/5 rounded-3xl h-48 md:h-56" />
+                <div className="bg-surface-sunken rounded-3xl h-48 md:h-56" />
 
                 {/* Card skeleton 2 */}
-                <div className="bg-charcoal/5 dark:bg-white/5 rounded-3xl h-32 md:h-40" />
+                <div className="bg-surface-sunken rounded-3xl h-32 md:h-40" />
 
                 {/* Card skeleton 3 */}
-                <div className="bg-charcoal/5 dark:bg-white/5 rounded-3xl h-24 md:h-32" />
+                <div className="bg-surface-sunken rounded-3xl h-24 md:h-32" />
             </div>
         </motion.div>
     );

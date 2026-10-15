@@ -50,17 +50,17 @@ export function ReloadPrompt() {
     return (
         <div className="ReloadPrompt-container">
             {needRefresh && (
-                <div className="fixed top-20 right-4 p-4 bg-charcoal text-stone rounded-xl shadow-lg z-[100] flex flex-col gap-2 border border-hearth/50 animate-in fade-in slide-in-from-top-2">
-                    <div className="text-sm font-bold">New version available!</div>
-                    <div className="text-xs opacity-80">Reload to update Vesta.</div>
-                    <div className="flex gap-2 mt-1">
+                <div role="status" className="fixed top-4 right-4 left-4 sm:left-auto sm:w-80 p-4 bg-ink text-on-ink rounded-[20px] shadow-[var(--elev-md)] z-[100] flex flex-col gap-1 animate-fade-in">
+                    <p className="font-semibold">A new version of Vesta is ready</p>
+                    <p className="text-sm text-on-ink-muted">Reload to get it. It only takes a moment.</p>
+                    <div className="flex gap-2 mt-2">
                         <button
-                            className="bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-bold"
+                            className="btn-sm rounded-full font-bold px-4 bg-on-ink text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--on-ink)]"
                             onClick={() => updateServiceWorker(true)}>
                             Reload
                         </button>
                         <button
-                            className="bg-transparent border border-border text-stone px-3 py-1.5 rounded-lg text-xs"
+                            className="btn-sm rounded-full font-semibold px-4 text-on-ink hover:bg-on-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--on-ink)]"
                             onClick={close}>
                             Later
                         </button>

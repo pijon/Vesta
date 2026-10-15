@@ -636,6 +636,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       {cookRecipe && <CookingMode recipe={cookRecipe} onClose={() => setCookRecipe(null)} />}
 
       <BatchPlannerModal
+        mode="manual"
         isOpen={showBatchPlanner}
         onClose={() => {
           setShowBatchPlanner(false);

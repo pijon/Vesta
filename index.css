@@ -711,6 +711,9 @@
   /* Metric tiles: tint fill + tint text, no border */
   .tile { @apply flex flex-col rounded-[14px] p-4; }
 
+  /* A small icon on a tint beside a row or card title (round in the "Market day" look) */
+  .icon-tile { border-radius: 12px; }
+
   /* Loading spinner, coloured by currentColor */
   .spinner {
     display: inline-block;
@@ -853,6 +856,7 @@
   }
   .theme-market .card, .theme-market .card-hover { border-radius: 24px; }
   .theme-market .tile { border-radius: 20px; }
+  .theme-market .icon-tile { border-radius: 9999px; }
 
   /* --- "Market day" system pass: the shared building blocks --- */
 
