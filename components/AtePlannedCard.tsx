@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { DayPlan } from '../types';
 import { isMealEaten, mealKcalLabel, slotFor, slotLabel } from '../utils/planUtils';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface AtePlannedCardProps {
   plan: DayPlan;
@@ -22,6 +23,7 @@ export const AtePlannedCard: React.FC<AtePlannedCardProps> = ({ plan, onLogAll }
   const [hour, setHour] = useState(() => new Date().getHours());
   const [dismissed, setDismissed] = useState(readDismissed);
   const [busy, setBusy] = useState(false);
+  const market = useDevMode().isFeatureEnabled('marketTheme');
 
   // The card appears at FROM_HOUR without a reload
   useEffect(() => {
@@ -44,12 +46,12 @@ export const AtePlannedCard: React.FC<AtePlannedCardProps> = ({ plan, onLogAll }
 
   const count = remaining.length;
   return (
-    <section className="card p-4 md:px-6" aria-labelledby="ate-planned-title">
-      <div className="flex items-start gap-3">
-        <span className="size-10 shrink-0 rounded-[12px] flex items-center justify-center tile-weight" aria-hidden="true"><ClipboardCheck size={20} /></span>
+    <section className={market ? 'rounded-[24px] bg-weight-bg p-5 md:p-6' : 'card p-4 md:px-6'} aria-labelledby="ate-planned-title">
+      <div className={`flex items-start ${market ? 'gap-4' : 'gap-3'}`}>
+        <span className={`shrink-0 flex items-center justify-center ${market ? 'size-12 rounded-full bg-surface text-weight-text' : 'size-10 rounded-[12px] tile-weight'}`} aria-hidden="true"><ClipboardCheck size={20} /></span>
         <div className="flex-1 min-w-0">
-          <h2 id="ate-planned-title" className="heading-4">Did you eat as planned today?</h2>
-          <ul className="text-sm text-muted mt-1 space-y-0.5">
+          <h2 id="ate-planned-title" className={market ? 'heading-3' : 'heading-4'}>Did you eat as planned today?</h2>
+          <ul className={`text-sm mt-1 space-y-0.5 ${market ? 'text-main' : 'text-muted'}`}>
             {remaining.map(({ meal, index }) => (
               <li key={meal.instanceId || `${meal.id}-${index}`} className="flex justify-between gap-3">
                 <span className="truncate">{slotLabel(slotFor(meal))} · {meal.name}</span>
@@ -58,7 +60,7 @@ export const AtePlannedCard: React.FC<AtePlannedCardProps> = ({ plan, onLogAll }
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button onClick={logAll} disabled={busy} className="btn-secondary btn-sm">
+            <button onClick={logAll} disabled={busy} className={`${market ? 'btn-primary' : 'btn-secondary'} btn-sm`}>
               {busy ? 'Logging…' : count === 1 ? 'Yes, log it' : `Yes, log all ${count}`}
             </button>
             <button

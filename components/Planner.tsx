@@ -536,11 +536,12 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                 ref={isToday ? todayRef : undefined}
                 id={`day-${date}`}
                 aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
-                className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isToday ? 'ring-2 ring-ink' : ''} ${market && date !== selectedDate ? 'max-md:hidden' : ''}`}
+                className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isToday && !market ? 'ring-2 ring-ink' : ''} ${market && date !== selectedDate ? 'max-md:hidden' : ''}`}
               >
                 <header className="pt-3.5 pb-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className={`font-display font-extrabold text-lg leading-6 ${isPast ? 'text-muted' : ''}`}>
+                    {/* "Market day": today is marked by an ink pill on its date instead of an outline round the card */}
+                    <h3 className={`font-display font-extrabold text-lg leading-6 ${isPast ? 'text-muted' : ''} ${market && isToday ? 'bg-ink text-on-ink rounded-full px-2.5 -ml-1 whitespace-nowrap' : ''}`}>
                       {shortDay(date)} {parseLocalDate(date).getDate()}
                     </h3>
                     <button

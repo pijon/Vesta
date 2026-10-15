@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Check, ChevronDown, CircleAlert, Lightbulb, ThumbsUp } from 'lucide-react';
 import { AppView, CoachReadState, DailyLog, DailySummary, UserStats } from '../types';
 import { CoachAction, Finding, buildCoachFacts, coachFindings, isFindingRead } from '../utils/coachModel';
+import { useDevMode } from '../contexts/DevModeContext';
 
 export interface CoachHandlers {
   onUpdateStats: (stats: UserStats) => void;
@@ -140,22 +141,24 @@ export const CoachCard: React.FC<CoachInput & CoachHandlers> = props => {
   const runAction = useRunAction(props.stats, props);
   const [done, setDone] = useState<string | null>(null);
 
+  const market = useDevMode().isFeatureEnabled('marketTheme');
   const top = unread.find(f => f.id === 'progress') ?? unread.find(f => f.tone !== 'good');
   if (!top) return null;
   const { Icon, className } = TONE[top.tone];
   const more = unread.length - 1;
 
   return (
-    <section className="card p-4 md:px-6" aria-label="Guidance">
-      <div className="flex items-start gap-3">
-        <span className={`size-10 shrink-0 rounded-[12px] flex items-center justify-center ${className}`}><Icon size={20} aria-hidden="true" /></span>
+    <section className={market ? 'rounded-[24px] bg-secondary-light p-5 md:p-6' : 'card p-4 md:px-6'} aria-label="Guidance">
+      <div className={`flex items-start ${market ? 'gap-4' : 'gap-3'}`}>
+        <span className={`shrink-0 flex items-center justify-center ${market ? 'size-12 rounded-full bg-secondary text-secondary-foreground' : `size-10 rounded-[12px] ${className}`}`}><Icon size={20} aria-hidden="true" /></span>
         <div className="flex-1 min-w-0">
-          <h2 className="heading-4">{top.title}</h2>
-          <p className="text-sm text-muted line-clamp-3">{top.detail}</p>
+          {market && <p className="text-sm font-semibold text-muted">From your coach</p>}
+          <h2 className={market ? 'heading-3' : 'heading-4'}>{top.title}</h2>
+          <p className={market ? 'mt-1 leading-relaxed line-clamp-3' : 'text-sm text-muted line-clamp-3'}>{top.detail}</p>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             {top.action && (done
               ? <span className="inline-flex items-center gap-1.5 text-sm font-semibold" role="status"><Check size={16} aria-hidden="true" /> {done}</span>
-              : <button onClick={() => setDone(runAction(top.action!))} className="btn-secondary btn-sm">{top.action.label}</button>)}
+              : <button onClick={() => setDone(runAction(top.action!))} className={`${market ? 'btn-primary' : 'btn-secondary'} btn-sm`}>{top.action.label}</button>)}
             <button onClick={() => { setDone(null); props.onSetCoachRead(top.id, true); }} className="btn-ghost btn-sm">
               <Check size={16} aria-hidden="true" /> Mark as read
             </button>
