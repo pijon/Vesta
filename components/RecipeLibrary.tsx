@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowUpDown, ChefHat, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
 import { getCachedRecipes } from '../utils/cacheService';
 import { addDays } from '../utils/planUtils';
@@ -89,6 +90,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<string>('name');
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  // The Family page links here with ?filter=family
+  const [searchParams] = useSearchParams();
+  const filterParam = searchParams.get('filter');
+  useEffect(() => {
+    if (filterParam === 'family') setActiveFilter('family');
+  }, [filterParam]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showIngredientModal, setShowIngredientModal] = useState(false);
 

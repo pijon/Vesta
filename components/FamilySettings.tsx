@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Group } from '../types';
 import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode } from '../services/groupService';
 import { currentUid } from '../services/firebase';
+import { familyData } from '../services/pageData';
+import { ensureWarm } from '../utils/prewarm';
 import { AlertCircle, Check, Copy, LogIn, LogOut, UsersRound, UtensilsCrossed } from 'lucide-react';
 
 export const FamilySettings: React.FC = () => {
@@ -48,6 +50,7 @@ export const FamilySettings: React.FC = () => {
         try {
             await createGroup(newGroupName);
             await loadGroup();
+            void ensureWarm(familyData, true);
         } catch (e: any) {
             setError(e.message || "We couldn't create the family. Try again.");
             setLoading(false);
@@ -61,6 +64,7 @@ export const FamilySettings: React.FC = () => {
         try {
             await joinGroup(inviteCodeInput);
             await loadGroup();
+            void ensureWarm(familyData, true);
         } catch (e: any) {
             setError(e.message || "That code didn't work. Check it and try again.");
             setLoading(false);
@@ -74,6 +78,7 @@ export const FamilySettings: React.FC = () => {
         try {
             await leaveGroup(group.id);
             setGroup(null);
+            void ensureWarm(familyData, true);
         } catch (e: any) {
             setError(e.message || "We couldn't leave the family. Try again.");
         } finally {

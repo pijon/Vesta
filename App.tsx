@@ -9,6 +9,7 @@ const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').th
 const Planner = React.lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
 const RecipeLibrary = React.lazy(() => import('./components/RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 const ShoppingList = React.lazy(() => import('./components/ShoppingList').then(module => ({ default: module.ShoppingList })));
+const FamilyView = React.lazy(() => import('./components/FamilyView').then(module => ({ default: module.FamilyView })));
 const SettingsView = React.lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
 
 // Download the lazy views in the background after start-up so the first visit to
@@ -18,6 +19,7 @@ const prefetchViews = () => {
     void import('./components/Planner');
     void import('./components/RecipeLibrary');
     void import('./components/ShoppingList');
+    void import('./components/FamilyView');
     void import('./components/SettingsView');
 };
 import BatchPlannerModal from './components/BatchPlannerModal';
@@ -96,6 +98,7 @@ const TrackerApp: React.FC = () => {
         if (path === '/mealplanner') return AppView.PLANNER;
         if (path === '/recipes') return AppView.RECIPES;
         if (path === '/shopping') return AppView.SHOPPING;
+        if (path === '/family') return AppView.FAMILY;
         if (path === '/settings') return AppView.SETTINGS;
         return AppView.TODAY;
     };
@@ -120,6 +123,7 @@ const TrackerApp: React.FC = () => {
             [AppView.PLANNER]: '/mealplanner',
             [AppView.RECIPES]: '/recipes',
             [AppView.SHOPPING]: '/shopping',
+            [AppView.FAMILY]: '/family',
             [AppView.SETTINGS]: '/settings'
         };
         navigate(routes[newView] || '/today');
@@ -672,6 +676,8 @@ const TrackerApp: React.FC = () => {
                 return { title: 'Recipes', subtitle: greeting };
             case AppView.SHOPPING:
                 return { title: 'Planner', subtitle: greeting };
+            case AppView.FAMILY:
+                return { title: 'Family', subtitle: greeting };
             case AppView.SETTINGS:
                 return { title: 'Settings', subtitle: greeting };
             default:
@@ -735,6 +741,7 @@ const TrackerApp: React.FC = () => {
                     {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} />)}
                     {renderView(AppView.RECIPES, <RecipeLibrary />)}
                     {renderView(AppView.SHOPPING, <ShoppingList />)}
+                    {renderView(AppView.FAMILY, <FamilyView onNavigate={handleNavigate} />)}
                     {renderView(AppView.SETTINGS, (
                         <SettingsView
                             stats={userStats}
