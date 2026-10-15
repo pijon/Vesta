@@ -64,13 +64,95 @@ export const mealKcalUnset = (meal: Recipe) => withSides(meal).every(m => !!m.qu
 /** Some of the meal's calories are estimated or missing, so its total is approximate. */
 export const mealKcalApprox = (meal: Recipe) => withSides(meal).some(m => !!(m.quick?.estimated || m.quick?.noCalories));
 
-/** "650 kcal", "≈ 650 kcal" or "kcal not set". */
+/** Eating out with the place undecided: the meal's calories are a budget to stay within. */
+export const isBudgetMeal = (meal: Pick<Recipe, 'quick'>) => !!meal.quick?.budget;
+
+/** Name given to an eating-out meal planned before a place is picked. */
+export const EATING_OUT_NAME = 'Eating out';
+
+/** A planned "eating out, place TBD" meal with a calorie budget. */
+export const eatingOutBudgetMeal = (slot: MealSlot, budget: number, auto = true): Recipe => ({
+  id: crypto.randomUUID(),
+  name: EATING_OUT_NAME,
+  calories: Math.max(0, Math.round(budget)),
+  ingredients: [],
+  instructions: [],
+  tags: [slot],
+  servings: 1,
+  description: QUICK_MEAL_DESCRIPTION,
+  quick: { kind: 'out', budget: true, autoBudget: auto || undefined },
+});
+
+/**
+ * Shows each automatic budget as planned, less its equal share of what's been eaten beyond the
+ * plan: logged calories (an unplanned banana, a bigger lunch than budgeted) minus what the eaten
+ * planned meals were meant to be. Several budgets share the excess equally; one that runs out
+ * passes the rest on. Eating less than planned doesn't raise anything. The planned figure stays on
+ * `quick.plannedBudget`, which is what's saved.
+ */
+export const withLiveBudgets = (plan: DayPlan, { loggedKcal }: { loggedKcal: number }): DayPlan => {
+  const live = plan.meals.filter(meal => isBudgetMeal(meal) && meal.quick?.autoBudget && !isMealEaten(plan, meal));
+  if (live.length === 0) return plan;
+
+  const plannedEaten = plan.meals
+    .filter(meal => isMealEaten(plan, meal))
+    .reduce((sum, meal) => sum + (meal.quick?.budgeted ?? mealCalories(meal)), 0);
+  const planned = live.map(meal => meal.quick?.plannedBudget ?? meal.calories);
+  const cut = planned.map(() => 0);
+
+  let left = Math.max(0, loggedKcal - plannedEaten);
+  let active = planned.map((_, i) => i);
+  while (left > 0 && active.length) {
+    const share = left / active.length;
+    const spent = active.filter(i => planned[i] - cut[i] <= share);
+    if (!spent.length) {
+      active.forEach(i => { cut[i] += share; });
+      break;
+    }
+    spent.forEach(i => { left -= planned[i] - cut[i]; cut[i] = planned[i]; });
+    active = active.filter(i => !spent.includes(i));
+  }
+
+  const byKey = new Map(live.map((meal, i) => [mealKey(meal), { planned: planned[i], now: Math.round((planned[i] - cut[i]) / 5) * 5 }]));
+  return {
+    ...plan,
+    meals: plan.meals.map(meal => {
+      const budget = byKey.get(mealKey(meal));
+      return budget ? { ...meal, calories: budget.now, quick: { ...meal.quick, plannedBudget: budget.planned } } : meal;
+    }),
+  };
+};
+
+/**
+ * The budget meal once the real meal is known. It keeps its slot, instance and day, so eaten status
+ * and the planner stay put; only what and how much changes. `budgeted` is the planned budget when
+ * this is what was actually eaten, so going over it comes off the day's other budgets.
+ */
+export const decideEatingOut = (
+  meal: Recipe,
+  name: string,
+  calories: number,
+  { estimated = true, protein, budgeted }: { estimated?: boolean; protein?: number; budgeted?: number } = {},
+): Recipe => ({
+  ...meal,
+  name: name.trim() || EATING_OUT_NAME,
+  calories: Math.max(0, Math.round(calories)),
+  protein: protein ?? 0,
+  quick: { kind: 'out', estimated: estimated || undefined, budgeted },
+});
+
+/** Round a calorie figure to the nearest 50, the grain a restaurant budget is set at. */
+export const roundBudget = (kcal: number) => Math.max(0, Math.round(kcal / 50) * 50);
+
+/** "650 kcal", "≈ 650 kcal", "700 kcal budget" or "kcal not set". */
 export const mealKcalLabel = (meal: Recipe) =>
-  mealKcalUnset(meal) ? 'kcal not set' : `${mealKcalApprox(meal) ? '≈ ' : ''}${mealCalories(meal)} kcal`;
+  isBudgetMeal(meal) ? `${mealCalories(meal)} kcal budget`
+    : mealKcalUnset(meal) ? 'kcal not set' : `${mealKcalApprox(meal) ? '≈ ' : ''}${mealCalories(meal)} kcal`;
 
 /** mealKcalLabel for screen readers, which read "≈" badly. */
 export const mealKcalSpoken = (meal: Recipe) =>
-  mealKcalUnset(meal) ? 'calories not set' : `${mealKcalApprox(meal) ? 'about ' : ''}${mealCalories(meal)} kcal`;
+  isBudgetMeal(meal) ? `a budget of ${mealCalories(meal)} kcal`
+    : mealKcalUnset(meal) ? 'calories not set' : `${mealKcalApprox(meal) ? 'about ' : ''}${mealCalories(meal)} kcal`;
 
 /** Protein in a meal plus its sides, when the recipes say (undefined when none of them do). */
 export const mealProtein = (meal: Recipe): number | undefined => {

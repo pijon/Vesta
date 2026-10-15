@@ -10,14 +10,15 @@ import { getCachedRecipes } from '../utils/cacheService';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import {
-  MEAL_SLOTS, addDays, dayCalories, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isFastDay, isMealEaten,
-  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, slotFor, slotLabel, weekDates, weekStart,
+  MEAL_SLOTS, addDays, dayCalories, decideEatingOut, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isBudgetMeal, isFastDay, isMealEaten,
+  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, proteinTarget, slotFor, slotLabel, weekDates, weekStart,
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { CookingMode } from './CookingMode';
 import BatchPlannerModal from './BatchPlannerModal';
 import { AddMode, LeftoverOption, PlannerAddSheet } from './PlannerAddSheet';
 import { PlannerMealSheet } from './PlannerMealSheet';
+import { EatingOutDecideSheet } from './EatingOutDecideSheet';
 
 interface AddTarget { date: string; slot: MealSlot; mode: AddMode; index?: number }
 interface MealTarget { date: string; index: number }
@@ -45,6 +46,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
   const [addTarget, setAddTarget] = useState<AddTarget | null>(null);
   const [mealTarget, setMealTarget] = useState<MealTarget | null>(null);
+  /** The eating-out budget being filled in with a real meal */
+  const [decideTarget, setDecideTarget] = useState<MealTarget | null>(null);
   const [viewRecipe, setViewRecipe] = useState<Recipe | null>(null);
   const [cookRecipe, setCookRecipe] = useState<Recipe | null>(null);
   const [showBatchPlanner, setShowBatchPlanner] = useState(false);
@@ -132,7 +135,9 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
    * shopping items are what to buy for the portions planned, so they aren't scaled up again.
    */
   const newMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}) => {
-    const meal = planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: myUid }, extra);
+    // Eating out is personal: a budget never becomes a shared family dinner
+    const personal: Partial<Recipe> = isBudgetMeal(recipe) ? { familyDinner: false, cookingServings: 1 } : {};
+    const meal = planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: myUid }, { ...extra, ...personal });
     return isQuickMeal(recipe) && !meal.isLeftover ? { ...meal, servings: meal.cookingServings || 1 } : meal;
   };
 
@@ -196,7 +201,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const moveMeal = (from: MealTarget, toDate: string, toSlot: MealSlot, copy: boolean) => {
     const meal = planFor(from.date).meals[from.index];
     if (!meal) return;
-    const shared = inFamily && toSlot === 'dinner';
+    const shared = inFamily && toSlot === 'dinner' && !isBudgetMeal(meal);
     const placed: Recipe = {
       ...meal,
       slot: toSlot,
@@ -319,6 +324,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   }, 0);
   const isLoading = !loadedWeeks.has(monday) && dates.every(d => !plans[d]);
 
+  const decideMeal = decideTarget ? planFor(decideTarget.date).meals[decideTarget.index] : undefined;
   const mealSheetMeal = mealTarget ? planFor(mealTarget.date).meals[mealTarget.index] : undefined;
   const addTargetPlan = addTarget ? planFor(addTarget.date) : undefined;
   const addParent = addTarget?.index !== undefined ? addTargetPlan?.meals[addTarget.index] : undefined;
@@ -606,7 +612,21 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           onSetCookingServings={n => editMeal(mealTarget, m => ({ ...m, cookingServings: n }))}
           onTogglePacked={() => editMeal(mealTarget, m => ({ ...m, isPacked: !m.isPacked }))}
           onRemove={() => { removeMeal(mealTarget); setMealTarget(null); }}
+          onDecideEatingOut={() => { setDecideTarget(mealTarget); setMealTarget(null); }}
           onClose={() => setMealTarget(null)}
+        />
+      )}
+
+      {decideTarget && decideMeal && isBudgetMeal(decideMeal) && (
+        <EatingOutDecideSheet
+          meal={decideMeal}
+          proteinGoal={proteinTarget(stats)}
+          onDecide={(name, calories, options) => {
+            editMeal(decideTarget, m => decideEatingOut(m, name, calories, options));
+            showToast(`Planned ${name}`);
+            setDecideTarget(null);
+          }}
+          onClose={() => setDecideTarget(null)}
         />
       )}
 

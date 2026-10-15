@@ -3,6 +3,7 @@ import { defineSecret, defineString } from 'firebase-functions/params';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
+import { dueEatingOutNudges, StoredDay } from './eatingOut.js';
 import webpush, { PushSubscription, WebPushError } from 'web-push';
 
 const VAPID_PUBLIC_KEY = defineString('VAPID_PUBLIC_KEY');
@@ -20,7 +21,8 @@ interface ReminderDoc {
   subscriptions?: PushSubscription[];
   log?: { enabled: boolean; time: string };
   weighIn?: { enabled: boolean; time: string; days: number[] };
-  lastSent?: { log?: string; weighIn?: string };
+  eatingOut?: { enabled: boolean; delayMinutes: number };
+  lastSent?: { log?: string; weighIn?: string; eatingOut?: { date: string; ids: string[] } };
 }
 
 interface Payload { title: string; body: string; url: string; tag: string }
@@ -70,8 +72,9 @@ const sendToAll = async (uid: string, subscriptions: PushSubscription[], payload
 };
 
 /**
- * Every 15 minutes: evening log reminders (only when nothing is logged that day) and weigh-in
- * reminders on the chosen days (only when there's no weigh-in yet that day).
+ * Every 15 minutes: evening log reminders (only when nothing is logged that day), weigh-in
+ * reminders on the chosen days (only when there's no weigh-in yet that day) and a check-in after
+ * each eating-out meal that isn't logged.
  */
 export const sendReminders = onSchedule(
   { schedule: 'every 15 minutes', region: REGION, secrets: [VAPID_PRIVATE_KEY], timeoutSeconds: 120, maxInstances: 1 },
@@ -119,6 +122,23 @@ export const sendReminders = onSchedule(
             });
           }
           await doc.ref.update({ 'lastSent.weighIn': now.date });
+        }
+
+        if (r.eatingOut?.enabled) {
+          const sent = r.lastSent?.eatingOut?.date === now.date ? r.lastSent.eatingOut.ids : [];
+          const delay = Math.min(Math.max(r.eatingOut.delayMinutes || 90, 30), 240);
+          const dayDoc = await db.doc(`users/${uid}/days/${now.date}`).get();
+          const due = dueEatingOutNudges(dayDoc.data() as StoredDay | undefined, now.minutes, delay, sent, GRACE_MINUTES);
+          for (const nudge of due) {
+            await sendToAll(uid, r.subscriptions, {
+              title: nudge.title,
+              body: nudge.body,
+              url: `/today?eatout=${encodeURIComponent(nudge.instanceId)}`,
+              tag: `eating-out-${nudge.instanceId}`,
+            });
+          }
+          // Recorded even if the push didn't arrive, so a dead subscription isn't retried every 15 minutes
+          if (due.length) await doc.ref.update({ 'lastSent.eatingOut': { date: now.date, ids: [...sent, ...due.map(n => n.instanceId)] } });
         }
       } catch (e) {
         logger.error('Reminder check failed', { uid, message: e instanceof Error ? e.message : String(e) });

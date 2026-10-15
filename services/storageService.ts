@@ -178,8 +178,12 @@ const dehydrateMeal = (meal: Recipe, shared = false): PlannedMeal => {
     type: 'custom',
     id: meal.id || crypto.randomUUID(),
     name: meal.name,
-    calories: meal.quick?.noCalories ? undefined : meal.calories,
+    // A live budget is saved as planned; it's recomputed from the day each time it's shown
+    calories: meal.quick?.noCalories ? undefined : (meal.quick?.budget && meal.quick.plannedBudget !== undefined ? meal.quick.plannedBudget : meal.calories),
     caloriesEstimated: meal.quick?.estimated || undefined,
+    budget: meal.quick?.budget || undefined,
+    autoBudget: (meal.quick?.budget && meal.quick.autoBudget) || undefined,
+    budgeted: meal.quick?.budgeted,
     kind: meal.quick?.kind,
     shopping: meal.ingredients?.length ? meal.ingredients : undefined,
     protein: meal.protein,
@@ -273,6 +277,9 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[], userId?: string)
       quick: {
         kind: meal.kind,
         estimated: meal.caloriesEstimated || undefined,
+        budget: meal.budget || undefined,
+        autoBudget: (meal.budget && meal.autoBudget) || undefined,
+        budgeted: meal.budgeted,
         noCalories: meal.calories === undefined || undefined,
       },
       protein: meal.protein || 0,

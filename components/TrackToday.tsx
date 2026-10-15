@@ -4,12 +4,14 @@ import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, getDayPlan, getDailySummaries } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
 import { MealCaloriesSheet } from './MealCaloriesSheet';
+import { EatingOutCard } from './EatingOutCard';
+import { EatingOutDecideSheet } from './EatingOutDecideSheet';
 import { DualTrackSection } from './DualTrackSection';
 import { TomorrowCard } from './TomorrowCard';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
 import { CoachCard } from './CoachPanel';
 import { usePrewarmed } from '../utils/prewarm';
@@ -66,7 +68,7 @@ interface TrackTodayProps {
 }
 
 export const TrackToday: React.FC<TrackTodayProps> = ({
-  todayPlan,
+  todayPlan: storedPlan,
   tomorrowPlan,
   stats,
   dailyLog,
@@ -174,6 +176,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const firstMealTime = firstMealTimes.length ? Math.min(...firstMealTimes) : null;
 
 
+  // Eating-out budgets give up their share of anything eaten beyond the plan
+  const todayPlan = React.useMemo(() => withLiveBudgets(storedPlan, { loggedKcal: consumed }), [storedPlan, consumed]);
+
   // Determine Daily Target based on Day Type
   const isNonFastDay = !isFastDay(todayPlan);
   const dailyTarget = dayTarget(todayPlan, stats);
@@ -235,6 +240,29 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     }
     setCaloriesAsk(null);
     if (indices.length) logPlannedMeals(indices, plan, caloriesAsk.timed);
+  };
+
+  /** The eating-out meal being logged (index in today's plan), from its card or a reminder */
+  const [eatingOutIndex, setEatingOutIndex] = useState<number | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const eatOutParam = searchParams.get('eatout');
+  useEffect(() => {
+    if (!eatOutParam) return;
+    const index = todayPlan.meals.findIndex(meal => mealKey(meal) === eatOutParam);
+    if (index < 0) return;
+    if (!isMealEaten(todayPlan, todayPlan.meals[index])) setEatingOutIndex(index);
+    setSearchParams(params => { params.delete('eatout'); return params; }, { replace: true });
+  }, [eatOutParam, todayPlan, setSearchParams]);
+
+  /** The meal is now what was actually had: update it and log it as eaten. */
+  const logEatingOut = async (index: number, name: string, calories: number, options: { estimated: boolean; protein?: number }) => {
+    const meal = todayPlan.meals[index];
+    setEatingOutIndex(null);
+    if (!meal) return;
+    const budgeted = isBudgetMeal(meal) ? (meal.quick?.plannedBudget ?? meal.calories) : undefined;
+    const plan = { ...todayPlan, meals: todayPlan.meals.map((m, i) => (i === index ? decideEatingOut(m, name, calories, { ...options, budgeted }) : m)) };
+    await logPlannedMeals([index], plan, false);
+    setToast({ message: `Logged ${name} · ${calories.toLocaleString()} kcal` });
   };
 
   const toggleMeal = async (mealIndex: number) => {
@@ -425,6 +453,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       {/* Evening: log the rest of the plan in one tap */}
       <AtePlannedCard plan={todayPlan} onLogAll={indices => logPlanned(indices, true)} />
 
+      {/* Eating out: what was actually had */}
+      <EatingOutCard plan={todayPlan} onLog={setEatingOutIndex} />
+
       {/* Thursday and Friday: plan the weekend ahead */}
       <WeekendPlanCard weekendGap={recentWeekendGap} onPlan={date => navigate('/mealplanner', { state: { date } })} />
 
@@ -474,6 +505,16 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           onSave={(calories, estimated) => answerCalories(calories, estimated)}
           onSkip={() => answerCalories(null)}
           onClose={() => setCaloriesAsk(null)}
+        />
+      )}
+
+      {eatingOutIndex !== null && todayPlan.meals[eatingOutIndex] && (
+        <EatingOutDecideSheet
+          meal={todayPlan.meals[eatingOutIndex]}
+          proteinGoal={proteinTarget(stats)}
+          confirmLabel="Log it"
+          onDecide={(name, calories, options) => logEatingOut(eatingOutIndex, name, calories, options)}
+          onClose={() => setEatingOutIndex(null)}
         />
       )}
 

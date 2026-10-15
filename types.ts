@@ -43,6 +43,14 @@ export interface QuickMealInfo {
   estimated?: boolean;
   /** No calories given; `calories` is 0 and the UI says "kcal not set" */
   noCalories?: boolean;
+  /** Eating out with the place still undecided: `calories` is a budget to stay within, not an estimate */
+  budget?: boolean;
+  /** The budget shrinks by its share of any unplanned eating (see withLiveBudgets) */
+  autoBudget?: boolean;
+  /** Only on a plan shown with live budgets: the budget as planned, which is what gets saved */
+  plannedBudget?: number;
+  /** On a decided eating-out meal that was eaten: the budget it was planned at */
+  budgeted?: number;
 }
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -90,6 +98,12 @@ export interface CustomMealInstance extends PlannedMealMeta {
   /** Undefined when not given */
   calories?: number;
   caloriesEstimated?: boolean;
+  /** Eating out, place undecided: `calories` is a budget */
+  budget?: boolean;
+  /** The budget shrinks by its share of any unplanned eating */
+  autoBudget?: boolean;
+  /** Set when eaten: the budget it was planned at */
+  budgeted?: number;
   kind?: QuickMealKind;
   /** Items to buy; hydrated into `ingredients` so the shopping list reads them */
   shopping?: string[];
@@ -336,4 +350,6 @@ export interface ReminderSettings {
   log: { enabled: boolean; time: string };
   /** Morning weigh-in reminder on the chosen weekdays (0 = Sunday), only without a weigh-in that day */
   weighIn: { enabled: boolean; time: string; days: number[] };
+  /** A nudge to log what you ate, this long after an eating-out meal's usual time, unless it's logged */
+  eatingOut: { enabled: boolean; delayMinutes: number };
 }

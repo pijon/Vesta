@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, BellOff, BellRing, Check, Loader2, Scale, Send, Share, UtensilsCrossed } from 'lucide-react';
+import { AlertCircle, BellOff, BellRing, Check, Loader2, Scale, Send, Share, Store, UtensilsCrossed } from 'lucide-react';
 import { ReminderSettings as Settings } from '../types';
 import {
   DEFAULT_REMINDERS, currentSubscription, disableReminders, enableReminders, getReminders, pushSupport, saveReminderSettings, sendTestReminder,
@@ -162,6 +162,29 @@ export const ReminderSettings: React.FC = () => {
             </div>
           </div>
         </li>
+        <li className="p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="icon-tile size-9 shrink-0 tile-workout flex items-center justify-center"><Store size={18} aria-hidden="true" /></span>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold">Eating out check-in</p>
+              <p className="text-sm text-muted">Asks what you had after a meal you planned out. Skipped once it's logged.</p>
+            </div>
+            <Switch checked={settings.eatingOut.enabled} onChange={v => change({ ...settings, eatingOut: { ...settings.eatingOut, enabled: v } })} label="Eating out check-in" />
+          </div>
+          <div className="pl-12 flex items-center gap-2">
+            <label className="text-sm text-muted" htmlFor="eating-out-delay">After</label>
+            <select
+              id="eating-out-delay"
+              value={settings.eatingOut.delayMinutes}
+              disabled={!settings.eatingOut.enabled}
+              onChange={e => change({ ...settings, eatingOut: { ...settings.eatingOut, delayMinutes: Number(e.target.value) } })}
+              className="input !min-h-10 !py-1.5 !px-3 w-auto disabled:opacity-50"
+            >
+              {[60, 90, 120, 180].map(m => <option key={m} value={m}>{m / 60 >= 2 || m === 60 ? `${m / 60} h` : '1.5 h'}</option>)}
+            </select>
+            <span className="text-sm text-muted">after the meal's usual time</span>
+          </div>
+        </li>
       </ul>
 
       {message && (
@@ -182,7 +205,7 @@ export const ReminderSettings: React.FC = () => {
             </button>
           </>
         ) : (
-          <button onClick={() => run('enable')} disabled={!!busy || (!settings.log.enabled && !settings.weighIn.enabled)} className="btn-secondary btn-sm">
+          <button onClick={() => run('enable')} disabled={!!busy || (!settings.log.enabled && !settings.weighIn.enabled && !settings.eatingOut.enabled)} className="btn-secondary btn-sm">
             {busy === 'enable' ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <BellRing size={16} aria-hidden="true" />} Turn on reminders
           </button>
         )}

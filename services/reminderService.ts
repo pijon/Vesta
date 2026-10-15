@@ -7,6 +7,7 @@ import { VAPID_PUBLIC_KEY } from '../constants';
 export const DEFAULT_REMINDERS: ReminderSettings = {
   log: { enabled: true, time: '20:00' },
   weighIn: { enabled: true, time: '07:30', days: [1, 3, 5] },
+  eatingOut: { enabled: true, delayMinutes: 90 },
 };
 
 /**
@@ -55,6 +56,7 @@ export const getReminders = async (): Promise<{ settings: ReminderSettings; enab
     settings: {
       log: { ...DEFAULT_REMINDERS.log, ...data?.log },
       weighIn: { ...DEFAULT_REMINDERS.weighIn, ...data?.weighIn },
+      eatingOut: { ...DEFAULT_REMINDERS.eatingOut, ...data?.eatingOut },
     },
     enabled: !!data?.enabled,
   };

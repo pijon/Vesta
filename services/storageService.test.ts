@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DayPlan, PlannedMeal, Recipe } from '../types';
-import { planMeal, QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
+import { decideEatingOut, eatingOutBudgetMeal, planMeal, withLiveBudgets, QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
 
 // An in-memory stand-in for the parts of Firestore that day plans use. Documents are stored
 // as JSON, which drops undefined fields like the app's ignoreUndefinedProperties setting.
@@ -127,6 +127,26 @@ describe('day plans', () => {
     const [estimated, unset] = (await getDayPlan('2026-10-05')).meals;
     expect(estimated).toMatchObject({ name: 'Pizza out', calories: 900, quick: { kind: 'out', estimated: true } });
     expect(unset).toMatchObject({ name: 'Lunch at work', calories: 0, quick: { noCalories: true } });
+  });
+
+  it('round-trips an eating-out budget and keeps it once the place is decided', async () => {
+    const budget = planMeal(eatingOutBudgetMeal('dinner', 700), 'dinner');
+    await saveDayPlan(plan('2026-10-06', [budget]));
+    const [loaded] = (await getDayPlan('2026-10-06')).meals;
+    expect(loaded).toMatchObject({ name: 'Eating out', calories: 700, quick: { kind: 'out', budget: true }, instanceId: budget.instanceId });
+
+    await saveDayPlan(plan('2026-10-06', [decideEatingOut(loaded, 'Pad thai at Siam', 780, { protein: 30 })]));
+    const [decided] = (await getDayPlan('2026-10-06')).meals;
+    expect(decided).toMatchObject({ name: 'Pad thai at Siam', calories: 780, protein: 30, instanceId: budget.instanceId, quick: { kind: 'out', estimated: true } });
+    expect(decided.quick?.budget).toBeUndefined();
+  });
+
+  it('saves a live budget as planned, so it can follow the day again tomorrow', async () => {
+    const live = withLiveBudgets(plan('2026-10-07', [planMeal(eatingOutBudgetMeal('dinner', 700), 'dinner')]), { loggedKcal: 250 });
+    expect(live.meals[0].calories).toBe(450);
+    await saveDayPlan(live);
+    const [loaded] = (await getDayPlan('2026-10-07')).meals;
+    expect(loaded).toMatchObject({ calories: 700, quick: { budget: true, autoBudget: true } });
   });
 
   it('keeps sides with their meal', async () => {

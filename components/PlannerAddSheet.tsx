@@ -1,11 +1,12 @@
 import React, { useId, useMemo, useState } from 'react';
-import { ArrowLeft, Heart, Plus, Search, Sparkles, UsersRound } from 'lucide-react';
+import { ArrowLeft, Heart, Plus, Search, Sparkles, Store, UsersRound } from 'lucide-react';
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
 import { QUICK_MEAL_DESCRIPTION, slotFor } from '../utils/planUtils';
 import { useDevMode } from '../contexts/DevModeContext';
 import { QuickMealForm } from './QuickMealForm';
+import { EatingOutBudgetForm } from './EatingOutBudgetForm';
 import { suggestSideDishes } from '../services/geminiService';
 
 export type AddMode = 'add' | 'swap' | 'side';
@@ -54,6 +55,8 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
   /** Name for the quick-meal form; null shows the recipe list */
   const [quickDraft, setQuickDraft] = useState<string | null>(null);
   const quickFormId = useId();
+  /** Setting a budget for eating out with the place undecided */
+  const [budgeting, setBudgeting] = useState(false);
   const quickMeals = useDevMode().isFeatureEnabled('quickMeals');
 
   const term = search.trim().toLowerCase();
@@ -154,6 +157,26 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
     ? `With ${mainMealName}`
     : `${isFastDay ? 'Fast day · ' : ''}${caloriesLeft >= 0 ? `${caloriesLeft} kcal left` : `${-caloriesLeft} kcal over`}`;
 
+  if (budgeting) {
+    return (
+      <Sheet
+        title={title}
+        subtitle={subtitle}
+        onClose={onClose}
+        footer={
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setBudgeting(false)} className="btn-secondary"><ArrowLeft size={16} aria-hidden="true" /> Back</button>
+            <button type="submit" form={quickFormId} className="btn-primary flex-1">
+              {mode === 'swap' ? 'Swap in' : 'Add to plan'}
+            </button>
+          </div>
+        }
+      >
+        <EatingOutBudgetForm id={quickFormId} slot={slot} caloriesLeft={caloriesLeft} onSubmit={meal => onPick(meal)} />
+      </Sheet>
+    );
+  }
+
   if (quickDraft !== null) {
     return (
       <Sheet
@@ -209,6 +232,21 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             <span className="flex-1 min-w-0">
               <span className="font-semibold leading-snug line-clamp-2">Plan “{search.trim()}” without a recipe</span>
               <span className="block text-xs text-muted mt-0.5">Name it now, add details if you like</span>
+            </span>
+          </button>
+        )}
+
+        {quickMeals && mode !== 'side' && !term && (
+          <button
+            onClick={() => setBudgeting(true)}
+            className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+          >
+            <span className="size-12 rounded-full flex items-center justify-center shrink-0 bg-workout-bg text-workout-text" aria-hidden="true">
+              <Store size={22} strokeWidth={1.75} />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="font-semibold leading-snug">Eating out, place not decided</span>
+              <span className="block text-xs text-muted mt-0.5">Set a calorie budget now, pick the place later</span>
             </span>
           </button>
         )}

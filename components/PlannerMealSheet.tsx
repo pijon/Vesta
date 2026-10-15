@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft, BookOpen, ChefHat, Copy, Minus, MoveRight, Package, Plus, Repeat, Shuffle, Trash2, UsersRound, X,
+  ArrowLeft, BookOpen, ChefHat, Copy, MapPin, Minus, MoveRight, Package, Plus, Repeat, Shuffle, Trash2, UsersRound, X,
 } from 'lucide-react';
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
-import { MEAL_SLOTS, PLANNABLE_SLOTS, isQuickMeal, mealKcalLabel } from '../utils/planUtils';
+import { MEAL_SLOTS, PLANNABLE_SLOTS, isBudgetMeal, isQuickMeal, mealKcalLabel } from '../utils/planUtils';
 import { parseLocalDate } from '../utils/dateUtils';
 
 interface PlannerMealSheetProps {
@@ -28,6 +28,8 @@ interface PlannerMealSheetProps {
   onSetCookingServings: (servings: number) => void;
   onTogglePacked: () => void;
   onRemove: () => void;
+  /** Fill an eating-out budget with the real place and meal */
+  onDecideEatingOut: () => void;
   onClose: () => void;
 }
 
@@ -38,7 +40,7 @@ const dayName = (date: string, style: 'long' | 'short' = 'long') =>
 export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
   meal, date, slot, dates, addedByName, inFamily,
   onView, onCook, onSwap, onAddSide, onRemoveSide, onMove, onCopy, onPlanLeftovers,
-  onSetCookingServings, onTogglePacked, onRemove, onClose,
+  onSetCookingServings, onTogglePacked, onRemove, onDecideEatingOut, onClose,
 }) => {
   const [picker, setPicker] = useState<'move' | 'copy' | null>(null);
   const [pickDate, setPickDate] = useState(date);
@@ -46,6 +48,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
   const visual = mealVisualFor(meal);
   const portions = meal.cookingServings || 1;
   const isCustom = isQuickMeal(meal);
+  const isBudget = isBudgetMeal(meal);
   const hasRecipe = !isCustom && ((meal.ingredients?.length ?? 0) > 0 || (meal.instructions?.length ?? 0) > 0);
 
   const action = (icon: React.ReactNode, label: string, onClick: () => void, tone: 'default' | 'danger' = 'default', pressed?: boolean) => (
@@ -137,7 +140,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
           {meal.isPacked && <span className="badge badge-water"><Package size={12} aria-hidden="true" /> Packed</span>}
         </div>
 
-        {!meal.isLeftover && (
+        {!meal.isLeftover && !isBudget && (
           <div className="flex items-center justify-between gap-3 rounded-[14px] bg-surface-sunken px-4 py-3">
             <div>
               <p className="font-semibold">Cooking for</p>
@@ -167,11 +170,12 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
         )}
 
         <ul className="-mx-1">
+          {isBudget && action(<MapPin size={18} />, 'Where are you eating?', onDecideEatingOut)}
           {!isCustom && action(<BookOpen size={18} />, 'View recipe', onView)}
           {hasRecipe && action(<ChefHat size={18} />, 'Cook', onCook)}
           {action(<Shuffle size={18} />, 'Swap for another meal', onSwap)}
           {action(<Plus size={18} />, 'Add a side', onAddSide)}
-          {!meal.isLeftover && action(<Repeat size={18} />, 'Make extra for leftovers tomorrow', onPlanLeftovers)}
+          {!meal.isLeftover && !isBudget && action(<Repeat size={18} />, 'Make extra for leftovers tomorrow', onPlanLeftovers)}
           {action(<MoveRight size={18} />, 'Move to another day', () => setPicker('move'))}
           {action(<Copy size={18} />, 'Copy to another day', () => setPicker('copy'))}
           {slot === 'lunch' && action(<Package size={18} />, meal.isPacked ? 'Packed lunch' : 'Mark as packed lunch', onTogglePacked, 'default', !!meal.isPacked)}

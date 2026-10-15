@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Recipe } from '../types';
 import {
-  addDays, creditedBurn, dayCalories, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
+  addDays, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
   mealKey, mealProtein, planMeal, planRecipe, plannableSlotFor, proteinTarget, QUICK_MEAL_DESCRIPTION, slotFor,
   weekDates, weekStart,
 } from './planUtils';
@@ -142,5 +142,90 @@ describe('planRecipe', () => {
   it('keeps other meals, and meals without a family, personal', () => {
     expect(planRecipe(recipe(), 'lunch', { familySize: 4 })).toMatchObject({ familyDinner: false, cookingServings: 1 });
     expect(planRecipe(recipe(), 'dinner', { familySize: null })).toMatchObject({ familyDinner: false, cookingServings: 1 });
+  });
+});
+
+describe('eating out with a budget', () => {
+  it('plans an unnamed eating-out meal whose calories are the budget', () => {
+    const meal = eatingOutBudgetMeal('dinner', 712);
+    expect(meal).toMatchObject({ name: 'Eating out', calories: 712, tags: ['dinner'], quick: { kind: 'out', budget: true } });
+    expect(isBudgetMeal(meal)).toBe(true);
+    expect(mealKcalLabel(meal)).toBe('712 kcal budget');
+    expect(mealKcalSpoken(meal)).toBe('a budget of 712 kcal');
+  });
+
+  it('counts the budget in the day total', () => {
+    const plan = { date: '2026-10-06', completedMealIds: [], meals: [recipe({ calories: 400 }), eatingOutBudgetMeal('dinner', 700)] };
+    expect(dayCalories(plan)).toBe(1100);
+  });
+
+  it('keeps slot, instance and eaten status when the place is decided, and drops the budget', () => {
+    const planned = planMeal(eatingOutBudgetMeal('lunch', 700), 'lunch');
+    const decided = decideEatingOut(planned, '  Burrito bowl  ', 640.4, { estimated: false, protein: 45 });
+    expect(decided).toMatchObject({ name: 'Burrito bowl', calories: 640, protein: 45, slot: 'lunch', instanceId: planned.instanceId });
+    expect(decided.quick).toEqual({ kind: 'out', estimated: undefined });
+    expect(isBudgetMeal(decided)).toBe(false);
+    expect(mealKcalLabel(decided)).toBe('640 kcal');
+  });
+
+  it('falls back to a plain name and rounds budgets to 50', () => {
+    expect(decideEatingOut(eatingOutBudgetMeal('dinner', 700), ' ', 500).name).toBe('Eating out');
+    expect(roundBudget(724)).toBe(700);
+    expect(roundBudget(726)).toBe(750);
+    expect(roundBudget(-30)).toBe(0);
+  });
+});
+
+describe('live eating-out budgets', () => {
+  const out = (slot: 'lunch' | 'dinner', kcal: number, auto = true) => planMeal(eatingOutBudgetMeal(slot, kcal, auto), slot);
+  const day = (meals: Recipe[], completedMealIds: string[] = []) => ({ date: '2026-10-06', meals, completedMealIds });
+  const kcals = (plan: ReturnType<typeof day>) => plan.meals.map(m => m.calories);
+
+  it('shares anything unplanned equally between the budgets still to eat', () => {
+    // A 100 kcal banana with a 600 kcal lunch and a 900 kcal dinner planned
+    const plan = day([out('lunch', 600), out('dinner', 900)]);
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 100 }))).toEqual([550, 850]);
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 0 }))).toEqual([600, 900]);
+  });
+
+  it('keeps the planned figure on the meal, which is what gets saved', () => {
+    const live = withLiveBudgets(day([out('lunch', 600), out('dinner', 900)]), { loggedKcal: 100 });
+    expect(live.meals.map(m => m.quick?.plannedBudget)).toEqual([600, 900]);
+    // Applying it again to its own result changes nothing
+    expect(kcals(withLiveBudgets(live, { loggedKcal: 100 }))).toEqual([550, 850]);
+  });
+
+  it('counts eaten planned meals as planned, so only the excess comes off', () => {
+    const lunch = planMeal(recipe({ calories: 600 }), 'lunch');
+    const plan = day([lunch, out('dinner', 900)], [mealKey(lunch)]);
+    // Lunch logged as planned: nothing extra
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 600 }))[1]).toBe(900);
+    // Plus a 100 kcal banana: all of it comes off the one meal left
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 700 }))[1]).toBe(800);
+  });
+
+  it('takes a decided eating-out meal that went over its budget off the next one', () => {
+    const lunch = decideEatingOut(out('lunch', 600), 'Burrito', 700, { budgeted: 600 });
+    const plan = day([lunch, out('dinner', 900)], [mealKey(lunch)]);
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 700 }))[1]).toBe(800);
+  });
+
+  it("doesn't raise a budget when less was eaten than planned", () => {
+    const lunch = decideEatingOut(out('lunch', 600), 'Salad', 400, { budgeted: 600 });
+    const plan = day([lunch, out('dinner', 900)], [mealKey(lunch)]);
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 400 }))[1]).toBe(900);
+  });
+
+  it('passes on what a small budget cannot give, and stops at zero', () => {
+    const plan = day([out('lunch', 100), out('dinner', 900)]);
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 400 }))).toEqual([0, 600]);
+    expect(kcals(withLiveBudgets(plan, { loggedKcal: 5000 }))).toEqual([0, 0]);
+  });
+
+  it('leaves fixed budgets and plans without budgets untouched', () => {
+    const fixed = day([out('lunch', 600, false), out('dinner', 900, false)]);
+    expect(withLiveBudgets(fixed, { loggedKcal: 500 })).toBe(fixed);
+    const only = day([out('lunch', 600, false), out('dinner', 900)]);
+    expect(kcals(withLiveBudgets(only, { loggedKcal: 100 }))).toEqual([600, 800]);
   });
 });
