@@ -18,7 +18,6 @@ import { CookingMode } from './CookingMode';
 import BatchPlannerModal from './BatchPlannerModal';
 import { AddMode, LeftoverOption, PlannerAddSheet } from './PlannerAddSheet';
 import { PlannerMealSheet } from './PlannerMealSheet';
-import { useDevMode } from '../contexts/DevModeContext';
 
 interface AddTarget { date: string; slot: MealSlot; mode: AddMode; index?: number }
 interface MealTarget { date: string; index: number }
@@ -51,8 +50,6 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const [showBatchPlanner, setShowBatchPlanner] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const todayRef = useRef<HTMLElement>(null);
-  const didScroll = useRef(false);
 
   const inFamily = !!family;
   const myUid = currentUid();
@@ -73,8 +70,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     setLoadedWeeks(prev => new Set(prev).add(start));
   }, []);
 
-  // "Market day" on phones: one day at a time, picked from a strip of the week's days
-  const market = useDevMode().isFeatureEnabled('marketTheme');
+  // Phones show one day at a time, picked from a strip of the week's days
   const [selectedDate, setSelectedDate] = useState(today);
   // A new week keeps the picked day if it's in it, else picks today in this week and Monday in others
   useEffect(() => {
@@ -102,20 +98,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
   useEffect(() => {
     if (!scrollToDate || !loadedWeeks.has(weekStart(scrollToDate))) return;
-    didScroll.current = true;
     // With the day strip the day is already picked and shown, so phones stay at the top
-    if (!(market && isPhone())) document.getElementById(`day-${scrollToDate}`)?.scrollIntoView({ block: 'start' });
+    if (!isPhone()) document.getElementById(`day-${scrollToDate}`)?.scrollIntoView({ block: 'start' });
     setScrollToDate(null);
   }, [scrollToDate, loadedWeeks]);
-
-  // Phones: start at today in the current week
-  useEffect(() => {
-    if (didScroll.current || monday !== weekStart(today) || !loadedWeeks.has(monday)) return;
-    didScroll.current = true;
-    if (today !== monday && isPhone() && !market) {
-      todayRef.current?.scrollIntoView({ block: 'start' });
-    }
-  }, [loadedWeeks, monday, today]);
 
   // --- Saving ---
 
@@ -342,15 +328,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
   // --- Render ---
 
-  const phoneWeekActions = (
-    <div className="flex gap-2 md:hidden">
-      <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
-      <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
-    </div>
-  );
-
-  // Meal thumbnails: round plates in the "Market day" look
-  const thumb = market ? 'size-11 xl:hidden rounded-full' : 'size-9 xl:hidden rounded-[10px]';
+  // Meal thumbnails: round plates
+  const thumb = 'size-11 xl:hidden rounded-full';
 
   const renderMeal = (date: string, plan: DayPlan, meal: Recipe, index: number) => {
     const visual = mealVisualFor(meal);
@@ -484,35 +463,32 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           )}
         </div>
 
-        {!market && phoneWeekActions}
       </section>
 
-      {/* "Market day" phones: pick a day; a dot marks days with meals (filled) or nothing yet (ring) */}
-      {market && (
-        <div className="grid grid-cols-7 gap-1 md:hidden" aria-label="Days of the week">
-          {dates.map(date => {
-            const selected = date === selectedDate;
-            const planned = (plans[date]?.meals.length ?? 0) > 0;
-            return (
-              <button
-                key={date}
-                onClick={() => setSelectedDate(date)}
-                aria-pressed={selected}
-                aria-current={date === today ? 'date' : undefined}
-                aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}${planned ? '' : ', nothing planned'}`}
-                className={`min-h-16 rounded-[18px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${selected ? 'bg-ink text-on-ink' : 'hover:bg-surface-sunken'}`}
-              >
-                <span className={`text-xs font-semibold ${selected ? '' : 'text-muted'}`}>{shortDay(date)}</span>
-                <span className={`font-display font-extrabold text-lg leading-6 ${!selected && date === today ? 'text-primary' : ''}`}>{parseLocalDate(date).getDate()}</span>
-                <span
-                  className={`size-1.5 rounded-full ${planned ? (selected ? 'bg-on-ink' : 'bg-primary') : `border ${selected ? 'border-on-ink' : 'border-border-control'}`}`}
-                  aria-hidden="true"
-                />
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* Phones: pick a day; a dot marks days with meals (filled) or nothing yet (ring) */}
+      <div className="grid grid-cols-7 gap-1 md:hidden" aria-label="Days of the week">
+        {dates.map(date => {
+          const selected = date === selectedDate;
+          const planned = (plans[date]?.meals.length ?? 0) > 0;
+          return (
+            <button
+              key={date}
+              onClick={() => setSelectedDate(date)}
+              aria-pressed={selected}
+              aria-current={date === today ? 'date' : undefined}
+              aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}${planned ? '' : ', nothing planned'}`}
+              className={`min-h-16 rounded-[18px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${selected ? 'bg-ink text-on-ink' : 'hover:bg-surface-sunken'}`}
+            >
+              <span className={`text-xs font-semibold ${selected ? '' : 'text-muted'}`}>{shortDay(date)}</span>
+              <span className={`font-display font-extrabold text-lg leading-6 ${!selected && date === today ? 'text-primary' : ''}`}>{parseLocalDate(date).getDate()}</span>
+              <span
+                className={`size-1.5 rounded-full ${planned ? (selected ? 'bg-on-ink' : 'bg-primary') : `border ${selected ? 'border-on-ink' : 'border-border-control'}`}`}
+                aria-hidden="true"
+              />
+            </button>
+          );
+        })}
+      </div>
 
       {/* Days */}
       {isLoading ? (
@@ -533,15 +509,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             return (
               <article
                 key={date}
-                ref={isToday ? todayRef : undefined}
                 id={`day-${date}`}
                 aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
-                className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isToday && !market ? 'ring-2 ring-ink' : ''} ${market && date !== selectedDate ? 'max-md:hidden' : ''}`}
+                className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${date !== selectedDate ? 'max-md:hidden' : ''}`}
               >
                 <header className="pt-3.5 pb-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    {/* "Market day": today is marked by an ink pill on its date instead of an outline round the card */}
-                    <h3 className={`font-display font-extrabold text-lg leading-6 ${isPast ? 'text-muted' : ''} ${market && isToday ? 'bg-ink text-on-ink rounded-full px-2.5 -ml-1 whitespace-nowrap' : ''}`}>
+                    {/* Today is marked by an ink pill on its date */}
+                    <h3 className={`font-display font-extrabold text-lg leading-6 ${isPast ? 'text-muted' : ''} ${isToday ? 'bg-ink text-on-ink rounded-full px-2.5 -ml-1 whitespace-nowrap' : ''}`}>
                       {shortDay(date)} {parseLocalDate(date).getDate()}
                     </h3>
                     <button
@@ -582,8 +557,11 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         </div>
       )}
 
-      {/* "Market day" phones: the week's actions under the day, so the day strip stays near the top */}
-      {market && phoneWeekActions}
+      {/* Phones: the week's actions under the day, so the day strip stays near the top */}
+    <div className="flex gap-2 md:hidden">
+      <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
+      <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
+    </div>
 
       <p className="hidden lg:block text-xs text-muted">Drag a meal to move it. Hold Alt (Option) while dropping to copy it instead.</p>
 

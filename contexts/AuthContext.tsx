@@ -9,8 +9,6 @@ interface AuthContextType {
     /** The signed-in uid; while loading, the uid of the previous session (if any) */
     uid: string | null;
     isDeveloper: boolean;
-    /** True once the developer claim has been checked (or there's no user), so isDeveloper is final */
-    claimsLoaded: boolean;
     logout: () => Promise<void>;
 }
 
@@ -19,7 +17,6 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     uid: null,
     isDeveloper: false,
-    claimsLoaded: false,
     logout: async () => { },
 });
 
@@ -29,13 +26,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [isDeveloper, setIsDeveloper] = useState(false);
-    const [claimsLoaded, setClaimsLoaded] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             setIsDeveloper(false);
-            setClaimsLoaded(!user);
             setLoading(false);
 
             // The developer claim only gates dev-mode flags, so don't hold up start-up for it:
@@ -45,13 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     .then(tokenResult => {
                         if (auth.currentUser?.uid === user.uid) {
                             setIsDeveloper(tokenResult.claims.isDeveloper === true);
-                            setClaimsLoaded(true);
                         }
                     })
-                    .catch(e => {
-                        console.warn('Failed to get ID token claims:', e);
-                        if (auth.currentUser?.uid === user.uid) setClaimsLoaded(true);
-                    });
+                    .catch(e => console.warn('Failed to get ID token claims:', e));
             }
         });
 
@@ -65,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         uid: loading ? lastSignedInUid : user?.uid ?? null,
         isDeveloper,
-        claimsLoaded,
         logout
     };
 

@@ -11,7 +11,6 @@ import { ChartContainer } from './analytics/ChartContainer';
 import { EnergyPanel } from './EnergyCheckIn';
 import { CoachPanel } from './CoachPanel';
 import { weightTrend } from '../utils/energyModel';
-import { useDevMode } from '../contexts/DevModeContext';
 
 interface TrackAnalyticsProps {
     todayPlan: DayPlan;
@@ -70,7 +69,6 @@ const ChartTip: React.FC<{ active?: boolean; label?: string | number; lines: (la
     ) : null;
 
 export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats, onOpenFoodModal, onOpenWeightModal, onNavigate, coachRead, onSetCoachRead }) => {
-    const market = useDevMode().isFeatureEnabled('marketTheme');
     const summaries = usePrewarmed(analyticsSummariesData) ?? [];
     const dayTypes = usePrewarmed(analyticsDayTypesData) ?? {};
     const [period, setPeriod] = useState<AnalyticsPeriod>(() => {
@@ -204,41 +202,29 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 <p className="hidden sm:block text-sm text-muted text-right">{shortDate(days[0].date)} – {shortDate(today)}</p>
             </div>
 
-            {/* Summary. "Market day": weight is the one bold block, the rest a quiet strip beside it */}
-            {market ? (
-                <div className="grid lg:grid-cols-[2fr_3fr] gap-3">
-                    <section className="hero p-5 md:p-6 flex flex-col gap-3" aria-label="Weight">
-                        <p className="text-[15px] font-bold">Weight</p>
-                        <p className="font-display font-extrabold text-[72px] leading-[0.9] tracking-[-0.05em] tabular-nums">
-                            {weight.current !== null ? weight.current.toFixed(1) : '—'}
-                            {weight.current !== null && <span className="text-2xl tracking-tight"> kg</span>}
-                        </p>
-                        <p className="text-sm font-medium mt-auto">{tiles[0].sub}</p>
-                    </section>
-                    <section className="card p-4 md:p-5 grid grid-cols-2 gap-x-4 gap-y-5" aria-label="Averages">
-                        {tiles.slice(1).map(({ label, value, sub }, i) => (
-                            <div key={label} className="flex flex-col gap-0.5 min-w-0">
-                                <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
-                                    <span className="size-2 rounded-full shrink-0" style={{ background: `var(--${['calories', 'fasting', 'workout', 'water'][i]})` }} aria-hidden="true" />
-                                    {label}
-                                </span>
-                                <span className="font-display font-extrabold text-[22px] leading-7 tracking-tight tabular-nums">{value}</span>
-                                <span className="text-xs text-muted leading-snug">{sub}</span>
-                            </div>
-                        ))}
-                    </section>
-                </div>
-            ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 md:gap-3">
-                {tiles.map(({ label, icon: Icon, tone, value, sub }, i) => (
-                    <div key={label} className={`tile ${tone} gap-1 ${i === 0 ? 'col-span-2 sm:col-span-1' : ''}`}>
-                        <span className="flex items-center gap-1.5 text-xs font-semibold"><Icon size={14} aria-hidden="true" /> {label}</span>
-                        <span className="font-display font-extrabold text-2xl leading-8 whitespace-nowrap">{value}</span>
-                        <span className="text-xs font-semibold leading-snug">{sub}</span>
-                    </div>
-                ))}
+            {/* Summary: weight is the one bold block, the rest a quiet strip beside it */}
+        <div className="grid lg:grid-cols-[2fr_3fr] gap-3">
+                <section className="hero p-5 md:p-6 flex flex-col gap-3" aria-label="Weight">
+                    <p className="text-[15px] font-bold">Weight</p>
+                    <p className="font-display font-extrabold text-[72px] leading-[0.9] tracking-[-0.05em] tabular-nums">
+                        {weight.current !== null ? weight.current.toFixed(1) : '—'}
+                        {weight.current !== null && <span className="text-2xl tracking-tight"> kg</span>}
+                    </p>
+                    <p className="text-sm font-medium mt-auto">{tiles[0].sub}</p>
+                </section>
+                <section className="card p-4 md:p-5 grid grid-cols-2 gap-x-4 gap-y-5" aria-label="Averages">
+                    {tiles.slice(1).map(({ label, value, sub }, i) => (
+                        <div key={label} className="flex flex-col gap-0.5 min-w-0">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
+                                <span className="size-2 rounded-full shrink-0" style={{ background: `var(--${['calories', 'fasting', 'workout', 'water'][i]})` }} aria-hidden="true" />
+                                {label}
+                            </span>
+                            <span className="font-display font-extrabold text-[22px] leading-7 tracking-tight tabular-nums">{value}</span>
+                            <span className="text-xs text-muted leading-snug">{sub}</span>
+                        </div>
+                    ))}
+                </section>
             </div>
-            )}
 
             {/* Guidance from the user's own data, and questions about it */}
             <CoachPanel

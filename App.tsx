@@ -28,8 +28,7 @@ import { Sidebar } from './components/Sidebar';
 import { PlannerTabs } from './components/PlannerTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { DevModeProvider, useDevMode } from './contexts/DevModeContext';
-import { applyMarketTheme } from './utils/marketTheme';
+import { DevModeProvider } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
 import { OnboardingWizard, OnboardingResult } from './components/OnboardingWizard';
 import { FoodEntryModal } from './components/FoodEntryModal';
@@ -184,15 +183,6 @@ const TrackerApp: React.FC = () => {
     }, [isDarkMode]);
 
     const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
-
-    // The "Market day" look (dev flag): .theme-market on <html> swaps the tokens in index.css. index.html
-    // applies it from the device's memory before the first paint; once the developer claim has loaded
-    // the flag decides, and the device remembers that for next time.
-    const marketTheme = useDevMode().isFeatureEnabled('marketTheme');
-    const { claimsLoaded } = useAuth();
-    useEffect(() => {
-        if (claimsLoaded) applyMarketTheme(marketTheme);
-    }, [marketTheme, claimsLoaded]);
 
     const [dailyLog, setDailyLog] = useState<DailyLog>(() => {
         const date = localDateString();
@@ -668,13 +658,12 @@ const TrackerApp: React.FC = () => {
 
         switch (view) {
             case AppView.TODAY:
-                // "Market day": the greeting is the title, the date under it
-                if (marketTheme) return {
+                // The greeting is the title, the date under it
+                return {
                     title: userStats.name ? `Hey ${userStats.name}, what’s cooking?` : 'Hey, what’s cooking?',
                     subtitle: new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }),
                     large: true,
                 };
-                return { title: 'Today', subtitle: greeting };
             case AppView.ANALYTICS:
                 return { title: 'Analytics', subtitle: greeting };
             case AppView.PLANNER:
@@ -722,8 +711,8 @@ const TrackerApp: React.FC = () => {
             {/* Main Content Wrapper */}
             <div className="w-full md:pl-20 lg:pl-60">
                 {/* Main Content */}
-                {/* "Market day" floats the tab bar above the bottom edge, so the page needs more room under it */}
-                <main className={`${marketTheme ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'} md:pb-0 pt-8 md:pt-12`}>
+                {/* The tab bar floats above the bottom edge, so the page needs room under it */}
+                <main className="pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0 pt-8 md:pt-12">
                     <div className="max-w-6xl mx-auto px-4 md:px-8">
                         <Header
                             title={headerInfo.title}

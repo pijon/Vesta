@@ -2,7 +2,6 @@ import React from 'react';
 import { Meal } from '../types';
 import { mealVisualFor } from '../utils/mealVisual';
 import { CalendarCheck, CalendarPlus, Copy, Heart, UsersRound } from 'lucide-react';
-import { useDevMode } from '../contexts/DevModeContext';
 
 interface RecipeCardProps {
   meal: Meal;
@@ -34,12 +33,11 @@ export const highlightTag = (tags: string[] = []) => {
 };
 
 /**
- * Photo, or a softly tinted placeholder with the food icon when there's no photo. In the "Market day" look
- * the icon sits on a plate (a surface circle), and `plate` sizes it against the placeholder.
+ * Photo, or a softly tinted placeholder with the food icon when there's no photo. With `plate` the icon
+ * sits on a plate (a surface circle), and `plate` sizes it against the placeholder.
  */
 const RecipeThumb: React.FC<{ meal: Meal; className: string; iconSize: number; zoom?: boolean; plate?: string }> = ({ meal, className, iconSize, zoom, plate }) => {
   const visual = mealVisualFor(meal);
-  const market = useDevMode().isFeatureEnabled('marketTheme');
   if (meal.image) {
     return (
       <img
@@ -52,7 +50,7 @@ const RecipeThumb: React.FC<{ meal: Meal; className: string; iconSize: number; z
   }
   return (
     <span className={`${className} flex items-center justify-center ${visual.tint}`}>
-      {market && plate ? (
+      {plate ? (
         <span className={`${plate} rounded-full bg-surface flex items-center justify-center shadow-[var(--elev-sm)]`}>
           <visual.Icon size={iconSize} strokeWidth={1.5} aria-hidden="true" />
         </span>
@@ -181,7 +179,6 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
   meal, onClick, isOwned, ownerName, onToggleFavorite, onAddToPlan, onCopyToLibrary, plannedLabel, historyLabel, tags = [],
 }) => {
   const visual = mealVisualFor(meal);
-  const market = useDevMode().isFeatureEnabled('marketTheme');
   const iconButton = (label: string, onPress: (e: React.MouseEvent) => void, icon: React.ReactNode, active = false) => (
     <button
       onClick={(e) => { e.stopPropagation(); onPress(e); }}
@@ -201,7 +198,7 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
         className="flex-1 min-w-0 flex items-center gap-3 p-2 text-left rounded-[16px] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         aria-label={`Open ${meal.name}`}
       >
-        <RecipeThumb meal={meal} className={`size-12 sm:size-14 shrink-0 ${market ? 'rounded-full' : 'rounded-[12px]'}`} iconSize={16} />
+        <RecipeThumb meal={meal} className="size-12 sm:size-14 shrink-0 rounded-full" iconSize={16} />
         <span className="flex-1 min-w-0">
           <span className="font-semibold leading-snug line-clamp-2">{meal.name}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-xs text-muted">

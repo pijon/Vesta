@@ -7,7 +7,6 @@ import { uploadRecipeImage } from '../utils/storageUtils';
 import { currentUid } from '../services/firebase';
 import { CalendarPlus, Camera, Check, ChefHat, Copy, ExternalLink, Minus, MoreHorizontal, Pencil, Plus, Trash2, UsersRound, X } from 'lucide-react';
 import { isQuickMeal } from '../utils/planUtils';
-import { useDevMode } from '../contexts/DevModeContext';
 
 interface RecipeDetailModalProps {
     recipe: Recipe;
@@ -30,7 +29,6 @@ interface RecipeDetailModalProps {
 export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose, onEdit, onDelete, isOwned = true, onCopyToLibrary, onAddToPlan, onCook, onSetImage }) => {
     const baseServings = Math.max(1, recipe?.servings || 1);
     const [servings, setServings] = useState(baseServings);
-    const market = useDevMode().isFeatureEnabled('marketTheme');
     const [uploading, setUploading] = useState(false);
     const [photoError, setPhotoError] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -116,7 +114,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="recipe-title"
-                    className="sheet-panel relative bg-surface w-full md:max-w-5xl rounded-t-[24px] md:rounded-[24px] shadow-[var(--elev-lg)] max-h-[94vh] md:max-h-[92vh] flex flex-col overflow-hidden animate-slide-up md:animate-scale-in"
+                    className="relative bg-surface w-full md:max-w-5xl rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[94vh] md:max-h-[92vh] flex flex-col overflow-hidden animate-slide-up md:animate-scale-in"
                     onClick={e => { e.stopPropagation(); setMenuOpen(false); }}
                 >
                     {/* Controls stay put while the recipe scrolls */}
@@ -162,9 +160,9 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                         {/* Photo beside the essentials on wider screens, above them on phones */}
                         <div className="p-2 md:p-6 md:pb-2 md:grid md:grid-cols-[5fr_6fr] md:gap-8">
                             {recipe.image ? (
-                                <img src={recipe.image} alt="" className={`w-full aspect-[16/10] md:aspect-[4/3] object-cover ${market ? 'rounded-[28px]' : 'rounded-[18px]'}`} />
+                                <img src={recipe.image} alt="" className="w-full aspect-[16/10] md:aspect-[4/3] object-cover rounded-[28px]" />
                             ) : (
-                                <div className={`w-full aspect-[16/9] md:aspect-[4/3] ${market ? 'rounded-[28px]' : 'rounded-[18px]'} flex flex-col items-center justify-center gap-3 ${visual.tint}`}>
+                                <div className={`w-full aspect-[16/9] md:aspect-[4/3] rounded-[28px] flex flex-col items-center justify-center gap-3 ${visual.tint}`}>
                                     <visual.Icon size={48} strokeWidth={1.5} aria-hidden="true" />
                                     {onSetImage && (
                                         <>
@@ -274,7 +272,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                                             aria-pressed={have}
                                                             className="w-full flex items-start gap-3 py-2 px-1 rounded-[10px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                                                         >
-                                                            <span className={`mt-0.5 size-5 shrink-0 ${market ? 'rounded-full' : 'rounded-md'} border-2 flex items-center justify-center transition-colors ${have ? 'bg-secondary border-secondary text-secondary-foreground' : 'border-border-control text-transparent'}`}>
+                                                            <span className={`mt-0.5 size-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${have ? 'bg-secondary border-secondary text-secondary-foreground' : 'border-border-control text-transparent'}`}>
                                                                 <Check size={14} strokeWidth={3} aria-hidden="true" />
                                                             </span>
                                                             <span className={`leading-snug ${have ? 'text-muted line-through' : ''}`}>{scaleIngredient(ing, servings / baseServings)}</span>

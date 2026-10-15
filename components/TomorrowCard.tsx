@@ -3,7 +3,6 @@ import { CalendarDays, Flame, UsersRound } from 'lucide-react';
 import { DayPlan, UserStats } from '../types';
 import { MEAL_SLOTS, dayCalories, dayTarget, isFastDay, mealKcalLabel, slotFor } from '../utils/planUtils';
 import { mealVisualFor } from '../utils/mealVisual';
-import { useDevMode } from '../contexts/DevModeContext';
 
 interface TomorrowCardProps {
   plan: DayPlan;
@@ -18,7 +17,6 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
   const target = dayTarget(plan, stats);
   const planned = dayCalories(plan);
   const meals = plan.meals || [];
-  const market = useDevMode().isFeatureEnabled('marketTheme');
 
   const dayTag = (
     <span className={`badge whitespace-nowrap ${fast ? 'badge-fasting' : 'badge-neutral'}`}>
@@ -60,8 +58,8 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
             const visual = mealVisualFor(meal);
             return (
               <li key={meal.instanceId || `${meal.id}-${slot}-${i}`} className="flex items-center gap-3 py-2 border-t border-border first:border-t-0 @lg:[&:nth-child(2)]:border-t-0">
-                <span className={`shrink-0 flex items-center justify-center ${visual.tint} ${market ? 'size-11 rounded-full' : 'size-9 rounded-[10px]'}`}>
-                  <visual.Icon size={market ? 20 : 18} strokeWidth={1.75} aria-hidden="true" />
+                <span className={`shrink-0 flex items-center justify-center ${visual.tint} size-11 rounded-full`}>
+                  <visual.Icon size={20} strokeWidth={1.75} aria-hidden="true" />
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-xs text-muted">{label}</span>

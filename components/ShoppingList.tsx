@@ -14,7 +14,6 @@ import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../type
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
 import { localDateString } from '../utils/dateUtils';
-import { useDevMode } from '../contexts/DevModeContext';
 import { AlertCircle, ArrowLeft, CalendarDays, Check, Copy, CopyCheck, ListChecks, PartyPopper, RotateCcw, ShoppingBasket } from 'lucide-react';
 
 type Phase = 'selection' | 'requirements' | 'shopping';
@@ -33,7 +32,6 @@ interface PlanMeal {
 }
 
 export const ShoppingList: React.FC = () => {
-  const market = useDevMode().isFeatureEnabled('marketTheme');
   const [phase, setPhase] = useState<Phase>('selection');
   const [availableMeals, setAvailableMeals] = useState<PlanMeal[]>([]);
   const [selectedMealIds, setSelectedMealIds] = useState<Set<string>>(new Set());
@@ -830,9 +828,9 @@ export const ShoppingList: React.FC = () => {
     <div className="space-y-5 pb-20">
       {stepBar}
 
-      {market && purchasableItems.length > 0 ? (
+      {purchasableItems.length > 0 ? (
         <>
-          {/* "Market day": what's left to buy is the page's one bold block */}
+          {/* What's left to buy is the page's one bold block */}
           <section className="hero p-5 md:p-6 flex flex-col gap-4" aria-label="Shopping progress">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[15px] font-bold">{toBuy.length === 0 ? 'All in the basket' : 'Left to buy'}</p>
@@ -865,40 +863,18 @@ export const ShoppingList: React.FC = () => {
           </div>
         </>
       ) : (
-      <>
-      {/* No heading: the Planner's "Shopping list" tab already names this page */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted">
-            {purchasableItems.length === 0
-              ? 'Nothing to buy'
-              : toBuy.length === 0
-                ? `All ${purchasableItems.length} items in the basket`
-                : `${inBasket.length} of ${purchasableItems.length} in the basket`}
-          </p>
-        </div>
-        <div className="flex gap-1">
-          {toBuy.length > 0 && (
-            <button onClick={handleCopyList} className="btn-secondary btn-sm">
-              {listCopied ? <CopyCheck size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-              {listCopied ? 'Copied' : 'Copy list'}
+        // No heading: the Planner's "Shopping list" tab already names this page
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <p className="text-sm text-muted">Nothing to buy</p>
+          <div className="flex gap-1">
+            <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
+              <ArrowLeft size={16} aria-hidden="true" /> Pantry
             </button>
-          )}
-          <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
-            <ArrowLeft size={16} aria-hidden="true" /> Pantry
-          </button>
-          <button onClick={handleResetList} className="btn-ghost btn-sm !px-3" aria-label="Start over">
-            <RotateCcw size={16} aria-hidden="true" /> <span className="hidden md:inline">Start over</span>
-          </button>
+            <button onClick={handleResetList} className="btn-ghost btn-sm !px-3" aria-label="Start over">
+              <RotateCcw size={16} aria-hidden="true" /> <span className="hidden md:inline">Start over</span>
+            </button>
+          </div>
         </div>
-      </div>
-
-      {purchasableItems.length > 0 && (
-        <div className="h-2 rounded-full bg-surface-sunken overflow-hidden" role="img" aria-label={`${inBasket.length} of ${purchasableItems.length} items in the basket`}>
-          <div className="h-full rounded-full bg-secondary transition-[width] duration-300" style={{ width: `${(inBasket.length / purchasableItems.length) * 100}%` }} />
-        </div>
-      )}
-      </>
       )}
 
       {purchasableItems.length === 0 ? (

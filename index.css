@@ -11,11 +11,18 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Direction C ("bright and modern"): Figtree for body and UI text, Nunito
+  /* "Market day": DM Sans for body and UI text, Bricolage Grotesque
      (font-display) for titles, headings and big figures. font-serif is kept
      as an alias of the display face so older heading markup still works. */
-  --font-sans: 'Figtree', system-ui, sans-serif;
-  --font-display: 'Nunito', system-ui, sans-serif;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+
+  /* A larger small-type scale: text-xs is 13px and text-sm 15px, so captions
+     and list rows read comfortably without touching spacing */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: calc(1.125 / 0.8125);
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: calc(1.375 / 0.9375);
   --font-serif: var(--font-display);
 
   /* ============================================
@@ -26,9 +33,9 @@
      ============================================ */
 
   --color-hearth: #E07A5F;
-  --color-stone: #FBF8F3;
+  --color-stone: #FFF1D6;
   --color-flame: #F2CC8F;
-  --color-charcoal: #1F2430;
+  --color-charcoal: #1B1B1B;
   --color-sage: #81B29A;
   --color-ocean: #7BAEBC;
 
@@ -111,7 +118,7 @@
   --color-rose-900: #4E2E2E;
 
   /* stone */
-  --color-stone-50: #FBF8F3;
+  --color-stone-50: #FFF1D6;
   --color-stone-100: #F3EEE6;
   --color-stone-200: #DCD7C3;
   --color-stone-300: #C5BFAA;
@@ -277,156 +284,13 @@
   }
 
   /* Large card radius: one value for all cards (direction C) */
-  --radius-3xl: 1.125rem;
+  --radius-3xl: 1.5rem;
   --shadow-soft: var(--elev-sm);
 }
 
 @layer base {
   :root {
-    /* Direction C, light. Contrast ratios are on `background` unless noted. */
-    --background: #FBF8F3;
-    --surface: #FFFDF9;
-    --surface-sunken: #F3EEE6;
-    --card-bg: #FFFDF9;
-    --input-bg: #FFFDF9;
-
-    --text-main: #1F2430;          /* 14.65:1 */
-    --text-muted: #5D6270;         /* 5.75:1 */
-    --text-secondary: var(--text-muted);
-
-    --border: #ECE6DC;             /* decorative hairline */
-    --border-muted: #F1ECE4;
-    --border-control: #8E8A84;     /* 3.38:1 on surface: inputs, outlined controls */
-
-    --primary: #B94E36;            /* the one bold colour; on-primary 4.75:1 */
-    --primary-foreground: #FFF8F2;
-    --primary-hover: #A24430;
-    --primary-light: #F8E4DC;
-
-    --secondary: #467560;          /* 5.2:1 with secondary-foreground */
-    --secondary-foreground: #FFFDF9;
-    --secondary-hover: #3F6B54;
-    --secondary-light: #E2EEE6;
-
-    --ink: #1F2430;
-    --on-ink: #FBF8F3;
-    --on-ink-muted: #9CA0AB;       /* 5.93:1 on ink */
-    --focus-ring: #1F2430;
-    --scrim: rgba(31, 36, 48, 0.4);
-
-    --calories: #C9573D;
-    --calories-bg: #F8E4DC;
-    --calories-text: #8D3E2B;      /* 5.99:1 on calories-bg */
-    --calories-border: rgba(201, 87, 61, 0.3);
-
-    --water: #4F8E9E;
-    --water-bg: #E3EFF1;
-    --water-text: #2C5560;         /* 6.94:1 */
-    --water-border: rgba(79, 142, 158, 0.3);
-
-    --weight: #5E9478;
-    --weight-bg: #E2EEE6;
-    --weight-text: #355A45;        /* 6.52:1 */
-    --weight-border: rgba(94, 148, 120, 0.3);
-
-    --workout: #8E6C8A;
-    --workout-bg: #ECE6EE;
-    --workout-text: #5D4858;       /* 6.76:1 */
-    --workout-border: rgba(142, 108, 138, 0.3);
-
-    --fasting: #9E7420;
-    --fasting-bg: #F8EBD3;
-    --fasting-text: #7A5520;       /* 5.66:1 */
-
-    --warning: var(--color-amber-700);   /* 5.17:1 */
-    --warning-bg: var(--color-amber-50);
-    --warning-border: rgba(133, 99, 52, 0.3);
-    --error: var(--color-rose-600);      /* 4.87:1 */
-    --error-bg: var(--color-rose-50);
-    --error-border: rgba(166, 85, 90, 0.3);
-
-    --elev-sm: 0 1px 2px rgba(31, 36, 48, 0.06);
-    --elev-md: 0 8px 24px -8px rgba(31, 36, 48, 0.14);
-    --elev-lg: 0 24px 48px -12px rgba(31, 36, 48, 0.22);
-  }
-
-  .dark {
-    /* Direction C, dark: designed, not inverted. */
-    --background: #17181D;
-    --surface: #21232B;
-    --surface-sunken: #1C1D23;
-    --card-bg: #21232B;
-    --input-bg: #1C1D23;
-
-    --text-main: #F3EFE8;          /* 15.46:1 */
-    --text-muted: #A3A7B3;         /* 7.37:1 */
-
-    --border: #2F323C;
-    --border-muted: #282A33;
-    --border-control: #6B6F7A;     /* 3.12:1 on surface */
-
-    --primary: #E07A5F;
-    --primary-foreground: #17181D; /* 6.01:1 */
-    --primary-hover: #E79A85;
-    --primary-light: #3A241D;
-
-    --secondary: #81B29A;
-    --secondary-foreground: #17181D;
-    --secondary-hover: #A0C4B1;
-    --secondary-light: #1F3229;
-
-    --ink: #F3EFE8;
-    --on-ink: #17181D;
-    --on-ink-muted: #5D6270;       /* 5.32:1 on ink */
-    --focus-ring: #F3EFE8;
-    --scrim: rgba(8, 9, 12, 0.64);
-
-    --calories: #E07A5F;
-    --calories-bg: #3A241D;
-    --calories-text: #F0B4A2;
-    --calories-border: rgba(224, 122, 95, 0.3);
-
-    --water: #7BAEBC;
-    --water-bg: #1E3237;
-    --water-text: #A9D2DB;
-    --water-border: rgba(123, 174, 188, 0.3);
-
-    --weight: #81B29A;
-    --weight-bg: #1F3229;
-    --weight-text: #A8D1B9;
-    --weight-border: rgba(129, 178, 154, 0.3);
-
-    --workout: #AA90A5;
-    --workout-bg: #2F2530;
-    --workout-text: #D7BDD3;
-    --workout-border: rgba(170, 144, 165, 0.3);
-
-    --fasting: #F2CC8F;
-    --fasting-bg: #382D1A;
-    --fasting-text: #EFCB86;
-
-    --warning: var(--color-amber-400);
-    --warning-bg: #33291A;
-    --warning-border: rgba(221, 178, 119, 0.3);
-    --error: var(--color-rose-400);
-    --error-bg: #3A2224;
-    --error-border: rgba(214, 139, 142, 0.3);
-
-    --elev-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --elev-md: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
-    --elev-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
-
-    /* Existing text-charcoal utilities read as cream text in dark mode */
-    --color-charcoal: #F3EFE8;
-  }
-
-  /* "Market day" (the marketTheme dev flag, .theme-market on <html>): a butter page, tomato and
-     leaf colours, Bricolage Grotesque headings over DM Sans. Comes after :root and .dark so it
-     wins over both; .theme-market.dark redefines every variable set here. */
-  .theme-market {
-    --font-sans: 'DM Sans', system-ui, sans-serif;
-    --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
-
+    /* Light. Contrast ratios are on `background` unless noted. */
     --background: #FFF1D6;
     --surface: #FFF9EC;
     --surface-sunken: #F7E3BB;
@@ -435,9 +299,10 @@
 
     --text-main: #1B1B1B;          /* 14.9:1 */
     --text-muted: #6B5A3A;         /* 5.9:1 */
+    --text-secondary: var(--text-muted);
 
-    --border: #EAD6AC;
-    --border-muted: #F2E3C2;
+    --border: #F1E3C4;             /* decorative hairline */
+    --border-muted: #F6EBD3;
     --border-control: #8A7650;     /* 3.9:1 on surface */
 
     /* Deep tomato, so it also passes as text; the hero uses the bright one (below) */
@@ -488,29 +353,17 @@
     --warning-bg: #FFEBC7;         /* warning text 4.9:1 on it */
     --warning-border: rgba(160, 82, 0, 0.3);
 
-    --color-charcoal: #1B1B1B;
-    --color-stone: #FFF1D6;
-    --color-stone-50: #FFF1D6;
+    --error: var(--color-rose-600);      /* 4.87:1 */
+    --error-bg: var(--color-rose-50);
+    --error-border: rgba(166, 85, 90, 0.3);
 
-    /* Rounder cards (the same in both modes) */
-    --radius-3xl: 1.5rem;
-
-    /* A larger small-type scale (both modes): 12px → 13px and 14px → 15px everywhere text-xs and
-       text-sm are used, so captions and list rows read at the mockups' size without touching spacing */
-    --text-xs: 0.8125rem;
-    --text-xs--line-height: calc(1.125 / 0.8125);
-    --text-sm: 0.9375rem;
-    --text-sm--line-height: calc(1.375 / 0.9375);
-
-    /* Softer hairlines: the old look's main texture */
-    --border: #F1E3C4;
-    --border-muted: #F6EBD3;
+    --elev-sm: 0 1px 2px rgba(31, 36, 48, 0.06);
+    --elev-md: 0 8px 24px -8px rgba(31, 36, 48, 0.14);
+    --elev-lg: 0 24px 48px -12px rgba(31, 36, 48, 0.22);
   }
 
-  .theme-market.dark {
-    --font-sans: 'DM Sans', system-ui, sans-serif;
-    --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
-
+  .dark {
+    /* Dark: designed, not inverted. */
     --background: #1A1714;
     --surface: #24201B;
     --surface-sunken: #1F1B17;
@@ -570,6 +423,15 @@
     --warning-bg: #3A2A10;
     --warning-border: rgba(245, 184, 61, 0.3);
 
+    --error: var(--color-rose-400);
+    --error-bg: #3A2224;
+    --error-border: rgba(214, 139, 142, 0.3);
+
+    --elev-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --elev-md: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+    --elev-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+
+    /* Utilities named after the light palette (text-charcoal, bg-stone) follow the mode */
     --color-charcoal: #FFF1D6;
     --color-stone: #1A1714;
     --color-stone-50: #1A1714;
@@ -619,14 +481,16 @@
 
   /* --- BUTTONS: pills. Primary is ink; accent is Hearth for brand moments. --- */
   .btn-base, .btn-primary, .btn-accent, .btn-secondary, .btn-ghost, .btn-disabled {
-    @apply inline-flex items-center justify-center gap-2 min-h-11 px-6 py-2.5 font-bold rounded-full border border-transparent transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
+    @apply inline-flex items-center justify-center gap-2 min-h-12 px-6 py-2.5 font-bold rounded-full border border-transparent transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
+    font-size: 16px;
   }
   .btn-primary { background: var(--ink); color: var(--on-ink); }
   .btn-primary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--background)); }
   .btn-accent { background: var(--primary); color: var(--primary-foreground); }
   .btn-accent:hover { background: var(--primary-hover); }
-  .btn-secondary { background: var(--surface); color: var(--text-main); border-color: var(--border-control); }
-  .btn-secondary:hover { background: var(--surface-sunken); }
+  /* Secondary is a filled pill rather than an outline */
+  .btn-secondary { background: var(--surface-sunken); color: var(--text-main); }
+  .btn-secondary:hover { background: color-mix(in srgb, var(--surface-sunken) 88%, var(--ink)); }
   .btn-ghost { background: transparent; color: var(--text-main); }
   .btn-ghost:hover { background: var(--surface-sunken); }
   .btn-disabled, .btn-primary:disabled, .btn-accent:disabled, .btn-secondary:disabled {
@@ -635,9 +499,10 @@
     border-color: var(--border);
     cursor: not-allowed;
   }
-  .btn-sm { @apply min-h-9 px-4 py-1.5 text-sm; }
+  .btn-secondary:disabled { border-color: transparent; }
+  .btn-sm { @apply min-h-10 px-4 py-1.5 text-sm; }
 
-  /* Tap area of at least 44×44 around a control drawn smaller (36px pills, chips, icon buttons).
+  /* Tap area of at least 44×44 around a control drawn smaller (40px pills, chips, icon buttons).
      The invisible ::after belongs to the control, so taps on it reach the control. */
   .btn-sm, .hit-target { position: relative; }
   .btn-sm::after, .hit-target::after {
@@ -649,34 +514,35 @@
     height: max(100%, 44px);
     transform: translate(-50%, -50%);
   }
-  .btn-lg { @apply px-8 py-3.5 text-lg; }
+  .btn-lg { @apply px-8 py-3.5 leading-7; }
   .btn-block { @apply flex w-full; }
 
   .icon-btn {
     @apply inline-flex items-center justify-center size-11 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
     background: var(--surface);
-    border-color: var(--border);
+    border-color: transparent;
     color: var(--text-main);
   }
   .icon-btn:hover { background: var(--surface-sunken); }
 
-  /* --- CHIPS: selectable pills; selected is ink. Set aria-pressed (or aria-checked) for the state. --- */
+  /* --- CHIPS: borderless selectable pills; selected is ink. Set aria-pressed (or aria-checked) for the state. --- */
   .chip {
-    @apply inline-flex items-center justify-center gap-1.5 min-h-9 px-3.5 rounded-full border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
-    background: var(--surface);
-    border-color: var(--border);
+    @apply inline-flex items-center justify-center gap-1.5 min-h-10 px-3.5 rounded-full border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
+    background: var(--surface-sunken);
+    border-color: transparent;
     color: var(--text-main);
   }
-  .chip:hover { background: var(--surface-sunken); }
+  .chip:hover { background: color-mix(in srgb, var(--surface-sunken) 88%, var(--ink)); }
   .chip[aria-pressed="true"], .chip[aria-checked="true"] {
     background: var(--ink);
     border-color: transparent;
     color: var(--on-ink);
   }
   /* Grid chips in sheets (days, meal slots) */
-  .chip-tile { @apply min-h-11 px-3 rounded-[14px]; }
+  .chip-tile { @apply px-3 rounded-[14px]; }
 
-  /* --- SEGMENTED: switch between sibling views; the current segment is raised on surface --- */
+  /* --- SEGMENTED: switch between sibling views; the current segment is an ink pill (a raised
+     surface barely shows in dark mode) --- */
   .segmented { @apply inline-flex p-1 rounded-full; background: var(--surface-sunken); }
   .segment {
     @apply min-h-9 px-4 inline-flex items-center gap-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)];
@@ -684,35 +550,37 @@
   }
   .segment:hover { color: var(--text-main); }
   .segment[aria-current="page"], .segment[aria-selected="true"], .segment[aria-checked="true"] {
-    background: var(--surface);
-    color: var(--text-main);
-    box-shadow: var(--elev-sm);
+    background: var(--ink);
+    color: var(--on-ink);
   }
 
   /* --- SURFACES --- */
+  /* Cards are separated by colour, not lines, in light mode; dark keeps the hairline, as the
+     surface is close to the page */
   .card, .card-hover {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
+    border: 1px solid transparent;
+    border-radius: 24px;
   }
+  .dark .card, .dark .card-hover, .dark .glass-card { border-color: var(--border); }
   .card-hover { @apply transition-[box-shadow,transform] duration-150; }
   .card-hover:hover { box-shadow: var(--elev-sm); transform: translateY(-1px); }
   .card-padding { @apply p-4 md:p-6; }
   .card-padding-sm { @apply p-3 md:p-4; }
   .card-padding-lg { @apply p-6 md:p-8; }
 
-  /* The one bold block per screen */
+  /* The one bold block per screen: bright tomato with ink text */
   .hero {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-radius: 18px;
+    background: var(--hero);
+    color: var(--hero-foreground);
+    border-radius: 28px;
   }
 
   /* Metric tiles: tint fill + tint text, no border */
-  .tile { @apply flex flex-col rounded-[14px] p-4; }
+  .tile { @apply flex flex-col rounded-[20px] p-4; }
 
-  /* A small icon on a tint beside a row or card title (round in the "Market day" look) */
-  .icon-tile { border-radius: 12px; }
+  /* A small round icon on a tint beside a row or card title */
+  .icon-tile { border-radius: 9999px; }
 
   /* Loading spinner, coloured by currentColor */
   .spinner {
@@ -768,11 +636,11 @@
   .tile-fasting { background: var(--fasting-bg); color: var(--fasting-text); }
   .tile-neutral { background: var(--surface-sunken); color: var(--text-main); }
 
-  /* --- BADGES: sentence case on a tint --- */
+  /* --- BADGES: sentence case on a tint, fully round --- */
   .badge, .badge-sm, .badge-md, .badge-lg {
-    @apply inline-flex items-center gap-1 font-semibold rounded-lg;
+    @apply inline-flex items-center gap-1 font-semibold rounded-full;
   }
-  .badge, .badge-sm, .badge-md { @apply px-2 py-0.5 text-xs; }
+  .badge, .badge-sm, .badge-md { @apply px-2.5 py-0.5 text-xs; }
   .badge-lg { @apply px-3 py-1 text-sm; }
 
   .badge-calories, .badge-terracotta { background: var(--calories-bg); color: var(--calories-text); }
@@ -787,7 +655,7 @@
 
   /* --- INPUTS --- */
   .input {
-    @apply min-h-11 px-4 py-2.5 rounded-[14px] border focus:outline-2 focus:outline-offset-1 focus:outline-[var(--focus-ring)];
+    @apply min-h-11 px-4 py-2.5 rounded-[16px] border focus:outline-2 focus:outline-offset-1 focus:outline-[var(--focus-ring)];
     background: var(--surface);
     border-color: var(--border-control);
     color: var(--text-main);
@@ -797,167 +665,62 @@
 
   /* --- HEADINGS --- */
   .heading-1 { @apply font-display text-[32px] leading-9 font-extrabold text-main tracking-tight; }
-  .heading-2 { @apply font-display text-[22px] leading-7 font-extrabold text-main tracking-tight; }
-  .heading-3 { @apply font-display text-[17px] leading-6 font-bold text-main; }
+  .heading-2 { @apply font-display text-[26px] leading-8 font-extrabold text-main tracking-tight; }
+  .heading-3 { @apply font-display text-[19px] leading-6 font-extrabold text-main tracking-[-0.015em]; }
   .heading-4 { @apply font-display text-base font-bold text-main; }
 
   .section-header { @apply mb-4 md:mb-6; }
-  .section-title { @apply font-display text-[22px] leading-7 font-extrabold text-main tracking-tight mb-1; }
+  .section-title { @apply font-display text-[26px] leading-8 font-extrabold text-main tracking-tight mb-1; }
   .section-description { @apply text-muted; }
 
   /* --- NAV --- */
-  /* iOS-style tab bar: full width, fixed to the bottom, icon over label, accent tint for the current tab */
+  /* Phone tab bar: a floating pill in the card colour, like the sidebar panel, icon over label, with
+     the current tab the one ink mark. Solid rather than glass: blur would make the labels' contrast
+     depend on what scrolls underneath. The shadow keeps it apart from that content. */
   .tab-bar {
-    @apply fixed inset-x-0 bottom-0 z-50 flex justify-center border-t border-border bg-surface md:hidden;
-    padding-bottom: env(safe-area-inset-bottom);
+    @apply fixed left-3 right-3 bottom-[calc(10px+env(safe-area-inset-bottom))] z-50 flex justify-center gap-0.5 p-1.5 rounded-full border border-border bg-surface md:hidden;
+    box-shadow: var(--elev-md);
   }
   .tab-item {
-    @apply flex-1 max-w-32 h-[52px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-4 rounded-[10px];
+    @apply flex-1 max-w-32 h-[52px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-4 rounded-full;
     color: var(--text-muted);
     outline-color: var(--focus-ring);
   }
   .tab-item[aria-current="page"] {
-    color: var(--primary);
+    background: var(--ink);
+    color: var(--on-ink);
   }
+  /* Navigation labels in the display face, so they carry the look rather than read as UI text */
   .tab-label {
-    @apply text-[11px] leading-none font-semibold tracking-normal;
+    @apply text-[11px] leading-none font-display font-bold tracking-[-0.01em];
   }
 
-  /* Sidebar from md up: icon rail (icon over label) on tablets, icon beside label on desktop */
+  /* Sidebar from md up: icon rail (icon over label) on tablets, icon beside label on desktop. A
+     floating panel in the card colour, inset from the window edges (it still fills the md:pl-20 /
+     lg:pl-60 gutter) and shaped like the cards, so it sits with the content instead of competing
+     with it. The current item is the one strong mark: an ink pill, as on the phone tab bar. */
   .side-nav {
-    @apply hidden md:flex flex-col fixed inset-y-0 left-0 z-40 w-20 lg:w-60 px-2 lg:px-4 py-6 border-r border-border bg-surface;
+    @apply hidden md:flex flex-col fixed top-3 bottom-3 left-3 z-40 w-[calc(5rem-12px)] lg:w-[calc(15rem-12px)] px-2 lg:px-4 py-6 rounded-[28px] border border-border bg-surface;
   }
   .side-item {
-    @apply w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 py-2.5 lg:px-3 rounded-[14px] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
+    @apply w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 py-2.5 lg:px-3 rounded-[20px] lg:rounded-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
     color: var(--text-muted);
     outline-color: var(--focus-ring);
   }
   .side-item:hover { color: var(--text-main); background: var(--surface-sunken); }
   .side-item[aria-current="page"] {
-    color: var(--primary);
-    background: var(--surface-sunken);
+    background: var(--ink);
+    color: var(--on-ink);
   }
   .side-foot { border-color: var(--border); }
   .side-label {
-    @apply text-[11px] leading-none lg:text-[15px] lg:leading-6 font-semibold;
+    @apply text-[11px] leading-none lg:text-[17px] lg:leading-6 font-display font-bold tracking-[-0.01em] lg:tracking-[-0.02em];
   }
 
   /* Formerly frosted glass; now a solid card surface */
   .glass-card {
     background: var(--surface);
-    border: 1px solid var(--border);
-  }
-
-  /* "Market day": the hero is bright tomato with ink text, and every container is rounder */
-  .theme-market .hero {
-    background: var(--hero);
-    color: var(--hero-foreground);
-    border-radius: 28px;
-  }
-  .theme-market .card, .theme-market .card-hover { border-radius: 24px; }
-  .theme-market .tile { border-radius: 20px; }
-  .theme-market .icon-tile { border-radius: 9999px; }
-
-  /* --- "Market day" system pass: the shared building blocks --- */
-
-  /* Cards: separated by colour, not lines, in light mode (dark keeps borders: surface is close to the page) */
-  .theme-market:not(.dark) .card,
-  .theme-market:not(.dark) .card-hover,
-  .theme-market:not(.dark) .glass-card { border-color: transparent; }
-
-  /* Headings: a bigger, bolder scale */
-  .theme-market .heading-2,
-  .theme-market .section-title { font-size: 26px; line-height: 32px; letter-spacing: -0.025em; }
-  .theme-market .heading-3 { font-size: 19px; line-height: 24px; font-weight: 800; letter-spacing: -0.015em; }
-
-  /* Buttons: chunkier, and secondary is a filled pill rather than an outline */
-  .theme-market .btn-base, .theme-market .btn-primary, .theme-market .btn-accent,
-  .theme-market .btn-secondary, .theme-market .btn-ghost, .theme-market .btn-disabled {
-    min-height: 48px;
-    font-size: 16px;
-  }
-  .theme-market .btn-sm { min-height: 40px; font-size: 15px; }
-  .theme-market .btn-secondary { background: var(--surface-sunken); border-color: transparent; }
-  .theme-market .btn-secondary:hover { background: color-mix(in srgb, var(--surface-sunken) 88%, var(--ink)); }
-  .theme-market .icon-btn { border-color: transparent; }
-  .theme-market .icon-btn:hover { background: var(--surface-sunken); }
-
-  /* Chips and badges: borderless, fully round */
-  .theme-market .chip { min-height: 40px; border-color: transparent; background: var(--surface-sunken); }
-  .theme-market .chip:hover { background: color-mix(in srgb, var(--surface-sunken) 88%, var(--ink)); }
-  /* Selected chips stay ink (the filled background above would otherwise win at the same specificity) */
-  .theme-market .chip[aria-pressed="true"], .theme-market .chip[aria-checked="true"],
-  .theme-market .chip[aria-pressed="true"]:hover, .theme-market .chip[aria-checked="true"]:hover {
-    background: var(--ink);
-    color: var(--on-ink);
-  }
-  .theme-market .badge, .theme-market .badge-sm, .theme-market .badge-md, .theme-market .badge-lg { border-radius: 9999px; }
-  .theme-market .badge, .theme-market .badge-sm, .theme-market .badge-md { padding: 2px 10px; }
-
-  /* Inputs: rounder */
-  .theme-market .input { border-radius: 16px; }
-
-  /* Sidebar: a floating panel in the card colour, inset from the window edges (it still fills the
-     md:pl-20 / lg:pl-60 gutter) and shaped like the cards, so it sits with the content instead of
-     competing with it. The current item is the one strong mark: an ink pill, as on the phone tab bar. */
-  .theme-market .side-nav {
-    top: 12px;
-    bottom: 12px;
-    left: 12px;
-    width: calc(5rem - 12px);
-    border: 1px solid var(--border);
-    border-radius: 28px;
-    background: var(--surface);
-  }
-  @media (width >= 64rem) {
-    .theme-market .side-nav { width: calc(15rem - 12px); }
-  }
-  .theme-market .side-item { @apply rounded-[20px] lg:rounded-full; }
-  /* Navigation labels in the display face, so they carry the look rather than read as UI text */
-  .theme-market .side-label,
-  .theme-market .tab-label {
-    font-family: var(--font-display);
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-  @media (width >= 64rem) {
-    .theme-market .side-label { font-size: 17px; letter-spacing: -0.02em; }
-  }
-  .theme-market .side-item[aria-current="page"] {
-    background: var(--ink);
-    color: var(--on-ink);
-  }
-  /* Segmented switches: the current option is an ink pill (a raised surface barely shows in dark mode) */
-  .theme-market .segment[aria-current="page"],
-  .theme-market .segment[aria-selected="true"],
-  .theme-market .segment[aria-checked="true"] {
-    background: var(--ink);
-    color: var(--on-ink);
-    box-shadow: none;
-  }
-
-  /* Phone tab bar: a floating pill in the card colour, like the sidebar panel, with the current tab
-     the one ink mark. Solid rather than glass: blur would make the labels' contrast depend on what
-     scrolls underneath. The shadow keeps it apart from that content. */
-  .theme-market .tab-bar {
-    left: 12px;
-    right: 12px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    padding: 6px;
-    gap: 2px;
-    border: 1px solid var(--border);
-    border-radius: 9999px;
-    background: var(--surface);
-    box-shadow: var(--elev-md);
-  }
-  .theme-market .tab-item { @apply rounded-full; color: var(--text-muted); }
-  .theme-market .tab-item[aria-current="page"] {
-    background: var(--ink);
-    color: var(--on-ink);
-  }
-  .theme-market .side-brand {
-    text-transform: lowercase;
-    letter-spacing: -0.03em;
+    border: 1px solid transparent;
   }
 
 }
@@ -998,18 +761,10 @@
 }
 
 /* index.html sets the body font and background outside any layer (and `html.dark body` with
-   !important), so they beat @layer base; these unlayered, more specific rules let the
-   "Market day" tokens through */
-html.theme-market body,
-html.theme-market.dark body {
+   !important), so they beat @layer base; these unlayered, more specific rules let the tokens
+   through */
+html body,
+html.dark body {
   background-color: var(--background) !important;
   font-family: var(--font-sans);
-}
-
-/* "Market day" overrides of utility classes set in markup (the utilities layer, so they win) */
-@layer utilities {
-  .theme-market .sheet-panel { border-top-left-radius: 32px; border-top-right-radius: 32px; }
-  @media (width >= 48rem) {
-    .theme-market .sheet-panel { border-radius: 32px; }
-  }
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 
-/** The "Market day" Vesta mark: the hearth as two shapes, a butter flame over a cream bowl, on a tomato tile. */
+/** The Vesta mark: the hearth as two shapes, a butter flame over a cream bowl, on a tomato tile. */
 export const VestaMark: React.FC<{ className?: string }> = ({ className = 'size-9' }) => (
   <svg viewBox="0 0 100 100" className={`shrink-0 ${className}`} aria-hidden="true">
     <rect width="100" height="100" rx="30" fill="#FF5533" />

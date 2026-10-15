@@ -2,7 +2,6 @@ import React from 'react';
 import { Settings } from 'lucide-react';
 import { AppView } from '../types';
 import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
-import { useDevMode } from '../contexts/DevModeContext';
 import { VestaMark } from './VestaMark';
 
 interface SidebarProps {
@@ -12,7 +11,6 @@ interface SidebarProps {
 
 /** Primary navigation from md up: an icon rail on tablets, a labelled sidebar on desktop. Phones use MobileBottomNav. */
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
-  const market = useDevMode().isFeatureEnabled('marketTheme');
   const item = ({ view, label, Icon }: (typeof NAV_ITEMS)[number]) => (
     <button
       key={view}
@@ -28,12 +26,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
   return (
     <nav aria-label="Main" className="side-nav">
       <div className="flex items-center justify-center lg:justify-start gap-3 lg:px-3 mb-6">
-        {market ? (
-          <VestaMark />
-        ) : (
-          <img src="/favicon.svg" alt="" className="size-9 rounded-[10px]" />
-        )}
-        <span className="side-brand hidden lg:block font-display font-extrabold text-xl">Vesta</span>
+        <VestaMark />
+        <span className="hidden lg:block font-display font-extrabold text-xl lowercase tracking-[-0.03em]">Vesta</span>
       </div>
       <div className="flex flex-col gap-1">
         {NAV_ITEMS.map(item)}

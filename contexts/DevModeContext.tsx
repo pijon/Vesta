@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { FeatureFlags } from '../types';
 import { DEFAULT_FEATURE_FLAGS } from '../constants';
 import { useAuth } from './AuthContext';
-import { marketThemeOnDevice } from '../utils/marketTheme';
 
 const STORAGE_KEY = 'fast800_devFeatureFlags';
 
@@ -26,7 +25,7 @@ export const useDevMode = () => useContext(DevModeContext);
 
 export const DevModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Developer status comes from Firebase custom claims (secure, immutable)
-  const { isDeveloper, claimsLoaded } = useAuth();
+  const { isDeveloper } = useAuth();
 
   // Feature flag preferences stored locally (only meaningful if isDeveloper)
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>(() => {
@@ -59,13 +58,10 @@ export const DevModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setFeatureFlags(DEFAULT_FEATURE_FLAGS);
   }, []);
 
-  // A feature is enabled only if: user is a developer AND the flag is on. Until the developer claim
-  // has loaded, the "Market day" look follows this device's memory, so screens don't render the old
-  // layouts for a moment and then switch.
+  // A feature is enabled only if: user is a developer AND the flag is on
   const isFeatureEnabled = useCallback((flag: keyof FeatureFlags): boolean => {
-    if (!claimsLoaded && flag === 'marketTheme') return marketThemeOnDevice();
     return isDeveloper && featureFlags[flag];
-  }, [isDeveloper, claimsLoaded, featureFlags]);
+  }, [isDeveloper, featureFlags]);
 
   const value: DevModeContextType = {
     isDevMode: isDeveloper,

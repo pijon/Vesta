@@ -17,7 +17,7 @@ interface CaloriesHeroProps {
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 /**
- * The Today hero in the "Market day" look: calories left as one huge figure, a bar with a segment per
+ * The Today hero: calories left as one huge figure, a bar with a segment per
  * planned meal (the day's budget when fewer than two are planned), one line of detail and Log food.
  */
 export const CaloriesHero: React.FC<CaloriesHeroProps> = ({

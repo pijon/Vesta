@@ -15,7 +15,7 @@ interface TonightCardProps {
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-/** The "Market day" Today card for the meal ahead: a leaf-green block with the dish, who it's for and its recipe. */
+/** The Today card for the meal ahead: a leaf-green block with the dish, who it's for and its recipe. */
 export const TonightCard: React.FC<TonightCardProps> = ({ meal, eaten, onView, onSwap, onPlan }) => {
     if (!meal) {
         return (

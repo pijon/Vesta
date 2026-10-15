@@ -1,5 +1,5 @@
 import React from 'react';
-import { fastingProgress, fmtDuration, FastingInput, waterPace } from './BentoGrid';
+import { fastingProgress, fmtDuration, FastingInput, waterPace } from '../utils/todayMetrics';
 
 interface TodayStripProps {
     water: { liters: number; goal: number; onAdd: (amount: number) => void };
@@ -53,7 +53,7 @@ const Cell: React.FC<{
 };
 
 /**
- * Water, weight, workouts and fasting as one quiet strip ("Market day" Today): a figure and a word each,
+ * Water, weight, workouts and fasting as one quiet strip: a figure and a word each,
  * with the quick action under it. The charts stay on Analytics and in the workout overview.
  */
 export const TodayStrip: React.FC<TodayStripProps> = ({ water, weight, workouts, fasting }) => {
