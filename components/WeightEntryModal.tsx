@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Sheet } from './Sheet';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface WeightEntryModalProps {
     isOpen: boolean;
@@ -20,6 +21,7 @@ const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 
 const WeightEntrySheet: React.FC<Omit<WeightEntryModalProps, 'isOpen'>> = ({ onClose, currentWeight, onSave }) => {
     const [value, setValue] = useState(currentWeight > 0 ? currentWeight.toFixed(1) : '');
     const inputRef = useRef<HTMLInputElement>(null);
+    const market = useDevMode().isFeatureEnabled('marketTheme');
     const weight = parseWeight(value);
     const diff = weight !== null && currentWeight > 0 ? Math.round((weight - currentWeight) * 10) / 10 : null;
 
@@ -56,7 +58,7 @@ const WeightEntrySheet: React.FC<Omit<WeightEntryModalProps, 'isOpen'>> = ({ onC
             <form onSubmit={e => { e.preventDefault(); save(); }} className="pt-2">
                 <div className="flex items-center justify-center gap-3">
                     {stepButton(-0.1, 'Decrease by 0.1 kg', Minus)}
-                    <label className="relative flex items-baseline justify-center rounded-[14px] tile-weight px-4 py-3 min-w-0 w-48">
+                    <label className={`relative flex items-baseline justify-center tile-weight min-w-0 ${market ? 'rounded-[28px] px-5 py-5 w-56' : 'rounded-[14px] px-4 py-3 w-48'}`}>
                         <span className="sr-only">Weight in kilograms</span>
                         <input
                             ref={inputRef}
@@ -65,7 +67,7 @@ const WeightEntrySheet: React.FC<Omit<WeightEntryModalProps, 'isOpen'>> = ({ onC
                             onFocus={e => e.target.select()}
                             inputMode="decimal"
                             placeholder="75.0"
-                            className="w-full min-w-0 bg-transparent text-center font-display font-extrabold text-5xl leading-tight tracking-tight text-main placeholder:text-muted focus:outline-none"
+                            className={`w-full min-w-0 bg-transparent text-center font-display font-extrabold leading-tight text-main placeholder:text-muted focus:outline-none ${market ? 'text-[64px] tracking-[-0.04em]' : 'text-5xl tracking-tight'}`}
                         />
                         <span className="text-lg font-bold text-weight-text">kg</span>
                     </label>

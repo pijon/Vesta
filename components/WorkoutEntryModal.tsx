@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { WorkoutItem } from '../types';
 import { workoutIconFor } from '../utils/workoutVisual';
 import { Sheet } from './Sheet';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface WorkoutEntryModalProps {
   isOpen: boolean;
@@ -28,6 +29,9 @@ const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
   const [kcal, setKcal] = useState(editingWorkout ? String(editingWorkout.caloriesBurned) : '');
   const typeRef = useRef<HTMLInputElement>(null);
   const kcalRef = useRef<HTMLInputElement>(null);
+  // "Market day": fields introduced by titles, as in Log food
+  const market = useDevMode().isFeatureEnabled('marketTheme');
+  const fieldLabel = market ? 'block font-display font-extrabold text-[19px] leading-6 tracking-tight mb-2' : 'block text-sm font-semibold mb-1.5';
 
   // One chip per workout type, most recent first
   const seen = new Set<string>();
@@ -68,7 +72,7 @@ const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
       <form className="space-y-4" onSubmit={e => { e.preventDefault(); save(); }}>
         {recent.length > 0 && !editingWorkout && (
           <div>
-            <p className="text-xs font-semibold text-muted mb-1.5">Recent</p>
+            <p className={market ? 'heading-3 mb-2' : 'text-xs font-semibold text-muted mb-1.5'}>{market ? 'Your usual' : 'Recent'}</p>
             <div className="flex flex-wrap gap-1.5">
               {recent.map(w => {
                 const active = type.trim().toLowerCase() === w.type.trim().toLowerCase() && kcal === String(w.caloriesBurned);
@@ -91,9 +95,9 @@ const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
         )}
 
         <label className="block">
-          <span className="block text-sm font-semibold mb-1.5">Workout</span>
+          <span className={fieldLabel}>{market ? 'What did you do?' : 'Workout'}</span>
           <span className="relative block">
-            <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 size-8 rounded-[10px] bg-workout-bg text-workout-text flex items-center justify-center">
+            <span className={`pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 size-8 bg-workout-bg text-workout-text flex items-center justify-center ${market ? 'rounded-full' : 'rounded-[10px]'}`}>
               <WorkoutIcon type={type} size={18} />
             </span>
             <input
@@ -108,7 +112,7 @@ const WorkoutEntrySheet: React.FC<Omit<WorkoutEntryModalProps, 'isOpen'>> = ({
         </label>
 
         <label className="block">
-          <span className="block text-sm font-semibold mb-1.5">Calories burned</span>
+          <span className={fieldLabel}>Calories burned</span>
           <span className="relative block">
             <input
               ref={kcalRef}

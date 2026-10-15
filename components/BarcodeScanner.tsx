@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Loader2, PenLine, Plus, RotateCcw, ScanBarcode } from 'lucide-react';
 import { getBarcodeDetector, isProductBarcode } from '../utils/barcode';
 import { lookupBarcode, nutritionFor, PackagedFood } from '../services/foodDatabase';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface BarcodeScannerProps {
   /** Adds the scanned food to the list waiting to be logged */
@@ -32,6 +33,7 @@ const SCAN_INTERVAL_MS = 250;
  */
 export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onAdd, onManual }) => {
   const [state, setState] = useState<State>({ kind: 'scanning' });
+  const market = useDevMode().isFeatureEnabled('marketTheme');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [typedCode, setTypedCode] = useState('');
   const [amount, setAmount] = useState('');
@@ -203,7 +205,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onAdd, onManual 
           <AlertCircle size={16} className="shrink-0 mt-0.5 text-muted" aria-hidden="true" /> {cameraError}
         </p>
       ) : (
-        <div className="relative overflow-hidden rounded-[14px] aspect-[4/3] bg-ink">
+        <div className={`relative overflow-hidden aspect-[4/3] bg-ink ${market ? 'rounded-[24px]' : 'rounded-[14px]'}`}>
           <video ref={videoRef} muted playsInline className="size-full object-cover" aria-label="Camera view for scanning a barcode" />
           {/* Aiming guide */}
           <div className="pointer-events-none absolute inset-x-[12%] top-1/2 -translate-y-1/2 h-[34%] rounded-[12px] border-2 border-on-ink" aria-hidden="true" />
