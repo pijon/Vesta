@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppView } from '../types';
-import { Home, BarChart3, CalendarDays, UtensilsCrossed } from 'lucide-react';
+import { Home, BarChart3, CalendarDays, UtensilsCrossed, UsersRound } from 'lucide-react';
 
 /** The shopping list lives inside the Planner, so the Planner item stays current there */
 export const isNavCurrent = (item: AppView, current: AppView) =>
@@ -16,6 +16,7 @@ export const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentTyp
   { view: AppView.ANALYTICS, label: 'Analytics', Icon: BarChart3 },
   { view: AppView.PLANNER, label: 'Planner', Icon: CalendarDays },
   { view: AppView.RECIPES, label: 'Recipes', Icon: UtensilsCrossed },
+  { view: AppView.FAMILY, label: 'Family', Icon: UsersRound },
 ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({

@@ -293,6 +293,7 @@ export enum AppView {
   PLANNER = 'PLANNER',
   RECIPES = 'RECIPES',
   SHOPPING = 'SHOPPING',
+  FAMILY = 'FAMILY',
   SETTINGS = 'SETTINGS',
   // Deprecated - for migration only
   DASHBOARD = 'TODAY',      // Alias

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { proteinTarget } from '../utils/planUtils';
 import { Check, Copy, CloudUpload, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Upload } from 'lucide-react';
-import { FamilySettings } from './FamilySettings';
 import { ReminderSettings } from './ReminderSettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
 import { useDevMode } from '../contexts/DevModeContext';
@@ -340,15 +339,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <p className="text-sm text-muted mt-0.5">Gentle nudges to log and weigh in, so your personal target has the data it needs.</p>
                 </div>
                 <ReminderSettings />
-            </section>
-
-            {/* Family */}
-            <section className="card p-5 md:p-6 space-y-4" aria-labelledby="family-heading">
-                <div>
-                    <h2 id="family-heading" className="heading-2">Family</h2>
-                    <p className="text-sm text-muted mt-0.5">Share recipes and see each other's plans.</p>
-                </div>
-                <FamilySettings />
             </section>
 
             {/* Data */}
