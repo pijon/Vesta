@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check, ListChecks, Minus, Plus, Sun, Timer, X } 
 import { Recipe } from '../types';
 import { scaleIngredient } from '../utils/scaleIngredient';
 import { Portal } from './Portal';
+import { useDevMode } from '../contexts/DevModeContext';
 
 interface CookingModeProps {
     recipe: Recipe;
@@ -98,6 +99,7 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose }) => 
     const steps = recipe.instructions?.filter(s => s.trim()) ?? [];
     const baseServings = recipe.servings > 0 ? recipe.servings : 1;
     const [step, setStep] = useState(0);
+    const market = useDevMode().isFeatureEnabled('marketTheme');
     const [servings, setServings] = useState(recipe.cookingServings && recipe.cookingServings > 0 ? recipe.cookingServings : baseServings);
     const [checked, setChecked] = useState<Set<number>>(new Set());
     // On phones the ingredients open over the step; from lg they sit beside it
@@ -184,7 +186,7 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose }) => 
                             <li key={i}>
                                 <label className="flex items-start gap-3 py-2.5 border-b border-border last:border-b-0 cursor-pointer">
                                     <input type="checkbox" checked={isChecked} onChange={() => toggleIngredient(i)} className="sr-only peer" />
-                                    <span className={`mt-0.5 size-5 shrink-0 rounded-md border-2 flex items-center justify-center transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] ${isChecked ? 'bg-ink border-ink text-on-ink' : 'border-border-control'}`} aria-hidden="true">
+                                    <span className={`mt-0.5 size-5 shrink-0 ${market ? 'rounded-full' : 'rounded-md'} border-2 flex items-center justify-center transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] ${isChecked ? 'bg-ink border-ink text-on-ink' : 'border-border-control'}`} aria-hidden="true">
                                         {isChecked && <Check size={14} strokeWidth={3} />}
                                     </span>
                                     <span className={`leading-snug ${isChecked ? 'text-muted line-through' : ''}`}>{scaleIngredient(line, factor)}</span>
@@ -203,7 +205,7 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose }) => 
         <Portal>
             <div className="fixed inset-0 z-[200] bg-background flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label={`Cooking ${recipe.name}`}>
                 {/* Header */}
-                <header className="shrink-0 flex items-center gap-2 px-3 md:px-6 py-3 border-b border-border bg-surface">
+                <header className={`shrink-0 flex items-center gap-2 px-3 md:px-6 py-3 ${market ? '' : 'border-b border-border bg-surface'}`}>
                     <button onClick={onClose} className="icon-btn shrink-0" aria-label="Stop cooking"><X size={20} /></button>
                     <div className="flex-1 min-w-0 px-1">
                         <p className="font-display font-extrabold leading-tight truncate">{recipe.name}</p>
@@ -270,14 +272,20 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose }) => 
                                                 onClick={() => go(i)}
                                                 className="flex-1 py-2 group focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] rounded"
                                             >
-                                                <span className={`block h-1.5 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-border group-hover:bg-border-control'}`} />
+                                                <span className={`block rounded-full transition-colors ${market ? 'h-2.5' : 'h-1.5'} ${i <= step ? (market ? 'bg-[var(--hero)]' : 'bg-primary') : 'bg-border group-hover:bg-border-control'}`} />
                                             </button>
                                         ))}
                                     </div>
 
                                     <div key={step} className="motion-safe:animate-page-in">
-                                        <p className="text-sm font-semibold text-muted mb-3">Step {step + 1}</p>
-                                        <p className={`${steps[step].length > 220 ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl'} leading-snug font-medium text-main`}>{steps[step]}</p>
+                                        {market ? (
+                                            <p className="size-14 mb-5 rounded-full bg-[var(--hero)] text-[var(--hero-foreground)] flex items-center justify-center font-display font-extrabold text-2xl"><span className="sr-only">Step </span>{step + 1}</p>
+                                        ) : (
+                                            <p className="text-sm font-semibold text-muted mb-3">Step {step + 1}</p>
+                                        )}
+                                        <p className={market
+                                            ? `${steps[step].length > 220 ? 'text-2xl md:text-3xl' : 'text-[28px] md:text-4xl'} font-display font-bold leading-tight tracking-tight text-main`
+                                            : `${steps[step].length > 220 ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl'} leading-snug font-medium text-main`}>{steps[step]}</p>
 
                                         {stepTimers.length > 0 && (
                                             <div className="flex flex-wrap gap-2 mt-6">
@@ -309,7 +317,7 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose }) => 
 
                 {/* Controls */}
                 {steps.length > 0 && (
-                    <footer className="shrink-0 border-t border-border bg-surface px-4 md:px-6 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+                    <footer className={`shrink-0 px-4 md:px-6 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] ${market ? '' : 'border-t border-border bg-surface'}`}>
                         <div className="max-w-2xl mx-auto flex gap-3">
                             <button onClick={() => go(step - 1)} disabled={step === 0} className="btn-secondary btn-lg flex-1">
                                 <ArrowLeft size={18} aria-hidden="true" /> Back

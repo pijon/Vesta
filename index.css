@@ -881,6 +881,12 @@
   /* Chips and badges: borderless, fully round */
   .theme-market .chip { min-height: 40px; border-color: transparent; background: var(--surface-sunken); }
   .theme-market .chip:hover { background: color-mix(in srgb, var(--surface-sunken) 88%, var(--ink)); }
+  /* Selected chips stay ink (the filled background above would otherwise win at the same specificity) */
+  .theme-market .chip[aria-pressed="true"], .theme-market .chip[aria-checked="true"],
+  .theme-market .chip[aria-pressed="true"]:hover, .theme-market .chip[aria-checked="true"]:hover {
+    background: var(--ink);
+    color: var(--on-ink);
+  }
   .theme-market .badge, .theme-market .badge-sm, .theme-market .badge-md, .theme-market .badge-lg { border-radius: 9999px; }
   .theme-market .badge, .theme-market .badge-sm, .theme-market .badge-md { padding: 2px 10px; }
 
