@@ -51,6 +51,23 @@ export interface QuickMealInfo {
   plannedBudget?: number;
   /** On a decided eating-out meal that was eaten: the budget it was planned at */
   budgeted?: number;
+  /** Where and what, kept apart so eating it can add the dish to the user's eating-out history */
+  place?: string;
+  dish?: string;
+}
+
+/** A dish the user has eaten out, remembered so it can be planned or picked again */
+export interface EatingOutDish {
+  id: string;
+  place: string;
+  /** Empty when only the place was given */
+  dish: string;
+  calories: number;
+  protein?: number;
+  /** How many times it was eaten */
+  times: number;
+  /** YYYY-MM-DD it was last eaten */
+  lastHad: string;
 }
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -104,6 +121,8 @@ export interface CustomMealInstance extends PlannedMealMeta {
   autoBudget?: boolean;
   /** Set when eaten: the budget it was planned at */
   budgeted?: number;
+  place?: string;
+  dish?: string;
   kind?: QuickMealKind;
   /** Items to buy; hydrated into `ingredients` so the shopping list reads them */
   shopping?: string[];

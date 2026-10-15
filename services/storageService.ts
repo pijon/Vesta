@@ -1,5 +1,5 @@
-import { CoachReadState, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference } from "../types";
-import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState } from "../utils/cacheService";
+import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, RecipeReference } from "../types";
+import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
 import { currentUid, db } from "./firebase";
@@ -76,6 +76,7 @@ import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { QUICK_MEAL_DESCRIPTION, isQuickMeal } from '../utils/planUtils';
+import { rememberDish } from '../utils/eatingOutHistory';
 
 /**
  * Migrates all Base64 images in recipes to Firebase Storage.
@@ -184,6 +185,8 @@ const dehydrateMeal = (meal: Recipe, shared = false): PlannedMeal => {
     budget: meal.quick?.budget || undefined,
     autoBudget: (meal.quick?.budget && meal.quick.autoBudget) || undefined,
     budgeted: meal.quick?.budgeted,
+    place: meal.quick?.place,
+    dish: meal.quick?.dish,
     kind: meal.quick?.kind,
     shopping: meal.ingredients?.length ? meal.ingredients : undefined,
     protein: meal.protein,
@@ -280,6 +283,8 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[], userId?: string)
         budget: meal.budget || undefined,
         autoBudget: (meal.budget && meal.autoBudget) || undefined,
         budgeted: meal.budgeted,
+        place: meal.place,
+        dish: meal.dish,
         noCalories: meal.calories === undefined || undefined,
       },
       protein: meal.protein || 0,
@@ -723,6 +728,42 @@ export const saveUserStats = async (stats: UserStats) => {
   saveToCache(getCacheKey('stats'), stats);
   await setDoc(getDocRef('data', STATS_DOC), stats);
   syncPublicProfile(stats.name);
+};
+
+
+// --- Eating-out history ---
+const EATING_OUT_DOC = 'eatingOut';
+
+/** Dishes eaten out before, newest first. */
+export const getEatingOutDishes = async (): Promise<EatingOutDish[]> => {
+  try {
+    const d = await getDoc(getDocRef('data', EATING_OUT_DOC));
+    const dishes = d.exists() ? ((d.data().dishes as EatingOutDish[]) ?? []) : [];
+    saveToCache(getCacheKey('eatingOutDishes'), dishes);
+    return dishes;
+  } catch (e) {
+    console.error('Error getting eating-out history', e);
+    return getCachedEatingOutDishes() ?? [];
+  }
+};
+
+/** Replace the whole history, after the user edits or deletes entries. */
+export const saveEatingOutDishes = async (dishes: EatingOutDish[]) => {
+  saveToCache(getCacheKey('eatingOutDishes'), dishes);
+  await setDoc(getDocRef('data', EATING_OUT_DOC), { dishes });
+};
+
+/** Remember a dish that was eaten (adds it, or counts it again). Returns the new history. */
+export const recordEatingOutDish = async (
+  entry: { place: string; dish: string; calories: number; protein?: number },
+  date: string,
+): Promise<EatingOutDish[]> => {
+  const current = await getEatingOutDishes();
+  const dishes = rememberDish(current, entry, date);
+  if (dishes === current) return current;
+  saveToCache(getCacheKey('eatingOutDishes'), dishes);
+  await setDoc(getDocRef('data', EATING_OUT_DOC), { dishes });
+  return dishes;
 };
 
 

@@ -1,5 +1,5 @@
-import { DayPlan, KnownFood, Recipe } from '../types';
-import { getDailySummaries, getDayPlansInRange, getEnhancedShoppingState, getFamilyPlansInRange, getPantryInventory, getRecipePlanDates, getFoodItemsSince, getRecipes } from './storageService';
+import { DayPlan, EatingOutDish, KnownFood, Recipe } from '../types';
+import { getDailySummaries, getDayPlansInRange, getEnhancedShoppingState, getFamilyPlansInRange, getPantryInventory, getRecipePlanDates, getFoodItemsSince, getRecipes, getEatingOutDishes } from './storageService';
 import { getFamilyMemberRecipes, getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
@@ -137,3 +137,6 @@ export const prewarmPages = async () => {
     }
   }
 };
+
+/** Dishes eaten out before, for planning and logging eating out. */
+export const eatingOutDishesData = defineWarm<EatingOutDish[]>('eatingOut:dishes', getEatingOutDishes, 60_000);

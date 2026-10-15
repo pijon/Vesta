@@ -3,10 +3,14 @@ import { ArrowLeft, Heart, Plus, Search, Sparkles, Store, UsersRound } from 'luc
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
-import { QUICK_MEAL_DESCRIPTION, slotFor } from '../utils/planUtils';
+import { QUICK_MEAL_DESCRIPTION, eatingOutDishMeal, slotFor } from '../utils/planUtils';
 import { useDevMode } from '../contexts/DevModeContext';
 import { QuickMealForm } from './QuickMealForm';
 import { EatingOutBudgetForm } from './EatingOutBudgetForm';
+import { EatingOutDishList } from './EatingOutDishList';
+import { usePrewarmed } from '../utils/prewarm';
+import { eatingOutDishesData } from '../services/pageData';
+import { suggestDishes } from '../utils/eatingOutHistory';
 import { suggestSideDishes } from '../services/geminiService';
 
 export type AddMode = 'add' | 'swap' | 'side';
@@ -57,6 +61,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
   const quickFormId = useId();
   /** Setting a budget for eating out with the place undecided */
   const [budgeting, setBudgeting] = useState(false);
+  const pastDishes = usePrewarmed(eatingOutDishesData) ?? [];
   const quickMeals = useDevMode().isFeatureEnabled('quickMeals');
 
   const term = search.trim().toLowerCase();
@@ -173,6 +178,17 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
         }
       >
         <EatingOutBudgetForm id={quickFormId} slot={slot} caloriesLeft={caloriesLeft} onSubmit={meal => onPick(meal)} />
+        {pastDishes.length > 0 && (
+          <section aria-labelledby="usual-orders-heading" className="mt-6">
+            <h3 id="usual-orders-heading" className="text-sm font-semibold text-muted">Or plan a dish you've had before</h3>
+            <p className="text-xs text-muted mb-1">It stays open until you log what you really had.</p>
+            <EatingOutDishList
+              dishes={suggestDishes(pastDishes, { budget: caloriesLeft > 0 ? caloriesLeft : undefined })}
+              budget={caloriesLeft > 0 ? caloriesLeft : undefined}
+              onPick={d => onPick(eatingOutDishMeal(slot, d))}
+            />
+          </section>
+        )}
       </Sheet>
     );
   }

@@ -11,7 +11,7 @@ import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import {
   MEAL_SLOTS, addDays, dayCalories, decideEatingOut, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isBudgetMeal, isFastDay, isMealEaten,
-  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, proteinTarget, slotFor, slotLabel, weekDates, weekStart,
+  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, slotFor, slotLabel, weekDates, weekStart,
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { CookingMode } from './CookingMode';
@@ -617,10 +617,9 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         />
       )}
 
-      {decideTarget && decideMeal && isBudgetMeal(decideMeal) && (
+      {decideTarget && decideMeal && decideMeal.quick?.kind === 'out' && (
         <EatingOutDecideSheet
           meal={decideMeal}
-          proteinGoal={proteinTarget(stats)}
           onDecide={(name, calories, options) => {
             editMeal(decideTarget, m => decideEatingOut(m, name, calories, options));
             showToast(`Planned ${name}`);

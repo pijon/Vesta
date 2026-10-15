@@ -7,10 +7,12 @@ interface EatingOutCardProps {
   plan: DayPlan;
   /** Log what was had for the eating-out meal at this index */
   onLog: (index: number) => void;
+  /** Log a planned dish as it was planned */
+  onConfirm: (index: number) => void;
 }
 
 /** Eating-out meals whose time has come and that aren't logged yet: ask what was actually eaten. */
-export const EatingOutCard: React.FC<EatingOutCardProps> = ({ plan, onLog }) => {
+export const EatingOutCard: React.FC<EatingOutCardProps> = ({ plan, onLog, onConfirm }) => {
   const now = Date.now();
   const due = plan.meals
     .map((meal, index) => ({ meal, index }))
@@ -33,9 +35,14 @@ export const EatingOutCard: React.FC<EatingOutCardProps> = ({ plan, onLog }) => 
                     {isBudgetMeal(meal) && meal.quick?.plannedBudget !== undefined && meal.quick.plannedBudget !== meal.calories && ` · planned ${meal.quick.plannedBudget}`}
                   </span>
                 </span>
-                <button onClick={() => onLog(index)} className="btn-primary btn-sm">
-                  {isBudgetMeal(meal) ? 'Where did you eat?' : 'Log what you had'}
-                </button>
+                {isBudgetMeal(meal) ? (
+                  <button onClick={() => onLog(index)} className="btn-primary btn-sm">Where did you eat?</button>
+                ) : (
+                  <span className="flex gap-2">
+                    <button onClick={() => onLog(index)} className="btn-secondary btn-sm">Had something else</button>
+                    <button onClick={() => onConfirm(index)} className="btn-primary btn-sm">Had it</button>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

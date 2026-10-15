@@ -1,4 +1,5 @@
-import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
+import { DayPlan, EatingOutDish, MealSlot, Recipe, UserStats } from '../types';
+import { dishLabel } from './eatingOutHistory';
 import { localDateString, parseLocalDate } from './dateUtils';
 
 export const MEAL_SLOTS: { slot: MealSlot; label: string }[] = [
@@ -132,14 +133,25 @@ export const decideEatingOut = (
   meal: Recipe,
   name: string,
   calories: number,
-  { estimated = true, protein, budgeted }: { estimated?: boolean; protein?: number; budgeted?: number } = {},
+  { estimated = true, protein, budgeted, place, dish }: { estimated?: boolean; protein?: number; budgeted?: number; place?: string; dish?: string } = {},
 ): Recipe => ({
   ...meal,
   name: name.trim() || EATING_OUT_NAME,
   calories: Math.max(0, Math.round(calories)),
   protein: protein ?? 0,
-  quick: { kind: 'out', estimated: estimated || undefined, budgeted },
+  quick: { kind: 'out', estimated: estimated || undefined, budgeted, place: place?.trim() || undefined, dish: dish?.trim() || undefined },
 });
+
+/** A planned dish from the eating-out history. It stays open (not eaten) until it's logged or swapped for what was really had. */
+export const eatingOutDishMeal = (slot: MealSlot, d: Pick<EatingOutDish, 'place' | 'dish' | 'calories' | 'protein'>): Recipe =>
+  decideEatingOut(
+    eatingOutBudgetMeal(slot, d.calories),
+    dishLabel(d), d.calories, { estimated: true, protein: d.protein, place: d.place, dish: d.dish },
+  );
+
+/** An eating-out meal that names where or what, so eating it can add the dish to the history. */
+export const isRememberableDish = (meal: Pick<Recipe, 'quick'>) =>
+  meal.quick?.kind === 'out' && !meal.quick.budget && !!(meal.quick.place || meal.quick.dish);
 
 /** Round a calorie figure to the nearest 50, the grain a restaurant budget is set at. */
 export const roundBudget = (kcal: number) => Math.max(0, Math.round(kcal / 50) * 50);
