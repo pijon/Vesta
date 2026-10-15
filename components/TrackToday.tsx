@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
 import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
-import { saveDayPlan, getDayPlan, getDailySummaries } from '../services/storageService';
+import { saveDayPlan, getDayPlan, getDailySummaries, recordEatingOutDish } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, isRememberableDish, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
 import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { EatingOutCard } from './EatingOutCard';
@@ -12,9 +12,9 @@ import { EatingOutDecideSheet } from './EatingOutDecideSheet';
 import { DualTrackSection } from './DualTrackSection';
 import { TomorrowCard } from './TomorrowCard';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
+import { analyticsDayTypesData, frequentFoodsData, eatingOutDishesData, FrequentFood } from '../services/pageData';
 import { CoachCard } from './CoachPanel';
-import { usePrewarmed } from '../utils/prewarm';
+import { ensureWarm, usePrewarmed } from '../utils/prewarm';
 import { buildDays, weekendGap, weightSummary } from '../utils/analyticsModel';
 import { WeekendPlanCard } from './WeekendPlanCard';
 import { weightTrend } from '../utils/energyModel';
@@ -198,6 +198,19 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   const [caloriesAsk, setCaloriesAsk] = useState<CaloriesAsk | null>(null);
 
+  /** Dishes eaten out join the history, so they can be picked next time. */
+  const rememberEaten = (meals: Recipe[], date: string) => {
+    const dishes = meals.filter(isRememberableDish);
+    if (!dishes.length) return;
+    // One at a time: each write reads the history the last one saved
+    (async () => {
+      for (const meal of dishes) {
+        await recordEatingOutDish({ place: meal.quick?.place ?? '', dish: meal.quick?.dish ?? '', calories: mealCalories(meal), protein: meal.protein }, date);
+      }
+      await ensureWarm(eatingOutDishesData, true);
+    })().catch(e => console.error('Could not remember the dish', e));
+  };
+
   /** Ticks planned meals off and logs them: at their slot's usual time (`timed`), or now. */
   const logPlannedMeals = async (indices: number[], plan: DayPlan, timed: boolean) => {
     const now = Date.now();
@@ -206,6 +219,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     const completedMealIds = [...new Set([...plan.completedMealIds, ...meals.map(mealKey)])];
     await saveDayPlan({ ...plan, completedMealIds });
     await onLogMeals(meals.map(meal => ({ meal, at: timed ? plannedTime(slotFor(meal), now) : now })));
+    rememberEaten(meals, plan.date);
     refreshData();
     if (timed) {
       const kcal = meals.reduce((sum, meal) => sum + mealCalories(meal), 0);
@@ -288,6 +302,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     const updatedPlan = { ...todayPlan, completedMealIds: newCompleted };
     await saveDayPlan(updatedPlan);
     await onLogMeal(meal, isAdding);
+    if (isAdding) rememberEaten([meal], todayPlan.date);
     refreshData();
   };
 
@@ -454,7 +469,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       <AtePlannedCard plan={todayPlan} onLogAll={indices => logPlanned(indices, true)} />
 
       {/* Eating out: what was actually had */}
-      <EatingOutCard plan={todayPlan} onLog={setEatingOutIndex} />
+      <EatingOutCard plan={todayPlan} onLog={setEatingOutIndex} onConfirm={i => logPlanned([i], false)} />
 
       {/* Thursday and Friday: plan the weekend ahead */}
       <WeekendPlanCard weekendGap={recentWeekendGap} onPlan={date => navigate('/mealplanner', { state: { date } })} />
@@ -511,7 +526,6 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       {eatingOutIndex !== null && todayPlan.meals[eatingOutIndex] && (
         <EatingOutDecideSheet
           meal={todayPlan.meals[eatingOutIndex]}
-          proteinGoal={proteinTarget(stats)}
           confirmLabel="Log it"
           onDecide={(name, calories, options) => logEatingOut(eatingOutIndex, name, calories, options)}
           onClose={() => setEatingOutIndex(null)}

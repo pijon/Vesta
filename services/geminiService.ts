@@ -259,55 +259,6 @@ Answer with one whole number of kcal. Use -1 only if it isn't a food or drink.`,
   return typeof calories === 'number' && calories > 0 && calories <= 5000 ? Math.round(calories) : null;
 };
 
-export interface EatingOutIdea {
-  /** What to order, e.g. "Grilled chicken bowl, no dressing on the side" */
-  dish: string;
-  calories: number;
-  protein?: number;
-  /** One short tip, e.g. "Swap the fries for salad" */
-  tip?: string;
-}
-
-/**
- * Things to order that fit a calorie budget, for a named place or, when the place is still open,
- * for a kind of food ("Thai", "pizza"). Empty when the model has nothing useful to say.
- */
-export const suggestEatingOutOrders = async (where: string, budget: number, proteinGoal?: number): Promise<EatingOutIdea[]> => {
-  const place = where.trim() ? `at or in the style of "${scrubPII(where.trim())}"` : 'at a typical restaurant';
-  const response = await generateWithFallback({
-    model: GEMINI_FAST_MODEL,
-    contents: `Suggest 4 things a person could order ${place} that fit within ${Math.round(budget)} kcal for the meal.
-${proteinGoal ? `Favour dishes that are high in protein (they aim for about ${Math.round(proteinGoal)} g protein a day).\n` : ''}Give realistic restaurant portions and calories, not diet-sized ones. Include a dish at or under the budget, and
-one tip per dish about a small change that helps (sauce on the side, a swap for a side). Round calories to the nearest 10.
-Answer in the language of the place's name if it has one, otherwise in English.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            dish: { type: Type.STRING },
-            calories: { type: Type.NUMBER },
-            protein: { type: Type.NUMBER },
-            tip: { type: Type.STRING },
-          },
-          required: ['dish', 'calories'],
-        },
-      },
-    },
-  });
-  const ideas = JSON.parse(response.text || '[]') as EatingOutIdea[];
-  return ideas
-    .filter(i => typeof i.dish === 'string' && i.dish.trim() && typeof i.calories === 'number' && i.calories > 0 && i.calories <= 5000)
-    .map(i => ({
-      dish: i.dish.trim(),
-      calories: Math.round(i.calories),
-      protein: typeof i.protein === 'number' && i.protein >= 0 && i.protein <= 300 ? Math.round(i.protein) : undefined,
-      tip: i.tip?.trim() || undefined,
-    }));
-};
-
 /** The user's own numbers for foods they mention, so the AI reuses them instead of guessing */
 const knownFoodsPrompt = (known: KnownFood[]) => known.length ? `
     THE USER'S OWN FOODS (their numbers for one portion):

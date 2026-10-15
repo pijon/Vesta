@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Recipe } from '../types';
 import {
-  addDays, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
+  addDays, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, isRememberableDish, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
   mealKey, mealProtein, planMeal, planRecipe, plannableSlotFor, proteinTarget, QUICK_MEAL_DESCRIPTION, slotFor,
   weekDates, weekStart,
 } from './planUtils';
@@ -227,5 +227,25 @@ describe('live eating-out budgets', () => {
     expect(withLiveBudgets(fixed, { loggedKcal: 500 })).toBe(fixed);
     const only = day([out('lunch', 600, false), out('dinner', 900)]);
     expect(kcals(withLiveBudgets(only, { loggedKcal: 100 }))).toEqual([600, 800]);
+  });
+});
+
+describe('eatingOutDishMeal', () => {
+  it('plans a named dish that is not a budget and can be remembered once eaten', () => {
+    const meal = eatingOutDishMeal('dinner', { place: 'Thai corner', dish: 'Pad thai', calories: 780, protein: 30 });
+    expect(meal).toMatchObject({ name: 'Pad thai at Thai corner', calories: 780, protein: 30 });
+    expect(meal.quick).toMatchObject({ kind: 'out', place: 'Thai corner', dish: 'Pad thai', estimated: true });
+    expect(isBudgetMeal(meal)).toBe(false);
+    expect(isRememberableDish(meal)).toBe(true);
+  });
+
+  it('does not remember a budget meal', () => {
+    expect(isRememberableDish(eatingOutBudgetMeal('dinner', 700))).toBe(false);
+  });
+
+  it('keeps place and dish when a budget is decided', () => {
+    const decided = decideEatingOut(eatingOutBudgetMeal('dinner', 700), 'Pad thai at Thai corner', 650, { place: ' Thai corner ', dish: 'Pad thai' });
+    expect(decided.quick).toMatchObject({ place: 'Thai corner', dish: 'Pad thai' });
+    expect(isRememberableDish(decided)).toBe(true);
   });
 });

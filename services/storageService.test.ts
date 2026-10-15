@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DayPlan, PlannedMeal, Recipe } from '../types';
-import { decideEatingOut, eatingOutBudgetMeal, planMeal, withLiveBudgets, QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
+import { decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, planMeal, withLiveBudgets, QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
 
 // An in-memory stand-in for the parts of Firestore that day plans use. Documents are stored
 // as JSON, which drops undefined fields like the app's ignoreUndefinedProperties setting.
@@ -139,6 +139,14 @@ describe('day plans', () => {
     const [decided] = (await getDayPlan('2026-10-06')).meals;
     expect(decided).toMatchObject({ name: 'Pad thai at Siam', calories: 780, protein: 30, instanceId: budget.instanceId, quick: { kind: 'out', estimated: true } });
     expect(decided.quick?.budget).toBeUndefined();
+  });
+
+  it('keeps the place and dish of a planned dish, still open', async () => {
+    const dish = planMeal(eatingOutDishMeal('dinner', { place: 'Thai corner', dish: 'Pad thai', calories: 780, protein: 30 }), 'dinner');
+    await saveDayPlan(plan('2026-10-08', [dish]));
+    const day = await getDayPlan('2026-10-08');
+    expect(day.meals[0]).toMatchObject({ name: 'Pad thai at Thai corner', calories: 780, protein: 30, quick: { kind: 'out', place: 'Thai corner', dish: 'Pad thai' } });
+    expect(day.completedMealIds).toEqual([]);
   });
 
   it('saves a live budget as planned, so it can follow the day again tomorrow', async () => {

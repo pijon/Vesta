@@ -3,6 +3,7 @@ import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from 
 import { proteinTarget } from '../utils/planUtils';
 import { Check, Copy, CloudUpload, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import { ReminderSettings } from './ReminderSettings';
+import { EatingOutHistorySettings } from './EatingOutHistorySettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -339,6 +340,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <p className="text-sm text-muted mt-0.5">Gentle nudges to log and weigh in, so your personal target has the data it needs.</p>
                 </div>
                 <ReminderSettings />
+            </section>
+
+            {/* Eating out */}
+            <section className="card p-5 md:p-6 space-y-4" aria-labelledby="eating-out-heading">
+                <div>
+                    <h2 id="eating-out-heading" className="heading-2">Eating out</h2>
+                    <p className="text-sm text-muted mt-0.5">Dishes you've logged, offered again when you plan or log a meal out. Fix a name or calories, or remove one.</p>
+                </div>
+                <EatingOutHistorySettings />
             </section>
 
             {/* Data */}
