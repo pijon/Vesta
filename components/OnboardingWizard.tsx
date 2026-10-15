@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Droplets, Flame, Scale, Target, UtensilsCrossed, X } from 'lucide-react';
 import { UserStats } from '../types';
 import { DEFAULT_USER_STATS } from '../constants';
+import { useDevMode } from '../contexts/DevModeContext';
+import { VestaMark } from './VestaMark';
 
 export interface OnboardingResult {
     name: string;
@@ -40,9 +42,11 @@ const NumberField: React.FC<{
     tone: string;
     decimal?: boolean;
     inputRef?: React.Ref<HTMLInputElement>;
-}> = ({ label, hint, unit, value, onChange, Icon, tone, decimal, inputRef }) => (
+    /** Round icon (the "Market day" look) */
+    round?: boolean;
+}> = ({ label, hint, unit, value, onChange, Icon, tone, decimal, inputRef, round }) => (
     <label className="flex items-center gap-3 rounded-[14px] border border-border bg-surface p-3 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-[var(--focus-ring)]">
-        <span className={`size-10 shrink-0 rounded-[12px] flex items-center justify-center ${tone}`}><Icon size={20} aria-hidden="true" /></span>
+        <span className={`size-10 shrink-0 flex items-center justify-center ${tone} ${round ? 'rounded-full' : 'rounded-[12px]'}`}><Icon size={20} aria-hidden="true" /></span>
         <span className="flex-1 min-w-0">
             <span className="block font-semibold leading-snug">{label}</span>
             {hint && <span className="block text-xs text-muted">{hint}</span>}
@@ -64,6 +68,9 @@ const NumberField: React.FC<{
 /** First-run setup: name, weight and goal, then daily targets. Everything can be changed later in Settings. */
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onComplete, onCancel }) => {
     const [step, setStep] = useState(0);
+    const market = useDevMode().isFeatureEnabled('marketTheme');
+    // "Market day": titles at the greeting's size
+    const title = market ? 'font-display font-extrabold text-[40px] leading-[1.02] tracking-[-0.04em]' : 'heading-1';
     const [name, setName] = useState(stats?.name ?? '');
     const [weight, setWeight] = useState(str(stats?.currentWeight));
     const [goal, setGoal] = useState(str(stats?.goalWeight));
@@ -113,7 +120,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
                     ) : <span className="size-11 shrink-0" aria-hidden="true" />}
                     <div className="flex-1 flex gap-1.5" aria-label={`Step ${step + 1} of ${STEPS.length}`} role="img">
                         {STEPS.map((_, i) => (
-                            <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-border'}`} />
+                            <span key={i} className={`flex-1 rounded-full transition-colors ${market ? 'h-2.5' : 'h-1.5'} ${i <= step ? (market ? 'bg-[var(--hero)]' : 'bg-primary') : 'bg-border'}`} />
                         ))}
                     </div>
                     {onCancel ? (
@@ -125,9 +132,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
                     <div key={step} className="flex-1 motion-safe:animate-page-in">
                         {step === 0 && (
                             <>
-                                <img src="/resources/logo_light.png" alt="" className="size-14 mb-5 dark:hidden" />
-                                <img src="/resources/logo_dark.png" alt="" className="size-14 mb-5 hidden dark:block" />
-                                <h1 id="onboarding-title" className="heading-1">Welcome to Vesta</h1>
+                                {market ? (
+                                    <VestaMark className="size-16 mb-5" />
+                                ) : (
+                                    <>
+                                        <img src="/resources/logo_light.png" alt="" className="size-14 mb-5 dark:hidden" />
+                                        <img src="/resources/logo_dark.png" alt="" className="size-14 mb-5 hidden dark:block" />
+                                    </>
+                                )}
+                                <h1 id="onboarding-title" className={title}>Welcome to Vesta</h1>
                                 <p className="text-muted mt-2 mb-8">Plan meals, cook together and keep track, without the fuss. Three quick questions to get you set up.</p>
                                 <label className="block">
                                     <span className="block text-sm font-semibold mb-1.5">What should we call you?</span>
@@ -146,11 +159,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
 
                         {step === 1 && (
                             <>
-                                <h1 id="onboarding-title" className="heading-1">Hi {name.trim().split(' ')[0]}. Where are you starting?</h1>
+                                <h1 id="onboarding-title" className={title}>Hi {name.trim().split(' ')[0]}. Where are you starting?</h1>
                                 <p className="text-muted mt-2 mb-8">We'll save your weight as today's weigh-in.</p>
                                 <div className="space-y-2">
-                                    <NumberField label="Weight today" unit="kg" value={weight} onChange={setWeight} Icon={Scale} tone="tile-weight" decimal inputRef={weightRef} />
-                                    <NumberField label="Goal weight" unit="kg" value={goal} onChange={setGoal} Icon={Target} tone="tile-weight" decimal />
+                                    <NumberField round={market} label="Weight today" unit="kg" value={weight} onChange={setWeight} Icon={Scale} tone="tile-weight" decimal inputRef={weightRef} />
+                                    <NumberField round={market} label="Goal weight" unit="kg" value={goal} onChange={setGoal} Icon={Target} tone="tile-weight" decimal />
                                 </div>
                                 <p className="text-sm text-muted mt-3 min-h-5" aria-live="polite">
                                     {diff === null ? '' : diff === 0 ? "You're already at your goal. Vesta will help you stay there." : `That's ${Math.abs(diff).toLocaleString()} kg to ${diff > 0 ? 'lose' : 'gain'}.`}
@@ -160,12 +173,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
 
                         {step === 2 && (
                             <>
-                                <h1 id="onboarding-title" className="heading-1">Your daily targets</h1>
+                                <h1 id="onboarding-title" className={title}>Your daily targets</h1>
                                 <p className="text-muted mt-2 mb-8">Every day is a nourish day unless you mark it as a fast day in the planner.</p>
                                 <div className="space-y-2">
-                                    <NumberField label="Nourish day" hint="A normal day" unit="kcal" value={nourish} onChange={setNourish} Icon={UtensilsCrossed} tone="tile-calories" inputRef={nourishRef} />
-                                    <NumberField label="Fast day" hint="A lighter day, if you do them" unit="kcal" value={fast} onChange={setFast} Icon={Flame} tone="tile-fasting" />
-                                    <NumberField label="Water" unit="ml" value={water} onChange={setWater} Icon={Droplets} tone="tile-water" />
+                                    <NumberField round={market} label="Nourish day" hint="A normal day" unit="kcal" value={nourish} onChange={setNourish} Icon={UtensilsCrossed} tone="tile-calories" inputRef={nourishRef} />
+                                    <NumberField round={market} label="Fast day" hint="A lighter day, if you do them" unit="kcal" value={fast} onChange={setFast} Icon={Flame} tone="tile-fasting" />
+                                    <NumberField round={market} label="Water" unit="ml" value={water} onChange={setWater} Icon={Droplets} tone="tile-water" />
                                 </div>
                                 <p className="text-sm text-muted mt-3">You can change all of this later in Settings.</p>
                             </>
