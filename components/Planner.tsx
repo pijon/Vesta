@@ -344,8 +344,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
   const phoneWeekActions = (
     <div className="flex gap-2 md:hidden">
-      <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
-      <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
+      <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
+      <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
     </div>
   );
 
