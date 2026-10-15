@@ -210,47 +210,53 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
     <Sheet title="Log food" onClose={onClose} footer={footer} initialFocus={textRef}>
       <div className="space-y-4">
         {/* Mode */}
-        <div role="radiogroup" aria-label="How to add food" className="grid grid-cols-4 p-1 rounded-full bg-surface-sunken">
+        <div role="radiogroup" aria-label="How to add food" className="segmented grid grid-cols-4 w-full">
           {MODES.map(({ value, label, Icon }) => (
             <button
               key={value}
               role="radio"
               aria-checked={mode === value}
               onClick={() => switchMode(value)}
-              className={`min-h-9 inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${mode === value ? 'bg-surface text-main shadow-sm' : 'text-muted hover:text-main'}`}
+              className="segment justify-center gap-1.5 px-1"
             >
-              <Icon size={15} aria-hidden="true" /> {label}
+              {/* Phones: labels only, so four fit across */}
+              <Icon size={15} className="hidden sm:block" aria-hidden="true" /> {label}
             </button>
           ))}
         </div>
 
         {mode === 'describe' && (
-          <div className="space-y-3">
-            <label className="block">
-              <span className="block text-sm font-semibold mb-1.5">What did you eat?</span>
+          // A composer, the question as a title and Estimate inside the box
+          <div className="space-y-1.5">
+            <label htmlFor="food-describe" className="block font-display font-extrabold text-[22px] leading-7 tracking-tight">What did you eat?</label>
+            <div className="relative">
               <textarea
+                id="food-describe"
                 ref={textRef}
-                rows={2}
+                rows={3}
                 value={text}
                 onChange={e => setText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); estimate(); } }}
                 disabled={busy}
                 placeholder="2 eggs, a slice of rye bread and a coffee with milk"
-                className="input w-full resize-none leading-snug"
+                className="input w-full resize-none text-lg leading-snug !rounded-[22px] pt-3.5 pb-16"
               />
-            </label>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-muted">Amounts make the estimate better.</p>
-              <button onClick={estimate} disabled={!text.trim() || busy} className="btn-secondary btn-sm">
+              <button onClick={estimate} disabled={!text.trim() || busy} className="btn-primary btn-sm absolute right-2.5 bottom-3.5">
                 {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
-                {busy ? 'Estimating…' : 'Estimate calories'}
+                {busy ? 'Estimating…' : 'Estimate'}
               </button>
             </div>
+            <p className="text-sm text-muted px-1">Amounts make the estimate better.</p>
+          </div>
+        )}
+
+        {mode === 'describe' && (
+          <div className="space-y-3">
 
             {matches.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-muted mb-1.5">Your foods</p>
-                <ul className="divide-y divide-border rounded-[14px] border border-border">
+                <p className="heading-3 mb-1">Your foods</p>
+                <ul className="divide-y divide-border">
                   {matches.map(food => {
                     const Icon = foodIconFor({ name: food.name }) ?? Plus;
                     return (
@@ -258,9 +264,11 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                         <button
                           onClick={() => addKnown(food)}
                           aria-label={`Add ${food.name}, ${food.calories} kcal`}
-                          className="w-full flex items-center gap-2.5 min-h-11 px-3 py-2 text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] first:rounded-t-[14px] last:rounded-b-[14px]"
+                          className="w-full flex items-center text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] gap-3 min-h-14 px-1 py-2 rounded-[16px]"
                         >
-                          <Icon size={16} className="shrink-0 text-calories-text" aria-hidden="true" />
+                          <span className="size-10 shrink-0 rounded-full tile-calories flex items-center justify-center">
+                            <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+                          </span>
                           <span className="flex-1 min-w-0">
                             <span className="block truncate font-semibold text-sm">{capitalise(food.name)}</span>
                             {food.source === 'recipe' && <span className="block text-xs text-muted">Your recipe, 1 portion</span>}
@@ -276,7 +284,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
 
             {matches.length === 0 && recent.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-muted mb-1.5">Recent</p>
+                <p className="heading-3 mb-2">Your usual</p>
                 <div className="flex flex-wrap gap-1.5">
                   {recent.map(food => {
                     const Icon = foodIconFor({ name: food.name }) ?? Plus;
@@ -285,7 +293,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                         key={food.name}
                         onClick={() => addDrafts([toDraft(capitalise(food.name), food.calories, food.protein)])}
                         aria-label={`Add ${food.name}, ${food.calories} kcal`}
-                        className="inline-flex items-center gap-1.5 min-h-9 pl-2.5 pr-3 rounded-full border border-border bg-surface text-sm font-semibold hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                        className="chip pl-2.5 pr-3"
                       >
                         <Icon size={15} className="text-calories-text" aria-hidden="true" />
                         <span className="max-w-[10rem] truncate">{capitalise(food.name)}</span>
@@ -320,12 +328,12 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={busy}
-                className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-[14px] border-2 border-dashed border-border-control text-center hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border-control text-center hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] py-10 rounded-[24px]"
               >
-                <span className="size-12 rounded-full bg-calories-bg text-calories-text flex items-center justify-center">
-                  <Camera size={22} aria-hidden="true" />
+                <span className="rounded-full bg-calories-bg text-calories-text flex items-center justify-center size-20 mb-1">
+                  <Camera size={32} aria-hidden="true" />
                 </span>
-                <span className="font-semibold">Take or choose a photo</span>
+                <span className="font-display font-extrabold text-[22px] leading-7 tracking-tight">Take or choose a photo</span>
                 <span className="text-xs text-muted px-6">Every food in the picture gets its own estimate you can adjust.</span>
               </button>
             )}
@@ -389,7 +397,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
         {drafts.length > 0 && (
           <section aria-label="To log" className="pt-1">
             <div className="flex items-baseline justify-between mb-1">
-              <h3 className="heading-4">To log</h3>
+              <h3 className="heading-3">To log</h3>
               <p className="text-xs text-muted">{totalProtein > 0 ? `${totalProtein} g protein · ` : ''}tap to change</p>
             </div>
             <ul className="divide-y divide-border">
@@ -397,7 +405,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                 const Icon = foodIconFor({ name: d.name }) ?? UtensilsCrossed;
                 return (
                   <li key={d.id} className="flex items-start gap-2 py-2">
-                    <span className="hidden sm:flex size-9 mt-0.5 shrink-0 rounded-[10px] bg-calories-bg text-calories-text items-center justify-center">
+                    <span className="mt-0.5 shrink-0 bg-calories-bg text-calories-text items-center justify-center flex size-10 rounded-full">
                       <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
                     </span>
                     <div className="flex-1 min-w-0">

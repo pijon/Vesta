@@ -5,6 +5,8 @@ import { Sparkles, Moon, Sun, SlidersHorizontal } from 'lucide-react';
 interface HeaderProps {
     title: string;
     subtitle?: string;
+    /** A bigger title, for a greeting that stands in for it */
+    large?: boolean;
     isDarkMode: boolean;
     onToggleDarkMode: () => void;
     onNavigate: (view: AppView) => void;
@@ -15,6 +17,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
     title,
     subtitle,
+    large,
     isDarkMode,
     onToggleDarkMode,
     onNavigate,
@@ -22,9 +25,9 @@ export const Header: React.FC<HeaderProps> = ({
     onOpenSundayReset,
 }) => {
     return (
-        <div className="flex justify-between items-center gap-4 mb-6">
+        <div className={`flex justify-between gap-4 mb-6 ${large ? 'items-start' : 'items-center'}`}>
             <div className="min-w-0">
-                <h1 className="text-[32px] leading-9 font-display font-extrabold tracking-tight text-main">{title}</h1>
+                <h1 className={`font-display font-extrabold text-main ${large ? 'text-[40px] leading-[1] tracking-[-0.04em] md:text-5xl text-balance' : 'text-[32px] leading-9 tracking-tight'}`}>{title}</h1>
                 {subtitle && (
                     <p className="text-sm text-muted mt-1">{subtitle}</p>
                 )}

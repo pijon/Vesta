@@ -203,7 +203,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onAdd, onManual 
           <AlertCircle size={16} className="shrink-0 mt-0.5 text-muted" aria-hidden="true" /> {cameraError}
         </p>
       ) : (
-        <div className="relative overflow-hidden rounded-[14px] aspect-[4/3] bg-ink">
+        <div className="relative overflow-hidden aspect-[4/3] bg-ink rounded-[24px]">
           <video ref={videoRef} muted playsInline className="size-full object-cover" aria-label="Camera view for scanning a barcode" />
           {/* Aiming guide */}
           <div className="pointer-events-none absolute inset-x-[12%] top-1/2 -translate-y-1/2 h-[34%] rounded-[12px] border-2 border-on-ink" aria-hidden="true" />

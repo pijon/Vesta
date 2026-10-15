@@ -1,20 +1,31 @@
 import React, { useState } from 'react';
-import { Portal } from './Portal';
+import { RotateCcw, Sparkles } from 'lucide-react';
 import { Recipe } from '../types';
+import { Sheet } from './Sheet';
 
 interface IngredientRecipeModalProps {
   onSave: (recipe: Recipe) => Promise<void>;
   onClose: () => void;
 }
 
+type MealType = 'breakfast' | 'main meal' | 'light meal';
+
+const MEAL_TYPES: { value: MealType; label: string }[] = [
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'main meal', label: 'Main meal' },
+  { value: 'light meal', label: 'Light meal' },
+];
+
+/** Create a recipe from the ingredients at hand: describe them, preview what the AI suggests, then save it. */
 export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
   onSave,
   onClose
 }) => {
   const [ingredientInput, setIngredientInput] = useState('');
   const [targetCalories, setTargetCalories] = useState(400);
-  const [mealType, setMealType] = useState<'breakfast' | 'main meal' | 'light meal'>('main meal');
+  const [mealType, setMealType] = useState<MealType>('main meal');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [generatedRecipe, setGeneratedRecipe] = useState<Recipe | null>(null);
 
   const handleGenerate = async () => {
@@ -26,6 +37,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
     if (ingredients.length === 0) return;
 
     setIsGenerating(true);
+    setError(null);
     try {
       const { generateRecipeFromIngredients } = await import('../services/geminiService');
       const partialRecipe = await generateRecipeFromIngredients(ingredients, targetCalories, mealType);
@@ -33,7 +45,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
       if (partialRecipe) {
         const recipe: Recipe = {
           id: crypto.randomUUID(),
-          name: partialRecipe.name || 'Generated Recipe',
+          name: partialRecipe.name || 'Generated recipe',
           description: `Created from ingredients: ${ingredients.join(', ')}`,
           calories: partialRecipe.calories || targetCalories,
           protein: partialRecipe.protein || 0,
@@ -46,9 +58,9 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
         };
         setGeneratedRecipe(recipe);
       }
-    } catch (e: any) {
-      console.error("Recipe generation failed:", e);
-      alert(`Failed to generate recipe. \n\nError: ${e.message || 'Unknown error'}`);
+    } catch (e: unknown) {
+      console.error('Recipe generation failed:', e);
+      setError(`We couldn't create a recipe. ${e instanceof Error ? e.message : 'Please try again.'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -61,231 +73,132 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
     }
   };
 
-  const handleTryAgain = () => {
-    setGeneratedRecipe(null);
-  };
-
   const handleDiscard = () => {
     setGeneratedRecipe(null);
     setIngredientInput('');
     onClose();
   };
 
-  return (
-    <Portal>
-      <div
-        className="fixed inset-0 bg-stone-900/40 flex items-center justify-center z-[100] p-4 animate-fade-in"
-        onClick={generatedRecipe ? undefined : onClose}
+  if (generatedRecipe) {
+    return (
+      <Sheet
+        title={generatedRecipe.name}
+        subtitle={generatedRecipe.description}
+        size="lg"
+        onClose={handleDiscard}
+        footer={
+          <div className="flex flex-wrap gap-2">
+            <button onClick={handleDiscard} className="btn-ghost">Discard</button>
+            <button onClick={() => setGeneratedRecipe(null)} className="btn-secondary"><RotateCcw size={16} aria-hidden="true" /> Try again</button>
+            <button onClick={handleSaveRecipe} className="btn-primary flex-1">Save to my recipes</button>
+          </div>
+        }
       >
-        <div
-          className="bg-[var(--background)] rounded-3xl border border-border p-6 md:p-8 w-full shadow-2xl animate-scale-in overflow-y-auto max-h-[90vh]"
-          style={{ maxWidth: generatedRecipe ? '800px' : '500px' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {generatedRecipe ? (
-            // PREVIEW MODE
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-display font-extrabold text-[var(--text-main)]">
-                  Recipe Preview
-                </h2>
-                <button
-                  onClick={handleDiscard}
-                  className="p-2 hover:bg-[var(--input-bg)] rounded-lg transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
+        <div className="space-y-6 pt-1">
+          <dl className="grid grid-cols-4 gap-2">
+            {[
+              { label: 'Calories', value: generatedRecipe.calories, unit: 'kcal' },
+              { label: 'Protein', value: generatedRecipe.protein, unit: 'g' },
+              { label: 'Fat', value: generatedRecipe.fat, unit: 'g' },
+              { label: 'Carbs', value: generatedRecipe.carbs, unit: 'g' },
+            ].map((s, i) => (
+              <div key={s.label} className={`tile !p-3 ${i === 0 ? 'tile-calories' : 'tile-neutral'}`}>
+                <dt className="text-xs font-semibold">{s.label}</dt>
+                <dd className="font-display font-extrabold text-lg leading-7 whitespace-nowrap">
+                  {s.value}<span className="font-sans text-xs font-semibold"> {s.unit}</span>
+                </dd>
               </div>
+            ))}
+          </dl>
 
-              {/* Recipe Details */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-2xl font-display font-extrabold text-[var(--text-main)] mb-2">{generatedRecipe.name}</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">{generatedRecipe.description}</p>
-                </div>
+          <section aria-labelledby="generated-ingredients">
+            <h3 id="generated-ingredients" className="heading-3 mb-2">Ingredients</h3>
+            <ul className="space-y-1.5">
+              {generatedRecipe.ingredients.map((ingredient, i) => (
+                <li key={i} className="flex items-start gap-2.5 leading-snug">
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                  {ingredient}
+                </li>
+              ))}
+            </ul>
+          </section>
 
-                {/* Nutrition */}
-                <div className="grid grid-cols-4 gap-3 bg-[var(--surface)] p-4 rounded-xl border border-border">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-[var(--text-main)]">{generatedRecipe.calories}</div>
-                    <div className="text-xs text-[var(--text-secondary)] font-medium">kcal</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-[var(--text-main)]">{generatedRecipe.protein}g</div>
-                    <div className="text-xs text-[var(--text-secondary)] font-medium">Protein</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-[var(--text-main)]">{generatedRecipe.fat}g</div>
-                    <div className="text-xs text-[var(--text-secondary)] font-medium">Fat</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-[var(--text-main)]">{generatedRecipe.carbs}g</div>
-                    <div className="text-xs text-[var(--text-secondary)] font-medium">Carbs</div>
-                  </div>
-                </div>
-
-                {/* Ingredients */}
-                <div>
-                  <h4 className="font-bold text-[var(--text-main)] mb-3">Ingredients</h4>
-                  <ul className="space-y-2">
-                    {generatedRecipe.ingredients.map((ingredient, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="text-primary mt-1">•</span>
-                        <span className="text-[var(--text-main)]">{ingredient}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Instructions */}
-                <div>
-                  <h4 className="font-bold text-[var(--text-main)] mb-3">Instructions</h4>
-                  <ol className="space-y-3">
-                    {generatedRecipe.instructions?.map((instruction, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm">
-                        <span className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">
-                          {i + 1}
-                        </span>
-                        <span className="text-[var(--text-main)] pt-0.5">{instruction}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-4 border-t border-border">
-                  <button
-                    onClick={handleSaveRecipe}
-                    className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all active:scale-95"
-                  >
-                    Save to Library
-                  </button>
-                  <button
-                    onClick={handleTryAgain}
-                    className="px-6 py-3 border-2 border-primary text-primary rounded-xl font-semibold hover:bg-primary/5 transition-all"
-                  >
-                    Try Again
-                  </button>
-                  <button
-                    onClick={handleDiscard}
-                    className="px-6 py-3 border border-border rounded-xl font-semibold hover:bg-[var(--input-bg)] transition-colors text-[var(--text-secondary)]"
-                  >
-                    Discard
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            // INPUT MODE
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-display font-extrabold text-[var(--text-main)]">
-                  Create Recipe from Ingredients
-                </h2>
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-[var(--input-bg)] rounded-lg transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-5">
-                {/* Ingredients Input */}
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-main)] mb-2">
-                    What ingredients do you have?
-                  </label>
-                  <textarea
-                    value={ingredientInput}
-                    onChange={(e) => setIngredientInput(e.target.value)}
-                    placeholder="chicken breast, spinach, eggs, tomatoes, olive oil..."
-                    className="w-full p-3 border border-border rounded-xl bg-[var(--input-bg)] text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
-                    rows={4}
-                  />
-                  <p className="text-xs text-[var(--text-secondary)] mt-1.5">
-                    Separate ingredients with commas
-                  </p>
-                </div>
-
-                {/* Calorie Target */}
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-main)] mb-2">
-                    Target Calories
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={targetCalories}
-                      onChange={(e) => setTargetCalories(parseInt(e.target.value) || 0)}
-                      className="w-full p-3 border border-border rounded-xl bg-[var(--input-bg)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
-                      min={100}
-                      max={800}
-                      step={50}
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-sm">
-                      kcal
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1.5">
-                    Typical range: 200-500 kcal per meal
-                  </p>
-                </div>
-
-                {/* Meal Type */}
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-main)] mb-2">
-                    Meal Type
-                  </label>
-                  <select
-                    value={mealType}
-                    onChange={(e) => setMealType(e.target.value as 'breakfast' | 'main meal' | 'light meal')}
-                    className="w-full p-3 border border-border rounded-xl bg-[var(--input-bg)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
-                  >
-                    <option value="breakfast">Breakfast</option>
-                    <option value="main meal">Main Meal</option>
-                    <option value="light meal">Light Meal</option>
-                  </select>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating || ingredientInput.trim().length === 0}
-                    className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
-                  >
-                    {isGenerating ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Generating...
-                      </span>
-                    ) : (
-                      'Generate Recipe'
-                    )}
-                  </button>
-                  <button
-                    onClick={onClose}
-                    disabled={isGenerating}
-                    className="px-6 py-3 border border-border rounded-xl font-semibold hover:bg-[var(--input-bg)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+          <section aria-labelledby="generated-steps">
+            <h3 id="generated-steps" className="heading-3 mb-2">Steps</h3>
+            <ol className="space-y-3">
+              {generatedRecipe.instructions?.map((instruction, i) => (
+                <li key={i} className="flex items-start gap-3 leading-relaxed">
+                  <span className="size-7 shrink-0 rounded-full bg-ink text-on-ink flex items-center justify-center font-display font-extrabold text-sm">{i + 1}</span>
+                  <span className="pt-0.5">{instruction}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
         </div>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet
+      title="Create a recipe from ingredients"
+      onClose={onClose}
+      footer={
+        <button
+          onClick={handleGenerate}
+          disabled={isGenerating || ingredientInput.trim().length === 0}
+          className="btn-primary btn-block"
+        >
+          {isGenerating ? <span className="spinner spinner-sm" aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
+          {isGenerating ? 'Creating your recipe…' : 'Create recipe'}
+        </button>
+      }
+    >
+      <div className="space-y-5 pt-1">
+        <div>
+          <label htmlFor="ingredients-at-hand" className="block text-sm font-semibold mb-1.5">What ingredients do you have?</label>
+          <textarea
+            id="ingredients-at-hand"
+            value={ingredientInput}
+            onChange={(e) => setIngredientInput(e.target.value)}
+            placeholder="Chicken breast, spinach, eggs, tomatoes, olive oil"
+            className="input w-full resize-none leading-snug"
+            rows={4}
+          />
+          <p className="text-xs text-muted mt-1.5">Separate them with commas.</p>
+        </div>
+
+        <div>
+          <label htmlFor="ingredients-calories" className="block text-sm font-semibold mb-1.5">Calories to aim for</label>
+          <span className="relative block">
+            <input
+              id="ingredients-calories"
+              type="number"
+              value={targetCalories}
+              onChange={(e) => setTargetCalories(parseInt(e.target.value) || 0)}
+              className="input w-full !pr-12"
+              min={100}
+              max={800}
+              step={50}
+            />
+            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">kcal</span>
+          </span>
+          <p className="text-xs text-muted mt-1.5">Most meals are 200 to 500 kcal.</p>
+        </div>
+
+        <fieldset>
+          <legend className="block text-sm font-semibold mb-1.5">Meal</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {MEAL_TYPES.map(({ value, label }) => (
+              <button key={value} type="button" onClick={() => setMealType(value)} aria-pressed={mealType === value} className="chip">
+                {label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        {error && <p className="text-sm text-error" role="alert">{error}</p>}
       </div>
-    </Portal>
+    </Sheet>
   );
 };

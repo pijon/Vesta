@@ -52,13 +52,13 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
 
             {todayWorkouts.length > 0 && (
                 <section className="mb-5">
-                    <h3 className="font-sans text-sm font-semibold text-muted mb-2">Today</h3>
+                    <h3 className="heading-3 mb-2">Today</h3>
                     <ul className="space-y-2">
                         {todayWorkouts.map((workout) => {
                             const Icon = workoutIconFor(workout.type);
                             return (
                                 <li key={workout.id} className="flex items-center gap-3 p-3 rounded-[14px] bg-surface-sunken">
-                                    <span className="size-10 shrink-0 rounded-[12px] bg-workout-bg text-workout-text flex items-center justify-center">
+                                    <span className="size-10 shrink-0 bg-workout-bg text-workout-text flex items-center justify-center rounded-full">
                                         <Icon size={22} stroke={1.75} aria-hidden="true" />
                                     </span>
                                     <span className="flex-1 min-w-0">
@@ -77,7 +77,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
             )}
 
             <section>
-                <h3 className="font-sans text-sm font-semibold text-muted mb-2">Earlier</h3>
+                <h3 className="heading-3 mb-2">Earlier</h3>
                 {activeDays.length === 0 ? (
                     <p className="text-sm text-muted py-6 text-center">No earlier workouts yet.</p>
                 ) : (
@@ -86,7 +86,7 @@ export const WorkoutOverviewModal: React.FC<WorkoutOverviewModalProps> = ({
                             const date = parseLocalDate(summary.date);
                             return (
                                 <li key={summary.date} className="flex items-center gap-3 py-2.5 border-t border-border first:border-t-0">
-                                    <span className="size-10 shrink-0 rounded-[12px] bg-surface-sunken flex flex-col items-center justify-center leading-none">
+                                    <span className="size-10 shrink-0 bg-surface-sunken flex flex-col items-center justify-center leading-none rounded-full">
                                         <span className="text-[11px] font-semibold text-muted">{date.toLocaleDateString(undefined, { month: 'short' })}</span>
                                         <span className="text-sm font-bold mt-0.5">{date.getDate()}</span>
                                     </span>

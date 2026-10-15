@@ -58,8 +58,8 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
             const visual = mealVisualFor(meal);
             return (
               <li key={meal.instanceId || `${meal.id}-${slot}-${i}`} className="flex items-center gap-3 py-2 border-t border-border first:border-t-0 @lg:[&:nth-child(2)]:border-t-0">
-                <span className={`size-9 shrink-0 rounded-[10px] flex items-center justify-center ${visual.tint}`}>
-                  <visual.Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+                <span className={`shrink-0 flex items-center justify-center ${visual.tint} size-11 rounded-full`}>
+                  <visual.Icon size={20} strokeWidth={1.75} aria-hidden="true" />
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-xs text-muted">{label}</span>

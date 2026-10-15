@@ -370,9 +370,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3.5 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
-        ? (tone === 'fasting' ? 'bg-fasting-bg text-fasting-text' : 'bg-ink text-on-ink')
-        : 'bg-surface border border-border hover:bg-surface-sunken'}`}
+      className={`chip shrink-0 ${active && tone === 'fasting' ? '!bg-fasting-bg !text-fasting-text' : ''}`}
     >
       {label}
     </button>
@@ -527,7 +525,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             </select>
           </label>
           {!onSelect && (
-            <div className="inline-flex shrink-0 self-center p-1 rounded-[14px] bg-surface-sunken" role="radiogroup" aria-label="Layout">
+            <div className="segmented shrink-0 self-center" role="radiogroup" aria-label="Layout">
               {([['grid', LayoutGrid, 'Grid'], ['list', List, 'List']] as const).map(([value, Icon, label]) => (
                 <button
                   key={value}
@@ -536,7 +534,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
                   aria-label={label}
                   title={label}
                   onClick={() => changeView(value)}
-                  className={`size-9 flex items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${view === value ? 'bg-surface text-main shadow-sm' : 'text-muted hover:text-main'}`}
+                  className="segment size-9 justify-center !px-0"
                 >
                   <Icon size={18} aria-hidden="true" />
                 </button>
@@ -634,7 +632,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
       {/* Feedback toast, kept clear of the bottom nav */}
       {toast && (
-        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in">
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in">
           {toast}
         </div>
       )}

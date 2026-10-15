@@ -128,9 +128,9 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
           className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
           {recipe.image ? (
-            <img src={recipe.image} alt="" loading="lazy" className="size-12 rounded-[12px] object-cover shrink-0" />
+            <img src={recipe.image} alt="" loading="lazy" className="size-12 rounded-full object-cover shrink-0" />
           ) : (
-            <span className={`size-12 rounded-[12px] flex items-center justify-center shrink-0 ${visual.tint}`}>
+            <span className={`size-12 rounded-full flex items-center justify-center shrink-0 ${visual.tint}`}>
               <visual.Icon size={22} strokeWidth={1.75} aria-hidden="true" />
             </span>
           )}
@@ -203,7 +203,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             onClick={() => setQuickDraft(typedName)}
             className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
-            <span className="size-12 rounded-[12px] flex items-center justify-center shrink-0 bg-surface-sunken border-[1.5px] border-dashed border-border-control" aria-hidden="true">
+            <span className={`size-12 rounded-full flex items-center justify-center shrink-0 bg-surface-sunken border-[1.5px] border-dashed border-border-control`} aria-hidden="true">
               <Plus size={22} strokeWidth={1.75} />
             </span>
             <span className="flex-1 min-w-0">

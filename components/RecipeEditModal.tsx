@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Minus, Plus, Save, X } from 'lucide-react';
 import { Recipe } from '../types';
-import { Portal } from './Portal';
 import { ImageInput } from './ImageInput';
+import { Sheet } from './Sheet';
 
 interface RecipeEditModalProps {
     recipe: Recipe;
@@ -10,6 +11,11 @@ interface RecipeEditModalProps {
     isSaving?: boolean;
 }
 
+const MEAL_TAGS = ['breakfast', 'main meal', 'snack', 'light meal'];
+
+const label = 'block text-sm font-semibold mb-1.5';
+
+/** Edit a recipe's photo, name, servings, tags, nutrition, ingredients and steps. */
 export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave, onCancel, isSaving = false }) => {
     const [editForm, setEditForm] = useState<Recipe>({ ...recipe });
     const [uploadedImage, setUploadedImage] = useState<string | null>(recipe.image || null);
@@ -41,10 +47,6 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
         setUploadedImage(downloadURL);
     };
 
-    const handleRemoveImage = () => {
-        setUploadedImage(null);
-    };
-
     const handleTagClick = (tag: string) => {
         const currentTags = editForm.tags || [];
         const newTags = currentTags.includes(tag)
@@ -65,212 +67,162 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
         }
     };
 
+    const servings = editForm.servings || 1;
+
     return (
-        <Portal>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4 animate-fade-in bg-stone-900/40" onClick={onCancel}>
-                <div
-                    className="bg-[var(--background)] w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col scale-100"
-                    onClick={e => e.stopPropagation()}
-                >
-                    {/* Header: Actions */}
-                    <div className="flex justify-between items-center p-6 border-b border-border bg-[var(--surface)] z-20 transition-colors shrink-0">
-                        <h2 className="text-2xl text-[var(--text-main)] font-display font-extrabold">Edit Recipe Details</h2>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={onCancel}
-                                disabled={isSaving}
-                                className="px-5 py-2.5 text-[var(--text-secondary)] hover:bg-[var(--input-bg)] rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                disabled={isSaving}
-                                className="btn-primary btn-sm shadow-lg flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Saving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                                        Save Changes
-                                    </>
-                                )}
+        <Sheet
+            title="Edit recipe"
+            size="xl"
+            onClose={onCancel}
+            footer={
+                <div className="flex gap-2">
+                    <button onClick={onCancel} disabled={isSaving} className="btn-ghost">Cancel</button>
+                    <button onClick={handleSave} disabled={isSaving} className="btn-primary flex-1">
+                        {isSaving ? <span className="spinner spinner-sm" aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
+                        {isSaving ? 'Saving…' : 'Save changes'}
+                    </button>
+                </div>
+            }
+        >
+            <div className="space-y-6 pt-1">
+                {/* Photo */}
+                <div>
+                    <p className={label}>Photo</p>
+                    {uploadedImage ? (
+                        <div className="relative rounded-[18px] overflow-hidden">
+                            <img src={uploadedImage} alt="Recipe photo" className="w-full h-56 md:h-64 object-cover" />
+                            <button onClick={() => setUploadedImage(null)} className="icon-btn absolute top-3 right-3 shadow-[var(--elev-sm)]" aria-label="Remove photo">
+                                <X size={18} />
                             </button>
                         </div>
+                    ) : (
+                        <div className="rounded-[18px] border-2 border-dashed border-border-control p-6 text-center">
+                            <ImageInput
+                                recipeId={recipe.id}
+                                onImageSelect={handleImageSelect}
+                                onError={(err) => setImageError(err)}
+                                className="w-full flex justify-center"
+                            />
+                            <p className="text-sm text-muted mt-3">JPG, PNG or WEBP, up to 5 MB</p>
+                        </div>
+                    )}
+                    {imageError && <p className="text-sm text-error mt-2" role="alert">{imageError}</p>}
+                </div>
+
+                {/* Name and servings */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 min-w-0">
+                        <label htmlFor="recipe-name" className={label}>Name</label>
+                        <input
+                            id="recipe-name"
+                            type="text"
+                            value={editForm.name}
+                            onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                            className="input w-full text-lg font-bold"
+                            placeholder="Grandma's lasagne"
+                        />
                     </div>
-
-                    {/* Scrollable Content */}
-                    <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1 min-h-0 overscroll-contain">
-
-                        {/* Image Section */}
-                        <div className="space-y-3">
-                            <label className="block text-sm font-bold text-[var(--text-main)]">Recipe Photo</label>
-                            {uploadedImage ? (
-                                <div className="relative rounded-2xl overflow-hidden border border-border shadow-sm group">
-                                    <img src={uploadedImage} alt="Recipe preview" className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105" />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
-                                    <button
-                                        onClick={handleRemoveImage}
-                                        className="absolute top-4 right-4 bg-rose-600 hover:bg-rose-700 text-white p-2.5 rounded-full shadow-lg transition-all transform hover:scale-110 active:scale-95"
-                                        title="Remove image"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="bg-[var(--input-bg)] rounded-2xl border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/30 hover:bg-primary/5">
-                                    <ImageInput
-                                        recipeId={recipe.id}
-                                        onImageSelect={handleImageSelect}
-                                        onError={(err) => setImageError(err)}
-                                        className="w-full flex justify-center"
-                                    />
-                                    <p className="text-[var(--text-secondary)] text-sm mt-3">Supports JPG, PNG, WEBP (Max 5MB)</p>
-                                </div>
-                            )}
-                            {imageError && (
-                                <p className="text-rose-600 text-sm font-medium flex items-center gap-1.5 animate-pulse">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                                    {imageError}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex gap-4">
-                            <div className="space-y-3 flex-1">
-                                <label className="block text-sm font-bold text-[var(--text-main)]">Recipe Name</label>
-                                <input
-                                    type="text"
-                                    value={editForm.name}
-                                    onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                                    className="w-full p-4 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none font-bold bg-[var(--input-bg)] text-[var(--text-main)] text-lg placeholder-[var(--text-muted)] transition-all"
-                                    placeholder="e.g. Grandma's Famous Lasagna"
-                                />
-                            </div>
-                            <div className="space-y-3">
-                                <label className="block text-sm font-bold text-[var(--text-main)]">Servings</label>
-                                <div className="bg-[var(--input-bg)] border border-border rounded-xl p-1.5 flex items-center gap-2 h-[62px]">
-                                    <button
-                                        className="w-10 h-full rounded-lg bg-[var(--card-bg)] border border-border flex items-center justify-center hover:bg-primary/10 hover:border-primary hover:text-primary transition-colors font-bold active:scale-95 text-lg"
-                                        onClick={() => setEditForm({ ...editForm, servings: Math.max(1, (editForm.servings || 1) - 1) })}
-                                    >
-                                        -
-                                    </button>
-                                    <span className="text-lg font-bold text-[var(--text-main)] w-8 text-center">{editForm.servings || 1}</span>
-                                    <button
-                                        className="w-10 h-full rounded-lg bg-[var(--card-bg)] border border-border flex items-center justify-center hover:bg-primary/10 hover:border-primary hover:text-primary transition-colors font-bold active:scale-95 text-lg"
-                                        onClick={() => setEditForm({ ...editForm, servings: (editForm.servings || 1) + 1 })}
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Tags Section */}
-                        <div className="space-y-3">
-                            <label className="block text-sm font-bold text-[var(--text-main)]">Tags</label>
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap gap-1.5">
-                                    {['breakfast', 'main meal', 'snack', 'light meal'].map(tag => (
-                                        <button
-                                            key={tag}
-                                            onClick={() => handleTagClick(tag)}
-                                            className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all active:scale-95 ${(editForm.tags || []).includes(tag)
-                                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                                : 'bg-[var(--card-bg)] text-[var(--text-secondary)] border-border hover:border-primary/50 hover:text-[var(--text-main)]'
-                                                }`}
-                                        >
-                                            {tag}
-                                        </button>
-                                    ))}
-                                </div>
-                                <input
-                                    type="text"
-                                    placeholder="+ Add custom tag..."
-                                    className="w-full p-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none bg-[var(--input-bg)] text-sm font-medium text-[var(--text-main)] placeholder-[var(--text-muted)] transition-all"
-                                    onKeyDown={handleAddCustomTag}
-                                />
-                                {/* Selected Custom Tags */}
-                                <div className="flex flex-wrap gap-2 min-h-[1.5rem]">
-                                    {(editForm.tags || []).filter(t => !['breakfast', 'main meal', 'snack', 'light meal'].includes(t)).map(tag => (
-                                        <span key={tag} className="pl-2 pr-1 py-1 bg-[var(--card-bg)] border border-border rounded-md text-xs font-bold flex items-center gap-1 animate-scale-in text-[var(--text-main)]">
-                                            {tag}
-                                            <button onClick={() => handleTagClick(tag)} className="hover:bg-rose-100 hover:text-rose-600 rounded p-0.5 transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                            </button>
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Nutrition */}
-                        <div className="space-y-3">
-                            <label className="block text-sm font-bold text-[var(--text-main)]">Nutrition <span className="text-[var(--text-secondary)] font-normal text-xs">(per serving)</span></label>
-                            <div className="grid grid-cols-4 divide-x divide-border bg-[var(--input-bg)] rounded-xl border border-border overflow-hidden">
-                                {[
-                                    { label: 'Calories', val: editForm.calories, key: 'calories', unit: 'kcal' },
-                                    { label: 'Protein', val: editForm.protein, key: 'protein', unit: 'g' },
-                                    { label: 'Fat', val: editForm.fat, key: 'fat', unit: 'g' },
-                                    { label: 'Carbs', val: editForm.carbs, key: 'carbs', unit: 'g' }
-                                ].map((item) => (
-                                    <div key={item.key} className="p-3 text-center hover:bg-[var(--card-bg)] transition-colors group">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={item.val || 0}
-                                            onChange={e => setEditForm({ ...editForm, [item.key]: parseInt(e.target.value) || 0 })}
-                                            onFocus={e => e.target.select()}
-                                            className="w-full text-center font-bold bg-transparent focus:outline-none text-[var(--text-main)] text-lg p-0"
-                                        />
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] mt-1 group-hover:text-primary transition-colors">{item.label}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Lists */}
-                        {/* Lists */}
-                        <div className="space-y-8">
-                            <div className="space-y-3">
-                                <label className="block text-sm font-bold text-[var(--text-main)]">
-                                    Ingredients
-                                    <span className="text-[var(--text-secondary)] font-normal ml-2 text-xs">(one per line)</span>
-                                </label>
-                                <textarea
-                                    rows={10}
-                                    value={(editForm.ingredients || []).join('\n')}
-                                    onChange={e => setEditForm({ ...editForm, ingredients: e.target.value.split('\n') })}
-                                    placeholder="e.g.\n200g Chicken Breast\n1 cup Rice\n..."
-                                    className="w-full p-5 border border-border rounded-xl font-medium text-sm leading-relaxed focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none bg-[var(--input-bg)] text-[var(--text-main)] resize-none transition-all placeholder-[var(--text-muted)]"
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="block text-sm font-bold text-[var(--text-main)]">
-                                    Instructions
-                                    <span className="text-[var(--text-secondary)] font-normal ml-2 text-xs">(one per line)</span>
-                                </label>
-                                <textarea
-                                    rows={10}
-                                    value={(editForm.instructions || []).join('\n')}
-                                    onChange={e => setEditForm({ ...editForm, instructions: e.target.value.split('\n') })}
-                                    placeholder="e.g.\n1. Preheat oven to 180°C\n2. Mix ingredients...\n..."
-                                    className="w-full p-5 border border-border rounded-xl font-medium text-sm leading-relaxed focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none bg-[var(--input-bg)] text-[var(--text-main)] resize-none transition-all placeholder-[var(--text-muted)]"
-                                />
-                            </div>
+                    <div>
+                        <p className={label}>Servings</p>
+                        <div className="flex items-center gap-1" role="group" aria-label="Servings">
+                            <button onClick={() => setEditForm({ ...editForm, servings: Math.max(1, servings - 1) })} disabled={servings <= 1} className="icon-btn" aria-label="One serving fewer"><Minus size={18} /></button>
+                            <span className="w-10 text-center font-display font-extrabold text-xl" aria-live="polite">{servings}</span>
+                            <button onClick={() => setEditForm({ ...editForm, servings: servings + 1 })} className="icon-btn" aria-label="One serving more"><Plus size={18} /></button>
                         </div>
                     </div>
                 </div>
+
+                {/* Tags */}
+                <div>
+                    <p className={label}>Tags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {MEAL_TAGS.map(tag => (
+                            <button
+                                key={tag}
+                                onClick={() => handleTagClick(tag)}
+                                aria-pressed={(editForm.tags || []).includes(tag)}
+                                className="chip"
+                            >
+                                {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                    <label htmlFor="recipe-tag" className="sr-only">Add a tag</label>
+                    <input
+                        id="recipe-tag"
+                        type="text"
+                        placeholder="Add a tag and press Enter"
+                        className="input w-full mt-3"
+                        onKeyDown={handleAddCustomTag}
+                    />
+                    {(editForm.tags || []).some(t => !MEAL_TAGS.includes(t)) && (
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                            {(editForm.tags || []).filter(t => !MEAL_TAGS.includes(t)).map(tag => (
+                                <span key={tag} className="badge badge-neutral !pr-1">
+                                    {tag}
+                                    <button onClick={() => handleTagClick(tag)} className="hit-target size-5 inline-flex items-center justify-center rounded-full hover:bg-surface" aria-label={`Remove tag ${tag}`}>
+                                        <X size={12} />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Nutrition */}
+                <div>
+                    <p className={label}>Nutrition <span className="font-normal text-muted">per serving</span></p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                            { label: 'Calories', val: editForm.calories, key: 'calories', unit: 'kcal' },
+                            { label: 'Protein', val: editForm.protein, key: 'protein', unit: 'g' },
+                            { label: 'Fat', val: editForm.fat, key: 'fat', unit: 'g' },
+                            { label: 'Carbs', val: editForm.carbs, key: 'carbs', unit: 'g' }
+                        ].map((item) => (
+                            <label key={item.key} className="block">
+                                <span className="block text-xs font-semibold text-muted mb-1">{item.label}</span>
+                                <span className="relative block">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={item.val || 0}
+                                        onChange={e => setEditForm({ ...editForm, [item.key]: parseInt(e.target.value) || 0 })}
+                                        onFocus={e => e.target.select()}
+                                        className={`input w-full font-bold ${item.unit === 'kcal' ? '!pr-12' : '!pr-8'}`}
+                                    />
+                                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">{item.unit}</span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Ingredients and steps */}
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="recipe-ingredients" className={label}>Ingredients <span className="font-normal text-muted">one per line</span></label>
+                        <textarea
+                            id="recipe-ingredients"
+                            rows={10}
+                            value={(editForm.ingredients || []).join('\n')}
+                            onChange={e => setEditForm({ ...editForm, ingredients: e.target.value.split('\n') })}
+                            placeholder={'200 g chicken breast\n1 cup rice'}
+                            className="input w-full resize-none leading-relaxed"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="recipe-steps" className={label}>Steps <span className="font-normal text-muted">one per line</span></label>
+                        <textarea
+                            id="recipe-steps"
+                            rows={10}
+                            value={(editForm.instructions || []).join('\n')}
+                            onChange={e => setEditForm({ ...editForm, instructions: e.target.value.split('\n') })}
+                            placeholder={'Heat the oven to 180 °C\nMix the ingredients'}
+                            className="input w-full resize-none leading-relaxed"
+                        />
+                    </div>
+                </div>
             </div>
-        </Portal>
+        </Sheet>
     );
 };

@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="8 6 84 84">
   <!-- Notification badge: white silhouette on transparent; Android uses only the alpha -->
-  <defs><clipPath id="above-rim"><rect x="0" y="0" width="100" height="51.5"/></clipPath></defs>
-  <path clip-path="url(#above-rim)" fill-rule="evenodd" fill="#FFFFFF" d="M50 10 C58 22 68 31 68 47 C68 59 60 66 50 66 C40 66 32 59 32 47 C32 39 36 34 41 28 C42 35 45 39 48 40 C46 30 47 20 50 10 Z M50 38 C54 44 58 48 58 54 C58 60 54 64 50 64 C46 64 42 60 42 54 C42 48 46 44 50 38 Z"/>
-  <rect x="15" y="54" width="70" height="7" rx="3.5" fill="#FFFFFF"/>
-  <path d="M22 63.5 H78 C78 76 66 84 50 84 C34 84 22 76 22 63.5 Z" fill="#FFFFFF"/>
+  <defs><clipPath id="above-bowl"><rect x="0" y="0" width="100" height="51"/></clipPath></defs>
+  <path clip-path="url(#above-bowl)" fill="#FFFFFF" d="M50 13 C61 26 69 34 69 46 C69 55 61 60 50 60 C39 60 31 55 31 46 C31 38 35 33 41 27 C42 35 45 39 48 40 C46 31 47 22 50 13 Z"/>
+  <path d="M19 55 H81 C81 74 67 85 50 85 C33 85 19 74 19 55 Z" fill="#FFFFFF"/>
 </svg>

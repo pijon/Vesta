@@ -3,6 +3,7 @@ import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/aut
 import { FirebaseError } from 'firebase/app';
 import { AlertCircle, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { auth } from '../services/firebase';
+import { VestaMark } from './VestaMark';
 
 /** Plain-language messages for the sign-in errors people actually hit. */
 const messageFor = (err: unknown) => {
@@ -67,9 +68,8 @@ export const LoginScreen: React.FC = () => {
         <main className="min-h-dvh bg-background flex flex-col items-center justify-center px-4 py-10">
             <div className="w-full max-w-sm animate-fade-in">
                 <div className="text-center mb-8">
-                    <img src="/resources/logo_light.png" alt="" className="size-16 mx-auto mb-4 dark:hidden" />
-                    <img src="/resources/logo_dark.png" alt="" className="size-16 mx-auto mb-4 hidden dark:block" />
-                    <h1 className="heading-1">Welcome back</h1>
+                    <VestaMark className="size-20 mx-auto mb-5 block" />
+                    <h1 className="font-display font-extrabold text-[40px] leading-[1] tracking-[-0.04em]">Welcome back</h1>
                     <p className="text-muted mt-1">Sign in to Vesta to plan, cook and track together.</p>
                 </div>
 

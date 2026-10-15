@@ -69,12 +69,12 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, on
   };
 
   return (
-    <section className="card p-4 md:px-6" aria-labelledby="weekend-plan-title">
-      <div className="flex items-start gap-3">
-        <span className="size-10 shrink-0 rounded-[12px] flex items-center justify-center tile-water" aria-hidden="true"><CalendarDays size={20} /></span>
+    <section className="rounded-[24px] bg-water-bg p-5 md:p-6" aria-labelledby="weekend-plan-title">
+      <div className="flex items-start gap-4">
+        <span className="shrink-0 flex items-center justify-center size-12 rounded-full bg-surface text-water-text" aria-hidden="true"><CalendarDays size={20} /></span>
         <div className="flex-1 min-w-0">
-          <h2 id="weekend-plan-title" className="heading-4">Plan your weekend</h2>
-          <p className="text-sm text-muted">
+          <h2 id="weekend-plan-title" className="heading-3">Plan your weekend</h2>
+          <p className="text-sm mt-0.5">
             {weekendGap !== null && weekendGap >= 150
               ? `Your weekends run about ${Math.round(weekendGap / 10) * 10} kcal a day over your weekdays. Planning them ahead is the easiest fix, and planned meals take one tap to log.`
               : 'Weekends are when eating drifts and logging slips. Planned meals take one tap to log.'}
@@ -88,7 +88,7 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, on
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button onClick={() => onPlan(firstOpen)} className="btn-secondary btn-sm">
+            <button onClick={() => onPlan(firstOpen)} className="btn-primary btn-sm">
               Plan {dayName(firstOpen)}
             </button>
             <button onClick={dismiss} className="btn-ghost btn-sm">Not this week</button>

@@ -49,7 +49,7 @@ export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children
           aria-modal="true"
           aria-labelledby={titleId}
           onClick={e => e.stopPropagation()}
-          className={`bg-surface w-full ${size === 'xl' ? 'md:max-w-4xl' : size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-lg'} rounded-t-[24px] md:rounded-[24px] shadow-[var(--elev-lg)] max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden animate-slide-up md:animate-scale-in`}
+          className={`bg-surface w-full ${size === 'xl' ? 'md:max-w-4xl' : size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-lg'} rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden animate-slide-up md:animate-scale-in`}
         >
           <div className="flex items-start gap-3 px-5 pt-5 pb-3">
             <div className="flex-1 min-w-0">

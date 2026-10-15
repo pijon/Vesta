@@ -8,7 +8,6 @@ import { addDays, creditedBurn, dayTarget, proteinTarget, isFastDay, isMealEaten
 import { AtePlannedCard } from './AtePlannedCard';
 import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { DualTrackSection } from './DualTrackSection';
-import { HearthWidget } from './HearthWidget';
 import { TomorrowCard } from './TomorrowCard';
 import { useNavigate } from 'react-router-dom';
 import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
@@ -17,9 +16,11 @@ import { usePrewarmed } from '../utils/prewarm';
 import { buildDays, weekendGap, weightSummary } from '../utils/analyticsModel';
 import { WeekendPlanCard } from './WeekendPlanCard';
 import { weightTrend } from '../utils/energyModel';
-import { ActivityCard, FastingCard, HydrationCard, WeightCard } from './BentoGrid';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
+import { CaloriesHero } from './CaloriesHero';
+import { TonightCard } from './TonightCard';
+import { TodayStrip } from './TodayStrip';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Sheet } from './Sheet';
@@ -372,60 +373,53 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   const tomorrowCard = <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />;
 
+  // The Tonight card: tonight's dinner, else the next meal still to eat
+  const dinnerIndex = todayPlan.meals.findIndex(meal => slotFor(meal) === 'dinner');
+  const tonightIndex = dinnerIndex >= 0 ? dinnerIndex : nextMealIndex;
+  const tonightMeal = tonightIndex === undefined ? undefined : todayPlan.meals[tonightIndex];
+  const proteinToday = { eaten: (dailyLog.items || []).reduce((sum, item) => sum + (item.protein || 0), 0), target: proteinTarget(stats) };
+
   return (
     <div className="space-y-8">
-      {/* Today: one hero block, then metric tiles */}
-      <div className="space-y-3">
-        <HearthWidget
-          caloriesGoal={dailyTarget}
-          caloriesEaten={consumed}
-          caloriesBurned={caloriesBurned}
-          burnCredit={stats.workoutCalorieCredit ?? 1}
-          protein={{ eaten: (dailyLog.items || []).reduce((sum, item) => sum + (item.protein || 0), 0), target: proteinTarget(stats) }}
-          isFastDay={!isNonFastDay}
-          onLogFood={onOpenFoodModal}
-          nextMeal={nextMealIndex === undefined ? undefined : {
-            meal: todayPlan.meals[nextMealIndex],
-            onAte: () => toggleMeal(nextMealIndex),
-            onView: () => setSelectedRecipe(todayPlan.meals[nextMealIndex]),
-          }}
-        />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-          <HydrationCard
-            liters={(dailyLog.waterIntake || 0) / 1000}
-            goal={stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5}
-            onAddWater={(amount) => handleAddWaterClick(amount)}
-          />
-          <WeightCard
-            weight={weightInfo.current}
-            ratePerWeek={weightInfo.ratePerWeek}
-            scale={weightInfo.scale}
-            lastDate={weightInfo.lastDate}
-            trend={weightInfo.trend}
-            readings={weightInfo.readings}
-            goalWeight={stats.goalWeight}
-            today={dailyLog.date}
-            onAddWeight={onOpenWeightModal}
-            onClick={() => onNavigate(AppView.ANALYTICS)}
-          />
-          <ActivityCard
+    <div className="space-y-3">
+        <div className="grid md:grid-cols-2 gap-3">
+          <CaloriesHero
+            caloriesGoal={dailyTarget}
+            caloriesEaten={consumed}
             caloriesBurned={caloriesBurned}
-            workoutTypes={(dailyLog.workouts || []).map(w => w.type)}
-            history={effectiveHistory}
-            today={dailyLog.date}
-            onAddWorkout={() => onOpenWorkoutModal()}
-            onClick={() => setIsWorkoutOverviewOpen(true)}
-            streak={analyzeActivityStreaks(effectiveHistory).currentStreak}
+            burnCredit={stats.workoutCalorieCredit ?? 1}
+            protein={proteinToday}
+            isFastDay={!isNonFastDay}
+            meals={{ total: todayPlan.meals.length, eaten: todayPlan.meals.filter(meal => isMealEaten(todayPlan, meal)).length }}
+            onLogFood={onOpenFoodModal}
           />
-          <FastingCard
-            elapsedHours={elapsedFastingHours}
-            targetHours={fastingState.config.targetFastHours}
-            lastAteTime={fastingState.lastAteTime}
-            firstMealTime={firstMealTime}
-            history={effectiveHistory}
-            today={dailyLog.date}
+          <TonightCard
+            meal={tonightMeal}
+            eaten={!!tonightMeal && isMealEaten(todayPlan, tonightMeal)}
+            onView={() => tonightMeal && setSelectedRecipe(tonightMeal)}
+            onSwap={() => tonightIndex !== undefined && handleSwapMeal(tonightIndex)}
+            onPlan={() => navigate('/mealplanner', { state: { date: todayPlan.date } })}
           />
         </div>
+        <TodayStrip
+          water={{ liters: (dailyLog.waterIntake || 0) / 1000, goal: stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5, onAdd: handleAddWaterClick }}
+          weight={{ kg: weightInfo.current, ratePerWeek: weightInfo.ratePerWeek, onUpdate: onOpenWeightModal, onOpen: () => onNavigate(AppView.ANALYTICS) }}
+          workouts={{
+            caloriesBurned,
+            types: (dailyLog.workouts || []).map(w => w.type),
+            streak: analyzeActivityStreaks(effectiveHistory).currentStreak,
+            onLog: () => onOpenWorkoutModal(),
+            onOpen: () => setIsWorkoutOverviewOpen(true),
+          }}
+          fasting={{
+            elapsedHours: elapsedFastingHours,
+            targetHours: fastingState.config.targetFastHours,
+            lastAteTime: fastingState.lastAteTime,
+            firstMealTime,
+            history: effectiveHistory,
+            today: dailyLog.date,
+          }}
+        />
       </div>
 
       {/* Evening: log the rest of the plan in one tap */}
@@ -484,7 +478,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       )}
 
       {toast && (
-        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] flex items-center gap-3 badge-ink !rounded-full pl-4 pr-1.5 py-1.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in max-w-[calc(100vw-32px)]">
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-[60] flex items-center gap-3 badge-ink !rounded-full pl-4 pr-1.5 py-1.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in max-w-[calc(100vw-32px)]">
           <span className="truncate">{toast.message}</span>
           {toast.undo && (
             <button onClick={() => { toast.undo!(); setToast(null); }} className="hit-target shrink-0 min-h-8 px-3 rounded-full bg-on-ink/15 hover:bg-on-ink/25 font-semibold">Undo</button>

@@ -613,7 +613,7 @@ export const ShoppingList: React.FC = () => {
 
   // Sticky footer for each phase's main action, kept clear of the bottom nav
   const stickyAction = (children: React.ReactNode) => (
-    <div className="sticky bottom-24 z-20 flex justify-center pt-4 pointer-events-none">
+    <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-20 flex justify-center pt-4 pointer-events-none">
       <div className="pointer-events-auto">{children}</div>
     </div>
   );
@@ -828,36 +828,52 @@ export const ShoppingList: React.FC = () => {
     <div className="space-y-5 pb-20">
       {stepBar}
 
-      {/* No heading: the Planner's "Shopping list" tab already names this page */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted">
-            {purchasableItems.length === 0
-              ? 'Nothing to buy'
-              : toBuy.length === 0
-                ? `All ${purchasableItems.length} items in the basket`
-                : `${inBasket.length} of ${purchasableItems.length} in the basket`}
-          </p>
-        </div>
-        <div className="flex gap-1">
-          {toBuy.length > 0 && (
-            <button onClick={handleCopyList} className="btn-secondary btn-sm">
-              {listCopied ? <CopyCheck size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-              {listCopied ? 'Copied' : 'Copy list'}
+      {purchasableItems.length > 0 ? (
+        <>
+          {/* What's left to buy is the page's one bold block */}
+          <section className="hero p-5 md:p-6 flex flex-col gap-4" aria-label="Shopping progress">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[15px] font-bold">{toBuy.length === 0 ? 'All in the basket' : 'Left to buy'}</p>
+              <p className="text-sm font-medium tabular-nums">{inBasket.length} of {purchasableItems.length} in the basket</p>
+            </div>
+            <p className="font-display font-extrabold text-[80px] leading-[0.9] tracking-[-0.05em] tabular-nums">
+              {toBuy.length}<span className="sr-only"> {toBuy.length === 1 ? 'item' : 'items'} left to buy</span>
+            </p>
+            <div className="h-2.5 rounded-full bg-current/20 overflow-hidden" aria-hidden="true">
+              <div className="h-full rounded-full bg-current transition-[width] duration-300" style={{ width: `${(inBasket.length / purchasableItems.length) * 100}%` }} />
+            </div>
+            {toBuy.length > 0 && (
+              <button
+                onClick={handleCopyList}
+                className="btn-base btn-block min-h-[52px] text-base hover:opacity-90"
+                style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
+              >
+                {listCopied ? <CopyCheck size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+                {listCopied ? 'Copied' : 'Copy list'}
+              </button>
+            )}
+          </section>
+          <div className="flex justify-end gap-1 -mt-2">
+            <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
+              <ArrowLeft size={16} aria-hidden="true" /> Pantry
             </button>
-          )}
-          <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
-            <ArrowLeft size={16} aria-hidden="true" /> Pantry
-          </button>
-          <button onClick={handleResetList} className="btn-ghost btn-sm !px-3" aria-label="Start over">
-            <RotateCcw size={16} aria-hidden="true" /> <span className="hidden md:inline">Start over</span>
-          </button>
-        </div>
-      </div>
-
-      {purchasableItems.length > 0 && (
-        <div className="h-2 rounded-full bg-surface-sunken overflow-hidden" role="img" aria-label={`${inBasket.length} of ${purchasableItems.length} items in the basket`}>
-          <div className="h-full rounded-full bg-secondary transition-[width] duration-300" style={{ width: `${(inBasket.length / purchasableItems.length) * 100}%` }} />
+            <button onClick={handleResetList} className="btn-ghost btn-sm">
+              <RotateCcw size={16} aria-hidden="true" /> Start over
+            </button>
+          </div>
+        </>
+      ) : (
+        // No heading: the Planner's "Shopping list" tab already names this page
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <p className="text-sm text-muted">Nothing to buy</p>
+          <div className="flex gap-1">
+            <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
+              <ArrowLeft size={16} aria-hidden="true" /> Pantry
+            </button>
+            <button onClick={handleResetList} className="btn-ghost btn-sm !px-3" aria-label="Start over">
+              <RotateCcw size={16} aria-hidden="true" /> <span className="hidden md:inline">Start over</span>
+            </button>
+          </div>
         </div>
       )}
 

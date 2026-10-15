@@ -120,7 +120,7 @@ export const ReminderSettings: React.FC = () => {
       <ul className="divide-y divide-border rounded-[14px] border border-border">
         <li className="p-4 space-y-3">
           <div className="flex items-start gap-3">
-            <span className="size-9 shrink-0 rounded-[10px] tile-calories flex items-center justify-center"><UtensilsCrossed size={18} aria-hidden="true" /></span>
+            <span className="icon-tile size-9 shrink-0 tile-calories flex items-center justify-center"><UtensilsCrossed size={18} aria-hidden="true" /></span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold">Evening log reminder</p>
               <p className="text-sm text-muted">Only on days with nothing logged.</p>
@@ -131,7 +131,7 @@ export const ReminderSettings: React.FC = () => {
         </li>
         <li className="p-4 space-y-3">
           <div className="flex items-start gap-3">
-            <span className="size-9 shrink-0 rounded-[10px] tile-weight flex items-center justify-center"><Scale size={18} aria-hidden="true" /></span>
+            <span className="icon-tile size-9 shrink-0 tile-weight flex items-center justify-center"><Scale size={18} aria-hidden="true" /></span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold">Weigh-in reminder</p>
               <p className="text-sm text-muted">Skipped if you've already weighed in.</p>

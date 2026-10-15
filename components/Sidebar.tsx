@@ -2,6 +2,7 @@ import React from 'react';
 import { Settings } from 'lucide-react';
 import { AppView } from '../types';
 import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
+import { VestaMark } from './VestaMark';
 
 interface SidebarProps {
   currentView: AppView;
@@ -25,13 +26,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
   return (
     <nav aria-label="Main" className="side-nav">
       <div className="flex items-center justify-center lg:justify-start gap-3 lg:px-3 mb-6">
-        <img src="/favicon.svg" alt="" className="size-9 rounded-[10px]" />
-        <span className="hidden lg:block font-display font-extrabold text-xl text-main">Vesta</span>
+        <VestaMark />
+        <span className="hidden lg:block font-display font-extrabold text-xl lowercase tracking-[-0.03em]">Vesta</span>
       </div>
       <div className="flex flex-col gap-1">
         {NAV_ITEMS.map(item)}
       </div>
-      <div className="mt-auto pt-4 border-t border-border">
+      <div className="side-foot mt-auto pt-4 border-t">
         {item({ view: AppView.SETTINGS, label: 'Settings', Icon: Settings })}
       </div>
     </nav>

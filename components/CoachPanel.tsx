@@ -70,7 +70,7 @@ const FindingRow: React.FC<{ finding: Finding; isRead: boolean; onAction: (a: Co
   const [done, setDone] = useState<string | null>(null);
   return (
     <li className="flex gap-3 py-4 first:pt-0 last:pb-0">
-      <span className={`size-9 shrink-0 rounded-[10px] flex items-center justify-center ${className}`} title={label}>
+      <span className={`icon-tile size-9 shrink-0 flex items-center justify-center ${className}`} title={label}>
         <Icon size={18} aria-hidden="true" />
         <span className="sr-only">{label}:</span>
       </span>
@@ -142,20 +142,21 @@ export const CoachCard: React.FC<CoachInput & CoachHandlers> = props => {
 
   const top = unread.find(f => f.id === 'progress') ?? unread.find(f => f.tone !== 'good');
   if (!top) return null;
-  const { Icon, className } = TONE[top.tone];
+  const { Icon } = TONE[top.tone];
   const more = unread.length - 1;
 
   return (
-    <section className="card p-4 md:px-6" aria-label="Guidance">
-      <div className="flex items-start gap-3">
-        <span className={`size-10 shrink-0 rounded-[12px] flex items-center justify-center ${className}`}><Icon size={20} aria-hidden="true" /></span>
+    <section className="rounded-[24px] bg-secondary-light p-5 md:p-6" aria-label="Guidance">
+      <div className="flex items-start gap-4">
+        <span className="shrink-0 flex items-center justify-center size-12 rounded-full bg-secondary text-secondary-foreground"><Icon size={20} aria-hidden="true" /></span>
         <div className="flex-1 min-w-0">
-          <h2 className="heading-4">{top.title}</h2>
-          <p className="text-sm text-muted line-clamp-3">{top.detail}</p>
+          <p className="text-sm font-semibold text-muted">From your coach</p>
+          <h2 className="heading-3">{top.title}</h2>
+          <p className="mt-1 leading-relaxed line-clamp-3">{top.detail}</p>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             {top.action && (done
               ? <span className="inline-flex items-center gap-1.5 text-sm font-semibold" role="status"><Check size={16} aria-hidden="true" /> {done}</span>
-              : <button onClick={() => setDone(runAction(top.action!))} className="btn-secondary btn-sm">{top.action.label}</button>)}
+              : <button onClick={() => setDone(runAction(top.action!))} className="btn-primary btn-sm">{top.action.label}</button>)}
             <button onClick={() => { setDone(null); props.onSetCoachRead(top.id, true); }} className="btn-ghost btn-sm">
               <Check size={16} aria-hidden="true" /> Mark as read
             </button>
