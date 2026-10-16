@@ -9,6 +9,8 @@ import { useDevMode } from '../contexts/DevModeContext';
 interface WeekendPlanCardProps {
   /** Average extra calories a day at weekends from recent logs, when known */
   weekendGap: number | null;
+  /** Tomorrow's date: on Friday the Tomorrow card above already covers Saturday */
+  tomorrow: string;
   /** Open the planner at a date */
   onPlan: (date: string) => void;
 }
@@ -37,8 +39,8 @@ const dayStatus = (plan: DayPlan) => {
   return { done: true, text: `Dinner: ${dinner.name} · ${mealKcalLabel(dinner)}` };
 };
 
-/** Thursday and Friday on Today: how planned the coming weekend is, with a way into the planner. */
-export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, onPlan }) => {
+/** Thursday and Friday on Today, under Tomorrow: how planned the rest of the weekend is, with a way into the planner. */
+export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, tomorrow, onPlan }) => {
   const today = localDateString();
   const weekday = parseLocalDate(today).getDay();
   const saturday = addDays(today, 6 - weekday);
@@ -59,7 +61,7 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, on
   }, [show, saturday, sunday]);
 
   if (!show || !plans || dismissed === saturday) return null;
-  const days = [saturday, sunday].map(date => ({ date, ...dayStatus(plans[date] || emptyDayPlan(date)) }));
+  const days = [saturday, sunday].filter(date => date !== tomorrow).map(date => ({ date, ...dayStatus(plans[date] || emptyDayPlan(date)) }));
   if (days.every(d => d.done)) return null;
   const firstOpen = days.find(d => !d.done)!.date;
 
@@ -69,12 +71,12 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, on
   };
 
   return (
-    <section className="rounded-[24px] bg-water-bg p-5 md:p-6" aria-labelledby="weekend-plan-title">
-      <div className="flex items-start gap-4">
-        <span className="shrink-0 flex items-center justify-center size-12 rounded-full bg-surface text-water-text" aria-hidden="true"><CalendarHeart size={20} /></span>
+    <section className="card p-5 md:p-6" aria-labelledby="weekend-plan-title">
+      <div className="flex items-start gap-3">
+        <span className="icon-tile tile-water shrink-0 flex items-center justify-center size-10" aria-hidden="true"><CalendarHeart size={18} /></span>
         <div className="flex-1 min-w-0">
           <h2 id="weekend-plan-title" className="heading-3">Plan your weekend</h2>
-          <p className="text-sm mt-0.5">
+          <p className="text-sm text-muted mt-0.5">
             {weekendGap !== null && weekendGap >= 150
               ? `Your weekends run about ${Math.round(weekendGap / 10) * 10} kcal a day over your weekdays. Planning them ahead is the easiest fix, and planned meals take one tap to log.`
               : 'Weekends are when eating drifts and logging slips. Planned meals take one tap to log.'}
@@ -88,7 +90,7 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, on
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button onClick={() => onPlan(firstOpen)} className="btn-primary btn-sm">
+            <button onClick={() => onPlan(firstOpen)} className="btn-secondary btn-sm">
               Plan {dayName(firstOpen)}
             </button>
             <button onClick={dismiss} className="btn-ghost btn-sm">Not this week</button>

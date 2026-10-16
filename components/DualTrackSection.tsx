@@ -29,7 +29,7 @@ interface DualTrackSectionProps {
   /** Today counts in averages and the burn estimate (see isCompleteDay) */
   dayCounts: boolean;
   onSetDayStatus: (status: DayLogStatus | undefined) => void;
-  /** Shown under the plan card from lg up, where the plan and the log sit side by side (Today passes Tomorrow) */
+  /** Shown under the plan card from lg up, where the plan and the log sit side by side (Today passes Coming up: tomorrow and the weekend) */
   planAside?: React.ReactNode;
 }
 
@@ -357,22 +357,15 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 </p>
               )}
             </div>
-            <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-ghost btn-sm shrink-0">
-              Planner
+            {/* An empty plate is one line, so it doesn't push the log down */}
+            <button onClick={() => onNavigate(AppView.PLANNER)} className={`${plannedMeals.length === 0 ? 'btn-secondary' : 'btn-ghost'} btn-sm shrink-0`}>
+              {plannedMeals.length === 0 ? 'Plan my day' : 'Planner'}
             </button>
           </div>
         </div>
 
         <div className="px-1">
-          {plannedMeals.length === 0 ? (
-            <div className="tile tile-neutral items-center text-center py-8 mx-2">
-              <p className="font-semibold">Nothing planned for today</p>
-              <p className="text-sm text-muted mt-1 mb-4">Pick a few meals and we'll track them here.</p>
-              <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-secondary btn-sm">
-                Plan my day
-              </button>
-            </div>
-          ) : (
+          {plannedMeals.length === 0 ? null : (
             <>
             {foldEaten && (
               <section>
