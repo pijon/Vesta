@@ -1,91 +1,346 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { UsersRound } from 'lucide-react';
-import { AppView } from '../types';
-import { FamilySettings } from './FamilySettings';
-import { familyData } from '../services/pageData';
-import { getFamilyDinnersInRange } from '../services/storageService';
+import React, { useEffect, useState } from 'react';
+import { Group } from '../types';
+import {
+    joinGroup, leaveGroup, renameGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode,
+    newInviteCode, removeMember, familyAdmin, FAMILY_NAME_MAX_LENGTH,
+} from '../services/groupService';
 import { currentUid } from '../services/firebase';
-import { usePrewarmed } from '../utils/prewarm';
-import { addDays } from '../utils/planUtils';
-import { localDateString } from '../utils/dateUtils';
-import { FamilyDay, groupFamilyDinners } from '../utils/familyWeek';
+import { familyData } from '../services/pageData';
+import { ensureWarm } from '../utils/prewarm';
+import { CircleAlert, Check, Copy, LogIn, LogOut, Pencil, RefreshCw, Share2, UserMinus } from 'lucide-react';
 
-interface FamilyViewProps {
-    onNavigate: (view: AppView) => void;
-}
+interface Member { id: string; name: string }
 
-const dayLabel = (date: string, today: string) =>
-    date === today ? 'Today' : new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long' });
+const errorText = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
 
-export const FamilyView: React.FC<FamilyViewProps> = ({ onNavigate }) => {
-    const family = usePrewarmed(familyData);
-    const inFamily = !!family;
-    const [days, setDays] = useState<FamilyDay[] | null>(null);
-    const today = localDateString();
-    const dates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, i)), [today]);
+/** Destructive confirm button: rose, for leaving the family or removing someone */
+const dangerButton = 'btn-sm inline-flex items-center gap-1.5 min-h-9 px-4 rounded-full font-semibold bg-error text-on-ink hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-60';
 
-    // Runs again each time the page is shown, so dinners other members planned appear
-    useEffect(() => {
-        if (!family) { setDays(null); return; }
-        let cancelled = false;
-        getFamilyDinnersInRange(dates[0], dates[6]).then(byDate => {
-            if (!cancelled) setDays(groupFamilyDinners(byDate, family.names, currentUid(), dates));
-        });
-        return () => { cancelled = true; };
-    }, [family, dates]);
+/**
+ * The Family page: who's in the family and how to change that. The admin can remove members;
+ * anyone can invite with the code, rename the family or leave. Shared dinners are in the planner.
+ */
+export const FamilyView: React.FC = () => {
+    const [group, setGroup] = useState<Group | null>(null);
+    const [members, setMembers] = useState<Member[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+    const [inviteCodeInput, setInviteCodeInput] = useState('');
+    /** The name being typed while renaming; null when not renaming */
+    const [nameDraft, setNameDraft] = useState<string | null>(null);
+    /** The member whose removal is being confirmed */
+    const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+    const [confirmLeave, setConfirmLeave] = useState(false);
+    const [codeCopied, setCodeCopied] = useState(false);
 
-    const planned = days?.filter(d => d.dinners.length > 0) ?? [];
+    const loadGroup = async () => {
+        setLoading(true);
+        try {
+            let g = await getUserGroup();
+            if (g) {
+                try {
+                    g = await ensureInviteCode(g);
+                } catch (e) {
+                    console.error('Error updating invite code:', e);
+                }
+            }
+            setGroup(g);
+            setMembers(g ? await getGroupMembersDetails(g.memberIds) : []);
+        } catch (e) {
+            console.error('Error loading group:', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { loadGroup(); }, []);
+
+    /** Runs a change to the family, showing its error; refreshes what other pages know about the family */
+    const run = async (action: () => Promise<void>, fallback: string) => {
+        setBusy(true);
+        setError(null);
+        setNotice(null);
+        try {
+            await action();
+            void ensureWarm(familyData, true);
+        } catch (e) {
+            setError(errorText(e, fallback));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleRename = () => {
+        if (!group || nameDraft === null) return;
+        if (nameDraft.trim() === group.name) { setNameDraft(null); return; }
+        run(async () => {
+            const name = await renameGroup(group.id, nameDraft);
+            setGroup({ ...group, name });
+            setNameDraft(null);
+        }, "We couldn't rename the family. Try again.");
+    };
+
+    const handleRemove = (member: Member) => {
+        if (!group) return;
+        run(async () => {
+            const updated = await removeMember(group, member.id);
+            setGroup(updated);
+            setMembers(list => list.filter(m => m.id !== member.id));
+            setConfirmRemove(null);
+            setNotice(`${member.name} is no longer in ${group.name}. The invite code has changed, so they can't rejoin with the old one.`);
+        }, `We couldn't remove ${member.name}. Try again.`);
+    };
+
+    const handleNewCode = () => {
+        if (!group) return;
+        run(async () => {
+            setGroup(await newInviteCode(group));
+            setNotice('New invite code. The old one no longer works.');
+        }, "We couldn't make a new code. Try again.");
+    };
+
+    const handleJoin = () => {
+        if (!inviteCodeInput.trim()) return;
+        run(async () => {
+            await joinGroup(inviteCodeInput);
+            setInviteCodeInput('');
+            await loadGroup();
+        }, "That code didn't work. Check it and try again.");
+    };
+
+    const handleLeave = () => {
+        if (!group) return;
+        run(async () => {
+            // Leaving starts a new family of one
+            await leaveGroup(group.id);
+            setConfirmLeave(false);
+            await loadGroup();
+        }, "We couldn't leave the family. Try again.");
+    };
+
+    const handleCopyCode = () => {
+        if (!group?.inviteCode) return;
+        navigator.clipboard.writeText(group.inviteCode);
+        setCodeCopied(true);
+        setTimeout(() => setCodeCopied(false), 2000);
+    };
+
+    const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    const handleShare = () => {
+        if (!group) return;
+        navigator.share({
+            title: `Join ${group.name} on Vesta`,
+            text: `Join ${group.name} on Vesta: open Family and enter the code ${group.inviteCode}`,
+        }).catch(() => { /* dismissed */ });
+    };
+
+    if (loading && !group) {
+        return (
+            <div className="card p-5 md:p-6 space-y-2" aria-busy="true" aria-label="Loading family">
+                <div className="h-16 rounded-[14px] bg-surface-sunken animate-pulse" />
+                <div className="h-16 rounded-[14px] bg-surface-sunken animate-pulse" />
+            </div>
+        );
+    }
+
+    if (!group) {
+        return (
+            <div className="card p-5 md:p-6 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted">We couldn't load your family.</p>
+                <button onClick={loadGroup} className="btn-secondary btn-sm">Try again</button>
+            </div>
+        );
+    }
+
+    const me = currentUid();
+    const admin = familyAdmin(group);
+    const isAdmin = admin === me;
+    const isSolo = group.memberIds.length < 2;
 
     return (
         <div className="space-y-4">
-            {inFamily && (
-                <>
-                    <section className="card p-5 md:p-6 space-y-4" aria-labelledby="family-dinners-heading">
-                        <div>
-                            <h2 id="family-dinners-heading" className="heading-2">This week's dinners</h2>
-                            <p className="text-sm text-muted mt-0.5">Shared with everyone in the family.</p>
-                        </div>
-                        {days === null ? (
-                            <div className="space-y-2" aria-busy="true" aria-label="Loading dinners">
-                                <div className="h-14 rounded-[14px] bg-surface-sunken animate-pulse" />
-                                <div className="h-14 rounded-[14px] bg-surface-sunken animate-pulse" />
-                            </div>
-                        ) : planned.length === 0 ? (
-                            <div className="rounded-[14px] bg-surface-sunken p-4 flex flex-wrap items-center justify-between gap-3">
-                                <p className="text-sm text-muted">No family dinners planned yet. Plan one and everyone sees it.</p>
-                                <button onClick={() => onNavigate(AppView.PLANNER)} className="btn-primary btn-sm">Open Planner</button>
-                            </div>
-                        ) : (
-                            <ul className="space-y-2">
-                                {planned.map(day => (
-                                    <li key={day.date} className="rounded-[14px] bg-surface-sunken p-4">
-                                        <h3 className="font-display font-extrabold">{dayLabel(day.date, today)}</h3>
-                                        <ul className="mt-1 space-y-1">
-                                            {day.dinners.map(dinner => (
-                                                <li key={dinner.id} className="flex items-baseline justify-between gap-3">
-                                                    <span className="min-w-0 truncate">{dinner.name}</span>
-                                                    <span className="text-xs text-muted shrink-0">
-                                                        {dinner.addedBy ? `${dinner.addedBy} · ` : ''}{Math.round(dinner.calories)} kcal
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </section>
-
-                </>
+            {error && (
+                <div className="rounded-[14px] bg-error-bg text-error text-sm p-3 flex items-center gap-2" role="alert">
+                    <CircleAlert size={16} className="shrink-0" aria-hidden="true" />
+                    {error}
+                </div>
+            )}
+            {notice && (
+                <div className="rounded-[14px] bg-weight-bg text-weight-text text-sm p-3 flex items-center gap-2" role="status">
+                    <Check size={16} className="shrink-0" aria-hidden="true" />
+                    {notice}
+                </div>
             )}
 
-            <section className="card p-5 md:p-6 space-y-4" aria-labelledby="family-group-heading">
-                <div className="flex items-center gap-2">
-                    <UsersRound size={20} className="text-muted" aria-hidden="true" />
-                    <h2 id="family-group-heading" className="heading-2">{inFamily ? 'Your family' : 'Family'}</h2>
-                </div>
-                <FamilySettings />
+            {/* The family: its name and who's in it */}
+            <section className="card p-5 md:p-6" aria-labelledby="family-name-heading">
+                {nameDraft !== null ? (
+                    <form
+                        className="flex flex-col sm:flex-row gap-2"
+                        onSubmit={(e) => { e.preventDefault(); handleRename(); }}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setNameDraft(null); }}
+                    >
+                        <label htmlFor="family-name" className="sr-only">Family name</label>
+                        <input
+                            id="family-name"
+                            type="text"
+                            value={nameDraft}
+                            maxLength={FAMILY_NAME_MAX_LENGTH}
+                            onChange={e => setNameDraft(e.target.value)}
+                            className="input w-full"
+                            autoFocus
+                        />
+                        <div className="flex gap-2 shrink-0">
+                            <button type="submit" disabled={!nameDraft.trim() || busy} className="btn-primary btn-sm">Save</button>
+                            <button type="button" onClick={() => setNameDraft(null)} className="btn-ghost btn-sm">Cancel</button>
+                        </div>
+                    </form>
+                ) : (
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h2 id="family-name-heading" className="heading-2 truncate">{group.name}</h2>
+                            <p className="text-sm text-muted mt-0.5">
+                                {isSolo ? 'Just you so far' : `${group.memberIds.length} members`}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setNameDraft(group.name)}
+                            className="icon-btn !bg-transparent hover:!bg-surface-sunken shrink-0"
+                            aria-label="Rename family"
+                            title="Rename family"
+                        >
+                            <Pencil size={16} aria-hidden="true" />
+                        </button>
+                    </div>
+                )}
+
+                <ul className="mt-4">
+                    {members.map(member => {
+                        const isYou = member.id === me;
+                        const isMemberAdmin = member.id === admin;
+                        const confirming = confirmRemove === member.id;
+                        return (
+                            <li key={member.id} className="border-t border-border first:border-t-0 py-2.5">
+                                <div className="flex items-center gap-3">
+                                    <span className={`size-11 shrink-0 rounded-full flex items-center justify-center font-display font-extrabold ${isMemberAdmin ? 'tile-fasting' : 'tile-workout'}`} aria-hidden="true">
+                                        {member.name.charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="flex-1 min-w-0">
+                                        <span className="block font-semibold truncate">{member.name}{isYou ? ' (you)' : ''}</span>
+                                        <span className="block text-sm text-muted">{isMemberAdmin ? 'Family admin' : 'Member'}</span>
+                                    </span>
+                                    {isAdmin && !isYou && !confirming && (
+                                        <button
+                                            onClick={() => { setConfirmRemove(member.id); setConfirmLeave(false); }}
+                                            className="icon-btn !bg-transparent hover:!bg-error-bg hover:!text-error text-muted shrink-0"
+                                            aria-label={`Remove ${member.name} from the family`}
+                                            title="Remove from family"
+                                        >
+                                            <UserMinus size={18} aria-hidden="true" />
+                                        </button>
+                                    )}
+                                </div>
+                                {confirming && (
+                                    <div role="alertdialog" aria-label={`Remove ${member.name}?`} className="mt-2 rounded-[14px] bg-error-bg p-4 space-y-3">
+                                        <p className="text-sm">
+                                            <span className="font-semibold">Remove {member.name}?</span> Recipes and dinners stay with {group.name}. They'll start a family of their own the next time they open Vesta.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button onClick={() => handleRemove(member)} disabled={busy} className={dangerButton}>
+                                                <UserMinus size={16} aria-hidden="true" /> Remove
+                                            </button>
+                                            <button onClick={() => setConfirmRemove(null)} className="btn-ghost btn-sm">Cancel</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </li>
+                        );
+                    })}
+                </ul>
+
+                {!isSolo && (
+                    <div className="border-t border-border mt-1 pt-3">
+                        {confirmLeave ? (
+                            <div role="alertdialog" aria-label="Leave family?" className="rounded-[14px] bg-error-bg p-4 space-y-3">
+                                <p className="text-sm">
+                                    <span className="font-semibold">Leave {group.name}?</span> The family keeps all its recipes and shared dinners. You'll start a family of your own with copies of the recipes you added.
+                                    {isAdmin && ' Someone else in the family becomes its admin.'}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    <button onClick={handleLeave} disabled={busy} className={dangerButton}>
+                                        <LogOut size={16} aria-hidden="true" /> Leave family
+                                    </button>
+                                    <button onClick={() => setConfirmLeave(false)} className="btn-ghost btn-sm">Stay</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button onClick={() => { setConfirmLeave(true); setConfirmRemove(null); }} className="btn-ghost btn-sm -ml-3 !text-error hover:!bg-error-bg">
+                                <LogOut size={16} aria-hidden="true" /> Leave family
+                            </button>
+                        )}
+                    </div>
+                )}
             </section>
+
+            {/* Adding someone: the code to share */}
+            <section className="card p-5 md:p-6" aria-labelledby="invite-heading">
+                <h2 id="invite-heading" className="heading-3">Invite someone</h2>
+                <p className="text-sm text-muted mt-0.5">
+                    They enter this code on their Family page. Everyone shares the family's recipes and dinners.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={handleCopyCode}
+                        className="inline-flex items-center gap-2 rounded-full bg-surface-sunken pl-4 pr-3 min-h-11 hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                        aria-label={codeCopied ? 'Invite code copied' : `Copy invite code ${group.inviteCode}`}
+                    >
+                        <span className="font-mono font-bold text-lg tracking-wider">{group.inviteCode}</span>
+                        {codeCopied ? <Check size={16} className="text-weight-text" aria-hidden="true" /> : <Copy size={16} className="text-muted" aria-hidden="true" />}
+                    </button>
+                    {canShare && (
+                        <button onClick={handleShare} className="btn-primary btn-sm">
+                            <Share2 size={16} aria-hidden="true" /> Share
+                        </button>
+                    )}
+                    <button onClick={handleNewCode} disabled={busy} className="btn-ghost btn-sm" title="The old code stops working">
+                        <RefreshCw size={16} aria-hidden="true" /> New code
+                    </button>
+                </div>
+            </section>
+
+            {/* Joining another family: only from a family of one */}
+            {isSolo && (
+                <form
+                    className="card p-5 md:p-6 space-y-3"
+                    aria-labelledby="join-heading"
+                    onSubmit={(e) => { e.preventDefault(); handleJoin(); }}
+                >
+                    <div className="flex items-center gap-3">
+                        <span className="icon-tile tile-water size-10 shrink-0 flex items-center justify-center"><LogIn size={18} aria-hidden="true" /></span>
+                        <div>
+                            <h2 id="join-heading" className="heading-3">Join a family</h2>
+                            <p className="text-sm text-muted">Use the code someone shared. Your recipes come with you.</p>
+                        </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <label htmlFor="invite-code" className="sr-only">Invite code</label>
+                        <input
+                            id="invite-code"
+                            type="text"
+                            placeholder="Invite code"
+                            autoCapitalize="characters"
+                            value={inviteCodeInput}
+                            onChange={e => setInviteCodeInput(e.target.value)}
+                            className="input w-full font-mono"
+                        />
+                        <button type="submit" disabled={!inviteCodeInput.trim() || busy} className="btn-secondary btn-sm shrink-0">
+                            Join family
+                        </button>
+                    </div>
+                </form>
+            )}
         </div>
     );
 };

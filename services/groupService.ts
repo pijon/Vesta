@@ -9,12 +9,10 @@ import {
     arrayUnion,
     arrayRemove,
     deleteDoc,
-    query,
-    where,
     writeBatch,
     DocumentReference
 } from "firebase/firestore";
-import { Group, Recipe } from "../types";
+import { Group, PlannedMeal, Recipe } from "../types";
 import { MAX_FAMILY_GROUP_SIZE } from "../constants";
 
 // --- Collection Refs ---
@@ -273,9 +271,30 @@ export const ensureInviteCode = async (group: Group): Promise<Group> => {
     return { ...group, inviteCode };
 };
 
+/** Ids of the recipes the user's own day plans refer to (sides included), past and future */
+const plannedRecipeIds = async (uid: string): Promise<Set<string>> => {
+    const ids = new Set<string>();
+    const collect = (meals: PlannedMeal[] | undefined) => meals?.forEach(meal => {
+        if (meal?.type === "reference") ids.add(meal.recipeId);
+        collect(meal?.sides);
+    });
+    const days = await getDocs(collection(db, "users", uid, "days"));
+    days.docs.forEach(d => collect((d.data() as { meals?: PlannedMeal[] }).meals));
+    return ids;
+};
+
+/**
+ * Who manages the family: its owner, or the longest-standing member when the owner has left
+ * (families from before an admin handed over on leaving). firestore.rules uses the same choice.
+ */
+export const familyAdmin = (group: Group): string =>
+    group.memberIds.includes(group.ownerId) ? group.ownerId : group.memberIds[0];
+
 /**
  * Leaves a family of two or more. The family keeps every recipe; the user starts a new family
- * of their own with copies of the recipes they added (same ids, so their plans still resolve).
+ * of their own with copies of the recipes they added or still have planned (same ids, so their
+ * plans still resolve).
+ * An admin who leaves hands the family to the longest-standing member.
  */
 export const leaveGroup = async (groupId: string): Promise<void> => {
     const user = getCurrentUser();
@@ -283,22 +302,59 @@ export const leaveGroup = async (groupId: string): Promise<void> => {
     if (!group) throw new Error("Group not found");
     if (group.memberIds.length <= 1) throw new Error("You're the only one in this family.");
 
-    // 1. The recipes this user added, read while still a member
-    const snapshot = await getDocs(query(familyRecipesRef(groupId), where("createdBy", "==", user.uid)));
-    const mine = snapshot.docs.map(d => {
-        const recipe = { ...d.data() as Recipe, id: d.id };
-        return { ...recipe, favoritedBy: (recipe.favoritedBy || []).filter(id => id === user.uid) };
-    });
+    // 1. The recipes this user added, and any other the user's own day plans use (so those meals
+    //    don't turn into "Recipe deleted"), read while still a member
+    const [recipes, planned] = await Promise.all([readFamilyRecipes(groupId), plannedRecipeIds(user.uid)]);
+    const mine = recipes
+        .filter(recipe => recipe.createdBy === user.uid || planned.has(recipe.id))
+        .map(recipe => ({ ...recipe, favoritedBy: (recipe.favoritedBy || []).filter(id => id === user.uid) }));
 
     // 2. A new family with those copies. Their old users/{uid}/recipes stay behind.
     const family = await createFamily(user.uid, { legacyRecipesMoved: [user.uid] });
     await writeFamilyRecipes(family.id, mine);
 
-    // 3. Remove user from the old family's members
+    // 3. Remove user from the old family's members, handing it over if they manage it
+    const remaining = group.memberIds.filter(id => id !== user.uid);
     await updateDoc(getGroupRef(groupId), {
-        memberIds: arrayRemove(user.uid)
+        memberIds: arrayRemove(user.uid),
+        ...(group.ownerId === user.uid ? { ownerId: remaining[0] } : {}),
     });
     forgetMyGroupId();
+};
+
+/**
+ * Gives the family a new invite code. The old code stops working, so someone who was
+ * removed (or anyone it was shared with) can't use it to join.
+ */
+export const newInviteCode = async (group: Group): Promise<Group> => {
+    const inviteCode = generateInviteCode();
+    const batch = writeBatch(db);
+    batch.update(getGroupRef(group.id), { inviteCode });
+    batch.set(getInviteRef(inviteCode), { groupId: group.id });
+    if (group.inviteCode) batch.delete(getInviteRef(group.inviteCode));
+    await batch.commit();
+    return { ...group, inviteCode };
+};
+
+/**
+ * The family admin removes another member. The family keeps every recipe and dinner. The removed
+ * member gets a family of their own the next time they open the app (loadOrCreateFamily), and the
+ * invite code is replaced so they can't rejoin with it.
+ */
+export const removeMember = async (group: Group, memberId: string): Promise<Group> => {
+    const user = getCurrentUser();
+    if (familyAdmin(group) !== user.uid) throw new Error("Only the family admin can remove members.");
+    if (memberId === user.uid) throw new Error("Use Leave family to leave.");
+    if (!group.memberIds.includes(memberId)) throw new Error("They're not in this family.");
+
+    await updateDoc(getGroupRef(group.id), { memberIds: arrayRemove(memberId) });
+    const removed = { ...group, memberIds: group.memberIds.filter(id => id !== memberId) };
+    try {
+        return await newInviteCode(removed);
+    } catch (e) {
+        console.error("Error replacing the invite code:", e);
+        return removed;
+    }
 };
 
 export const getGroup = async (groupId: string): Promise<Group | null> => {

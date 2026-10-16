@@ -741,7 +741,7 @@ const TrackerApp: React.FC = () => {
                     {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} />)}
                     {renderView(AppView.RECIPES, <RecipeLibrary />)}
                     {renderView(AppView.SHOPPING, <ShoppingList />)}
-                    {renderView(AppView.FAMILY, <FamilyView onNavigate={handleNavigate} />)}
+                    {renderView(AppView.FAMILY, <FamilyView />)}
                     {renderView(AppView.SETTINGS, (
                         <SettingsView
                             stats={userStats}

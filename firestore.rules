@@ -116,6 +116,30 @@ service cloud.firestore {
           && after.size() == before.size() - 1;
       }
 
+      // Who manages the family: the owner, or the longest-standing member once the owner has
+      // left (familyAdmin in groupService.ts).
+      function admin() {
+        return resource.data.ownerId in resource.data.memberIds
+          ? resource.data.ownerId
+          : resource.data.memberIds[0];
+      }
+
+      // The admin removes exactly one other member.
+      function isRemovingOther() {
+        let before = resource.data.memberIds;
+        let after = request.resource.data.memberIds;
+        return request.auth.uid == admin()
+          && request.auth.uid in after
+          && before.hasAll(after)
+          && after.size() == before.size() - 1;
+      }
+
+      // An owner leaving hands the family to a remaining member.
+      function isHandingOver() {
+        return resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId in request.resource.data.memberIds;
+      }
+
       // Members only. No list: groups are found through groupInvites/{code}.
       allow get: if isSignedIn() && isMember();
 
@@ -124,11 +148,13 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.memberIds == [request.auth.uid];
 
-      // Anyone holding the groupId may add or remove only themselves;
+      // Anyone holding the groupId may add or remove only themselves (an owner
+      // leaving hands the family over); the admin may remove another member;
       // members may rename the group, rotate its invite code or record whose
       // old users/{uid}/recipes have been moved into the family.
       allow update: if isSignedIn() && (
-        (changesOnly(['memberIds']) && (isJoining() || isLeaving())) ||
+        (changesOnly(['memberIds']) && (isJoining() || isLeaving() || isRemovingOther())) ||
+        (changesOnly(['memberIds', 'ownerId']) && isLeaving() && isHandingOver()) ||
         (isMember() && changesOnly(['name', 'inviteCode', 'legacyRecipesMoved']))
       );
 
@@ -152,6 +178,10 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['groupId'])
         && request.auth.uid in getAfter(groupPath(request.resource.data.groupId)).data.memberIds
         && getAfter(groupPath(request.resource.data.groupId)).data.inviteCode == code;
+
+      // A member retires the group's old code when replacing it.
+      allow delete: if isSignedIn()
+        && request.auth.uid in get(groupPath(resource.data.groupId)).data.memberIds;
     }
   }
 }
