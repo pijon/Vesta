@@ -4,7 +4,7 @@ import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, getDayPlan, getDailySummaries, recordEatingOutDish } from '../services/storageService';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, isRememberableDish, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, isRememberableDish, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, nextMealIndex, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
 import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { EatingOutCard } from './EatingOutCard';
@@ -305,11 +305,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     refreshData();
   };
 
-  // "Next up" on Today's plate: the earliest planned meal by slot time that isn't eaten yet
-  const nextMealIndex = todayPlan.meals
-    .map((meal, index) => ({ meal, index }))
-    .filter(({ meal }) => !isMealEaten(todayPlan, meal))
-    .sort((a, b) => slotTime(slotFor(a.meal)) - slotTime(slotFor(b.meal)) || a.index - b.index)[0]?.index;
+  // "Next up" on Today's plate
+  const nextIndex = nextMealIndex(todayPlan);
 
   /** Deletes at once with Undo. An entry logged from the plan also unticks that meal (and Undo ticks it again). */
   const handleDeleteFoodItem = async (itemId: string) => {
@@ -475,7 +472,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onDeleteFoodItem={handleDeleteFoodItem}
         onNavigate={onNavigate}
         onSwapMeal={handleSwapMeal}
-        nextIndex={nextMealIndex}
+        nextIndex={nextIndex}
         caloriesLeft={dailyTarget - consumed + creditedBurn(caloriesBurned, stats)}
         frequentFoods={frequentFoods}
         onQuickLog={handleQuickLog}

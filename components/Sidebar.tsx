@@ -1,16 +1,19 @@
 import React from 'react';
 import { SlidersHorizontal } from 'lucide-react';
-import { AppView } from '../types';
+import { AppView, Avatar } from '../types';
+import { MemberAvatar } from './MemberAvatar';
 import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
 import { VestaMark } from './VestaMark';
 
 interface SidebarProps {
   currentView: AppView;
   onNavigate: (view: AppView) => void;
+  /** The signed-in user, shown above Settings; opens the Family page */
+  me?: { uid: string; name?: string; avatar?: Avatar };
 }
 
 /** Primary navigation from md up: an icon rail on tablets, a labelled sidebar on desktop. Phones use MobileBottomNav. */
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me }) => {
   const item = ({ view, label, Icon }: (typeof NAV_ITEMS)[number]) => (
     <button
       key={view}
@@ -34,7 +37,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
       <div className="flex flex-col gap-1">
         {NAV_ITEMS.map(item)}
       </div>
-      <div className="side-foot mt-auto pt-4 border-t">
+      <div className="side-foot mt-auto pt-4 border-t flex flex-col gap-1">
+        {me?.uid && (
+          <button onClick={() => onNavigate(AppView.FAMILY)} className="side-item" aria-label={me.name ? `${me.name}: your family` : 'Your family'}>
+            <MemberAvatar avatar={me.avatar} uid={me.uid} size={36} />
+            <span className="side-label truncate">{me.name || 'You'}</span>
+          </button>
+        )}
         {item({ view: AppView.SETTINGS, label: 'Settings', Icon: SlidersHorizontal })}
       </div>
     </nav>

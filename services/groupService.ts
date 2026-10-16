@@ -12,7 +12,7 @@ import {
     writeBatch,
     DocumentReference
 } from "firebase/firestore";
-import { Group, PlannedMeal, Recipe } from "../types";
+import { Avatar, Group, PlannedMeal, Recipe } from "../types";
 import { MAX_FAMILY_GROUP_SIZE } from "../constants";
 
 // --- Collection Refs ---
@@ -404,13 +404,15 @@ export const getUserGroup = async (): Promise<Group | null> => {
     return groupId ? getGroup(groupId) : null;
 };
 
-export const getGroupMembersDetails = async (memberIds: string[]): Promise<{ id: string, name: string }[]> => {
+export interface MemberDetails { id: string; name: string; avatar?: Avatar }
+
+export const getGroupMembersDetails = async (memberIds: string[]): Promise<MemberDetails[]> => {
     try {
-        const promises = memberIds.map(async (uid) => {
-            // Names come from the public profile; stats (weight) are owner-only
-            const snap = await getDoc(doc(db, "users", uid, "profile", "public"));
-            const name = (snap.data()?.name as string | undefined) || "Family member";
-            return { id: uid, name };
+        const promises = memberIds.map(async (uid): Promise<MemberDetails> => {
+            // Names and avatars come from the public profile; stats (weight) are owner-only
+            const data = (await getDoc(doc(db, "users", uid, "profile", "public"))).data();
+            const name = (data?.name as string | undefined) || "Family member";
+            return { id: uid, name, ...(data?.avatar ? { avatar: data.avatar as Avatar } : {}) };
         });
         return await Promise.all(promises);
     } catch (e) {

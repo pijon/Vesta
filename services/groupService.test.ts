@@ -7,7 +7,7 @@ vi.mock('firebase/firestore', async () => (await import('../test/fakeFirestore')
 vi.mock('./firebase', () => ({ db: {}, auth: { currentUser: { displayName: 'Jon Lilja' } }, currentUid: () => fake.uid }));
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
-const { familyAdmin, forgetMyGroupId, getMyGroupId, joinGroup, leaveGroup, newInviteCode, removeMember, renameGroup } = await import('./groupService');
+const { familyAdmin, forgetMyGroupId, getGroupMembersDetails, getMyGroupId, joinGroup, leaveGroup, newInviteCode, removeMember, renameGroup } = await import('./groupService');
 const { getRecipes, saveRecipe, setRecipeFavorite } = await import('./storageService');
 
 const recipe = (id: string, fields: Partial<Recipe> = {}): Recipe => ({
@@ -253,5 +253,17 @@ describe('a new invite code', () => {
     signIn('stranger');
     putGroup(group('solo', ['stranger']));
     await expect(joinGroup('codefam')).rejects.toThrow('Invalid invite code');
+  });
+});
+
+describe('avatars', () => {
+  it("reads members' names and avatars from their public profiles", async () => {
+    put('users/me/profile/public', { name: 'Jon', avatar: { seed: 'ab12cd34', tint: 'water' } });
+    put('users/partner/profile/public', { name: 'Anna' });
+    expect(await getGroupMembersDetails(['me', 'partner', 'kid'])).toEqual([
+      { id: 'me', name: 'Jon', avatar: { seed: 'ab12cd34', tint: 'water' } },
+      { id: 'partner', name: 'Anna' },
+      { id: 'kid', name: 'Family member' },
+    ]);
   });
 });

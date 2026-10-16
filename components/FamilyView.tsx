@@ -1,15 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Group } from '../types';
+import { Avatar, Group } from '../types';
 import {
     joinGroup, leaveGroup, renameGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode,
-    newInviteCode, removeMember, familyAdmin, FAMILY_NAME_MAX_LENGTH,
+    newInviteCode, removeMember, familyAdmin, FAMILY_NAME_MAX_LENGTH, MemberDetails,
 } from '../services/groupService';
+import { FamilyFaces, MemberAvatar, resolveAvatar } from './MemberAvatar';
+import { AvatarPicker } from './AvatarPicker';
 import { currentUid } from '../services/firebase';
 import { familyData } from '../services/pageData';
 import { ensureWarm } from '../utils/prewarm';
 import { CircleAlert, Check, Copy, LogIn, LogOut, Pencil, RefreshCw, Share2, UserMinus } from 'lucide-react';
 
-interface Member { id: string; name: string }
+type Member = MemberDetails;
+
+interface FamilyViewProps {
+    /** The user's own avatar, from their stats (fresher than the family's copy of their profile) */
+    myAvatar?: Avatar;
+    onSaveAvatar: (avatar: Avatar) => Promise<void> | void;
+}
 
 const errorText = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
 
@@ -18,9 +26,10 @@ const dangerButton = 'btn-sm inline-flex items-center gap-1.5 min-h-9 px-4 round
 
 /**
  * The Family page: who's in the family and how to change that. The admin can remove members;
- * anyone can invite with the code, rename the family or leave. Shared dinners are in the planner.
+ * anyone can invite with the code, rename the family or leave. Each member picks their own avatar,
+ * and the family is shown as its members' faces. Shared dinners are in the planner.
  */
-export const FamilyView: React.FC = () => {
+export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }) => {
     const [group, setGroup] = useState<Group | null>(null);
     const [members, setMembers] = useState<Member[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,6 +43,7 @@ export const FamilyView: React.FC = () => {
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
     const [confirmLeave, setConfirmLeave] = useState(false);
     const [codeCopied, setCodeCopied] = useState(false);
+    const [pickingAvatar, setPickingAvatar] = useState(false);
 
     const loadGroup = async () => {
         setLoading(true);
@@ -158,6 +168,8 @@ export const FamilyView: React.FC = () => {
     const admin = familyAdmin(group);
     const isAdmin = admin === me;
     const isSolo = group.memberIds.length < 2;
+    // Your own avatar from your stats is fresher than the family's copy of your profile
+    const faces = members.map(m => (m.id === me && myAvatar ? { ...m, avatar: myAvatar } : m));
 
     return (
         <div className="space-y-4">
@@ -199,8 +211,10 @@ export const FamilyView: React.FC = () => {
                     </form>
                 ) : (
                     <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <h2 id="family-name-heading" className="heading-2 truncate">{group.name}</h2>
+                        <div className="flex-1 min-w-0">
+                            {/* No crest: the family is its people (alone, your row below says it) */}
+                            {!isSolo && <FamilyFaces members={faces} size={52} />}
+                            <h2 id="family-name-heading" className={`heading-2 truncate ${isSolo ? '' : 'mt-3'}`}>{group.name}</h2>
                             <p className="text-sm text-muted mt-0.5">
                                 {isSolo ? 'Just you so far' : `${group.memberIds.length} members`}
                             </p>
@@ -224,9 +238,21 @@ export const FamilyView: React.FC = () => {
                         return (
                             <li key={member.id} className="border-t border-border first:border-t-0 py-2.5">
                                 <div className="flex items-center gap-3">
-                                    <span className={`size-11 shrink-0 rounded-full flex items-center justify-center font-display font-extrabold ${isMemberAdmin ? 'tile-fasting' : 'tile-workout'}`} aria-hidden="true">
-                                        {member.name.charAt(0).toUpperCase()}
-                                    </span>
+                                    {isYou ? (
+                                        <button
+                                            onClick={() => setPickingAvatar(true)}
+                                            className="relative shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] active:scale-95 transition-transform"
+                                            aria-label="Choose your avatar"
+                                            title="Choose your avatar"
+                                        >
+                                            <MemberAvatar avatar={myAvatar ?? member.avatar} uid={member.id} />
+                                            <span className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-surface-sunken border-2 border-[var(--surface)] flex items-center justify-center text-main" aria-hidden="true">
+                                                <Pencil size={11} strokeWidth={2.5} />
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <MemberAvatar avatar={member.avatar} uid={member.id} />
+                                    )}
                                     <span className="flex-1 min-w-0">
                                         <span className="block font-semibold truncate">{member.name}{isYou ? ' (you)' : ''}</span>
                                         <span className="block text-sm text-muted">{isMemberAdmin ? 'Family admin' : 'Member'}</span>
@@ -309,6 +335,18 @@ export const FamilyView: React.FC = () => {
                     </button>
                 </div>
             </section>
+
+            {pickingAvatar && me && (
+                <AvatarPicker
+                    uid={me}
+                    initial={resolveAvatar(myAvatar, me)}
+                    onSave={async avatar => {
+                        await onSaveAvatar(avatar);
+                        setMembers(list => list.map(m => (m.id === me ? { ...m, avatar } : m)));
+                    }}
+                    onClose={() => setPickingAvatar(false)}
+                />
+            )}
 
             {/* Joining another family: only from a family of one */}
             {isSolo && (
