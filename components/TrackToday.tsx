@@ -413,7 +413,13 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     setToast({ message: `Logged ${food.name} · ${food.calories} kcal`, undo: () => { onDeleteFoodItem(item.id); } });
   };
 
-  const tomorrowCard = <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />;
+  // Coming up: tomorrow, then (Thursday and Friday) the weekend. Below today's plate and log, never above them
+  const comingUp = (
+    <div className="space-y-3">
+      <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />
+      <WeekendPlanCard weekendGap={recentWeekendGap} tomorrow={tomorrowPlan.date} onPlan={date => navigate('/mealplanner', { state: { date } })} />
+    </div>
+  );
 
   const proteinToday = { eaten: (dailyLog.items || []).reduce((sum, item) => sum + (item.protein || 0), 0), target: proteinTarget(stats) };
 
@@ -451,14 +457,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         />
       </div>
 
+      {/* Only prompts about today's meals sit above the plate; later days are under Coming up */}
       {/* Evening: log the rest of the plan in one tap */}
       <AtePlannedCard plan={todayPlan} onLogAll={indices => logPlanned(indices, true)} />
 
       {/* Eating out: what was actually had */}
       <EatingOutCard plan={todayPlan} onLog={setEatingOutIndex} onConfirm={i => logPlanned([i], false)} />
-
-      {/* Thursday and Friday: plan the weekend ahead */}
-      <WeekendPlanCard weekendGap={recentWeekendGap} onPlan={date => navigate('/mealplanner', { state: { date } })} />
 
       {/* Dual-Track Section */}
       <DualTrackSection
@@ -479,7 +483,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         dayStatus={dailyLog.status}
         dayCounts={isCompleteDay(consumed, dailyTarget, dailyLog.status)}
         onSetDayStatus={onSetDayStatus}
-        planAside={tomorrowCard}
+        planAside={comingUp}
       />
 
       {/* The most useful piece of guidance right now (all of it is on Analytics) */}
@@ -496,8 +500,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onSetCoachRead={onSetCoachRead}
       />
 
-      {/* Tomorrow: here on phones, beside the plan from lg up */}
-      <div className="lg:hidden">{tomorrowCard}</div>
+      {/* Coming up: here on phones, beside the plan from lg up */}
+      <div className="lg:hidden">{comingUp}</div>
 
       {caloriesAsk && (
         <MealCaloriesSheet

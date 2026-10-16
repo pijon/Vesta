@@ -51,7 +51,7 @@ Every metric has a mark colour (rings, bars and charts, never text), a tint for 
 | Workouts | `workout` #E86A92 pink | `workout-bg` #FFD9E4 | `workout-text` #7A2D48 |
 | Fasting | `fasting` #E0A800 butter | `fasting-bg` #FFE9A8 | `fasting-text` #6B5310 |
 
-Use them as `tile-*` (tint and text together), `bg-*-bg` with `text-*-text`, or `badge-*`. The chart order is `--chart-1` to `--chart-5`: calories, water, weight, workouts, fasting. Tinted cards (the evening "Did you eat as planned?" card, the weekend card) are `rounded-[24px] bg-*-bg p-5` with a round `bg-surface` icon.
+Use them as `tile-*` (tint and text together), `bg-*-bg` with `text-*-text`, or `badge-*`. The chart order is `--chart-1` to `--chart-5`: calories, water, weight, workouts, fasting. Tinted cards are for prompts about today's meals only (the evening "Did you eat as planned?" card, the eating-out card): `rounded-[24px] bg-*-bg p-5` with a round `bg-surface` icon, placed above Today's plate. Anything about later days (Tomorrow, the weekend card) is a plain `card` under "Coming up", below the plate and the log.
 
 ### Status
 - `warning` is a saturated dark amber (#A05200 light / #F5B83D dark) for over-limit and caution. Over target is never `error`, and never red.
