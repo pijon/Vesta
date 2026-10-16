@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingBasket, Sparkles, UsersRound } from 'lucide-react';
 import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
-import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan } from '../services/storageService';
+import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan, subscribeFamilyDinners, withFamilyDinners } from '../services/storageService';
 import { familyData } from '../services/pageData';
 import { isAddedBy, withAuthorNames } from '../utils/recipeAuthors';
 import { usePrewarmed } from '../utils/prewarm';
@@ -96,6 +96,15 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   // Also re-runs each time the page is shown again (App keeps it in an Activity), so meals
   // ticked off on Today appear without a loading state
   useEffect(() => { loadWeek(monday); }, [monday, loadWeek]);
+
+  // Family dinners other members plan, move or remove appear as they happen (only while the
+  // Planner is shown: a hidden page's effects are paused)
+  useEffect(() => subscribeFamilyDinners(monday, addDays(monday, 6), dinners => {
+    const next = { ...plansRef.current };
+    Object.entries(dinners).forEach(([date, meals]) => { next[date] = withFamilyDinners(next[date] || emptyDayPlan(date), meals); });
+    plansRef.current = next;
+    setPlans(next);
+  }), [monday]);
 
   useEffect(() => {
     // Keep the cached list if the refresh comes back empty (offline)

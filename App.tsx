@@ -1,8 +1,8 @@
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus } from './types';
-import { isFastDay, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
-import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage } from './services/storageService';
+import { addDays, isFastDay, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
+import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage, subscribeFamilyDinners, withFamilyDinners, FamilyDinnerChange } from './services/storageService';
 import * as cache from './utils/cacheService';
 import { useTheme } from './hooks/useTheme';
 // Lazy load non-critical components for performance
@@ -27,6 +27,7 @@ import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { FamilyNotice } from './components/FamilyNotice';
 import { Sidebar } from './components/Sidebar';
 import { PlannerTabs } from './components/PlannerTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
@@ -253,6 +254,17 @@ const TrackerApp: React.FC = () => {
             console.error("Failed to refresh data", error);
         }
     }, [todayDate, tomorrowDate, setDailyLogState]);
+
+    // Family dinners are live: one another member plans or changes shows up on Today straight away,
+    // and a new one is pointed out wherever the user is
+    const [familyNotice, setFamilyNotice] = useState<FamilyDinnerChange[] | null>(null);
+    const dismissFamilyNotice = useCallback(() => setFamilyNotice(null), []);
+    useEffect(() => subscribeFamilyDinners(todayDate, addDays(todayDate, 6), (dinners, added) => {
+        const apply = (date: string) => (plan: DayPlan) => (plan.date === date ? withFamilyDinners(plan, dinners[date]) : plan);
+        if (dinners[todayDate]) setTodayPlan(apply(todayDate));
+        if (dinners[tomorrowDate]) setTomorrowPlan(apply(tomorrowDate));
+        if (added.length) setFamilyNotice(added);
+    }), [todayDate, tomorrowDate]);
 
     // Coming back to Today reloads it: plans also change from Recipes ("Add to plan") and other family members
     const lastView = useRef(view);
@@ -783,6 +795,14 @@ const TrackerApp: React.FC = () => {
                     currentWeight={userStats.currentWeight}
                     onSave={handleUpdateWeight}
                 />
+
+                {familyNotice && (
+                    <FamilyNotice
+                        changes={familyNotice}
+                        onView={date => navigate('/mealplanner', { state: { date } })}
+                        onDismiss={dismissFamilyNotice}
+                    />
+                )}
 
                 <BatchPlannerModal
                     isOpen={isSundayResetOpen}
