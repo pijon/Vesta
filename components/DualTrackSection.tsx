@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
-import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen } from 'lucide-react';
+import { Coffee, Salad, Cookie, CookingPot, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
 import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel, slotTime } from '../utils/planUtils';
@@ -46,7 +46,7 @@ const PERIODS = [
   { key: 'morning', label: 'Morning', from: 5, to: 11, Icon: Coffee },
   { key: 'midday', label: 'Midday', from: 11, to: 15, Icon: Salad },
   { key: 'afternoon', label: 'Afternoon', from: 15, to: 18, Icon: Cookie },
-  { key: 'evening', label: 'Evening', from: 18, to: 24, Icon: UtensilsCrossed },
+  { key: 'evening', label: 'Evening', from: 18, to: 24, Icon: CookingPot },
 ] as const;
 
 const periodFor = (timestamp: number) => {
@@ -231,7 +231,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           {group.entries.map(entry => {
             const isFood = entry.kind === 'food';
             const name = displayName(isFood ? entry.item.name : entry.workout.type);
-            const FoodIcon = isFood ? foodIconFor({ name: entry.item.name }) ?? UtensilsCrossed : null;
+            const FoodIcon = isFood ? foodIconFor({ name: entry.item.name }) ?? CookingPot : null;
             const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
             const protein = isFood && typeof entry.item.protein === 'number' ? ` · ${entry.item.protein} g protein` : '';
             return (
@@ -242,7 +242,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   aria-label={`Edit ${name}`}
                 >
                   <span className={`size-11 shrink-0 rounded-full flex items-center justify-center ${isFood ? 'tile-calories' : 'tile-workout'}`}>
-                    {FoodIcon && <FoodIcon size={20} strokeWidth={1.75} aria-hidden="true" />}
+                    {FoodIcon && <FoodIcon size={20} strokeWidth={2.25} aria-hidden="true" />}
                     {WorkoutIcon && <WorkoutIcon size={20} stroke={1.75} aria-hidden="true" />}
                   </span>
                   <span className="flex-1 min-w-0">
@@ -294,7 +294,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             <img src={meal.image} alt="" className={`${isNext ? 'size-16' : 'size-14'} shrink-0 rounded-full object-cover`} />
           ) : (
             <span className={`${isNext ? 'size-16' : 'size-14'} shrink-0 rounded-full flex items-center justify-center ${visual.tint}`}>
-              <visual.Icon size={24} strokeWidth={1.75} aria-hidden="true" />
+              <visual.Icon size={24} strokeWidth={2.25} aria-hidden="true" />
             </span>
           )}
           <span className="flex-1 min-w-0">

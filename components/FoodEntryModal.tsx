@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Camera, Loader2, MessageSquareText, PenLine, Plus, ScanBarcode, Sparkles, UtensilsCrossed, X } from 'lucide-react';
+import { CircleAlert, Camera, Loader2, MessageSquareText, Pencil, Plus, ScanBarcode, Sparkles, CookingPot, X } from 'lucide-react';
 import { FoodLogItem, KnownFood } from '../types';
 import { analyzeFoodLog, analyzeFoodImage } from '../services/geminiService';
 import { frequentFoodsData, knownFoodsData } from '../services/pageData';
@@ -21,7 +21,7 @@ const MODES: { value: Mode; label: string; Icon: typeof Camera }[] = [
   { value: 'describe', label: 'Describe', Icon: MessageSquareText },
   { value: 'photo', label: 'Photo', Icon: Camera },
   { value: 'scan', label: 'Scan', Icon: ScanBarcode },
-  { value: 'manual', label: 'Manual', Icon: PenLine },
+  { value: 'manual', label: 'Manual', Icon: Pencil },
 ];
 
 /** A food waiting to be logged; calories stay a string while being edited. */
@@ -267,7 +267,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                           className="w-full flex items-center text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] gap-3 min-h-14 px-1 py-2 rounded-[16px]"
                         >
                           <span className="size-10 shrink-0 rounded-full tile-calories flex items-center justify-center">
-                            <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+                            <Icon size={18} strokeWidth={2.25} aria-hidden="true" />
                           </span>
                           <span className="flex-1 min-w-0">
                             <span className="block truncate font-semibold text-sm">{capitalise(food.name)}</span>
@@ -389,7 +389,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
 
         {error && (
           <p role="alert" className="flex items-start gap-2 text-sm text-error">
-            <AlertCircle size={16} className="shrink-0 mt-0.5" aria-hidden="true" /> {error}
+            <CircleAlert size={16} className="shrink-0 mt-0.5" aria-hidden="true" /> {error}
           </p>
         )}
 
@@ -402,11 +402,11 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
             </div>
             <ul className="divide-y divide-border">
               {drafts.map(d => {
-                const Icon = foodIconFor({ name: d.name }) ?? UtensilsCrossed;
+                const Icon = foodIconFor({ name: d.name }) ?? CookingPot;
                 return (
                   <li key={d.id} className="flex items-start gap-2 py-2">
                     <span className="mt-0.5 shrink-0 bg-calories-bg text-calories-text items-center justify-center flex size-10 rounded-full">
-                      <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
+                      <Icon size={17} strokeWidth={2.25} aria-hidden="true" />
                     </span>
                     <div className="flex-1 min-w-0">
                       <input

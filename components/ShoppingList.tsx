@@ -14,7 +14,7 @@ import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../type
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
 import { localDateString } from '../utils/dateUtils';
-import { AlertCircle, ArrowLeft, CalendarDays, Check, Copy, CopyCheck, ListChecks, PartyPopper, RotateCcw, ShoppingBasket } from 'lucide-react';
+import { CircleAlert, ArrowLeft, CalendarHeart, Check, Copy, CopyCheck, ListChecks, PartyPopper, RotateCcw, ShoppingBasket } from 'lucide-react';
 
 type Phase = 'selection' | 'requirements' | 'shopping';
 
@@ -650,7 +650,7 @@ export const ShoppingList: React.FC = () => {
 
         {availableMeals.length === 0 ? (
           <div className="tile tile-neutral items-center text-center py-12">
-            <CalendarDays size={28} className="text-muted mb-3" aria-hidden="true" />
+            <CalendarHeart size={28} className="text-muted mb-3" aria-hidden="true" />
             <p className="font-semibold">No meals planned yet</p>
             <p className="text-sm text-muted mt-1">Plan a few meals for the week and your shopping list builds itself.</p>
           </div>
@@ -737,7 +737,7 @@ export const ShoppingList: React.FC = () => {
       <div className="space-y-5 pb-20">
         {stepBar}
         <div className="rounded-[18px] bg-error-bg p-6 text-center" role="alert">
-          <AlertCircle size={28} className="text-error mx-auto mb-3" aria-hidden="true" />
+          <CircleAlert size={28} className="text-error mx-auto mb-3" aria-hidden="true" />
           <p className="font-semibold">We couldn't build your list</p>
           <p className="text-sm text-muted mt-1">{error}</p>
           <button onClick={() => initializeShoppingList()} className="btn-primary btn-sm mt-4">

@@ -163,7 +163,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                 <img src={recipe.image} alt="" className="w-full aspect-[16/10] md:aspect-[4/3] object-cover rounded-[28px]" />
                             ) : (
                                 <div className={`w-full aspect-[16/9] md:aspect-[4/3] rounded-[28px] flex flex-col items-center justify-center gap-3 ${visual.tint}`}>
-                                    <visual.Icon size={48} strokeWidth={1.5} aria-hidden="true" />
+                                    <visual.Icon size={48} strokeWidth={2.25} aria-hidden="true" />
                                     {onSetImage && (
                                         <>
                                             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handlePhoto} className="hidden" aria-hidden="true" tabIndex={-1} />

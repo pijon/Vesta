@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
-import { AlertCircle, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
+import { CircleAlert, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { auth } from '../services/firebase';
 import { VestaMark } from './VestaMark';
 
@@ -76,7 +76,7 @@ export const LoginScreen: React.FC = () => {
                 <form onSubmit={handleLogin} className="card p-5 md:p-6 space-y-4" noValidate>
                     {error && (
                         <p role="alert" className="rounded-[14px] bg-error-bg text-error text-sm p-3 flex items-start gap-2">
-                            <AlertCircle size={16} className="shrink-0 mt-0.5" aria-hidden="true" /> {error}
+                            <CircleAlert size={16} className="shrink-0 mt-0.5" aria-hidden="true" /> {error}
                         </p>
                     )}
                     {resetSentTo && (

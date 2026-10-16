@@ -128,8 +128,9 @@ These live in `@layer components`, so Tailwind utilities in markup override them
 | `badge badge-{calories,water,weight,workout,fasting,warning,neutral,ink}` | Round labels (old names `badge-terracotta/sage/plum/teal/stone/amber` are aliases) |
 | `input`, `input-error` | Text fields |
 | `tab-bar`, `tab-item`, `tab-label` (`aria-current="page"`) | Phones: a floating pill in the card colour above the bottom edge, icon over label, the current tab an ink pill. The page leaves `6rem` plus the safe area under it |
-| `side-nav`, `side-item`, `side-label` (`aria-current="page"`) | From `md` up: a floating card-colour panel inset 12px from the window edges (icon rail on tablets, labelled on desktop), the current item an ink pill, Settings pinned at the bottom |
+| `side-nav`, `side-item`, `side-label` (`aria-current="page"`) | From `md` up: a floating card-colour panel inset 12px from the window edges (icon rail on tablets, labelled on desktop), each icon on a round `side-icon` plate, the current item an ink pill, Settings pinned at the bottom |
 
+- **Icons:** Lucide, never thinner than the default stroke of 2. Food and meal icons, nav icons and other large stand-alone icons use 2.25 (2.5 for the current nav item). Keep one glyph per meaning: `CookingPot` for a meal or recipe, `CalendarHeart` for the planner, `ShoppingBasket` for shopping, `SlidersHorizontal` for settings, `CircleAlert` for warnings, `Pencil` for editing, `Sparkles` for AI.
 - **Logo:** `components/VestaMark.tsx`: a butter (#FFD23F) flame over a cream (#FFF1D6) bowl on a tomato (#FF5533) tile with 30/100 corners. The static icons (`public/favicon.svg`, `favicon.ico`, the PWA and Apple icons, `public/resources/logo_*.png`) are the same mark; their sources are in `assets/icon/`.
 - **Focus:** a 2px `--focus-ring` (ink) outline, offset 2px.
 - **Motion:**

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarHeart } from 'lucide-react';
 import { DayPlan, MealSlot } from '../types';
 import { getCachedPlansInRange, getDayPlansInRange } from '../services/storageService';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
@@ -71,7 +71,7 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, on
   return (
     <section className="rounded-[24px] bg-water-bg p-5 md:p-6" aria-labelledby="weekend-plan-title">
       <div className="flex items-start gap-4">
-        <span className="shrink-0 flex items-center justify-center size-12 rounded-full bg-surface text-water-text" aria-hidden="true"><CalendarDays size={20} /></span>
+        <span className="shrink-0 flex items-center justify-center size-12 rounded-full bg-surface text-water-text" aria-hidden="true"><CalendarHeart size={20} /></span>
         <div className="flex-1 min-w-0">
           <h2 id="weekend-plan-title" className="heading-3">Plan your weekend</h2>
           <p className="text-sm mt-0.5">

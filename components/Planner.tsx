@@ -357,13 +357,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         >
           {meal.isMissing ? (
             <span className={`${thumb} flex items-center justify-center shrink-0 bg-surface-sunken text-muted`}>
-              <CircleAlert size={18} strokeWidth={1.75} aria-hidden="true" />
+              <CircleAlert size={18} strokeWidth={2.25} aria-hidden="true" />
             </span>
           ) : meal.image && !quick ? (
             <img src={meal.image} alt="" loading="lazy" className={`${thumb} object-cover shrink-0`} />
           ) : (
             <span className={`${thumb} flex items-center justify-center shrink-0 ${visual.tint} ${quick ? 'border-[1.5px] border-dashed border-border-control' : ''}`}>
-              <visual.Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+              <visual.Icon size={18} strokeWidth={2.25} aria-hidden="true" />
             </span>
           )}
           <span className="flex-1 min-w-0">

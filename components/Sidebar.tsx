@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { AppView } from '../types';
 import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
 import { VestaMark } from './VestaMark';
@@ -18,7 +18,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
       aria-current={isNavCurrent(view, currentView) ? 'page' : undefined}
       className="side-item"
     >
-      <Icon size={22} strokeWidth={isNavCurrent(view, currentView) ? 2.25 : 1.75} />
+      <span className="side-icon">
+        <Icon size={20} strokeWidth={isNavCurrent(view, currentView) ? 2.5 : 2.25} />
+      </span>
       <span className="side-label">{label}</span>
     </button>
   );
@@ -33,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         {NAV_ITEMS.map(item)}
       </div>
       <div className="side-foot mt-auto pt-4 border-t">
-        {item({ view: AppView.SETTINGS, label: 'Settings', Icon: Settings })}
+        {item({ view: AppView.SETTINGS, label: 'Settings', Icon: SlidersHorizontal })}
       </div>
     </nav>
   );

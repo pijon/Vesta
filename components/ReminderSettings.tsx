@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, BellOff, BellRing, Check, Loader2, Scale, Send, Share, Store, UtensilsCrossed } from 'lucide-react';
+import { CircleAlert, BellOff, BellRing, Check, Loader2, Scale, Send, Share, Store, CookingPot } from 'lucide-react';
 import { ReminderSettings as Settings } from '../types';
 import {
   DEFAULT_REMINDERS, currentSubscription, disableReminders, enableReminders, getReminders, pushSupport, saveReminderSettings, sendTestReminder,
@@ -120,7 +120,7 @@ export const ReminderSettings: React.FC = () => {
       <ul className="divide-y divide-border rounded-[14px] border border-border">
         <li className="p-4 space-y-3">
           <div className="flex items-start gap-3">
-            <span className="icon-tile size-9 shrink-0 tile-calories flex items-center justify-center"><UtensilsCrossed size={18} aria-hidden="true" /></span>
+            <span className="icon-tile size-9 shrink-0 tile-calories flex items-center justify-center"><CookingPot size={18} aria-hidden="true" /></span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold">Evening log reminder</p>
               <p className="text-sm text-muted">Only on days with nothing logged.</p>
@@ -189,7 +189,7 @@ export const ReminderSettings: React.FC = () => {
 
       {message && (
         <p role={message.tone === 'error' ? 'alert' : 'status'} className={`flex items-start gap-2 text-sm ${message.tone === 'error' ? 'text-error' : ''}`}>
-          {message.tone === 'error' ? <AlertCircle size={16} className="shrink-0 mt-0.5" aria-hidden="true" /> : <Check size={16} className="shrink-0 mt-0.5" aria-hidden="true" />}
+          {message.tone === 'error' ? <CircleAlert size={16} className="shrink-0 mt-0.5" aria-hidden="true" /> : <Check size={16} className="shrink-0 mt-0.5" aria-hidden="true" />}
           {message.text}
         </p>
       )}

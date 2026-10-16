@@ -139,7 +139,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             <img src={recipe.image} alt="" loading="lazy" className="size-12 rounded-full object-cover shrink-0" />
           ) : (
             <span className={`size-12 rounded-full flex items-center justify-center shrink-0 ${visual.tint}`}>
-              <visual.Icon size={22} strokeWidth={1.75} aria-hidden="true" />
+              <visual.Icon size={22} strokeWidth={2.25} aria-hidden="true" />
             </span>
           )}
           <span className="flex-1 min-w-0">
@@ -243,7 +243,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             <span className={`size-12 rounded-full flex items-center justify-center shrink-0 bg-surface-sunken border-[1.5px] border-dashed border-border-control`} aria-hidden="true">
-              <Plus size={22} strokeWidth={1.75} />
+              <Plus size={22} strokeWidth={2.25} />
             </span>
             <span className="flex-1 min-w-0">
               <span className="font-semibold leading-snug line-clamp-2">Plan “{search.trim()}” without a recipe</span>
@@ -258,7 +258,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             <span className="size-12 rounded-full flex items-center justify-center shrink-0 bg-workout-bg text-workout-text" aria-hidden="true">
-              <Store size={22} strokeWidth={1.75} />
+              <Store size={22} strokeWidth={2.25} />
             </span>
             <span className="flex-1 min-w-0">
               <span className="font-semibold leading-snug">Eating out, place not decided</span>

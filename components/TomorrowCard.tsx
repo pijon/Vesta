@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, Flame, UsersRound } from 'lucide-react';
+import { CalendarHeart, Flame, UsersRound } from 'lucide-react';
 import { DayPlan, UserStats } from '../types';
 import { MEAL_SLOTS, dayCalories, dayTarget, isFastDay, mealKcalLabel, slotFor } from '../utils/planUtils';
 import { mealVisualFor } from '../utils/mealVisual';
@@ -32,7 +32,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
           {dayTag}
           <span className="text-sm text-muted">Nothing planned yet</span>
         </div>
-        <button onClick={onPlan} className="btn-secondary btn-sm"><CalendarDays size={16} aria-hidden="true" /> Plan tomorrow</button>
+        <button onClick={onPlan} className="btn-secondary btn-sm"><CalendarHeart size={16} aria-hidden="true" /> Plan tomorrow</button>
       </section>
     );
   }
@@ -49,7 +49,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
             {planned.toLocaleString()} of {target.toLocaleString()} kcal planned
           </p>
         </div>
-        <button onClick={onPlan} className="btn-ghost btn-sm"><CalendarDays size={16} aria-hidden="true" /> Open planner</button>
+        <button onClick={onPlan} className="btn-ghost btn-sm"><CalendarHeart size={16} aria-hidden="true" /> Open planner</button>
       </div>
       {/* Two columns only when the card itself is wide (it sits in a half-width column on desktop) */}
       <ul className="grid @lg:grid-cols-2 gap-x-6">
@@ -59,7 +59,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
             return (
               <li key={meal.instanceId || `${meal.id}-${slot}-${i}`} className="flex items-center gap-3 py-2 border-t border-border first:border-t-0 @lg:[&:nth-child(2)]:border-t-0">
                 <span className={`shrink-0 flex items-center justify-center ${visual.tint} size-11 rounded-full`}>
-                  <visual.Icon size={20} strokeWidth={1.75} aria-hidden="true" />
+                  <visual.Icon size={20} strokeWidth={2.25} aria-hidden="true" />
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-xs text-muted">{label}</span>
