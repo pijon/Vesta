@@ -211,12 +211,24 @@ describe('removing a member', () => {
     expect(recipesIn('fam').map(r => r.id)).toEqual(['theirs']);
   });
 
-  it('gives the removed member a family of their own next time', async () => {
+  it('gives the removed member a family of their own next time, with the recipes they added or planned', async () => {
+    put('groups/fam/recipes/mine', recipe('mine', { createdBy: 'me', favoritedBy: ['me', 'partner'] }));
+    put('groups/fam/recipes/kids', recipe('kids', { createdBy: 'kid' }));
+    put('users/partner/days/2026-10-20', { date: '2026-10-20', meals: [{ type: 'reference', recipeId: 'mine', slot: 'lunch' }] });
+
     await removeMember(group('fam', ['me', 'partner', 'kid']), 'partner');
+    expect(recipesIn('fam').map(r => r.id)).toEqual(['kids', 'mine', 'theirs']);
+
     signIn('partner');
     const groupId = await getMyGroupId();
     expect(groupId).not.toBe('fam');
     expect(store.docs.get(`groups/${groupId}`)).toMatchObject({ memberIds: ['partner'] });
+    expect(recipesIn(groupId!)).toEqual([
+      recipe('mine', { createdBy: 'me', favoritedBy: ['partner'] }),
+      recipe('theirs', { createdBy: 'partner', favoritedBy: [] }),
+    ]);
+    // Collected once: nothing is left waiting in the old family
+    expect([...store.docs.keys()].filter(path => path.startsWith('groups/fam/departures/'))).toEqual([]);
   });
 
   it('is for the admin only, and not for removing yourself', async () => {

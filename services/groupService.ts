@@ -139,6 +139,25 @@ const createFamily = async (uid: string, extra: Partial<Group> = {}): Promise<Gr
     return group;
 };
 
+/** Where the admin leaves copies of a removed member's recipes for them to collect */
+const departureRecipesRef = (groupId: string, uid: string) => collection(db, "groups", groupId, "departures", uid, "recipes");
+const departureRecipeRef = (groupId: string, uid: string, recipeId: string) => doc(db, "groups", groupId, "departures", uid, "recipes", recipeId);
+
+/**
+ * Moves the recipes left for a removed member (see removeMember) into their new family and
+ * clears them from the old one. Readable by that member only, even after removal.
+ */
+const collectDeparture = async (oldGroupId: string, uid: string, family: Group) => {
+    try {
+        const snapshot = await getDocs(departureRecipesRef(oldGroupId, uid));
+        if (snapshot.empty) return;
+        await writeFamilyRecipes(family.id, snapshot.docs.map(d => ({ ...d.data() as Recipe, id: d.id })));
+        await deleteDocs(snapshot.docs.map(d => d.ref));
+    } catch (e) {
+        console.error("Error collecting recipes from the old family:", e);
+    }
+};
+
 /** The user's family, created if they have none (or their profile points at one they're not in). */
 const loadOrCreateFamily = async (uid: string): Promise<Group> => {
     const groupId = (await getDoc(getUserRef(uid))).data()?.groupId;
@@ -152,6 +171,10 @@ const loadOrCreateFamily = async (uid: string): Promise<Group> => {
             // being offline, must not create a second family.
             if ((e as { code?: string })?.code !== "permission-denied") throw e;
         }
+        // Removed from that family: start a new one with the recipes the admin left for them
+        const family = await createFamily(uid);
+        await collectDeparture(groupId, uid, family);
+        return family;
     }
     return createFamily(uid);
 };
@@ -284,6 +307,18 @@ const plannedRecipeIds = async (uid: string): Promise<Set<string>> => {
 };
 
 /**
+ * Copies of the recipes a member takes when they go: the ones they added and any other their own
+ * day plans use (so those meals don't turn into "Recipe deleted"), with only their own favourite.
+ * Read while they're still a member.
+ */
+const recipesToTake = async (groupId: string, uid: string): Promise<Recipe[]> => {
+    const [recipes, planned] = await Promise.all([readFamilyRecipes(groupId), plannedRecipeIds(uid)]);
+    return recipes
+        .filter(recipe => recipe.createdBy === uid || planned.has(recipe.id))
+        .map(recipe => ({ ...recipe, favoritedBy: (recipe.favoritedBy || []).filter(id => id === uid) }));
+};
+
+/**
  * Who manages the family: its owner, or the longest-standing member when the owner has left
  * (families from before an admin handed over on leaving). firestore.rules uses the same choice.
  */
@@ -302,12 +337,8 @@ export const leaveGroup = async (groupId: string): Promise<void> => {
     if (!group) throw new Error("Group not found");
     if (group.memberIds.length <= 1) throw new Error("You're the only one in this family.");
 
-    // 1. The recipes this user added, and any other the user's own day plans use (so those meals
-    //    don't turn into "Recipe deleted"), read while still a member
-    const [recipes, planned] = await Promise.all([readFamilyRecipes(groupId), plannedRecipeIds(user.uid)]);
-    const mine = recipes
-        .filter(recipe => recipe.createdBy === user.uid || planned.has(recipe.id))
-        .map(recipe => ({ ...recipe, favoritedBy: (recipe.favoritedBy || []).filter(id => id === user.uid) }));
+    // 1. The recipes the user takes, read while still a member
+    const mine = await recipesToTake(groupId, user.uid);
 
     // 2. A new family with those copies. Their old users/{uid}/recipes stay behind.
     const family = await createFamily(user.uid, { legacyRecipesMoved: [user.uid] });
@@ -338,14 +369,19 @@ export const newInviteCode = async (group: Group): Promise<Group> => {
 
 /**
  * The family admin removes another member. The family keeps every recipe and dinner. The removed
- * member gets a family of their own the next time they open the app (loadOrCreateFamily), and the
- * invite code is replaced so they can't rejoin with it.
+ * member gets a family of their own the next time they open the app (loadOrCreateFamily), with
+ * copies of the recipes they'd have taken on leaving, and the invite code is replaced so they
+ * can't rejoin with it.
  */
 export const removeMember = async (group: Group, memberId: string): Promise<Group> => {
     const user = getCurrentUser();
     if (familyAdmin(group) !== user.uid) throw new Error("Only the family admin can remove members.");
     if (memberId === user.uid) throw new Error("Use Leave family to leave.");
     if (!group.memberIds.includes(memberId)) throw new Error("They're not in this family.");
+
+    // Their recipes go in departures/{uid}, which they can still read once removed
+    const theirs = await recipesToTake(group.id, memberId);
+    await commitInBatches(theirs, (batch, recipe) => batch.set(departureRecipeRef(group.id, memberId, recipe.id), recipe));
 
     await updateDoc(getGroupRef(group.id), { memberIds: arrayRemove(memberId) });
     const removed = { ...group, memberIds: group.memberIds.filter(id => id !== memberId) };
