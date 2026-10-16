@@ -4,8 +4,9 @@ import { ArrowUpDown, ChefHat, Download, Flame, Heart, LayoutGrid, Link2, List, 
 import { getCachedRecipes } from '../utils/cacheService';
 import { addDays } from '../utils/planUtils';
 import { Recipe } from '../types';
-import { getRecipes, saveRecipe, deleteRecipe } from '../services/storageService';
-import { copyRecipeToMyLibrary } from '../services/groupService';
+import { getRecipes, saveRecipe, deleteRecipe, setRecipeFavorite } from '../services/storageService';
+import { currentUid } from '../services/firebase';
+import { isAddedBy, withAuthorNames } from '../utils/recipeAuthors';
 import { familyData, recipeHistoryData } from '../services/pageData';
 import { ensureWarm, usePrewarmed } from '../utils/prewarm';
 import { AddToPlanSheet } from './AddToPlanSheet';
@@ -58,8 +59,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   // The whole library, starting from the local cache so the page renders immediately
   const [recipes, setRecipes] = useState<Recipe[]>(() => getCachedRecipes() ?? []);
   const [isLoading, setIsLoading] = useState(() => !getCachedRecipes()?.length);
-  // Family recipes and plan history load in the background after sign-in
-  const familyRecipes = usePrewarmed(familyData)?.recipes ?? [];
+  // Member names (for "From …" badges) and plan history load in the background after sign-in
+  const familyNames = usePrewarmed(familyData)?.names;
   const history = usePrewarmed(recipeHistoryData);
   const today = localDateString();
 
@@ -281,31 +282,19 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
   const toggleFavorite = async (e: React.MouseEvent, recipe: Recipe) => {
     e.stopPropagation();
-    const updatedRecipe = { ...recipe, isFavorite: !recipe.isFavorite };
+    const favorite = !recipe.isFavorite;
+    const uid = currentUid();
+    const favoritedBy = (recipe.favoritedBy || []).filter(id => id !== uid).concat(favorite && uid ? [uid] : []);
+    const updatedRecipe = { ...recipe, isFavorite: favorite, favoritedBy };
 
-    // Optimistic update. Only the user's own recipes can be favourited: saveRecipe
-    // writes to users/{uid}/recipes, so favouriting a family recipe would create a copy.
-    // RecipeCard hides the heart for family recipes.
+    // Optimistic update. Favourites are per member, so only this user is added or removed.
     setRecipes(prev => prev.map(r => r.id === recipe.id ? updatedRecipe : r));
-    await saveRecipe(updatedRecipe);
-  };
-
-  /* Deprecated manual sharing
-  const handleShare = async (e: React.MouseEvent, recipe: Recipe) => { ... } 
-  */
-
-  const handleCopyToMyLibrary = async (e: React.MouseEvent, recipe: Recipe) => {
-    e.stopPropagation();
-    if (!recipe.ownerId) return; // Only for family recipes
-
     try {
-      const copied = await copyRecipeToMyLibrary(recipe);
-      await loadData();
-      setSelectedRecipe(copied);
-      showToast(`Copied to your recipes`);
+      await setRecipeFavorite(recipe.id, favorite);
     } catch (err) {
-      console.error('Failed to copy recipe', err);
-      showToast(`Couldn't copy that recipe`);
+      console.error('Failed to update favourite', err);
+      setRecipes(prev => prev.map(r => r.id === recipe.id ? recipe : r));
+      showToast(`Couldn't update favourites`);
     }
   };
 
@@ -322,7 +311,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     URL.revokeObjectURL(url);
   };
 
-  const allRecipes = useMemo(() => [...recipes, ...familyRecipes], [recipes, familyRecipes]);
+  // Every recipe is the family's; ones another member added carry their name
+  const myUid = currentUid();
+  const allRecipes = useMemo(() => withAuthorNames(recipes, myUid, familyNames), [recipes, myUid, familyNames]);
 
   // Tag chips from the library itself: the most used diet, style and cuisine tags
   const tagChips = useMemo(() => {
@@ -345,8 +336,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         (recipe.ingredients || []).some(i => i.toLowerCase().includes(query));
 
       const matchesFilter = activeFilter === 'all' ||
-        (activeFilter === 'mine' && !recipe.ownerId) ||
-        (activeFilter === 'family' && !!recipe.ownerId) ||
+        (activeFilter === 'mine' && isAddedBy(recipe, myUid)) ||
+        (activeFilter === 'family' && !isAddedBy(recipe, myUid)) ||
         tags.includes(activeFilter);
 
       const matchesTag = !activeTag || tags.includes(activeTag);
@@ -388,7 +379,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     setSearchQuery(''); setActiveFilter('all'); setActiveTag(null); setFastDayFriendly(false); setShowFavoritesOnly(false);
   };
 
-  const familyCount = familyRecipes.length;
+  const familyCount = allRecipes.filter(r => !isAddedBy(r, myUid)).length;
 
   const handleSetImage = async (recipe: Recipe, image: string) => {
     const updated = { ...recipe, image };
@@ -603,14 +594,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           <ul>
             {filteredRecipes.map(recipe => (
               <RecipeRow
-                key={`${recipe.ownerId || 'me'}-${recipe.id}`}
+                key={recipe.id}
                 meal={recipe}
                 onClick={() => openRecipe(recipe)}
-                isOwned={!recipe.ownerId}
                 ownerName={recipe.ownerName}
                 onToggleFavorite={(e) => toggleFavorite(e, recipe)}
                 onAddToPlan={() => setPlanTarget(recipe)}
-                onCopyToLibrary={recipe.ownerId ? (e) => handleCopyToMyLibrary(e, recipe) : undefined}
                 plannedLabel={plannedLabelFor(history?.next[recipe.id], today)}
                 historyLabel={historyLabelFor(history?.lastHad[recipe.id], today)}
                 tags={(recipe.tags || []).map(normalizeTag).filter(t => !MEAL_TYPE_TAGS.has(t)).map(tagLabel)}
@@ -620,7 +609,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         ) : (
           filteredRecipes.map(recipe => (
             <RecipeCard
-              key={`${recipe.ownerId || 'me'}-${recipe.id}`}
+              key={recipe.id}
               meal={recipe}
               onClick={onSelect ? () => onSelect(recipe) : () => openRecipe(recipe)}
               showMacros={false}
@@ -628,8 +617,6 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               actionLabel={onSelect ? 'Select' : undefined}
               onAction={onSelect ? () => onSelect(recipe) : undefined}
               ownerName={recipe.ownerName}
-              isOwned={!recipe.ownerId}
-              onCopyToLibrary={recipe.ownerId ? (e) => handleCopyToMyLibrary(e, recipe) : undefined}
               onAddToPlan={onSelect ? undefined : () => setPlanTarget(recipe)}
               plannedLabel={onSelect ? undefined : plannedLabelFor(history?.next[recipe.id], today)}
             />
@@ -683,15 +670,11 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             <RecipeDetailModal
               recipe={selectedRecipe}
               onClose={closeRecipe}
-              onEdit={!selectedRecipe.ownerId ? startEditing : undefined}
-              onDelete={!selectedRecipe.ownerId ? (id, e) => handleDelete(e, id) : undefined}
-              isOwned={!selectedRecipe.ownerId}
-              onCopyToLibrary={selectedRecipe.ownerId ? async () => {
-                await handleCopyToMyLibrary({ stopPropagation: () => { } } as React.MouseEvent, selectedRecipe);
-              } : undefined}
+              onEdit={startEditing}
+              onDelete={(id, e) => handleDelete(e, id)}
               onAddToPlan={onSelect ? undefined : () => { setPlanTarget(selectedRecipe); closeRecipe(); }}
               onCook={() => setCookRecipe(selectedRecipe)}
-              onSetImage={!selectedRecipe.ownerId && !selectedRecipe.image ? (url) => handleSetImage(selectedRecipe, url) : undefined}
+              onSetImage={!selectedRecipe.image ? (url) => handleSetImage(selectedRecipe, url) : undefined}
             />
           )
         )

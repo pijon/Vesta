@@ -41,7 +41,9 @@ service cloud.firestore {
       // User profile document - owner only
       allow read, write: if isOwner(userId);
 
-      // Family-readable subcollections, writable by owner only
+      // Family-readable subcollections, writable by owner only.
+      // recipes is legacy: recipes now live in groups/{groupId}/recipes, and members
+      // read these once to move them there.
       match /recipes/{recipeId} {
         allow read: if canRead(userId);
         allow write: if isOwner(userId);
@@ -123,15 +125,16 @@ service cloud.firestore {
         && request.resource.data.memberIds == [request.auth.uid];
 
       // Anyone holding the groupId may add or remove only themselves;
-      // members may rename the group or rotate its invite code.
+      // members may rename the group, rotate its invite code or record whose
+      // old users/{uid}/recipes have been moved into the family.
       allow update: if isSignedIn() && (
         (changesOnly(['memberIds']) && (isJoining() || isLeaving())) ||
-        (isMember() && changesOnly(['name', 'inviteCode']))
+        (isMember() && changesOnly(['name', 'inviteCode', 'legacyRecipesMoved']))
       );
 
       allow delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
 
-      // Subcollections (shared_recipes - legacy) - members only
+      // Subcollections (recipes, dinners; shared_recipes is legacy) - members only
       match /{document=**} {
         allow read, write: if isSignedIn()
           && request.auth.uid in get(groupPath(groupId)).data.memberIds;

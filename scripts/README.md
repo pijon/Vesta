@@ -24,6 +24,8 @@ npm install firebase-admin --save-dev
 
 Copy all recipes from one user to another.
 
+> Predates family recipes: it copies between `users/{uid}/recipes`, which the app now reads only once, to move a member's old recipes into `groups/{groupId}/recipes`. Recipes copied this way after that move don't show up.
+
 ### Usage
 
 ```bash

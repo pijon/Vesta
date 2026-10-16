@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CookingPot, Check, Flame, Sparkles, RefreshCw } from 'lucide-react';
 import { planSpecificDays, DayConfig } from '../services/geminiService';
 import { getDayPlan, getRecipes, getUserStats, saveDayPlan } from '../services/storageService';
-import { getMyGroupId } from '../services/groupService';
+import { getUserGroup } from '../services/groupService';
 import { dayTarget, planMeal, slotFor } from '../utils/planUtils';
 import { Recipe } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -104,7 +104,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
         setIsLoading(true);
         try {
             // Fill only the open slots: meals already planned (and family dinners) stay
-            const inFamily = !!(await getMyGroupId());
+            const inFamily = ((await getUserGroup())?.memberIds.length ?? 0) > 1;
             for (const day of generatedPlan) {
                 const existing = await getDayPlan(day.date);
                 const taken = new Set(existing.meals.map(slotFor));

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Meal } from '../types';
 import { mealVisualFor } from '../utils/mealVisual';
-import { CalendarCheck, CalendarPlus, Copy, Heart, UsersRound } from 'lucide-react';
+import { CalendarCheck, CalendarPlus, Heart, UsersRound } from 'lucide-react';
 
 interface RecipeCardProps {
   meal: Meal;
@@ -10,14 +10,8 @@ interface RecipeCardProps {
   onAction?: (e: React.MouseEvent) => void;
   showMacros?: boolean;
   onToggleFavorite?: (e: React.MouseEvent) => void;
-  /** @deprecated use isOwned */
-  isInGroup?: boolean;
-  /** True when the current user owns this recipe */
-  isOwned?: boolean;
-  /** Owner's display name, for family recipes */
+  /** Name of the family member who added it, when not the current user */
   ownerName?: string;
-  /** Copy a family recipe into the user's own library */
-  onCopyToLibrary?: (e: React.MouseEvent) => void;
   /** Open the add-to-plan picker */
   onAddToPlan?: (e: React.MouseEvent) => void;
   /** e.g. "Planned Thu", when the recipe is in the coming plan */
@@ -69,9 +63,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
   onAction,
   showMacros = true,
   onToggleFavorite,
-  isOwned = true,
   ownerName,
-  onCopyToLibrary,
   onAddToPlan,
   plannedLabel,
 }) => {
@@ -100,7 +92,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
           <RecipeThumb meal={meal} className="w-full aspect-[4/3]" iconSize={36} zoom plate="h-[62%] aspect-square" />
         </button>
 
-        {isOwned && onToggleFavorite && (
+        {onToggleFavorite && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(e); }}
             aria-label={meal.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
@@ -111,7 +103,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
             <Heart size={17} fill={meal.isFavorite ? 'currentColor' : 'none'} />
           </button>
         )}
-        {!isOwned && ownerName && (
+        {ownerName && (
           <span className="absolute top-2 left-2 badge badge-workout !py-0.5 shadow-[var(--elev-sm)]"><UsersRound size={12} aria-hidden="true" /> {ownerName.split(' ')[0]}</span>
         )}
         {plannedLabel && (
@@ -142,7 +134,6 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
               !!meal.protein && <span className="block text-xs text-muted mt-1 whitespace-nowrap">{meal.protein} g protein</span>
             )}
           </p>
-          {!isOwned && onCopyToLibrary && footerButton('Copy to my recipes', onCopyToLibrary, <Copy size={16} aria-hidden="true" />)}
           {onAddToPlan && footerButton('Add to plan', onAddToPlan, <CalendarPlus size={16} aria-hidden="true" />, 'Plan')}
         </div>
 
@@ -162,11 +153,10 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
 interface RecipeRowProps {
   meal: Meal;
   onClick: () => void;
-  isOwned: boolean;
+  /** Name of the family member who added it, when not the current user */
   ownerName?: string;
   onToggleFavorite?: (e: React.MouseEvent) => void;
   onAddToPlan?: (e: React.MouseEvent) => void;
-  onCopyToLibrary?: (e: React.MouseEvent) => void;
   plannedLabel?: string;
   /** e.g. "Last had 3 weeks ago" */
   historyLabel?: string;
@@ -176,7 +166,7 @@ interface RecipeRowProps {
 
 /** Compact list row for scanning a large library. */
 export const RecipeRow: React.FC<RecipeRowProps> = ({
-  meal, onClick, isOwned, ownerName, onToggleFavorite, onAddToPlan, onCopyToLibrary, plannedLabel, historyLabel, tags = [],
+  meal, onClick, ownerName, onToggleFavorite, onAddToPlan, plannedLabel, historyLabel, tags = [],
 }) => {
   const visual = mealVisualFor(meal);
   const iconButton = (label: string, onPress: (e: React.MouseEvent) => void, icon: React.ReactNode, active = false) => (
@@ -208,17 +198,16 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
             {tags.slice(0, 2).map(t => <span key={t} className="hidden sm:inline">· {t}</span>)}
             {plannedLabel && <span className="badge badge-ink !py-0"><CalendarCheck size={11} aria-hidden="true" /> {plannedLabel}</span>}
             {!plannedLabel && historyLabel && <span>· {historyLabel}</span>}
-            {!isOwned && ownerName && <span className="badge badge-workout !py-0"><UsersRound size={11} aria-hidden="true" /> {ownerName.split(' ')[0]}</span>}
+            {ownerName && <span className="badge badge-workout !py-0"><UsersRound size={11} aria-hidden="true" /> {ownerName.split(' ')[0]}</span>}
           </span>
         </span>
       </button>
-      {isOwned && onToggleFavorite && iconButton(
+      {onToggleFavorite && iconButton(
         meal.isFavorite ? 'Remove from favourites' : 'Add to favourites',
         onToggleFavorite,
         <Heart size={18} fill={meal.isFavorite ? 'currentColor' : 'none'} />,
         !!meal.isFavorite,
       )}
-      {!isOwned && onCopyToLibrary && iconButton('Copy to my recipes', onCopyToLibrary, <Copy size={18} />)}
       {onAddToPlan && iconButton('Add to plan', onAddToPlan, <CalendarPlus size={18} />)}
     </li>
   );
