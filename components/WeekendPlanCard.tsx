@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarHeart } from 'lucide-react';
+import { CalendarHeart, Check, ChevronRight, X } from 'lucide-react';
 import { DayPlan, MealSlot } from '../types';
 import { getCachedPlansInRange, getDayPlansInRange } from '../services/storageService';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { addDays, emptyDayPlan, mealKcalLabel, slotFor } from '../utils/planUtils';
-import { useDevMode } from '../contexts/DevModeContext';
 
 interface WeekendPlanCardProps {
   /** Average extra calories a day at weekends from recent logs, when known */
@@ -26,6 +25,7 @@ const readDismissed = () => {
 };
 
 const dayName = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'long' });
+const shortDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' });
 
 /** What a weekend day still needs, e.g. "Lunch and dinner not planned", or its main meals when done */
 const dayStatus = (plan: DayPlan) => {
@@ -49,7 +49,6 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, to
 
   const [plans, setPlans] = useState<Record<string, DayPlan> | null>(() => (show ? getCachedPlansInRange(saturday, sunday) : null));
   const [dismissed, setDismissed] = useState(readDismissed);
-  const quickMeals = useDevMode().isFeatureEnabled('quickMeals');
 
   useEffect(() => {
     if (!show) return;
@@ -63,41 +62,52 @@ export const WeekendPlanCard: React.FC<WeekendPlanCardProps> = ({ weekendGap, to
   if (!show || !plans || dismissed === saturday) return null;
   const days = [saturday, sunday].filter(date => date !== tomorrow).map(date => ({ date, ...dayStatus(plans[date] || emptyDayPlan(date)) }));
   if (days.every(d => d.done)) return null;
-  const firstOpen = days.find(d => !d.done)!.date;
 
   const dismiss = () => {
     setDismissed(saturday);
     try { localStorage.setItem(DISMISS_KEY, saturday); } catch { /* per-device convenience */ }
   };
 
+  const gap = weekendGap !== null && weekendGap >= 150 ? Math.round(weekendGap / 10) * 10 : null;
+
   return (
-    <section className="card p-5 md:p-6" aria-labelledby="weekend-plan-title">
+    <section className="card p-4 md:p-6" aria-labelledby="weekend-plan-title">
       <div className="flex items-start gap-3">
-        <span className="icon-tile tile-water shrink-0 flex items-center justify-center size-10" aria-hidden="true"><CalendarHeart size={18} /></span>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pl-1 pt-1">
           <h2 id="weekend-plan-title" className="heading-3">Plan your weekend</h2>
           <p className="text-sm text-muted mt-0.5">
-            {weekendGap !== null && weekendGap >= 150
-              ? `Your weekends run about ${Math.round(weekendGap / 10) * 10} kcal a day over your weekdays. Planning them ahead is the easiest fix, and planned meals take one tap to log.`
-              : 'Weekends are when eating drifts and logging slips. Planned meals take one tap to log.'}
+            {gap !== null
+              ? `Your weekends run about ${gap} kcal a day over your weekdays.`
+              : 'Planned meals take one tap to log, even at weekends.'}
           </p>
-          <ul className="mt-2 space-y-1">
-            {days.map(d => (
-              <li key={d.date} className="flex items-baseline gap-2 text-sm">
-                <span className="font-semibold w-20 shrink-0">{dayName(d.date)}</span>
-                <span className={`min-w-0 truncate ${d.done ? 'text-muted' : ''}`}>{d.text}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button onClick={() => onPlan(firstOpen)} className="btn-secondary btn-sm">
-              Plan {dayName(firstOpen)}
-            </button>
-            <button onClick={dismiss} className="btn-ghost btn-sm">Not this week</button>
-          </div>
-          {quickMeals && <p className="text-xs text-muted mt-2">Eating out? Type the place in the planner search and plan it as a quick meal.</p>}
         </div>
+        <button onClick={dismiss} className="icon-btn shrink-0 -mr-1 -mt-1 text-muted" aria-label="Not this week">
+          <X size={18} aria-hidden="true" />
+        </button>
       </div>
+      {/* A row per day, each straight into the planner at that day */}
+      <ul className="mt-3">
+        {days.map(d => (
+          <li key={d.date} className="border-t border-border first:border-t-0">
+            <button
+              onClick={() => onPlan(d.date)}
+              className="w-full flex items-center gap-3 py-2.5 text-left rounded-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+              aria-label={`${d.done ? 'Open' : 'Plan'} ${dayName(d.date)}`}
+            >
+              <span className={`size-11 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${d.done ? 'tile-weight' : 'tile-water'}`} aria-hidden="true">
+                {d.done ? <Check size={18} strokeWidth={2.5} /> : shortDay(d.date)}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold leading-snug">{dayName(d.date)}</span>
+                <span className="block text-sm text-muted truncate">{d.text}</span>
+              </span>
+              {d.done
+                ? <ChevronRight size={18} className="shrink-0 text-muted" aria-hidden="true" />
+                : <span className="chip shrink-0 px-3 pointer-events-none"><CalendarHeart size={15} aria-hidden="true" /> Plan</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 };
