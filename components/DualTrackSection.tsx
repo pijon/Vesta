@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
+import { motion } from 'framer-motion';
 import { Coffee, Salad, Cookie, CookingPot, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
 import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel, slotTime } from '../utils/planUtils';
 import type { FrequentFood } from '../services/pageData';
+import { useMoment } from '../hooks/useMoment';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
@@ -112,6 +114,11 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const [editFoodTime, setEditFoodTime] = useState('');
   const [showAllLoggedItems, setShowAllLoggedItems] = useState(false);
   const [showEaten, setShowEaten] = useState(false);
+  const [foldPlan, setFoldPlan] = useState(todayPlan);
+  useEffect(() => {
+    const timer = setTimeout(() => setFoldPlan(todayPlan), 450);
+    return () => clearTimeout(timer);
+  }, [todayPlan]);
   // "Log again" fades at the right edge while more chips are scrolled out of view
   const chipsRef = useRef<HTMLDivElement>(null);
   const [chipsFade, setChipsFade] = useState(false);
@@ -203,12 +210,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   // Eaten ones fold into one row (they're in Today's log too); the rest are grouped by slot.
   const inSlotOrder = MEAL_SLOTS.flatMap(({ slot, label }) =>
     plannedMeals.map((meal, index) => ({ meal, index, label })).filter(({ meal }) => slotFor(meal) === slot));
-  const eatenMeals = inSlotOrder.filter(({ meal }) => isMealEaten(todayPlan, meal));
-  const allEaten = plannedMeals.length > 0 && eatenCount === plannedMeals.length;
+  // Folding follows the plan a beat late, so a tick's pop is seen before the row moves into the eaten row
+  const eatenMeals = inSlotOrder.filter(({ meal }) => isMealEaten(foldPlan, meal));
+  const allEaten = plannedMeals.length > 0 && eatenMeals.length === plannedMeals.length;
   // A lone eaten meal stays in its slot; two or more (or the whole plan) fold into one row
   const foldEaten = allEaten || eatenMeals.length >= 2;
+  const foldMoment = useMoment(foldEaten ? eatenMeals.length : 0);
   const mealsBySlot = MEAL_SLOTS
-    .map(({ label }) => ({ label, entries: inSlotOrder.filter(e => e.label === label && !(foldEaten && isMealEaten(todayPlan, e.meal))) }))
+    .map(({ label }) => ({ label, entries: inSlotOrder.filter(e => e.label === label && !(foldEaten && isMealEaten(foldPlan, e.meal))) }))
     .filter(group => group.entries.length > 0);
   const eatenCalories = eatenMeals.reduce((sum, { meal }) => sum + mealCalories(meal), 0);
   const fits = remainingPlannedCalories <= caloriesLeft;
@@ -227,7 +236,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
         <h3 className="font-sans text-sm font-semibold text-muted pb-1">
           {group.label}{food.length > 0 && ` · ${kcal.toLocaleString()} kcal`}
         </h3>
-        <ul>
+        <ul className="stagger">
           {group.entries.map(entry => {
             const isFood = entry.kind === 'food';
             const name = displayName(isFood ? entry.item.name : entry.workout.type);
@@ -317,16 +326,28 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             <Shuffle size={16} />
           </button>
         )}
-        <button
+        <motion.button
           onClick={() => onToggleMeal(index)}
-          className={`size-12 shrink-0 flex items-center justify-center rounded-full border-2 transition-colors active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${isEaten
+          initial={false}
+          animate={{ scale: isEaten ? [1, 1.14, 1] : 1 }}
+          transition={{ duration: 0.32, ease: 'easeOut' }}
+          whileTap={{ scale: 0.92 }}
+          className={`size-12 shrink-0 flex items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${isEaten
             ? 'bg-ink border-ink text-on-ink'
             : 'border-border-control text-transparent hover:text-muted hover:border-main'}`}
           aria-pressed={isEaten}
           aria-label={isEaten ? `Mark ${meal.name} as not eaten` : `Mark ${meal.name} as eaten`}
         >
-          <Check size={22} strokeWidth={3} />
-        </button>
+          {/* lucide's Check, drawn in when ticked (in full when not, for the hover hint) */}
+          <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <motion.path
+              d="M20 6 9 17l-5-5"
+              initial={false}
+              animate={{ pathLength: isEaten ? [0, 1] : 1 }}
+              transition={{ duration: isEaten ? 0.28 : 0, ease: 'easeOut', delay: isEaten ? 0.06 : 0 }}
+            />
+          </svg>
+        </motion.button>
       </li>
     );
   };
@@ -374,7 +395,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   aria-expanded={showEaten}
                   className="w-full flex items-center gap-3 px-2 py-2.5 text-left rounded-[14px] hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
                 >
-                  <span className="shrink-0 tile-weight flex items-center justify-center size-14 rounded-full">
+                  <span className={`shrink-0 tile-weight flex items-center justify-center size-14 rounded-full ${foldMoment ? 'moment-pop' : ''}`}>
                     <Check size={20} strokeWidth={2.5} aria-hidden="true" />
                   </span>
                   <span className="flex-1 min-w-0">
@@ -385,12 +406,12 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   </span>
                   <ChevronDown size={18} className={`shrink-0 mr-3 text-muted transition-transform ${showEaten ? 'rotate-180' : ''}`} aria-hidden="true" />
                 </button>
-                {showEaten && <ul>{eatenMeals.map(renderPlateRow)}</ul>}
+                {showEaten && <ul className="stagger">{eatenMeals.map(renderPlateRow)}</ul>}
               </section>
             )}
             {mealsBySlot.map(group => (
             <section key={group.label}>
-            <ul>
+            <ul className="stagger">
               {group.entries.map(renderPlateRow)}
             </ul>
             </section>

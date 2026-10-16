@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import { Sheet } from './Sheet';
+import { SelectionPill } from './SelectionPill';
 
 interface BatchPlannerModalProps {
     isOpen: boolean;
@@ -246,7 +247,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm text-muted" id={`meals-${day.date}`}>Meals</span>
-                                                <div className="segmented" role="radiogroup" aria-labelledby={`meals-${day.date}`}>
+                                                <div className="segmented pill-group" role="radiogroup" aria-labelledby={`meals-${day.date}`}>
                                                     {[2, 3, 4].map(num => (
                                                         <button
                                                             key={num}
@@ -256,6 +257,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                                             onClick={() => updateDayConfig(idx, { meals: num })}
                                                             className="segment !px-3.5"
                                                         >
+                                                            {day.meals === num && <SelectionPill group={`batch-meals-${day.date}`} />}
                                                             {num}
                                                         </button>
                                                     ))}

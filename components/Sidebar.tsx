@@ -2,6 +2,7 @@ import React from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { AppView, Avatar } from '../types';
 import { MemberAvatar } from './MemberAvatar';
+import { SelectionPill } from './SelectionPill';
 import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
 import { VestaMark } from './VestaMark';
 
@@ -21,6 +22,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me })
       aria-current={isNavCurrent(view, currentView) ? 'page' : undefined}
       className="side-item"
     >
+      {isNavCurrent(view, currentView) && <SelectionPill group="side-nav-pill" />}
       <span className="side-icon">
         <Icon size={20} strokeWidth={isNavCurrent(view, currentView) ? 2.5 : 2.25} />
       </span>
@@ -34,10 +36,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me })
         <VestaMark />
         <span className="hidden lg:block font-display font-extrabold text-xl lowercase tracking-[-0.03em]">Vesta</span>
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="pill-group flex flex-col gap-1">
         {NAV_ITEMS.map(item)}
       </div>
-      <div className="side-foot mt-auto pt-4 border-t flex flex-col gap-1">
+      <div className="side-foot pill-group mt-auto pt-4 border-t flex flex-col gap-1">
         {me?.uid && (
           <button onClick={() => onNavigate(AppView.FAMILY)} className="side-item" aria-label={me.name ? `${me.name}: your family` : 'Your family'}>
             <MemberAvatar avatar={me.avatar} uid={me.uid} size={36} />

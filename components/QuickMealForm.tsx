@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { MealSlot, QuickMealKind, Recipe } from '../types';
 import { QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
 import { QUICK_MEAL_KINDS } from '../utils/mealVisual';
 import { estimateMealCalories } from '../services/geminiService';
+import { SelectionPill } from './SelectionPill';
 
 interface QuickMealFormProps {
   /** Form id, so the sheet footer's submit button can sit outside the form */
@@ -28,6 +29,7 @@ const KINDS: QuickMealKind[] = ['home', 'out', 'ready'];
 /** Plan a meal without a recipe. Only the name is required; calories may be a preset, an estimate or left out. */
 export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, slot, isSide, onSubmit }) => {
   const [name, setName] = useState(initialName);
+  const kindPillId = useId();
   const [kind, setKind] = useState<QuickMealKind>(slot === 'snack' ? 'ready' : 'home');
   const [preset, setPreset] = useState<number | null>(null);
   const [exact, setExact] = useState('');
@@ -95,7 +97,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
 
       <fieldset>
         <legend className="text-sm font-semibold text-muted mb-1.5">What kind of meal</legend>
-        <div role="radiogroup" aria-label="What kind of meal" className="segmented flex w-full">
+        <div role="radiogroup" aria-label="What kind of meal" className="segmented pill-group flex w-full">
           {KINDS.map(k => (
             <button
               key={k}
@@ -105,6 +107,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
               onClick={() => setKind(k)}
               className="segment flex-1 justify-center !px-2"
             >
+              {kind === k && <SelectionPill group={kindPillId} />}
               {QUICK_MEAL_KINDS[k].label}
             </button>
           ))}
