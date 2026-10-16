@@ -160,10 +160,17 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
 
-      // Subcollections (recipes, dinners; shared_recipes is legacy) - members only
+      // Subcollections (recipes, dinners, departures; shared_recipes is legacy) - members only
       match /{document=**} {
         allow read, write: if isSignedIn()
           && request.auth.uid in get(groupPath(groupId)).data.memberIds;
+      }
+
+      // Copies of a removed member's recipes, left by the admin (removeMember in
+      // groupService.ts). That member collects them after removal, so they may read and
+      // delete their own even though they're no longer in memberIds.
+      match /departures/{memberId}/recipes/{recipeId} {
+        allow read, delete: if isSignedIn() && request.auth.uid == memberId;
       }
     }
 

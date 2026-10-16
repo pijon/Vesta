@@ -245,7 +245,7 @@ export const FamilyView: React.FC = () => {
                                 {confirming && (
                                     <div role="alertdialog" aria-label={`Remove ${member.name}?`} className="mt-2 rounded-[14px] bg-error-bg p-4 space-y-3">
                                         <p className="text-sm">
-                                            <span className="font-semibold">Remove {member.name}?</span> Recipes and dinners stay with {group.name}. They'll start a family of their own the next time they open Vesta.
+                                            <span className="font-semibold">Remove {member.name}?</span> Recipes and dinners stay with {group.name}. Next time they open Vesta they'll start a family of their own, with copies of the recipes they added or have planned.
                                         </p>
                                         <div className="flex flex-wrap gap-2">
                                             <button onClick={() => handleRemove(member)} disabled={busy} className={dangerButton}>
