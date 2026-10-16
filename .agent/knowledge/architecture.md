@@ -27,7 +27,7 @@
 ## Component Architecture
 - **Views:** Managed by `AppView` enum (TODAY, ANALYTICS, PLANNER, etc.).
 - **Modals:** Rendered via `Portal` component.
-- **Widgets:** Self-contained UI blocks (e.g., `CaloriesHero`, `TonightCard`, `TodayStrip`) getting props from `App.tsx`.
+- **Widgets:** Self-contained UI blocks (e.g., `CaloriesHero`, `TodayStrip`, `CoachCard`) getting props from `App.tsx`.
 
 ## Tech Stack
 - **Framework:** React 19 + Vite
