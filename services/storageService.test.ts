@@ -9,7 +9,8 @@ vi.mock('./firebase', () => ({ db: {}, auth: { currentUser: null }, currentUid: 
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId } = await import('./groupService');
-const { getDayPlan, saveDayPlan } = await import('./storageService');
+const { getDayPlan, saveDayPlan, subscribeFamilyDinners } = await import('./storageService');
+const { getCachedDayPlan } = await import('../utils/cacheService');
 
 const chili: Recipe = {
   id: 'r1', name: 'Chili', calories: 520, protein: 35, servings: 4,
@@ -180,5 +181,77 @@ describe('family dinners', () => {
     store.writes.length = 0;
     await saveDayPlan({ ...loaded, completedMealIds: [loaded.meals[0].instanceId!] });
     expect(store.writes).toEqual(['users/me/days/2026-10-13']);
+  });
+});
+
+describe('live family dinners', () => {
+  beforeEach(() => {
+    setFamily(['me', 'partner']);
+    putRecipe({ ...chili, id: 'p1', name: 'Pad thai', createdBy: 'partner' });
+  });
+  type Update = { dinners: Record<string, Recipe[]>; added: { date: string; name: string; by: string }[] };
+  const listen = (start: string, end: string) => {
+    const updates: Update[] = [];
+    const stop = subscribeFamilyDinners(start, end, (dinners, added) => updates.push({ dinners, added }));
+    return { updates, stop };
+  };
+  /** A dinner saved by the partner on another device */
+  const partnerPlans = (date: string, instanceId: string, extra: Record<string, unknown> = {}) => {
+    const existing = (store.docs.get(`groups/g/dinners/${date}`)?.meals ?? {}) as Record<string, unknown>;
+    store.docs.set(`groups/g/dinners/${date}`, {
+      date,
+      meals: { ...existing, [instanceId]: { type: 'reference', recipeId: 'p1', instanceId, addedBy: 'partner', position: 9, ...extra } },
+    });
+    store.notify();
+  };
+
+  it("starts with the range's dinners and points out none of them", async () => {
+    partnerPlans('2026-10-20', 'a');
+    const { updates, stop } = listen('2026-10-20', '2026-10-26');
+    await vi.waitFor(() => expect(updates).toHaveLength(1));
+    expect(updates[0].dinners['2026-10-20'].map(m => [m.name, m.familyDinner, m.slot])).toEqual([['Pad thai', true, 'dinner']]);
+    expect(updates[0].added).toEqual([]);
+    stop();
+  });
+
+  it('points out a dinner another member plans while listening', async () => {
+    const { updates, stop } = listen('2026-10-20', '2026-10-26');
+    await new Promise(r => setTimeout(r, 20)); // listening
+    partnerPlans('2026-10-21', 'b');
+    await vi.waitFor(() => expect(updates.at(-1)?.added).toEqual([{ date: '2026-10-21', name: 'Pad thai', by: 'partner' }]));
+    expect(updates.at(-1)!.dinners['2026-10-21'].map(m => m.instanceId)).toEqual(['b']);
+    stop();
+  });
+
+  it("updates the cached day plan, and doesn't point out the user's own dinners", async () => {
+    const lunch = planMeal(chili, 'lunch');
+    await saveDayPlan(plan('2026-10-22', [lunch]));
+    const { updates, stop } = listen('2026-10-20', '2026-10-26');
+    await saveDayPlan(plan('2026-10-22', [lunch, planMeal(chili, 'dinner', { familyDinner: true, addedBy: 'me' })]));
+    partnerPlans('2026-10-22', 'c');
+    await vi.waitFor(() => expect(getCachedDayPlan('2026-10-22')?.meals.map(m => m.name)).toEqual(['Chili', 'Chili', 'Pad thai']));
+    expect(updates.flatMap(u => u.added).map(a => a.name)).toEqual(['Pad thai']);
+    stop();
+  });
+
+  it('passes on removed dinners as an empty day, and stops when asked', async () => {
+    partnerPlans('2026-10-23', 'd');
+    const { updates, stop } = listen('2026-10-20', '2026-10-26');
+    await vi.waitFor(() => expect(updates).toHaveLength(1));
+    store.docs.delete('groups/g/dinners/2026-10-23');
+    store.notify();
+    await vi.waitFor(() => expect(updates.at(-1)?.dinners).toEqual({ '2026-10-23': [] }));
+    stop();
+    partnerPlans('2026-10-24', 'e');
+    await new Promise(r => setTimeout(r, 20));
+    expect(updates).toHaveLength(2);
+  });
+
+  it('does nothing outside its range', async () => {
+    const { updates, stop } = listen('2026-10-20', '2026-10-26');
+    partnerPlans('2026-11-02', 'f');
+    await new Promise(r => setTimeout(r, 20));
+    expect(updates).toEqual([]);
+    stop();
   });
 });

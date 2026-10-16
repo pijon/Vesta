@@ -1,4 +1,4 @@
-import { DayPlan, EatingOutDish, KnownFood, Recipe } from '../types';
+import { Avatar, DayPlan, EatingOutDish, KnownFood, Recipe } from '../types';
 import { getDailySummaries, getDayPlansInRange, getEnhancedShoppingState, getFamilyPlansInRange, getPantryInventory, getRecipePlanDates, getFoodItemsSince, getRecipes, getEatingOutDishes } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
@@ -38,6 +38,8 @@ export interface FamilyInfo {
   memberCount: number;
   /** First names by uid */
   names: Map<string, string>;
+  /** Chosen avatars by uid (members without one get a default from their uid) */
+  avatars: Map<string, Avatar>;
 }
 
 /**
@@ -48,7 +50,11 @@ export const familyData = defineWarm<FamilyInfo | null>('family', async () => {
   const group = await getUserGroup();
   if (!group || group.memberIds.length < 2) return null;
   const members = await getGroupMembersDetails(group.memberIds);
-  return { memberCount: group.memberIds.length, names: new Map(members.map(m => [m.id, m.name.split(' ')[0]])) };
+  return {
+    memberCount: group.memberIds.length,
+    names: new Map(members.map(m => [m.id, m.name.split(' ')[0]])),
+    avatars: new Map(members.flatMap(m => (m.avatar ? [[m.id, m.avatar] as const] : []))),
+  };
 }, 5 * 60_000);
 
 export interface RecipeHistory {

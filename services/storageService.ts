@@ -3,7 +3,7 @@ import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCache
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, toStoredRecipe } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
 import { currentUid, db } from "./firebase";
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, deleteField, arrayUnion, arrayRemove, query, where, orderBy, limit, DocumentData } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, deleteField, arrayUnion, arrayRemove, query, where, orderBy, limit, onSnapshot, DocumentData, QuerySnapshot } from "firebase/firestore";
 
 // Helper to get current user ID or throw
 const getUserId = () => {
@@ -339,6 +339,75 @@ export const getFamilyDinnersInRange = async (startDate: string, endDate: string
     console.error('Error fetching family dinners:', e);
     return {};
   }
+};
+
+/** A family dinner another member planned, noticed while the app was open */
+export interface FamilyDinnerChange {
+  date: string;
+  name: string;
+  /** Uid of the member who planned it */
+  by: string;
+}
+
+/** A day plan with its family dinners replaced by `dinners` */
+export const withFamilyDinners = (plan: DayPlan, dinners: Recipe[]): DayPlan =>
+  ({ ...plan, meals: [...plan.meals.filter(meal => !meal.familyDinner), ...dinners] });
+
+/**
+ * Keeps the family dinners for a date range live. `onUpdate` gets the dinners of each date that
+ * changed (an empty list when a date's were all removed), and the dinners other members added since
+ * the first update, so they can be pointed out. The cached day plans are kept up to date too.
+ * Returns the unsubscribe function; nothing happens without a family group.
+ */
+export const subscribeFamilyDinners = (
+  startDate: string,
+  endDate: string,
+  onUpdate: (dinners: Record<string, Recipe[]>, added: FamilyDinnerChange[]) => void,
+): (() => void) => {
+  let stopped = false;
+  let unsubscribe: (() => void) | undefined;
+  // Instance ids seen per date by this subscription (its own, so other listeners can't hide a change)
+  const seen = new Map<string, Set<string>>();
+  let first = true;
+  let queue = Promise.resolve();
+
+  const handle = async (groupId: string, snapshot: QuerySnapshot<DocumentData>) => {
+    const isFirst = first;
+    first = false;
+    const me = currentUid();
+    const dinners: Record<string, Recipe[]> = {};
+    const added: FamilyDinnerChange[] = [];
+    await Promise.all(snapshot.docChanges().map(async change => {
+      const data = change.doc.data() as { date?: string; meals?: Record<string, StoredFamilyDinner> };
+      const date = data.date || change.doc.id;
+      const meals = change.type === 'removed' ? [] : await hydrateFamilyDinners(groupId, date, data.meals);
+      if (change.type === 'removed') loadedFamilyDinners.delete(`${groupId}/${date}`);
+      dinners[date] = meals;
+      const before = seen.get(date) || new Set<string>();
+      if (!isFirst) meals.forEach(meal => {
+        if (!before.has(meal.instanceId!) && meal.addedBy && meal.addedBy !== me) added.push({ date, name: meal.name, by: meal.addedBy });
+      });
+      seen.set(date, new Set(meals.map(meal => meal.instanceId!)));
+      const cached = getCachedDayPlan(date);
+      if (cached) saveToCache(getCacheKey('dayPlan', date), withFamilyDinners(cached, meals));
+    }));
+    if (!stopped && Object.keys(dinners).length > 0) onUpdate(dinners, added);
+  };
+
+  getMyGroupId().then(groupId => {
+    if (!groupId || stopped) return;
+    unsubscribe = onSnapshot(
+      query(collection(db, 'groups', groupId, 'dinners'), where('date', '>=', startDate), where('date', '<=', endDate)),
+      snapshot => {
+        // This device's saves come through too (they match the plan already, and are never announced).
+        // One at a time and in order, as hydrating recipes is async
+        queue = queue.then(() => handle(groupId, snapshot)).catch(e => console.error('Error updating family dinners:', e));
+      },
+      e => console.warn('Live family dinners stopped:', e),
+    );
+  }).catch(e => console.warn('Could not start live family dinners:', e));
+
+  return () => { stopped = true; unsubscribe?.(); };
 };
 
 /** Writes the family dinners that changed since they were loaded; never removes one this session hasn't seen. */
