@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Group } from '../types';
-import { joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode } from '../services/groupService';
+import { joinGroup, leaveGroup, renameGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode, FAMILY_NAME_MAX_LENGTH } from '../services/groupService';
 import { currentUid } from '../services/firebase';
 import { familyData } from '../services/pageData';
 import { ensureWarm } from '../utils/prewarm';
-import { CircleAlert, Check, Copy, LogIn, LogOut, CookingPot } from 'lucide-react';
+import { CircleAlert, Check, Copy, LogIn, LogOut, CookingPot, Pencil } from 'lucide-react';
 
 export const FamilySettings: React.FC = () => {
     const [group, setGroup] = useState<Group | null>(null);
@@ -12,6 +12,9 @@ export const FamilySettings: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [inviteCodeInput, setInviteCodeInput] = useState('');
     const [error, setError] = useState<string | null>(null);
+    /** The name being typed while renaming; null when not renaming */
+    const [nameDraft, setNameDraft] = useState<string | null>(null);
+    const [savingName, setSavingName] = useState(false);
 
     useEffect(() => {
         loadGroup();
@@ -39,6 +42,22 @@ export const FamilySettings: React.FC = () => {
             console.error("Error loading group:", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRename = async () => {
+        if (!group || nameDraft === null) return;
+        if (nameDraft.trim() === group.name) { setNameDraft(null); return; }
+        setSavingName(true);
+        setError(null);
+        try {
+            const name = await renameGroup(group.id, nameDraft);
+            setGroup({ ...group, name });
+            setNameDraft(null);
+        } catch (e) {
+            setError(e instanceof Error && e.message ? e.message : "We couldn't rename the family. Try again.");
+        } finally {
+            setSavingName(false);
         }
     };
 
@@ -108,22 +127,57 @@ export const FamilySettings: React.FC = () => {
             ) : (
                 <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] bg-surface-sunken p-4">
-                        <div className="min-w-0">
-                            <h3 className="heading-3 truncate">{group.name}</h3>
-                            <p className="text-sm text-muted">
-                                {isSolo ? 'Just you so far' : `${group.memberIds.length} members`}
-                                {!isSolo && group.ownerId === currentUid() ? ' · You manage this family' : ''}
-                            </p>
-                        </div>
-                        <button
-                            onClick={handleCopyCode}
-                            className="inline-flex items-center gap-2 rounded-full bg-surface border border-border pl-4 pr-3 min-h-11 hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-                            aria-label={codeCopied ? 'Invite code copied' : `Copy invite code ${group.inviteCode}`}
-                        >
-                            <span className="text-xs text-muted">Invite code</span>
-                            <span className="font-mono font-bold tracking-wider">{group.inviteCode}</span>
-                            {codeCopied ? <Check size={16} className="text-weight-text" aria-hidden="true" /> : <Copy size={16} className="text-muted" aria-hidden="true" />}
-                        </button>
+                        {nameDraft !== null ? (
+                            <form
+                                className="flex flex-col sm:flex-row gap-2 w-full"
+                                onSubmit={(e) => { e.preventDefault(); handleRename(); }}
+                                onKeyDown={(e) => { if (e.key === 'Escape') setNameDraft(null); }}
+                            >
+                                <label htmlFor="family-name" className="sr-only">Family name</label>
+                                <input
+                                    id="family-name"
+                                    type="text"
+                                    value={nameDraft}
+                                    maxLength={FAMILY_NAME_MAX_LENGTH}
+                                    onChange={e => setNameDraft(e.target.value)}
+                                    className="input w-full"
+                                    autoFocus
+                                />
+                                <div className="flex gap-2 shrink-0">
+                                    <button type="submit" disabled={!nameDraft.trim() || savingName} className="btn-primary btn-sm">Save</button>
+                                    <button type="button" onClick={() => setNameDraft(null)} className="btn-ghost btn-sm">Cancel</button>
+                                </div>
+                            </form>
+                        ) : (
+                            <>
+                                <div className="min-w-0 flex items-center gap-1">
+                                    <div className="min-w-0">
+                                        <h3 className="heading-3 truncate">{group.name}</h3>
+                                        <p className="text-sm text-muted">
+                                            {isSolo ? 'Just you so far' : `${group.memberIds.length} members`}
+                                            {!isSolo && group.ownerId === currentUid() ? ' · You manage this family' : ''}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNameDraft(group.name)}
+                                        className="icon-btn !bg-transparent hover:!bg-surface shrink-0"
+                                        aria-label="Rename family"
+                                        title="Rename family"
+                                    >
+                                        <Pencil size={16} aria-hidden="true" />
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={handleCopyCode}
+                                    className="inline-flex items-center gap-2 rounded-full bg-surface border border-border pl-4 pr-3 min-h-11 hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                                    aria-label={codeCopied ? 'Invite code copied' : `Copy invite code ${group.inviteCode}`}
+                                >
+                                    <span className="text-xs text-muted">Invite code</span>
+                                    <span className="font-mono font-bold tracking-wider">{group.inviteCode}</span>
+                                    {codeCopied ? <Check size={16} className="text-weight-text" aria-hidden="true" /> : <Copy size={16} className="text-muted" aria-hidden="true" />}
+                                </button>
+                            </>
+                        )}
                     </div>
 
                     {isSolo ? (
