@@ -1,9 +1,10 @@
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus } from './types';
-import { mealCalories, mealKey, mealProtein, slotFor, slotLabel } from './utils/planUtils';
+import { isFastDay, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
 import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage } from './services/storageService';
 import * as cache from './utils/cacheService';
+import { useTheme } from './hooks/useTheme';
 // Lazy load non-critical components for performance
 const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
 const Planner = React.lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
@@ -30,6 +31,7 @@ import { Sidebar } from './components/Sidebar';
 import { PlannerTabs } from './components/PlannerTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { currentUid } from './services/firebase';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
 import { OnboardingWizard, OnboardingResult } from './components/OnboardingWizard';
@@ -42,7 +44,6 @@ import { ViewSkeleton } from './components/ViewSkeleton';
 
 
 
-const DARK_MODE_KEY = 'vesta_darkMode';
 
 const TrackerApp: React.FC = () => {
     const navigate = useNavigate();
@@ -160,13 +161,7 @@ const TrackerApp: React.FC = () => {
     const [showOnboarding, setShowOnboarding] = useState(false);
     // Removed isInitializing to allow instant rendering from cache
 
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        const saved = localStorage.getItem(DARK_MODE_KEY) ?? localStorage.getItem('fast800_darkMode');
-        if (saved !== null) {
-            return JSON.parse(saved);
-        }
-        return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    });
+    const theme = useTheme();
 
     const [fastingState, setFastingState] = useState<FastingState>(() => cache.getCachedFastingState() || {
         lastAteTime: null,
@@ -175,18 +170,6 @@ const TrackerApp: React.FC = () => {
 
 
     const [coachRead, setCoachRead] = useState<CoachReadState>(() => cache.getCachedCoachRead() || {});
-
-    // Dark mode effect
-    useEffect(() => {
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-        localStorage.setItem(DARK_MODE_KEY, JSON.stringify(isDarkMode));
-    }, [isDarkMode]);
-
-    const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
     const [dailyLog, setDailyLog] = useState<DailyLog>(() => {
         const date = localDateString();
@@ -324,6 +307,9 @@ const TrackerApp: React.FC = () => {
         setUserStatsState(newStats);
         await saveUserStats(newStats);
     };
+
+    // The signed-in user as their family sees them, for the header and the sidebar
+    const me = { uid: currentUid() ?? '', name: userStats.name, avatar: userStats.avatar };
 
     // A real weigh-in: records newStats.currentWeight as today's weight history entry.
     const handleLogWeight = async (newStats: UserStats) => {
@@ -657,16 +643,25 @@ const TrackerApp: React.FC = () => {
         return 'Good evening';
     };
 
-    const getHeaderInfo = (): { title: string; subtitle: string; large?: boolean } => {
+    /** Today's subtitle: the greeting plus where the day stands, so it changes as you go */
+    const getTodayLine = (greeting: string) => {
+        const next = nextMealIndex(todayPlan);
+        const status = todayPlan.meals.length === 0
+            ? 'nothing planned yet'
+            : next === undefined
+                ? 'all meals eaten'
+                : `${slotLabel(slotFor(todayPlan.meals[next])).toLowerCase()} next: ${todayPlan.meals[next].name}`;
+        return [greeting, ...(isFastDay(todayPlan) ? ['fast day'] : []), status].join(' · ');
+    };
+
+    const getHeaderInfo = (): { title: string; subtitle: string } => {
         const greeting = `${getGreeting()}, ${userStats.name || 'Family'}`;
 
         switch (view) {
             case AppView.TODAY:
-                // The greeting is the title, the date under it
                 return {
-                    title: userStats.name ? `Hey ${userStats.name}, what’s cooking?` : 'Hey, what’s cooking?',
-                    subtitle: new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }),
-                    large: true,
+                    title: new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }),
+                    subtitle: getTodayLine(greeting),
                 };
             case AppView.ANALYTICS:
                 return { title: 'Analytics', subtitle: greeting };
@@ -712,7 +707,8 @@ const TrackerApp: React.FC = () => {
             )}
 
 
-            <Sidebar currentView={view} onNavigate={handleNavigate} />
+            {/* Sidebar and header: who's signed in, as their family sees them */}
+            <Sidebar currentView={view} onNavigate={handleNavigate} me={me} />
 
             {/* Main Content Wrapper */}
             <div className="w-full md:pl-20 lg:pl-60">
@@ -723,10 +719,8 @@ const TrackerApp: React.FC = () => {
                         <Header
                             title={headerInfo.title}
                             subtitle={headerInfo.subtitle}
-                            large={headerInfo.large}
-                            isDarkMode={isDarkMode}
-                            onToggleDarkMode={toggleDarkMode}
                             onNavigate={handleNavigate}
+                            me={me}
                             showSundayReset={new Date().getDay() === 0}
                             onOpenSundayReset={() => setIsSundayResetOpen(true)}
                         />
@@ -736,12 +730,12 @@ const TrackerApp: React.FC = () => {
                     </div>
                     {/* Views switch instantly (no cross-fade). Each has its own Suspense so a
                         loading view never blanks the page; lazy chunks are prefetched at start-up. */}
-                    {renderView(AppView.TODAY, <TrackToday {...trackProps} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />)}
+                    {renderView(AppView.TODAY, <TrackToday {...trackProps} />)}
                     {renderView(AppView.ANALYTICS, <TrackAnalytics {...trackProps} />)}
                     {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} />)}
                     {renderView(AppView.RECIPES, <RecipeLibrary />)}
                     {renderView(AppView.SHOPPING, <ShoppingList />)}
-                    {renderView(AppView.FAMILY, <FamilyView />)}
+                    {renderView(AppView.FAMILY, <FamilyView myAvatar={userStats.avatar} onSaveAvatar={avatar => handleSaveStats({ ...userStats, avatar })} />)}
                     {renderView(AppView.SETTINGS, (
                         <SettingsView
                             stats={userStats}
@@ -751,6 +745,8 @@ const TrackerApp: React.FC = () => {
                             onTestOnboarding={() => setShowOnboarding(true)}
                             onTriggerSundayReset={() => setIsSundayResetOpen(true)}
                             onRefreshData={refreshData}
+                            themePreference={theme.preference}
+                            onChangeTheme={theme.setPreference}
                         />
                     ))}
 

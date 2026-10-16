@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ThemePreference } from '../hooks/useTheme';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { proteinTarget } from '../utils/planUtils';
 import { Check, Copy, CloudUpload, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Upload } from 'lucide-react';
@@ -26,7 +27,15 @@ interface SettingsViewProps {
     onTestOnboarding: () => void;
     onTriggerSundayReset?: () => void;
     onRefreshData?: () => Promise<void>;
+    themePreference: ThemePreference;
+    onChangeTheme: (theme: ThemePreference) => void;
 }
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+    { value: 'system', label: 'System' },
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+];
 
 
 const CREDIT_OPTIONS: { value: WorkoutCalorieCredit; label: string; example: string }[] = [
@@ -42,7 +51,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateFastingConfig,
     onTestOnboarding,
     onTriggerSundayReset,
-    onRefreshData
+    onRefreshData,
+    themePreference,
+    onChangeTheme,
 }) => {
 
     // Form fields are kept as strings so a field can be cleared while typing
@@ -330,6 +341,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {saveState === 'saved' ? <Check size={18} aria-hidden="true" /> : null}
                         {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save changes'}
                     </button>
+                </div>
+            </section>
+
+            {/* Appearance: applies at once, outside the goals form */}
+            <section className="card p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4" aria-labelledby="appearance-heading">
+                <div>
+                    <h2 id="appearance-heading" className="heading-2">Appearance</h2>
+                    <p className="text-sm text-muted mt-0.5">System follows your device, light or dark.</p>
+                </div>
+                <div role="radiogroup" aria-labelledby="appearance-heading" className="segmented self-start md:self-auto">
+                    {THEME_OPTIONS.map(o => (
+                        <button
+                            key={o.value}
+                            role="radio"
+                            aria-checked={themePreference === o.value}
+                            onClick={() => onChangeTheme(o.value)}
+                            className="segment"
+                        >
+                            {o.label}
+                        </button>
+                    ))}
                 </div>
             </section>
 

@@ -71,11 +71,10 @@
     // Immediate Theme Sync to prevent flash
     (function () {
       try {
-        // App.tsx saves under vesta_darkMode (older installs still have fast800_darkMode)
-        const saved = localStorage.getItem('vesta_darkMode') ?? localStorage.getItem('fast800_darkMode');
+        // hooks/useTheme.ts saves 'light' or 'dark' under vesta_theme; no value follows the system
+        const saved = localStorage.getItem('vesta_theme');
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        // Default to system if no save, otherwise respect save
-        if (saved === 'true' || (saved === null && prefersDark)) {
+        if (saved === 'dark' || (saved !== 'light' && prefersDark)) {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');

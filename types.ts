@@ -163,6 +163,8 @@ export interface UserStats {
   currentWeight: number;
   goalWeight: number;
   name?: string; // New field for user name
+  /** Shown to the family through profile/public; a default is drawn without one */
+  avatar?: Avatar;
   dailyCalorieGoal: number; // Used for "fast" days in 5:2, or every day in daily mode
   dailyWaterGoal: number; // in ml
   weightHistory: WeightEntry[];
@@ -352,6 +354,15 @@ export interface FastingEntry {
 }
 
 // --- Group / Family ---
+/** A metric tint (`tile-*` classes, `--*-bg` / `--*-text`); avatars sit on one */
+export type Tint = 'calories' | 'water' | 'weight' | 'workout' | 'fasting';
+
+/** A member's avatar: a hand-drawn figure drawn from `seed`, on a tint (components/MemberAvatar.tsx) */
+export interface Avatar {
+  seed: string;
+  tint: Tint;
+}
+
 export interface Group {
   id: string;
   name: string;

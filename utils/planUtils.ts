@@ -46,6 +46,13 @@ export const mealKey = (meal: Pick<Recipe, 'instanceId' | 'id'>) => meal.instanc
 export const isMealEaten = (plan: Pick<DayPlan, 'completedMealIds'>, meal: Recipe) =>
   plan.completedMealIds.includes(mealKey(meal));
 
+/** Index of the next meal to eat: the earliest by slot time that isn't eaten yet. */
+export const nextMealIndex = (plan: Pick<DayPlan, 'meals' | 'completedMealIds'>): number | undefined =>
+  plan.meals
+    .map((meal, index) => ({ meal, index }))
+    .filter(({ meal }) => !isMealEaten(plan, meal))
+    .sort((a, b) => slotTime(slotFor(a.meal)) - slotTime(slotFor(b.meal)) || a.index - b.index)[0]?.index;
+
 /** Meal plus its sides. */
 export const mealCalories = (meal: Recipe) =>
   (meal.calories || 0) + (meal.sides || []).reduce((sum, side) => sum + (side.calories || 0), 0);

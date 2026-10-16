@@ -26,6 +26,14 @@ service cloud.firestore {
       return isSignedIn() && (request.auth.uid == userId || isFamilyMember(userId));
     }
 
+    // An avatar: a short seed the figure is drawn from, and a metric tint
+    function isAvatar(value) {
+      return value is map
+        && value.keys().hasOnly(['seed', 'tint'])
+        && value.seed is string && value.seed.size() > 0 && value.seed.size() <= 64
+        && value.tint in ['calories', 'water', 'weight', 'workout', 'fasting'];
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -48,13 +56,14 @@ service cloud.firestore {
         allow read: if canRead(userId);
         allow write: if isOwner(userId);
       }
-      // The name family members see; everything else about the user stays private
+      // The name and avatar family members see; everything else about the user stays private
       match /profile/public {
         allow read: if canRead(userId);
         allow write: if isOwner(userId)
-          && request.resource.data.keys().hasOnly(['name'])
+          && request.resource.data.keys().hasOnly(['name', 'avatar'])
           && request.resource.data.name is string
-          && request.resource.data.name.size() <= 100;
+          && request.resource.data.name.size() <= 100
+          && (!('avatar' in request.resource.data) || isAvatar(request.resource.data.avatar));
       }
       match /days/{document=**} {
         allow read: if canRead(userId);

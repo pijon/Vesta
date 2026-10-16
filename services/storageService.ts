@@ -686,16 +686,17 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
 // Going with 'data/stats' to match other singletons
 const STATS_DOC = 'stats';
 
-// Family members see each other's name through users/{uid}/profile/public. Stats (weight
-// history and goals) stay owner-only, so the name is copied out whenever it might have changed.
-let syncedProfileName: { uid: string; name: string } | null = null;
-const syncPublicProfile = (name: string | undefined) => {
+// Family members see each other's name and avatar through users/{uid}/profile/public. Stats
+// (weight history and goals) stay owner-only, so these are copied out whenever they might have changed.
+let syncedProfile: { uid: string; json: string } | null = null;
+const syncPublicProfile = (stats: Pick<UserStats, 'name' | 'avatar'>) => {
   const uid = getUserId();
-  const value = name?.trim() ?? '';
-  if (syncedProfileName?.uid === uid && syncedProfileName.name === value) return;
-  syncedProfileName = { uid, name: value };
-  setDoc(getDocRef('profile', 'public'), { name: value }).catch(e => {
-    syncedProfileName = null; // retry on the next load or save
+  const profile = { name: stats.name?.trim() ?? '', ...(stats.avatar ? { avatar: stats.avatar } : {}) };
+  const json = JSON.stringify(profile);
+  if (syncedProfile?.uid === uid && syncedProfile.json === json) return;
+  syncedProfile = { uid, json };
+  setDoc(getDocRef('profile', 'public'), profile).catch(e => {
+    syncedProfile = null; // retry on the next load or save
     console.warn('Could not update public profile', e);
   });
 };
@@ -707,7 +708,7 @@ export const getUserStats = async (): Promise<UserStats> => {
       const stats = d.data() as UserStats;
       // Update Cache
       saveToCache(getCacheKey('stats'), stats);
-      syncPublicProfile(stats.name);
+      syncPublicProfile(stats);
       return stats;
     }
     // Try legacy
@@ -725,7 +726,7 @@ export const saveUserStats = async (stats: UserStats) => {
   // Optimistic Cache
   saveToCache(getCacheKey('stats'), stats);
   await setDoc(getDocRef('data', STATS_DOC), stats);
-  syncPublicProfile(stats.name);
+  syncPublicProfile(stats);
 };
 
 
