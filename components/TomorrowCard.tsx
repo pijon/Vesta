@@ -26,13 +26,15 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
 
   if (meals.length === 0) {
     return (
-      <section className="card px-5 py-4 flex flex-wrap items-center justify-between gap-3" aria-label="Tomorrow">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <h2 className="heading-3">Tomorrow</h2>
-          {dayTag}
-          <span className="text-sm text-muted">Nothing planned yet</span>
+      <section className="card p-4 md:p-6 flex items-center gap-3" aria-label="Tomorrow">
+        <div className="flex-1 min-w-0 pl-1">
+          <div className="flex items-center gap-2.5">
+            <h2 className="heading-3">Tomorrow</h2>
+            {dayTag}
+          </div>
+          <p className="text-sm text-muted mt-0.5">Nothing planned yet</p>
         </div>
-        <button onClick={onPlan} className="btn-secondary btn-sm"><CalendarHeart size={16} aria-hidden="true" /> Plan tomorrow</button>
+        <button onClick={onPlan} className="btn-secondary btn-sm shrink-0" aria-label="Plan tomorrow"><CalendarHeart size={16} aria-hidden="true" /> Plan</button>
       </section>
     );
   }
