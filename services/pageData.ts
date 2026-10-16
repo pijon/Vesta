@@ -1,7 +1,6 @@
 import { DayPlan, EatingOutDish, KnownFood, Recipe } from '../types';
 import { getDailySummaries, getDayPlansInRange, getEnhancedShoppingState, getFamilyPlansInRange, getPantryInventory, getRecipePlanDates, getFoodItemsSince, getRecipes, getEatingOutDishes } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
-import { currentUid } from './firebase';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
 import { normalizeFoodName } from '../utils/foodMatch';
@@ -39,24 +38,17 @@ export interface FamilyInfo {
   memberCount: number;
   /** First names by uid */
   names: Map<string, string>;
-  /** Family recipes other members added */
-  recipes: Recipe[];
 }
 
 /**
  * The user's family when it has other members (null in a family of one: nothing is shared then),
- * with member names and the recipes the others added.
+ * with member names.
  */
 export const familyData = defineWarm<FamilyInfo | null>('family', async () => {
   const group = await getUserGroup();
   if (!group || group.memberIds.length < 2) return null;
-  const [members, recipes] = await Promise.all([getGroupMembersDetails(group.memberIds), getRecipes()]);
-  const me = currentUid();
-  return {
-    memberCount: group.memberIds.length,
-    names: new Map(members.map(m => [m.id, m.name.split(' ')[0]])),
-    recipes: recipes.filter(r => r.createdBy && r.createdBy !== me),
-  };
+  const members = await getGroupMembersDetails(group.memberIds);
+  return { memberCount: group.memberIds.length, names: new Map(members.map(m => [m.id, m.name.split(' ')[0]])) };
 }, 5 * 60_000);
 
 export interface RecipeHistory {

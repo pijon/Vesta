@@ -246,6 +246,16 @@ export const joinGroup = async (inviteCode: string): Promise<Group> => {
     return group;
 };
 
+export const FAMILY_NAME_MAX_LENGTH = 50;
+
+/** Renames the family. Any member can. */
+export const renameGroup = async (groupId: string, name: string): Promise<string> => {
+    const trimmed = name.trim().slice(0, FAMILY_NAME_MAX_LENGTH);
+    if (!trimmed) throw new Error("Give your family a name.");
+    await updateDoc(getGroupRef(groupId), { name: trimmed });
+    return trimmed;
+};
+
 /**
  * Gives a group created before groupInvites existed a code in the current
  * format and publishes its lookup doc, so the code works for joining.

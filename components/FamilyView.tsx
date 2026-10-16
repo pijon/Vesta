@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChefHat, UsersRound } from 'lucide-react';
+import { UsersRound } from 'lucide-react';
 import { AppView } from '../types';
 import { FamilySettings } from './FamilySettings';
 import { familyData } from '../services/pageData';
@@ -19,7 +18,6 @@ const dayLabel = (date: string, today: string) =>
     date === today ? 'Today' : new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long' });
 
 export const FamilyView: React.FC<FamilyViewProps> = ({ onNavigate }) => {
-    const navigate = useNavigate();
     const family = usePrewarmed(familyData);
     const inFamily = !!family;
     const [days, setDays] = useState<FamilyDay[] | null>(null);
@@ -78,22 +76,6 @@ export const FamilyView: React.FC<FamilyViewProps> = ({ onNavigate }) => {
                         )}
                     </section>
 
-                    <section className="card p-5 md:p-6 flex flex-wrap items-center justify-between gap-3" aria-labelledby="family-recipes-heading">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <span className="size-10 shrink-0 rounded-full bg-calories-bg text-calories-text flex items-center justify-center"><ChefHat size={20} aria-hidden="true" /></span>
-                            <div className="min-w-0">
-                                <h2 id="family-recipes-heading" className="heading-4">Family recipes</h2>
-                                <p className="text-sm text-muted">
-                                    {family.recipes.length === 0 ? "Nobody has added recipes yet." : `${family.recipes.length} from other members`}
-                                </p>
-                            </div>
-                        </div>
-                        {family.recipes.length > 0 && (
-                            <button onClick={() => navigate('/recipes?filter=family')} className="btn-secondary btn-sm">
-                                Browse recipes
-                            </button>
-                        )}
-                    </section>
                 </>
             )}
 

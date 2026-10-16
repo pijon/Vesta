@@ -7,7 +7,7 @@ vi.mock('firebase/firestore', async () => (await import('../test/fakeFirestore')
 vi.mock('./firebase', () => ({ db: {}, auth: { currentUser: { displayName: 'Jon Lilja' } }, currentUid: () => fake.uid }));
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
-const { forgetMyGroupId, getMyGroupId, joinGroup, leaveGroup } = await import('./groupService');
+const { forgetMyGroupId, getMyGroupId, joinGroup, leaveGroup, renameGroup } = await import('./groupService');
 const { getRecipes, saveRecipe, setRecipeFavorite } = await import('./storageService');
 
 const recipe = (id: string, fields: Partial<Recipe> = {}): Recipe => ({
@@ -158,5 +158,15 @@ describe('family recipes', () => {
     const [loaded] = await getRecipes();
     await saveRecipe({ ...loaded, name: 'Renamed', ownerName: 'Partner' });
     expect(store.docs.get('groups/fam/recipes/r1')).toEqual(recipe('r1', { name: 'Renamed', createdBy: 'partner', favoritedBy: ['partner'] }));
+  });
+});
+
+describe('renaming a family', () => {
+  it('saves the trimmed name and rejects an empty one', async () => {
+    putGroup(group('fam', ['me']));
+    expect(await renameGroup('fam', '  The Liljas  ')).toBe('The Liljas');
+    expect(store.docs.get('groups/fam')).toMatchObject({ name: 'The Liljas' });
+    await expect(renameGroup('fam', '   ')).rejects.toThrow('Give your family a name');
+    expect(store.docs.get('groups/fam')).toMatchObject({ name: 'The Liljas' });
   });
 });
