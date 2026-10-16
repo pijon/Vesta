@@ -159,8 +159,11 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         },
     ];
 
-    // --- Consistency calendar: whole weeks (Mon–Sun) covering the period, at least four ---
+    // --- Consistency calendar: whole weeks (Mon–Sun) covering the period, at least four.
+    // Week is the exception: just the period's seven days, in a row ---
     const today = localDateString();
+    const isWeek = period === 'week';
+    const weekDates = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
     const weeks = Math.max(4, Math.ceil(periodDays / 7));
     const thisMonday = addDays(today, -((parseLocalDate(today).getDay() + 6) % 7));
     const calendarWeeks = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(thisMonday, (w - weeks + 1) * 7 + d)));
@@ -397,35 +400,56 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
             </div>
 
             <div className="grid lg:grid-cols-2 gap-4 md:gap-5 items-start">
-                {/* Consistency: squares stretch to fill the card, capped so a short period doesn't blow them up */}
+                {/* Consistency: one square size for month and 3 months (smaller on phones so 13 weeks still fit);
+                    a week is one row of bigger squares */}
                 <Panel title="Consistency" subtitle="Each square is a day: darker means more goals met (calories, water, movement)">
-                    <div
-                        className="grid grid-flow-col gap-1 md:gap-1.5 w-full"
-                        style={{ gridTemplateRows: 'auto repeat(7, auto)', gridTemplateColumns: `auto repeat(${weeks}, minmax(0, 1fr))`, maxWidth: `${weeks * 3 + 2.5}rem` }}
-                    >
-                        <span aria-hidden="true" />
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
-                            <span key={d} className="text-xs text-muted pr-2 self-center">{i % 2 === 0 ? d : ''}</span>
-                        ))}
-                        {calendarWeeks.map(week => (
-                            <React.Fragment key={week[0]}>
-                                <span className="text-xs text-muted h-5 whitespace-nowrap">{parseLocalDate(week[0]).getDate() <= 7 ? parseLocalDate(week[0]).toLocaleDateString(undefined, { month: 'short' }) : ''}</span>
-                                {week.map(date => {
-                                    const day = calendarDays.get(date);
-                                    return (
+                    {isWeek ? (
+                        <div className="grid grid-cols-7 gap-1.5 md:gap-2 max-w-[26rem]">
+                            {weekDates.map(date => {
+                                const day = calendarDays.get(date);
+                                return (
+                                    <div key={date} className="flex flex-col items-center gap-1.5">
                                         <span
-                                            key={date}
                                             role="img"
                                             aria-label={cellLabel(day, date)}
                                             title={cellLabel(day, date)}
-                                            className={`w-full aspect-square rounded-[4px] md:rounded-[6px] ${date === today ? 'ring-2 ring-ink ring-offset-1 ring-offset-[var(--surface)]' : ''}`}
+                                            className={`w-full aspect-square rounded-[8px] ${date === today ? 'ring-2 ring-ink ring-offset-1 ring-offset-[var(--surface)]' : ''}`}
                                             style={cellStyle(day, date)}
                                         />
-                                    );
-                                })}
-                            </React.Fragment>
-                        ))}
-                    </div>
+                                        <span className="text-xs text-muted" aria-hidden="true">{parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div
+                            className="grid grid-flow-col gap-1 md:gap-1.5 w-fit [--cell:1rem] md:[--cell:1.25rem]"
+                            style={{ gridTemplateRows: 'auto repeat(7, var(--cell))', gridTemplateColumns: `auto repeat(${weeks}, var(--cell))` }}
+                        >
+                            <span aria-hidden="true" />
+                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
+                                <span key={d} className="text-xs text-muted pr-2 self-center">{i % 2 === 0 ? d : ''}</span>
+                            ))}
+                            {calendarWeeks.map(week => (
+                                <React.Fragment key={week[0]}>
+                                    <span className="text-xs text-muted h-5 whitespace-nowrap">{parseLocalDate(week[0]).getDate() <= 7 ? parseLocalDate(week[0]).toLocaleDateString(undefined, { month: 'short' }) : ''}</span>
+                                    {week.map(date => {
+                                        const day = calendarDays.get(date);
+                                        return (
+                                            <span
+                                                key={date}
+                                                role="img"
+                                                aria-label={cellLabel(day, date)}
+                                                title={cellLabel(day, date)}
+                                                className={`size-full rounded-[4px] ${date === today ? 'ring-2 ring-ink ring-offset-1 ring-offset-[var(--surface)]' : ''}`}
+                                                style={cellStyle(day, date)}
+                                            />
+                                        );
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-1.5 mt-3 text-xs text-muted">
                         <span>Not logged</span>
                         <span className="size-3 rounded-[3px]" style={{ background: 'var(--surface-sunken)' }} aria-hidden="true" />
