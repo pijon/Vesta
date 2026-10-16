@@ -1,10 +1,10 @@
 import React from 'react';
-import { CalendarDays, ShoppingCart } from 'lucide-react';
+import { CalendarHeart, ShoppingBasket } from 'lucide-react';
 import { AppView } from '../types';
 
 const TABS = [
-  { view: AppView.PLANNER, label: 'Meals', Icon: CalendarDays },
-  { view: AppView.SHOPPING, label: 'Shopping list', Icon: ShoppingCart },
+  { view: AppView.PLANNER, label: 'Meals', Icon: CalendarHeart },
+  { view: AppView.SHOPPING, label: 'Shopping list', Icon: ShoppingBasket },
 ] as const;
 
 /** Switches between the meal plan and its shopping list, which live under one Planner nav item */

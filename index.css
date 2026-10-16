@@ -703,7 +703,7 @@
     @apply hidden md:flex flex-col fixed top-3 bottom-3 left-3 z-40 w-[calc(5rem-12px)] lg:w-[calc(15rem-12px)] px-2 lg:px-4 py-6 rounded-[28px] border border-border bg-surface;
   }
   .side-item {
-    @apply w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 py-2.5 lg:px-3 rounded-[20px] lg:rounded-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
+    @apply w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 py-2 lg:pl-1.5 lg:pr-3 rounded-[20px] lg:rounded-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
     color: var(--text-muted);
     outline-color: var(--focus-ring);
   }
@@ -712,6 +712,14 @@
     background: var(--ink);
     color: var(--on-ink);
   }
+  /* Each icon sits on a small round plate, like the meal plates; the current item's plate turns butter on the ink pill */
+  .side-icon {
+    @apply size-9 shrink-0 grid place-items-center rounded-full transition-colors;
+    background: var(--surface-sunken);
+    color: var(--text-main);
+  }
+  .dark .side-icon { background: var(--border); }
+  .side-item[aria-current="page"] .side-icon { background: var(--on-ink); color: var(--ink); }
   .side-foot { border-color: var(--border); }
   .side-label {
     @apply text-[11px] leading-none lg:text-[17px] lg:leading-6 font-display font-bold tracking-[-0.01em] lg:tracking-[-0.02em];

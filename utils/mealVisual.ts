@@ -1,7 +1,7 @@
 import {
   Apple, Banana, Bean, Beef, Beer, CakeSlice, Candy, Carrot, Cherry, Citrus, Coffee, Cookie, CookingPot,
   Croissant, CupSoda, Donut, Drumstick, EggFried, Fish, GlassWater, Grape, Ham, Hamburger, IceCreamCone,
-  LeafyGreen, Martini, Milk, Nut, Package, Pizza, Popcorn, Salad, Sandwich, Shrimp, Soup, Store, UtensilsCrossed, Wheat, Wine,
+  LeafyGreen, Martini, Milk, Nut, Package, Pizza, Popcorn, Salad, Sandwich, Shrimp, Soup, Store, Wheat, Wine,
   type LucideIcon,
 } from 'lucide-react';
 import { QuickMealKind, Recipe } from '../types';
@@ -96,9 +96,9 @@ export const mealVisualFor = (meal: Pick<Recipe, 'tags'> & Partial<Pick<Recipe, 
 
   if (tags.includes('breakfast')) return visual('Breakfast', Coffee, 'bg-fasting-bg text-fasting-text');
   if (tags.includes('lunch')) return visual('Lunch', Salad, 'bg-weight-bg text-weight-text');
-  if (tags.includes('dinner') || tags.includes('main meal')) return visual('Main meal', UtensilsCrossed, 'bg-weight-bg text-weight-text');
+  if (tags.includes('dinner') || tags.includes('main meal')) return visual('Main meal', CookingPot, 'bg-weight-bg text-weight-text');
   if (tags.includes('snack')) return visual('Snack', Cookie, 'bg-workout-bg text-workout-text');
   if (tags.includes('light meal')) return visual('Light meal', Soup, 'bg-water-bg text-water-text');
   const first = meal.tags?.[0];
-  return visual(first ? first.charAt(0).toUpperCase() + first.slice(1) : 'Meal', UtensilsCrossed, 'bg-surface-sunken text-muted');
+  return visual(first ? first.charAt(0).toUpperCase() + first.slice(1) : 'Meal', CookingPot, 'bg-surface-sunken text-muted');
 };

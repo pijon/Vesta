@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Utensils, Check, Flame, Sparkles, RefreshCw } from 'lucide-react';
+import { CookingPot, Check, Flame, Sparkles, RefreshCw } from 'lucide-react';
 import { planSpecificDays, DayConfig } from '../services/geminiService';
 import { getDayPlan, getRecipes, getUserStats, saveDayPlan } from '../services/storageService';
 import { getMyGroupId } from '../services/groupService';
@@ -326,7 +326,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                                                 <img src={r.image} alt="" className="icon-tile size-10 shrink-0 object-cover" />
                                             ) : (
                                                 <span className={`icon-tile size-10 shrink-0 flex items-center justify-center ${visual?.tint ?? 'tile-neutral'}`} aria-hidden="true">
-                                                    {visual ? <visual.Icon size={18} strokeWidth={1.75} /> : <Utensils size={18} />}
+                                                    {visual ? <visual.Icon size={18} strokeWidth={2.25} /> : <CookingPot size={18} />}
                                                 </span>
                                             )}
                                             <span className="flex-1 min-w-0 font-semibold truncate">{r ? r.name : 'Recipe not found'}</span>

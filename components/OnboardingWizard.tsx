@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Droplets, Flame, Scale, Target, UtensilsCrossed, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Droplets, Flame, Scale, Target, CookingPot, X } from 'lucide-react';
 import { UserStats } from '../types';
 import { DEFAULT_USER_STATS } from '../constants';
 import { VestaMark } from './VestaMark';
@@ -165,7 +165,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
                                 <h1 id="onboarding-title" className={title}>Your daily targets</h1>
                                 <p className="text-muted mt-2 mb-8">Every day is a nourish day unless you mark it as a fast day in the planner.</p>
                                 <div className="space-y-2">
-                                    <NumberField label="Nourish day" hint="A normal day" unit="kcal" value={nourish} onChange={setNourish} Icon={UtensilsCrossed} tone="tile-calories" inputRef={nourishRef} />
+                                    <NumberField label="Nourish day" hint="A normal day" unit="kcal" value={nourish} onChange={setNourish} Icon={CookingPot} tone="tile-calories" inputRef={nourishRef} />
                                     <NumberField label="Fast day" hint="A lighter day, if you do them" unit="kcal" value={fast} onChange={setFast} Icon={Flame} tone="tile-fasting" />
                                     <NumberField label="Water" unit="ml" value={water} onChange={setWater} Icon={Droplets} tone="tile-water" />
                                 </div>

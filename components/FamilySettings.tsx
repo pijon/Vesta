@@ -4,7 +4,7 @@ import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetail
 import { currentUid } from '../services/firebase';
 import { familyData } from '../services/pageData';
 import { ensureWarm } from '../utils/prewarm';
-import { AlertCircle, Check, Copy, LogIn, LogOut, UsersRound, UtensilsCrossed } from 'lucide-react';
+import { CircleAlert, Check, Copy, LogIn, LogOut, UsersRound, CookingPot } from 'lucide-react';
 
 export const FamilySettings: React.FC = () => {
     const [group, setGroup] = useState<Group | null>(null);
@@ -108,7 +108,7 @@ export const FamilySettings: React.FC = () => {
         <div className="space-y-4">
             {error && (
                 <div className="rounded-[14px] bg-error-bg text-error text-sm p-3 flex items-center gap-2" role="alert">
-                    <AlertCircle size={16} aria-hidden="true" />
+                    <CircleAlert size={16} aria-hidden="true" />
                     {error}
                 </div>
             )}
@@ -209,7 +209,7 @@ export const FamilySettings: React.FC = () => {
                     </ul>
 
                     <p className="text-sm text-muted flex items-start gap-2">
-                        <UtensilsCrossed size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
+                        <CookingPot size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
                         Dinners anyone plans show up in everyone's planner and shopping list, and you can browse each other's recipes.
                     </p>
 

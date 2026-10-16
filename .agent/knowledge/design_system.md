@@ -7,7 +7,7 @@
 
 The look has five parts:
 - a warm **butter** page with cream surfaces, and cards set apart by colour rather than lines;
-- **one bold block per screen**, usually the bright **tomato** hero (Today has two: the tomato hero and the green Tonight card);
+- **one bold block per screen**, usually the bright **tomato** hero;
 - **ink** pills for the main action and for every selected state;
 - round shapes: round plates and icon tiles, fully round buttons, chips and badges;
 - soft metric tints that colour-code calories, water, weight, workouts and fasting.
@@ -36,9 +36,9 @@ It should feel like a sunny market stall: generous, bright and friendly, not cli
 ### Bold colour and controls
 - `hero` is bright tomato **#FF5533** (#FF6A4A in dark) with ink text (`--hero-foreground`). The `hero` class uses it.
 - `primary` is a deeper tomato, **#C9351A** in light mode (#FF6A4A in dark), so it also passes as text and small marks. Text on it is `text-primary-foreground`.
-- `secondary` is leaf green: #17714A light / #4CC38A dark, with `text-secondary-foreground`. The Tonight card and the coach card use it.
+- `secondary` is leaf green: #17714A light / #4CC38A dark, with `text-secondary-foreground`. The coach card uses it, and it marks the "Next up" meal on Today's plate.
 - `bg-ink text-on-ink`: the primary button and **every selected state**: the current tab and sidebar item, the current segment, selected chips, today's date in the planner.
-- Use at most **one bold block per screen** (tomato hero, or a green block). Today is the exception with two: the tomato calories hero and the green Tonight card side by side.
+- Use at most **one bold block per screen** (tomato hero, or a green block). On Today that is the tomato calories hero; the next meal to eat is a highlighted row on Today's plate, not a block of its own.
 
 ### Metrics
 Every metric has a mark colour (rings, bars and charts, never text), a tint for tiles and round icons, and a text colour for use on the tint:
@@ -93,7 +93,7 @@ The small sizes are larger than Tailwind's: **`text-xs` is 13px and `text-sm` is
 
 - **Corners:**
   - Buttons, chips, badges, the tab bar, avatars, meal plates and icon tiles: `rounded-full`.
-  - The hero and the Tonight card: 28px. Cards: 24px (`rounded-3xl` resolves to 24px). Tinted cards: 24px.
+  - The hero: 28px. Cards: 24px (`rounded-3xl` resolves to 24px). Tinted cards: 24px.
   - Tiles: 20px. Inputs: 16px.
   - Sheets and modals: 32px (top corners only on phones).
   - The sidebar panel: 28px.
@@ -128,8 +128,9 @@ These live in `@layer components`, so Tailwind utilities in markup override them
 | `badge badge-{calories,water,weight,workout,fasting,warning,neutral,ink}` | Round labels (old names `badge-terracotta/sage/plum/teal/stone/amber` are aliases) |
 | `input`, `input-error` | Text fields |
 | `tab-bar`, `tab-item`, `tab-label` (`aria-current="page"`) | Phones: a floating pill in the card colour above the bottom edge, icon over label, the current tab an ink pill. The page leaves `6rem` plus the safe area under it |
-| `side-nav`, `side-item`, `side-label` (`aria-current="page"`) | From `md` up: a floating card-colour panel inset 12px from the window edges (icon rail on tablets, labelled on desktop), the current item an ink pill, Settings pinned at the bottom |
+| `side-nav`, `side-item`, `side-label` (`aria-current="page"`) | From `md` up: a floating card-colour panel inset 12px from the window edges (icon rail on tablets, labelled on desktop), each icon on a round `side-icon` plate, the current item an ink pill, Settings pinned at the bottom |
 
+- **Icons:** Lucide, never thinner than the default stroke of 2. Food and meal icons, nav icons and other large stand-alone icons use 2.25 (2.5 for the current nav item). Keep one glyph per meaning: `CookingPot` for a meal or recipe, `CalendarHeart` for the planner, `ShoppingBasket` for shopping, `SlidersHorizontal` for settings, `CircleAlert` for warnings, `Pencil` for editing, `Sparkles` for AI.
 - **Logo:** `components/VestaMark.tsx`: a butter (#FFD23F) flame over a cream (#FFF1D6) bowl on a tomato (#FF5533) tile with 30/100 corners. The static icons (`public/favicon.svg`, `favicon.ico`, the PWA and Apple icons, `public/resources/logo_*.png`) are the same mark; their sources are in `assets/icon/`.
 - **Focus:** a 2px `--focus-ring` (ink) outline, offset 2px.
 - **Motion:**
@@ -153,7 +154,7 @@ Dark mode is the `.dark` class on `<html>`. Every semantic token above has a des
 
 - Pure white or black surfaces; translucent white cards; blur; gradients.
 - Opacity-faded text, uppercase eyebrows, serif headings, Bricolage for body copy.
-- More than one bold block per screen (Today's hero and Tonight card are the one exception).
+- More than one bold block per screen.
 - Borders on light-mode cards, or square corners on buttons, chips and badges.
 - White text on pastel fills. Use the `*-foreground` / `*-text` partner.
 - Red or rose for calorie overages.

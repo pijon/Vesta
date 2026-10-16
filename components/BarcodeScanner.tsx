@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, Loader2, PenLine, Plus, RotateCcw, ScanBarcode } from 'lucide-react';
+import { CircleAlert, Loader2, Pencil, Plus, RotateCcw, ScanBarcode } from 'lucide-react';
 import { getBarcodeDetector, isProductBarcode } from '../utils/barcode';
 import { lookupBarcode, nutritionFor, PackagedFood } from '../services/foodDatabase';
 
@@ -174,7 +174,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onAdd, onManual 
     return (
       <div className="space-y-3">
         <p role="alert" className="flex items-start gap-2 text-sm">
-          <AlertCircle size={16} className="shrink-0 mt-0.5 text-muted" aria-hidden="true" />
+          <CircleAlert size={16} className="shrink-0 mt-0.5 text-muted" aria-hidden="true" />
           {state.kind === 'missing'
             ? `Barcode ${state.code} isn't in Open Food Facts yet, or has no calories listed. Enter it from the label instead.`
             : "Couldn't reach Open Food Facts. Check your connection and try again."}
@@ -186,7 +186,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onAdd, onManual 
             </button>
           )}
           <button type="button" onClick={onManual} className="btn-secondary btn-sm">
-            <PenLine size={15} aria-hidden="true" /> Enter manually
+            <Pencil size={15} aria-hidden="true" /> Enter manually
           </button>
           <button type="button" onClick={scanAgain} className="btn-ghost btn-sm">
             <ScanBarcode size={15} aria-hidden="true" /> Scan again
@@ -200,7 +200,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onAdd, onManual 
     <div className="space-y-3">
       {cameraError ? (
         <p role="alert" className="flex items-start gap-2 text-sm">
-          <AlertCircle size={16} className="shrink-0 mt-0.5 text-muted" aria-hidden="true" /> {cameraError}
+          <CircleAlert size={16} className="shrink-0 mt-0.5 text-muted" aria-hidden="true" /> {cameraError}
         </p>
       ) : (
         <div className="relative overflow-hidden aspect-[4/3] bg-ink rounded-[24px]">

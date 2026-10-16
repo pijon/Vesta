@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
-import { Coffee, Salad, Cookie, UtensilsCrossed, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen } from 'lucide-react';
+import { Coffee, Salad, Cookie, CookingPot, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
-import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel } from '../utils/planUtils';
+import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel, slotTime } from '../utils/planUtils';
 import type { FrequentFood } from '../services/pageData';
 
 interface DualTrackSectionProps {
@@ -17,6 +17,8 @@ interface DualTrackSectionProps {
   onDeleteFoodItem: (itemId: string) => void;
   onNavigate: (view: AppView) => void;
   onSwapMeal: (index: number) => void;
+  /** The plan index of the next meal still to eat, shown as a highlighted row */
+  nextIndex?: number;
   /** Calories left today (target − eaten + burned), to say whether the rest of the plan fits */
   caloriesLeft: number;
   frequentFoods: FrequentFood[];
@@ -44,7 +46,7 @@ const PERIODS = [
   { key: 'morning', label: 'Morning', from: 5, to: 11, Icon: Coffee },
   { key: 'midday', label: 'Midday', from: 11, to: 15, Icon: Salad },
   { key: 'afternoon', label: 'Afternoon', from: 15, to: 18, Icon: Cookie },
-  { key: 'evening', label: 'Evening', from: 18, to: 24, Icon: UtensilsCrossed },
+  { key: 'evening', label: 'Evening', from: 18, to: 24, Icon: CookingPot },
 ] as const;
 
 const periodFor = (timestamp: number) => {
@@ -93,6 +95,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   onDeleteFoodItem,
   onNavigate,
   onSwapMeal,
+  nextIndex,
   caloriesLeft,
   frequentFoods,
   onQuickLog,
@@ -228,7 +231,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           {group.entries.map(entry => {
             const isFood = entry.kind === 'food';
             const name = displayName(isFood ? entry.item.name : entry.workout.type);
-            const FoodIcon = isFood ? foodIconFor({ name: entry.item.name }) ?? UtensilsCrossed : null;
+            const FoodIcon = isFood ? foodIconFor({ name: entry.item.name }) ?? CookingPot : null;
             const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
             const protein = isFood && typeof entry.item.protein === 'number' ? ` · ${entry.item.protein} g protein` : '';
             return (
@@ -239,7 +242,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   aria-label={`Edit ${name}`}
                 >
                   <span className={`size-11 shrink-0 rounded-full flex items-center justify-center ${isFood ? 'tile-calories' : 'tile-workout'}`}>
-                    {FoodIcon && <FoodIcon size={20} strokeWidth={1.75} aria-hidden="true" />}
+                    {FoodIcon && <FoodIcon size={20} strokeWidth={2.25} aria-hidden="true" />}
                     {WorkoutIcon && <WorkoutIcon size={20} stroke={1.75} aria-hidden="true" />}
                   </span>
                   <span className="flex-1 min-w-0">
@@ -260,33 +263,55 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     );
   };
 
-  // A planned meal as a row on the page, a round plate, the name large and a big tick
+  // A planned meal as a row on the page, a round plate, the name large and a big tick.
+  // The next meal to eat is highlighted: a sunken pill with its time, who it's for and Swap always shown.
   const renderPlateRow = ({ meal, index }: { meal: Recipe; index: number }) => {
     const isEaten = isMealEaten(todayPlan, meal);
+    const isNext = index === nextIndex && !isEaten;
     const visual = mealVisualFor(meal);
+    const forWho = [meal.familyDinner ? 'Family dinner' : null, meal.cookingServings ? `for ${meal.cookingServings}` : null].filter(Boolean).join(' ');
+    const details = [
+      slotLabel(slotFor(meal)),
+      mealKcalLabel(meal),
+      isNext ? forWho : null,
+      meal.isLeftover ? 'leftover' : null,
+      meal.isPacked ? 'packed' : null,
+    ].filter(Boolean).join(' · ');
     return (
-      <li key={`${meal.id}-${index}`} className="group flex items-center gap-2 border-t border-border first:border-t-0">
+      <li
+        key={`${meal.id}-${index}`}
+        aria-current={isNext ? 'step' : undefined}
+        className={isNext
+          ? 'group flex items-center gap-2 rounded-[24px] bg-surface-sunken pl-3 pr-2 my-1 [&+li]:border-t-0'
+          : 'group flex items-center gap-2 border-t border-border first:border-t-0'}
+      >
         <button
           onClick={() => onViewRecipe(meal)}
           className="flex-1 min-w-0 flex items-center gap-3.5 py-3 text-left rounded-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           aria-label={`View recipe: ${meal.name}`}
         >
           {meal.image ? (
-            <img src={meal.image} alt="" className="size-14 shrink-0 rounded-full object-cover" />
+            <img src={meal.image} alt="" className={`${isNext ? 'size-16' : 'size-14'} shrink-0 rounded-full object-cover`} />
           ) : (
-            <span className={`size-14 shrink-0 rounded-full flex items-center justify-center ${visual.tint}`}>
-              <visual.Icon size={24} strokeWidth={1.75} aria-hidden="true" />
+            <span className={`${isNext ? 'size-16' : 'size-14'} shrink-0 rounded-full flex items-center justify-center ${visual.tint}`}>
+              <visual.Icon size={24} strokeWidth={2.25} aria-hidden="true" />
             </span>
           )}
           <span className="flex-1 min-w-0">
-            <span className="block text-sm text-muted">{slotLabel(slotFor(meal))} · {mealKcalLabel(meal)}{meal.isLeftover ? ' · leftover' : ''}{meal.isPacked ? ' · packed' : ''}</span>
-            <span className={`block text-[17px] font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
+            {isNext && (
+              <span className="block text-sm font-bold text-secondary">Next up · {clockTime(slotTime(slotFor(meal)))}</span>
+            )}
+            {!isNext && <span className="block text-sm text-muted">{details}</span>}
+            <span className={`text-[17px] font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
+            {isNext && details && <span className="block text-sm text-muted">{details}</span>}
           </span>
         </button>
         {!isEaten && (
           <button
             onClick={() => onSwapMeal(index)}
-            className="hit-target size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main transition-[opacity,colors] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className={`hit-target size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:text-main transition-[opacity,colors] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${isNext
+              ? 'hover:bg-surface'
+              : 'hover:bg-surface-sunken md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'}`}
             aria-label={`Swap ${meal.name}`}
           >
             <Shuffle size={16} />

@@ -21,7 +21,6 @@ import { weightTrend } from '../utils/energyModel';
 import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 import { CaloriesHero } from './CaloriesHero';
-import { TonightCard } from './TonightCard';
 import { TodayStrip } from './TodayStrip';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
@@ -306,7 +305,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     refreshData();
   };
 
-  // The hero's "Next up": the earliest planned meal by slot time that isn't eaten yet
+  // "Next up" on Today's plate: the earliest planned meal by slot time that isn't eaten yet
   const nextMealIndex = todayPlan.meals
     .map((meal, index) => ({ meal, index }))
     .filter(({ meal }) => !isMealEaten(todayPlan, meal))
@@ -416,34 +415,21 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   const tomorrowCard = <TomorrowCard plan={tomorrowPlan} stats={stats} onPlan={() => navigate('/mealplanner', { state: { date: tomorrowPlan.date } })} />;
 
-  // The Tonight card: tonight's dinner, else the next meal still to eat
-  const dinnerIndex = todayPlan.meals.findIndex(meal => slotFor(meal) === 'dinner');
-  const tonightIndex = dinnerIndex >= 0 ? dinnerIndex : nextMealIndex;
-  const tonightMeal = tonightIndex === undefined ? undefined : todayPlan.meals[tonightIndex];
   const proteinToday = { eaten: (dailyLog.items || []).reduce((sum, item) => sum + (item.protein || 0), 0), target: proteinTarget(stats) };
 
   return (
     <div className="space-y-8">
     <div className="space-y-3">
-        <div className="grid md:grid-cols-2 gap-3">
-          <CaloriesHero
-            caloriesGoal={dailyTarget}
-            caloriesEaten={consumed}
-            caloriesBurned={caloriesBurned}
-            burnCredit={stats.workoutCalorieCredit ?? 1}
-            protein={proteinToday}
-            isFastDay={!isNonFastDay}
-            meals={{ total: todayPlan.meals.length, eaten: todayPlan.meals.filter(meal => isMealEaten(todayPlan, meal)).length }}
-            onLogFood={onOpenFoodModal}
-          />
-          <TonightCard
-            meal={tonightMeal}
-            eaten={!!tonightMeal && isMealEaten(todayPlan, tonightMeal)}
-            onView={() => tonightMeal && setSelectedRecipe(tonightMeal)}
-            onSwap={() => tonightIndex !== undefined && handleSwapMeal(tonightIndex)}
-            onPlan={() => navigate('/mealplanner', { state: { date: todayPlan.date } })}
-          />
-        </div>
+        <CaloriesHero
+          caloriesGoal={dailyTarget}
+          caloriesEaten={consumed}
+          caloriesBurned={caloriesBurned}
+          burnCredit={stats.workoutCalorieCredit ?? 1}
+          protein={proteinToday}
+          isFastDay={!isNonFastDay}
+          meals={{ total: todayPlan.meals.length, eaten: todayPlan.meals.filter(meal => isMealEaten(todayPlan, meal)).length }}
+          onLogFood={onOpenFoodModal}
+        />
         <TodayStrip
           water={{ liters: (dailyLog.waterIntake || 0) / 1000, goal: stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5, onAdd: handleAddWaterClick }}
           weight={{ kg: weightInfo.current, ratePerWeek: weightInfo.ratePerWeek, onUpdate: onOpenWeightModal, onOpen: () => onNavigate(AppView.ANALYTICS) }}
@@ -485,6 +471,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onDeleteFoodItem={handleDeleteFoodItem}
         onNavigate={onNavigate}
         onSwapMeal={handleSwapMeal}
+        nextIndex={nextMealIndex}
         caloriesLeft={dailyTarget - consumed + creditedBurn(caloriesBurned, stats)}
         frequentFoods={frequentFoods}
         onQuickLog={handleQuickLog}

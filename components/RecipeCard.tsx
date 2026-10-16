@@ -52,10 +52,10 @@ const RecipeThumb: React.FC<{ meal: Meal; className: string; iconSize: number; z
     <span className={`${className} flex items-center justify-center ${visual.tint}`}>
       {plate ? (
         <span className={`${plate} rounded-full bg-surface flex items-center justify-center shadow-[var(--elev-sm)]`}>
-          <visual.Icon size={iconSize} strokeWidth={1.5} aria-hidden="true" />
+          <visual.Icon size={iconSize} strokeWidth={2.25} aria-hidden="true" />
         </span>
       ) : (
-        <visual.Icon size={iconSize} strokeWidth={1.5} aria-hidden="true" />
+        <visual.Icon size={iconSize} strokeWidth={2.25} aria-hidden="true" />
       )}
     </span>
   );
