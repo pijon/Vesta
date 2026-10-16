@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Portal } from './Portal';
+import { useAnimatedClose } from '../hooks/useAnimatedClose';
 
 interface SheetProps {
   title: string;
@@ -21,12 +22,11 @@ interface SheetProps {
 export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children, footer, size = 'md', initialFocus }) => {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  const { closing, close } = useAnimatedClose(onClose);
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -41,22 +41,22 @@ export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-scrim animate-fade-in"
-        onClick={onClose}
+        className={`fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-scrim modal-backdrop ${closing ? 'is-closing' : ''}`}
+        onClick={close}
       >
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
           onClick={e => e.stopPropagation()}
-          className={`bg-surface w-full ${size === 'xl' ? 'md:max-w-4xl' : size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-lg'} rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden animate-slide-up md:animate-scale-in`}
+          className={`bg-surface w-full ${size === 'xl' ? 'md:max-w-4xl' : size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-lg'} rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden modal-panel ${closing ? 'is-closing' : ''}`}
         >
           <div className="flex items-start gap-3 px-5 pt-5 pb-3">
             <div className="flex-1 min-w-0">
               <h2 id={titleId} className="heading-2">{title}</h2>
               {subtitle && <p className="text-sm text-muted mt-0.5">{subtitle}</p>}
             </div>
-            <button ref={closeRef} onClick={onClose} className="icon-btn -mr-1 -mt-1" aria-label="Close">
+            <button ref={closeRef} onClick={close} className="icon-btn -mr-1 -mt-1" aria-label="Close">
               <X size={20} />
             </button>
           </div>

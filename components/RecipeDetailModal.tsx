@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Recipe } from '../types';
 import { Portal } from './Portal';
+import { useAnimatedClose } from '../hooks/useAnimatedClose';
 import { mealVisualFor } from '../utils/mealVisual';
 import { scaleIngredient } from '../utils/scaleIngredient';
 import { uploadRecipeImage } from '../utils/storageUtils';
@@ -36,12 +37,13 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     const [menuOpen, setMenuOpen] = useState(false);
     const menuOpenRef = useRef(menuOpen);
     menuOpenRef.current = menuOpen;
+    const { closing, close } = useAnimatedClose(onClose);
 
     // Escape closes the menu, then the recipe; focus the close button on open; keep the page behind from scrolling
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return;
-            if (menuOpenRef.current) setMenuOpen(false); else onClose();
+            if (menuOpenRef.current) setMenuOpen(false); else close();
         };
         document.addEventListener('keydown', onKey);
         const previousOverflow = document.body.style.overflow;
@@ -51,7 +53,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
             document.removeEventListener('keydown', onKey);
             document.body.style.overflow = previousOverflow;
         };
-    }, [onClose]);
+    }, [close]);
 
     if (!recipe) return null;
 
@@ -105,14 +107,14 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     return (
         <Portal>
             <div
-                className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-scrim animate-fade-in"
-                onClick={onClose}
+                className={`fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-scrim modal-backdrop ${closing ? 'is-closing' : ''}`}
+                onClick={close}
             >
                 <div
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="recipe-title"
-                    className="relative bg-surface w-full md:max-w-5xl rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[94vh] md:max-h-[92vh] flex flex-col overflow-hidden animate-slide-up md:animate-scale-in"
+                    className={`relative bg-surface w-full md:max-w-5xl rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[94vh] md:max-h-[92vh] flex flex-col overflow-hidden modal-panel ${closing ? 'is-closing' : ''}`}
                     onClick={e => { e.stopPropagation(); setMenuOpen(false); }}
                 >
                     {/* Controls stay put while the recipe scrolls */}
@@ -146,7 +148,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                         )}
                         <button
                             ref={closeRef}
-                            onClick={onClose}
+                            onClick={close}
                             className="icon-btn shadow-[var(--elev-sm)]"
                             aria-label="Close recipe"
                         >

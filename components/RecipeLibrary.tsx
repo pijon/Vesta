@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowUpDown, ChefHat, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
 import { getCachedRecipes } from '../utils/cacheService';
@@ -19,6 +19,7 @@ import { importRecipeImageFromUrl } from '../utils/storageUtils';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
+import { SelectionPill } from './SelectionPill';
 
 
 
@@ -66,6 +67,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [fastDayFriendly, setFastDayFriendly] = useState(false);
+  const layoutPillId = useId();
   const [view, setView] = useState<'grid' | 'list'>(() => {
     try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid'; } catch { return 'grid'; }
   });
@@ -523,7 +525,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             </select>
           </label>
           {!onSelect && (
-            <div className="segmented shrink-0 self-center" role="radiogroup" aria-label="Layout">
+            <div className="segmented pill-group shrink-0 self-center" role="radiogroup" aria-label="Layout">
               {([['grid', LayoutGrid, 'Grid'], ['list', List, 'List']] as const).map(([value, Icon, label]) => (
                 <button
                   key={value}
@@ -534,6 +536,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
                   onClick={() => changeView(value)}
                   className="segment size-9 justify-center !px-0"
                 >
+                  {view === value && <SelectionPill group={layoutPillId} />}
                   <Icon size={18} aria-hidden="true" />
                 </button>
               ))}
@@ -562,7 +565,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       </div>
 
       {/* Grid or list */}
-      <div className={view === 'list' && !onSelect && filteredRecipes.length > 0 && !(isLoading && recipes.length === 0) ? 'card p-1.5' : 'grid gap-2.5 md:gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}>
+      <div className={view === 'list' && !onSelect && filteredRecipes.length > 0 && !(isLoading && recipes.length === 0) ? 'card p-1.5' : `grid gap-2.5 md:gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 ${isLoading && recipes.length === 0 ? '' : 'stagger'}`}>
         {isLoading && recipes.length === 0 ? (
           Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="card p-2 animate-pulse" aria-hidden="true">
@@ -591,7 +594,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             )}
           </div>
         ) : view === 'list' && !onSelect ? (
-          <ul>
+          <ul className="stagger">
             {filteredRecipes.map(recipe => (
               <RecipeRow
                 key={recipe.id}
@@ -626,7 +629,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
       {/* Feedback toast, kept clear of the bottom nav */}
       {toast && (
-        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] animate-fade-in">
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] toast-in">
           {toast}
         </div>
       )}

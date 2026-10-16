@@ -10,6 +10,7 @@ import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { localDateString } from '../utils/dateUtils';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
+import { SelectionPill } from './SelectionPill';
 
 const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label: string }[] = [
     { id: '12:12', hours: 12, label: 'Gentle' },
@@ -350,7 +351,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <h2 id="appearance-heading" className="heading-2">Appearance</h2>
                     <p className="text-sm text-muted mt-0.5">System follows your device, light or dark.</p>
                 </div>
-                <div role="radiogroup" aria-labelledby="appearance-heading" className="segmented self-start md:self-auto">
+                <div role="radiogroup" aria-labelledby="appearance-heading" className="segmented pill-group self-start md:self-auto">
                     {THEME_OPTIONS.map(o => (
                         <button
                             key={o.value}
@@ -359,6 +360,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             onClick={() => onChangeTheme(o.value)}
                             className="segment"
                         >
+                            {themePreference === o.value && <SelectionPill group="theme-pill" />}
                             {o.label}
                         </button>
                     ))}

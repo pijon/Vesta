@@ -629,6 +629,44 @@
   @media (prefers-reduced-motion: reduce) {
     .ring-fill, .water-level, .water-slosh { animation: none; transition: none; }
   }
+
+  /* Sheets and dialogs: the backdrop fades; the panel rises from the bottom edge on phones and
+     scales in from md up. `.is-closing` plays it in reverse (useAnimatedClose waits for it). */
+  .modal-backdrop { animation: modalFadeIn 0.22s ease-out both; }
+  .modal-backdrop.is-closing { animation: modalFadeOut 0.2s ease-in both; pointer-events: none; }
+  .modal-panel { animation: sheetIn 0.32s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+  .modal-panel.is-closing { animation: sheetOut 0.2s cubic-bezier(0.4, 0, 1, 1) both; }
+  @media (min-width: 48rem) {
+    .modal-panel { animation-name: dialogIn; animation-duration: 0.24s; }
+    .modal-panel.is-closing { animation-name: dialogOut; animation-duration: 0.18s; }
+  }
+  @keyframes modalFadeIn { from { opacity: 0; } }
+  @keyframes modalFadeOut { to { opacity: 0; } }
+  @keyframes sheetIn { from { transform: translateY(100%); } }
+  @keyframes sheetOut { to { transform: translateY(100%); } }
+  @keyframes dialogIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } }
+  @keyframes dialogOut { to { opacity: 0; transform: scale(0.97); } }
+
+  /* Lists whose items fade up one after another when shown; items added later fade in on their own.
+     The delay stops growing after eight items so long lists don't lag. */
+  .stagger > * { animation: listIn 0.3s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+  .stagger > :nth-child(2) { animation-delay: 35ms; }
+  .stagger > :nth-child(3) { animation-delay: 70ms; }
+  .stagger > :nth-child(4) { animation-delay: 105ms; }
+  .stagger > :nth-child(5) { animation-delay: 140ms; }
+  .stagger > :nth-child(6) { animation-delay: 175ms; }
+  .stagger > :nth-child(7) { animation-delay: 210ms; }
+  .stagger > :nth-child(n+8) { animation-delay: 245ms; }
+  @keyframes listIn { from { opacity: 0; transform: translateY(6px); } }
+
+  /* Toasts rise a little as they appear */
+  .toast-in { animation: toastIn 0.26s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(10px) scale(0.97); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-backdrop, .modal-panel, .stagger > *, .toast-in { animation: modalFadeIn 0.12s ease-out both; }
+    .modal-backdrop.is-closing, .modal-panel.is-closing { animation: modalFadeOut 0.12s ease-in both; }
+  }
   .tile-calories { background: var(--calories-bg); color: var(--calories-text); }
   .tile-water { background: var(--water-bg); color: var(--water-text); }
   .tile-weight { background: var(--weight-bg); color: var(--weight-text); }
@@ -723,6 +761,32 @@
   .side-foot { border-color: var(--border); }
   .side-label {
     @apply text-[11px] leading-none lg:text-[17px] lg:leading-6 font-display font-bold tracking-[-0.01em] lg:tracking-[-0.02em];
+  }
+
+  /* Sliding selection (SelectionPill): the ink pill is its own element that glides between items,
+     so the selected item drops its own ink background while it's in a pill-group */
+  .pill-group > * { position: relative; isolation: isolate; }
+  .pill-group > [aria-current="page"], .pill-group > [aria-checked="true"], .pill-group > [aria-selected="true"] {
+    background: transparent;
+  }
+  .selection-pill {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--ink);
+    transform-origin: top left;
+  }
+
+  /* A goal met in front of the user: one soft pop (useMoment adds it for a moment) */
+  .moment-pop { display: inline-block; animation: momentPop 0.6s cubic-bezier(0.22, 0.8, 0.3, 1); }
+  @keyframes momentPop {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .moment-pop { animation: none; }
   }
 
   /* Formerly frosted glass; now a solid card surface */

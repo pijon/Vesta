@@ -11,6 +11,9 @@ import { ChartContainer } from './analytics/ChartContainer';
 import { EnergyPanel } from './EnergyCheckIn';
 import { CoachPanel } from './CoachPanel';
 import { weightTrend } from '../utils/energyModel';
+import { useReducedMotion } from 'framer-motion';
+import { AnimatedNumber } from './AnimatedNumber';
+import { SelectionPill } from './SelectionPill';
 
 interface TrackAnalyticsProps {
     todayPlan: DayPlan;
@@ -74,6 +77,9 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     const [period, setPeriod] = useState<AnalyticsPeriod>(() => {
         try { return (localStorage.getItem(PERIOD_KEY) as AnalyticsPeriod) || 'month'; } catch { return 'month'; }
     });
+    // Charts are keyed by period, so switching remounts them and their bars and line grow in
+    const reduceMotion = useReducedMotion();
+    const chartMotion = { isAnimationActive: !reduceMotion, animationDuration: 550, animationEasing: 'ease-out' as const };
     const changePeriod = (next: AnalyticsPeriod) => {
         setPeriod(next);
         try { localStorage.setItem(PERIOD_KEY, next); } catch { /* per-device preference */ }
@@ -127,34 +133,34 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         ? [weight.points[0].time, lastPoint.time + 86_400_000]
         : undefined;
 
-    const tiles: { label: string; icon: React.ElementType; tone: string; value: string; sub: string }[] = [
+    const tiles: { label: string; icon: React.ElementType; tone: string; value: React.ReactNode; sub: string }[] = [
         {
             label: 'Weight', icon: Scale, tone: 'tile-weight',
-            value: weight.current !== null ? `${weight.current.toFixed(1)} kg` : '—',
+            value: weight.current !== null ? <><AnimatedNumber value={weight.current} format={n => n.toFixed(1)} /> kg</> : '—',
             sub: weight.current === null ? 'No weigh-ins yet'
                 : weight.change !== null && !weight.fallback ? `${signed(weight.change)} kg this ${period === 'quarter' ? 'quarter' : period}`
                 : weight.toGoal !== null ? `${Math.abs(weight.toGoal).toFixed(1)} kg to goal` : 'Latest weigh-in',
         },
         {
             label: 'Calories', icon: Flame, tone: 'tile-calories',
-            value: summary.avgCalories !== null ? `${fmt(summary.avgCalories)} kcal` : '—',
+            value: summary.avgCalories !== null ? <><AnimatedNumber value={summary.avgCalories} format={fmt} /> kcal</> : '—',
             sub: !summary.loggedDays ? 'Nothing logged yet'
                 : summary.avgProtein !== null ? `Daily average · ${fmt(summary.avgProtein)} g protein (target ${proteinTarget(stats)} g)`
                 : `Daily average · ${summary.daysOnTarget} of ${summary.loggedDays} days on target`,
         },
         {
             label: 'Fasting', icon: Timer, tone: 'tile-fasting',
-            value: summary.avgFast !== null ? `${summary.avgFast.toFixed(1)} h` : '—',
+            value: summary.avgFast !== null ? <><AnimatedNumber value={summary.avgFast} format={n => n.toFixed(1)} /> h</> : '—',
             sub: summary.longestFast !== null ? `Average · longest ${summary.longestFast.toFixed(1)} h` : 'No fasts recorded',
         },
         {
             label: 'Movement', icon: Activity, tone: 'tile-workout',
-            value: `${summary.workouts} ${summary.workouts === 1 ? 'workout' : 'workouts'}`,
+            value: <><AnimatedNumber value={summary.workouts} /> {summary.workouts === 1 ? 'workout' : 'workouts'}</>,
             sub: summary.burned ? `${fmt(summary.burned)} kcal burned` : 'None logged',
         },
         {
             label: 'Water', icon: Droplets, tone: 'tile-water',
-            value: summary.avgWater !== null ? `${(summary.avgWater / 1000).toFixed(1)} L` : '—',
+            value: summary.avgWater !== null ? <><AnimatedNumber value={summary.avgWater / 1000} format={n => n.toFixed(1)} /> L</> : '—',
             sub: summary.waterDaysLogged ? `Daily average · goal met ${summary.waterDaysMet} of ${summary.waterDaysLogged} days` : 'None logged',
         },
     ];
@@ -189,7 +195,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         <div className="space-y-4 md:space-y-5 pb-4">
             {/* Period */}
             <div className="flex items-center justify-between gap-3">
-                <div role="radiogroup" aria-label="Period" className="segmented">
+                <div role="radiogroup" aria-label="Period" className="segmented pill-group">
                     {PERIODS.map(p => (
                         <button
                             key={p.value}
@@ -198,6 +204,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                             onClick={() => changePeriod(p.value)}
                             className="segment px-3.5 sm:px-4"
                         >
+                            {period === p.value && <SelectionPill group="analytics-period-pill" />}
                             {p.label}
                         </button>
                     ))}
@@ -210,7 +217,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 <section className="hero p-5 md:p-6 flex flex-col gap-3" aria-label="Weight">
                     <p className="text-[15px] font-bold">Weight</p>
                     <p className="font-display font-extrabold text-[72px] leading-[0.9] tracking-[-0.05em] tabular-nums">
-                        {weight.current !== null ? weight.current.toFixed(1) : '—'}
+                        {weight.current !== null ? <AnimatedNumber value={weight.current} format={n => n.toFixed(1)} /> : '—'}
                         {weight.current !== null && <span className="text-2xl tracking-tight"> kg</span>}
                     </p>
                     <p className="text-sm font-medium mt-auto">{tiles[0].sub}</p>
@@ -273,7 +280,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 ) : (
                     <>
                         <div className="h-56 md:h-64">
-                            <ChartContainer>
+                            <ChartContainer key={period}>
                                 <LineChart data={weightData} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
                                     <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="time" type="number" scale="time" domain={xDomain} tick={AXIS} tickLine={false} axisLine={false}
@@ -293,8 +300,8 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                         <ReferenceLine y={stats.goalWeight} ifOverflow="hidden" stroke="var(--weight)" strokeDasharray="4 4"
                                             label={{ value: `Goal ${stats.goalWeight}`, position: 'insideBottomRight', fill: 'var(--weight-text)', fontSize: 12 }} />
                                     )}
-                                    <Line type="monotone" dataKey="trend" stroke="var(--weight)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
-                                    <Line dataKey="scale" stroke="none" dot={{ r: 3, fill: 'var(--surface)', stroke: 'var(--weight)', strokeWidth: 2 }} activeDot={false} connectNulls={false} isAnimationActive={false} legendType="none" />
+                                    <Line type="monotone" dataKey="trend" stroke="var(--weight)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls={false} {...chartMotion} />
+                                    <Line dataKey="scale" stroke="none" dot={{ r: 3, fill: 'var(--surface)', stroke: 'var(--weight)', strokeWidth: 2 }} activeDot={false} connectNulls={false} {...chartMotion} legendType="none" />
                                 </LineChart>
                             </ChartContainer>
                         </div>
@@ -323,7 +330,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 {summary.loggedDays === 0 ? <Empty>No food logged in this period.</Empty> : (
                     <>
                         <div className="h-56 md:h-64">
-                            <ChartContainer>
+                            <ChartContainer key={period}>
                                 <ComposedChart data={calorieData} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
                                     <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={tickDate} interval={tickInterval} />
@@ -336,7 +343,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                                 <p className="font-semibold">{d.logged ? `${fmt(d.calories)} of ${fmt(d.calorieTarget)} kcal` : 'Nothing logged'}</p></>;
                                         }} />
                                     )} />
-                                    <Bar dataKey="eaten" radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={false}>
+                                    <Bar dataKey="eaten" radius={[4, 4, 0, 0]} maxBarSize={28} {...chartMotion}>
                                         {calorieData.map(d => <Cell key={d.date} fill={d.calories > d.calorieTarget ? 'var(--warning)' : 'var(--calories)'} />)}
                                     </Bar>
                                     <Line type="stepAfter" dataKey="calorieTarget" stroke="var(--text-muted)" strokeDasharray="4 4" strokeWidth={1.5} dot={false} isAnimationActive={false} />
@@ -357,7 +364,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 <Panel title="Fasting" subtitle={summary.fastCount ? `Longest fast ending each day · target ${targetFast} h` : undefined}>
                     {summary.fastCount === 0 ? <Empty>No fasts recorded in this period. Fasts are measured between logged meals.</Empty> : (
                         <div className="h-48 md:h-56">
-                            <ChartContainer>
+                            <ChartContainer key={period}>
                                 <BarChart data={fastData} margin={{ top: 8, right: 8, bottom: 0, left: -6 }}>
                                     <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={tickDate} interval={tickInterval} />
@@ -369,7 +376,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                         }} />
                                     )} />
                                     <ReferenceLine y={targetFast} stroke="var(--fasting)" strokeDasharray="4 4" />
-                                    <Bar dataKey="fast" fill="var(--fasting)" radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={false} />
+                                    <Bar dataKey="fast" fill="var(--fasting)" radius={[4, 4, 0, 0]} maxBarSize={28} {...chartMotion} />
                                 </BarChart>
                             </ChartContainer>
                         </div>
@@ -380,7 +387,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 <Panel title="Movement" subtitle={summary.workouts ? `Calories burned in workouts · ${summary.workouts} ${summary.workouts === 1 ? 'workout' : 'workouts'}` : undefined}>
                     {summary.workouts === 0 ? <Empty>No workouts logged in this period.</Empty> : (
                         <div className="h-48 md:h-56">
-                            <ChartContainer>
+                            <ChartContainer key={period}>
                                 <BarChart data={moveData} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
                                     <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={tickDate} interval={tickInterval} />
@@ -391,7 +398,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                             return d ? <><p className="text-muted">{longDate(d.date)}</p><p className="font-semibold">{d.workouts ? `${d.workouts} ${d.workouts === 1 ? 'workout' : 'workouts'} · ${fmt(d.burned)} kcal` : 'No workout'}</p></> : null;
                                         }} />
                                     )} />
-                                    <Bar dataKey="kcal" fill="var(--workout)" radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={false} />
+                                    <Bar dataKey="kcal" fill="var(--workout)" radius={[4, 4, 0, 0]} maxBarSize={28} {...chartMotion} />
                                 </BarChart>
                             </ChartContainer>
                         </div>
@@ -404,7 +411,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                     a week is one row of bigger squares */}
                 <Panel title="Consistency" subtitle="Each square is a day: darker means more goals met (calories, water, movement)">
                     {isWeek ? (
-                        <div className="grid grid-cols-7 gap-1.5 md:gap-2 max-w-[26rem]">
+                        <div className="grid grid-cols-7 gap-1.5 md:gap-2 max-w-[26rem] stagger">
                             {weekDates.map(date => {
                                 const day = calendarDays.get(date);
                                 return (
@@ -423,7 +430,8 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                         </div>
                     ) : (
                         <div
-                            className="grid grid-flow-col gap-1 md:gap-1.5 w-fit [--cell:1rem] md:[--cell:1.25rem]"
+                            key={period}
+                            className="grid grid-flow-col gap-1 md:gap-1.5 w-fit [--cell:1rem] md:[--cell:1.25rem] animate-fade-in"
                             style={{ gridTemplateRows: 'auto repeat(7, var(--cell))', gridTemplateColumns: `auto repeat(${weeks}, var(--cell))` }}
                         >
                             <span aria-hidden="true" />

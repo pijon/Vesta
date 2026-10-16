@@ -1,5 +1,6 @@
 import React from 'react';
 import { Flame, Plus } from 'lucide-react';
+import { AnimatedNumber } from './AnimatedNumber';
 
 interface CaloriesHeroProps {
     caloriesGoal: number;
@@ -51,7 +52,7 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
             </div>
 
             <p className="font-display font-extrabold text-[80px] leading-[0.9] tracking-[-0.05em] tabular-nums">
-                {fmt(Math.abs(remaining))}
+                <AnimatedNumber value={Math.abs(remaining)} />
                 <span className="sr-only"> kcal{isOver ? ' over' : ' left'}</span>
             </p>
 
@@ -63,7 +64,7 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
                     aria-label={`${meals.eaten} of ${meals.total} planned meals eaten`}
                 >
                     {Array.from({ length: meals.total }, (_, i) => (
-                        <span key={i} className={`h-2.5 rounded-full ${i < meals.eaten ? 'bg-current' : 'bg-current/20'}`} />
+                        <span key={i} className={`h-2.5 rounded-full transition-colors duration-500 ${i < meals.eaten ? 'bg-current' : 'bg-current/20'}`} />
                     ))}
                 </div>
             ) : (

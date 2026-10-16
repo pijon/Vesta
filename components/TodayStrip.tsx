@@ -1,4 +1,7 @@
 import React from 'react';
+import { Check } from 'lucide-react';
+import { AnimatedNumber } from './AnimatedNumber';
+import { useMoment } from '../hooks/useMoment';
 import { fastingProgress, fmtDuration, FastingInput, waterPace } from '../utils/todayMetrics';
 
 interface TodayStripProps {
@@ -23,14 +26,25 @@ const Cell: React.FC<{
     onOpen?: () => void;
     openLabel?: string;
     action?: { label: string; spoken?: string; onClick: () => void };
-}> = ({ label, dot, figure, caption, onOpen, openLabel, action }) => {
+    /** Goal met: a check in the metric's colour after the figure */
+    done?: boolean;
+    /** Something good just happened here: the figure pops once */
+    moment?: boolean;
+}> = ({ label, dot, figure, caption, onOpen, openLabel, action, done, moment }) => {
     const body = (
         <>
             <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
                 <span className="size-2 rounded-full shrink-0" style={{ background: `var(--${dot})` }} aria-hidden="true" />
                 {label}
             </span>
-            <span className="font-display font-extrabold text-[22px] leading-7 tracking-tight text-main tabular-nums">{figure}</span>
+            <span className={`flex items-center gap-1.5 font-display font-extrabold text-[22px] leading-7 tracking-tight text-main tabular-nums origin-left ${moment ? 'moment-pop' : ''}`}>
+                <span>{figure}</span>
+                {done && (
+                    <span className="size-5 rounded-full grid place-items-center" style={{ background: `var(--${dot}-bg)`, color: `var(--${dot}-text)` }}>
+                        <Check size={13} strokeWidth={3.5} aria-label="Goal met" />
+                    </span>
+                )}
+            </span>
             <span className="text-xs text-muted truncate">{caption}</span>
         </>
     );
@@ -62,6 +76,12 @@ export const TodayStrip: React.FC<TodayStripProps> = ({ water, weight, workouts,
     const fastFigure = fast.inWindow
         ? (fast.lastNight > 0 ? fmtDuration(fast.lastNight) : '–')
         : fasting.lastAteTime ? fmtDuration(fasting.elapsedHours) : '–';
+    const waterDone = water.goal > 0 && water.liters >= water.goal;
+    // Today's fast reached its target: the one that ended at the first meal, or the one running now
+    const fastDone = fast.inWindow ? fast.lastNight >= fasting.targetHours : !!fasting.lastAteTime && fasting.elapsedHours >= fasting.targetHours;
+    const waterMoment = useMoment(waterDone);
+    const fastMoment = useMoment(fastDone);
+    const streakMoment = useMoment(workouts.streak);
     const fastCaption = fast.inWindow ? 'Last night' : fasting.lastAteTime ? `of ${fasting.targetHours}h` : 'After your next meal';
 
     return (
@@ -70,14 +90,16 @@ export const TodayStrip: React.FC<TodayStripProps> = ({ water, weight, workouts,
                 <Cell
                     label="Water"
                     dot="water"
-                    figure={<>{parseFloat(water.liters.toFixed(2))}<span className="text-sm font-semibold"> L</span></>}
+                    figure={<><AnimatedNumber value={water.liters} format={n => String(parseFloat(n.toFixed(2)))} /><span className="text-sm font-semibold"> L</span></>}
                     caption={pace ? `${pace} · of ${water.goal} L` : `of ${water.goal} L`}
                     action={{ label: '+250 ml', spoken: 'Add 250 millilitres of water', onClick: () => water.onAdd(250) }}
+                    done={waterDone}
+                    moment={waterMoment}
                 />
                 <Cell
                     label="Weight"
                     dot="weight"
-                    figure={weight.kg !== null ? <>{weight.kg.toFixed(1)}<span className="text-sm font-semibold"> kg</span></> : '–'}
+                    figure={weight.kg !== null ? <><AnimatedNumber value={weight.kg} format={n => n.toFixed(1)} /><span className="text-sm font-semibold"> kg</span></> : '–'}
                     caption={weight.ratePerWeek !== null ? `${signed(weight.ratePerWeek)} kg a week` : 'No trend yet'}
                     onOpen={weight.onOpen}
                     openLabel="Weight trends"
@@ -86,17 +108,20 @@ export const TodayStrip: React.FC<TodayStripProps> = ({ water, weight, workouts,
                 <Cell
                     label={workouts.streak > 1 ? `Workouts · ${workouts.streak} days` : 'Workouts'}
                     dot="workout"
-                    figure={workouts.types.length ? <>{workouts.caloriesBurned}<span className="text-sm font-semibold"> kcal</span></> : '–'}
+                    figure={workouts.types.length ? <><AnimatedNumber value={workouts.caloriesBurned} format={n => String(Math.round(n))} /><span className="text-sm font-semibold"> kcal</span></> : '–'}
                     caption={workouts.types.length ? [...new Set(workouts.types)].join(', ') : 'Nothing logged yet'}
                     onOpen={workouts.onOpen}
                     openLabel="Workout overview"
                     action={{ label: 'Log', spoken: 'Log a workout', onClick: workouts.onLog }}
+                    moment={streakMoment}
                 />
                 <Cell
                     label="Fasting"
                     dot="fasting"
                     figure={fastFigure}
                     caption={`${fastCaption} · ${fast.hits} of 7`}
+                    done={fastDone}
+                    moment={fastMoment}
                 />
             </div>
         </section>

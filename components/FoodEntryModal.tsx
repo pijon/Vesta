@@ -8,6 +8,7 @@ import { usePrewarmed } from '../utils/prewarm';
 import { foodIconFor } from '../utils/mealVisual';
 import { Sheet } from './Sheet';
 import { BarcodeScanner } from './BarcodeScanner';
+import { SelectionPill } from './SelectionPill';
 
 interface FoodEntryModalProps {
   isOpen: boolean;
@@ -210,7 +211,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
     <Sheet title="Log food" onClose={onClose} footer={footer} initialFocus={textRef}>
       <div className="space-y-4">
         {/* Mode */}
-        <div role="radiogroup" aria-label="How to add food" className="segmented grid grid-cols-4 w-full">
+        <div role="radiogroup" aria-label="How to add food" className="segmented pill-group grid grid-cols-4 w-full">
           {MODES.map(({ value, label, Icon }) => (
             <button
               key={value}
@@ -219,6 +220,7 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
               onClick={() => switchMode(value)}
               className="segment justify-center gap-1.5 px-1"
             >
+              {mode === value && <SelectionPill group="food-entry-mode-pill" />}
               {/* Phones: labels only, so four fit across */}
               <Icon size={15} className="hidden sm:block" aria-hidden="true" /> {label}
             </button>
