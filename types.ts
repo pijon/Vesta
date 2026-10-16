@@ -11,12 +11,17 @@ export interface Recipe {
   tags: string[];
   servings: number;
   image?: string; // base64 data URL or external URL
+  /** Derived on read from favoritedBy: whether the current user favourited it. Never stored. */
   isFavorite?: boolean;
+  /** Uids of the family members who favourited this recipe */
+  favoritedBy?: string[];
+  /** Uid of the member who added it to the family's recipes */
+  createdBy?: string;
   isShared?: boolean;
   sharedBy?: string; // UID of sharer
   sharedAt?: number;
-  ownerId?: string;    // UID of recipe owner (set when viewing family recipes)
-  ownerName?: string;  // Display name of owner (set when viewing family recipes)
+  ownerId?: string;    // UID of the member whose plan a meal comes from (family shopping list)
+  ownerName?: string;  // Display name of that member, or of the member who added a recipe
   cookingServings?: number; // Override for shopping list calculations (how many people you are cooking for)
   originalRecipeId?: string; // Reference to the original library recipe for hydration
   isLeftover?: boolean; // If true, this is a leftover from a previous meal
@@ -95,9 +100,9 @@ export interface PlannedMealMeta {
 /** Lightweight reference to a library recipe */
 export interface RecipeReference extends PlannedMealMeta {
   type: 'reference';
-  /** Library owner when not the current user (family recipes) */
+  /** Legacy: the library owner from when recipes lived under users/{uid}/recipes. Ignored on read. */
   ownerId?: string;
-  recipeId: string;      // Points to users/{uid}/recipes/{id}
+  recipeId: string;      // Points to groups/{groupId}/recipes/{id}
   servings: number;      // User's planned servings for this meal
 
   // OPTIONAL: Only present if user customized THIS specific meal instance
@@ -354,6 +359,8 @@ export interface Group {
   createdAt: number;
   inviteCode: string; // 8-char code, resolved through groupInvites/{code}
   memberIds: string[];
+  /** Members whose recipes from users/{uid}/recipes have been copied into the family */
+  legacyRecipesMoved?: string[];
 }
 
 // --- Developer Mode ---

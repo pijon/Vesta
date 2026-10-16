@@ -4,6 +4,7 @@ import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package
 import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
 import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan } from '../services/storageService';
 import { familyData } from '../services/pageData';
+import { isAddedBy, withAuthorNames } from '../utils/recipeAuthors';
 import { usePrewarmed } from '../utils/prewarm';
 import { currentUid } from '../services/firebase';
 import { getCachedRecipes } from '../utils/cacheService';
@@ -40,9 +41,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   plansRef.current = plans;
   const [loadedWeeks, setLoadedWeeks] = useState<Set<string>>(new Set());
   const [recipes, setRecipes] = useState<Recipe[]>(() => getCachedRecipes() || []);
-  // Family group, member names and their recipes (loaded in the background after sign-in)
+  // Family with other members, and their names (loaded in the background after sign-in)
   const family = usePrewarmed(familyData) ?? null;
-  const familyRecipes = family?.recipes ?? [];
 
   const [addTarget, setAddTarget] = useState<AddTarget | null>(null);
   const [mealTarget, setMealTarget] = useState<MealTarget | null>(null);
@@ -56,6 +56,11 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
   const inFamily = !!family;
   const myUid = currentUid();
+  // All recipes are the family's; the add sheet can filter to the ones the user added
+  const [myRecipes, familyRecipes] = useMemo(() => {
+    const named = withAuthorNames(recipes, myUid, family?.names);
+    return [named.filter(r => isAddedBy(r, myUid)), named.filter(r => !isAddedBy(r, myUid))];
+  }, [recipes, myUid, family]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -583,7 +588,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           }
           caloriesLeft={addCaloriesLeft}
           isFastDay={isFastDay(addTargetPlan)}
-          recipes={recipes}
+          recipes={myRecipes}
           familyRecipes={familyRecipes}
           leftovers={addTarget.mode === 'add' && addTarget.slot !== 'breakfast' ? leftoverOptions(addTarget.date) : []}
           mainMealName={addParent?.name}
@@ -629,7 +634,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         />
       )}
 
-      {viewRecipe && <RecipeDetailModal recipe={viewRecipe} onClose={() => setViewRecipe(null)} isOwned={false} />}
+      {viewRecipe && <RecipeDetailModal recipe={viewRecipe} onClose={() => setViewRecipe(null)} />}
       {cookRecipe && <CookingMode recipe={cookRecipe} onClose={() => setCookRecipe(null)} />}
 
       <BatchPlannerModal

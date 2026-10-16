@@ -5,7 +5,7 @@ import { mealVisualFor } from '../utils/mealVisual';
 import { scaleIngredient } from '../utils/scaleIngredient';
 import { uploadRecipeImage } from '../utils/storageUtils';
 import { currentUid } from '../services/firebase';
-import { CalendarPlus, Camera, Check, ChefHat, Copy, ExternalLink, Minus, MoreHorizontal, Pencil, Plus, Trash2, UsersRound, X } from 'lucide-react';
+import { CalendarPlus, Camera, Check, ChefHat, ExternalLink, Minus, MoreHorizontal, Pencil, Plus, Trash2, UsersRound, X } from 'lucide-react';
 import { isQuickMeal } from '../utils/planUtils';
 
 interface RecipeDetailModalProps {
@@ -13,11 +13,9 @@ interface RecipeDetailModalProps {
     onClose: () => void;
     onEdit?: () => void;
     onDelete?: (id: string, e: React.MouseEvent) => void;
-    isOwned?: boolean;
-    onCopyToLibrary?: () => void;
     onAddToPlan?: () => void;
     onCook?: () => void;
-    /** Save an uploaded photo on the recipe (own recipes without one) */
+    /** Save an uploaded photo on the recipe (recipes without one) */
     onSetImage?: (url: string) => Promise<void>;
 }
 
@@ -26,7 +24,7 @@ interface RecipeDetailModalProps {
  * read together. Ingredients and steps can be ticked off while cooking.
  * Bottom sheet on mobile, centred dialog from md up.
  */
-export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose, onEdit, onDelete, isOwned = true, onCopyToLibrary, onAddToPlan, onCook, onSetImage }) => {
+export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose, onEdit, onDelete, onAddToPlan, onCook, onSetImage }) => {
     const baseServings = Math.max(1, recipe?.servings || 1);
     const [servings, setServings] = useState(baseServings);
     const [uploading, setUploading] = useState(false);
@@ -102,7 +100,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     const description = importedFrom || recipe.description === 'Imported from text' || isQuickMeal(recipe)
         ? null
         : recipe.description;
-    const hasMenu = isOwned && (onEdit || onDelete);
+    const hasMenu = !!(onEdit || onDelete);
 
     return (
         <Portal>
@@ -183,7 +181,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                         {(recipe.tags || []).filter(t => t.toLowerCase() !== visual.label.toLowerCase()).map(tag => (
                                             <span key={tag} className="badge badge-neutral">{tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
                                         ))}
-                                        {!isOwned && recipe.ownerName && (
+                                        {recipe.ownerName && (
                                             <span className="badge badge-workout"><UsersRound size={12} aria-hidden="true" /> From {recipe.ownerName.split(' ')[0]}</span>
                                         )}
                                     </div>
@@ -215,7 +213,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
                                 {description && <p className="leading-relaxed">{description}</p>}
 
-                                {(onAddToPlan || (onCook && steps.length > 0) || (!isOwned && onCopyToLibrary)) && (
+                                {(onAddToPlan || (onCook && steps.length > 0)) && (
                                     <div className="md:mt-auto grid grid-cols-2 gap-2 [&>:only-child]:col-span-2">
                                         {onAddToPlan && (
                                             <button onClick={onAddToPlan} className="btn-primary btn-block px-4 whitespace-nowrap">
@@ -225,11 +223,6 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                         {onCook && steps.length > 0 && (
                                             <button onClick={onCook} className="btn-secondary btn-block px-4 whitespace-nowrap">
                                                 <ChefHat size={18} aria-hidden="true" /> Cook
-                                            </button>
-                                        )}
-                                        {!isOwned && onCopyToLibrary && (
-                                            <button onClick={onCopyToLibrary} className={`${onAddToPlan ? 'btn-secondary' : 'btn-primary'} btn-block`}>
-                                                <Copy size={18} aria-hidden="true" /> Copy to my recipes
                                             </button>
                                         )}
                                     </div>

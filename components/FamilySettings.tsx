@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Group } from '../types';
-import { createGroup, joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode } from '../services/groupService';
+import { joinGroup, leaveGroup, getUserGroup, getGroupMembersDetails, ensureInviteCode } from '../services/groupService';
 import { currentUid } from '../services/firebase';
 import { familyData } from '../services/pageData';
 import { ensureWarm } from '../utils/prewarm';
-import { CircleAlert, Check, Copy, LogIn, LogOut, UsersRound, CookingPot } from 'lucide-react';
+import { CircleAlert, Check, Copy, LogIn, LogOut, CookingPot } from 'lucide-react';
 
 export const FamilySettings: React.FC = () => {
     const [group, setGroup] = useState<Group | null>(null);
     const [members, setMembers] = useState<{ id: string, name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [inviteCodeInput, setInviteCodeInput] = useState('');
-    const [newGroupName, setNewGroupName] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -43,20 +42,6 @@ export const FamilySettings: React.FC = () => {
         }
     };
 
-    const handleCreateGroup = async () => {
-        if (!newGroupName.trim()) return;
-        setLoading(true);
-        setError(null);
-        try {
-            await createGroup(newGroupName);
-            await loadGroup();
-            void ensureWarm(familyData, true);
-        } catch (e: any) {
-            setError(e.message || "We couldn't create the family. Try again.");
-            setLoading(false);
-        }
-    };
-
     const handleJoinGroup = async () => {
         if (!inviteCodeInput.trim()) return;
         setLoading(true);
@@ -65,8 +50,8 @@ export const FamilySettings: React.FC = () => {
             await joinGroup(inviteCodeInput);
             await loadGroup();
             void ensureWarm(familyData, true);
-        } catch (e: any) {
-            setError(e.message || "That code didn't work. Check it and try again.");
+        } catch (e) {
+            setError(e instanceof Error && e.message ? e.message : "That code didn't work. Check it and try again.");
             setLoading(false);
         }
     };
@@ -76,12 +61,12 @@ export const FamilySettings: React.FC = () => {
         setConfirmLeave(false);
         setLoading(true);
         try {
+            // Leaving starts a new family of one
             await leaveGroup(group.id);
-            setGroup(null);
+            await loadGroup();
             void ensureWarm(familyData, true);
-        } catch (e: any) {
-            setError(e.message || "We couldn't leave the family. Try again.");
-        } finally {
+        } catch (e) {
+            setError(e instanceof Error && e.message ? e.message : "We couldn't leave the family. Try again.");
             setLoading(false);
         }
     };
@@ -94,6 +79,8 @@ export const FamilySettings: React.FC = () => {
         setCodeCopied(true);
         setTimeout(() => setCodeCopied(false), 2000);
     };
+
+    const isSolo = !!group && group.memberIds.length < 2;
 
     if (loading && !group) {
         return (
@@ -114,60 +101,9 @@ export const FamilySettings: React.FC = () => {
             )}
 
             {!group ? (
-                <div className="space-y-3">
-                <p className="text-sm text-muted">A family shares recipes and one dinner plan: dinners anyone plans show up in everyone's planner and shopping list.</p>
-                <div className="grid sm:grid-cols-2 gap-3">
-                    <form
-                        className="rounded-[14px] bg-surface-sunken p-4 space-y-3"
-                        onSubmit={(e) => { e.preventDefault(); handleCreateGroup(); }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <span className="size-10 rounded-full bg-calories-bg text-calories-text flex items-center justify-center shrink-0"><UsersRound size={20} aria-hidden="true" /></span>
-                            <div>
-                                <h3 className="heading-4">Start a family</h3>
-                                <p className="text-sm text-muted">Invite others with a code.</p>
-                            </div>
-                        </div>
-                        <label htmlFor="family-name" className="sr-only">Family name</label>
-                        <input
-                            id="family-name"
-                            type="text"
-                            placeholder="The Andersons"
-                            value={newGroupName}
-                            onChange={e => setNewGroupName(e.target.value)}
-                            className="input w-full"
-                        />
-                        <button type="submit" disabled={!newGroupName.trim() || loading} className="btn-primary btn-sm btn-block">
-                            Create family
-                        </button>
-                    </form>
-
-                    <form
-                        className="rounded-[14px] bg-surface-sunken p-4 space-y-3"
-                        onSubmit={(e) => { e.preventDefault(); handleJoinGroup(); }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <span className="size-10 rounded-full bg-water-bg text-water-text flex items-center justify-center shrink-0"><LogIn size={20} aria-hidden="true" /></span>
-                            <div>
-                                <h3 className="heading-4">Join a family</h3>
-                                <p className="text-sm text-muted">Use the code someone shared.</p>
-                            </div>
-                        </div>
-                        <label htmlFor="invite-code" className="sr-only">Invite code</label>
-                        <input
-                            id="invite-code"
-                            type="text"
-                            placeholder="Invite code"
-                            autoCapitalize="characters"
-                            value={inviteCodeInput}
-                            onChange={e => setInviteCodeInput(e.target.value)}
-                            className="input w-full font-mono"
-                        />
-                        <button type="submit" disabled={!inviteCodeInput.trim() || loading} className="btn-secondary btn-sm btn-block">
-                            Join family
-                        </button>
-                    </form>
-                </div>
+                <div className="rounded-[14px] bg-surface-sunken p-4 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted">We couldn't load your family.</p>
+                    <button onClick={loadGroup} className="btn-secondary btn-sm">Try again</button>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -175,8 +111,8 @@ export const FamilySettings: React.FC = () => {
                         <div className="min-w-0">
                             <h3 className="heading-3 truncate">{group.name}</h3>
                             <p className="text-sm text-muted">
-                                {group.memberIds.length} {group.memberIds.length === 1 ? 'member' : 'members'}
-                                {group.ownerId === currentUid() ? ' · You manage this family' : ''}
+                                {isSolo ? 'Just you so far' : `${group.memberIds.length} members`}
+                                {!isSolo && group.ownerId === currentUid() ? ' · You manage this family' : ''}
                             </p>
                         </div>
                         <button
@@ -190,45 +126,83 @@ export const FamilySettings: React.FC = () => {
                         </button>
                     </div>
 
-                    <ul className="space-y-1">
-                        {members.map(member => {
-                            const isOwner = member.id === group.ownerId;
-                            const isYou = member.id === currentUid();
-                            return (
-                                <li key={member.id} className="flex items-center gap-3 px-2 py-2 rounded-[14px]">
-                                    <span className={`size-10 shrink-0 rounded-full flex items-center justify-center font-display font-extrabold ${isOwner ? 'bg-fasting-bg text-fasting-text' : 'bg-workout-bg text-workout-text'}`} aria-hidden="true">
-                                        {member.name.charAt(0).toUpperCase()}
-                                    </span>
-                                    <span className="flex-1 min-w-0">
-                                        <span className="block font-semibold truncate">{member.name}{isYou ? ' (you)' : ''}</span>
-                                        <span className="block text-xs text-muted">{isOwner ? 'Family admin' : 'Member'}</span>
-                                    </span>
-                                </li>
-                            );
-                        })}
-                    </ul>
-
-                    <p className="text-sm text-muted flex items-start gap-2">
-                        <CookingPot size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
-                        Dinners anyone plans show up in everyone's planner and shopping list, and you can browse each other's recipes.
-                    </p>
-
-                    {confirmLeave ? (
-                        <div role="alertdialog" aria-label="Leave family?" className="rounded-[14px] bg-error-bg p-4 space-y-3">
-                            <p className="text-sm">
-                                <span className="font-semibold">Leave {group.name}?</span> You'll stop seeing the family's recipes and shared dinners, including dinners you planned for the family. Your own recipes stay yours.
+                    {isSolo ? (
+                        <>
+                            <p className="text-sm text-muted flex items-start gap-2">
+                                <CookingPot size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
+                                Share the code to cook together: everyone in a family shares its recipes and one dinner plan, which shows up in everyone's planner and shopping list.
                             </p>
-                            <div className="flex flex-wrap gap-2">
-                                <button onClick={handleLeaveGroup} disabled={loading} className="btn-sm inline-flex items-center gap-1.5 min-h-9 px-4 rounded-full font-semibold bg-error text-on-ink hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
+                            <form
+                                className="rounded-[14px] bg-surface-sunken p-4 space-y-3"
+                                onSubmit={(e) => { e.preventDefault(); handleJoinGroup(); }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="size-10 rounded-full bg-water-bg text-water-text flex items-center justify-center shrink-0"><LogIn size={20} aria-hidden="true" /></span>
+                                    <div>
+                                        <h3 className="heading-4">Join a family</h3>
+                                        <p className="text-sm text-muted">Use the code someone shared. Your recipes come with you.</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <label htmlFor="invite-code" className="sr-only">Invite code</label>
+                                    <input
+                                        id="invite-code"
+                                        type="text"
+                                        placeholder="Invite code"
+                                        autoCapitalize="characters"
+                                        value={inviteCodeInput}
+                                        onChange={e => setInviteCodeInput(e.target.value)}
+                                        className="input w-full font-mono"
+                                    />
+                                    <button type="submit" disabled={!inviteCodeInput.trim() || loading} className="btn-secondary btn-sm shrink-0">
+                                        Join family
+                                    </button>
+                                </div>
+                            </form>
+                        </>
+                    ) : (
+                        <>
+                            <ul className="space-y-1">
+                                {members.map(member => {
+                                    const isOwner = member.id === group.ownerId;
+                                    const isYou = member.id === currentUid();
+                                    return (
+                                        <li key={member.id} className="flex items-center gap-3 px-2 py-2 rounded-[14px]">
+                                            <span className={`size-10 shrink-0 rounded-full flex items-center justify-center font-display font-extrabold ${isOwner ? 'bg-fasting-bg text-fasting-text' : 'bg-workout-bg text-workout-text'}`} aria-hidden="true">
+                                                {member.name.charAt(0).toUpperCase()}
+                                            </span>
+                                            <span className="flex-1 min-w-0">
+                                                <span className="block font-semibold truncate">{member.name}{isYou ? ' (you)' : ''}</span>
+                                                <span className="block text-xs text-muted">{isOwner ? 'Family admin' : 'Member'}</span>
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+
+                            <p className="text-sm text-muted flex items-start gap-2">
+                                <CookingPot size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
+                                Your recipes belong to the family: anyone can plan, edit or delete them. Dinners anyone plans show up in everyone's planner and shopping list.
+                            </p>
+
+                            {confirmLeave ? (
+                                <div role="alertdialog" aria-label="Leave family?" className="rounded-[14px] bg-error-bg p-4 space-y-3">
+                                    <p className="text-sm">
+                                        <span className="font-semibold">Leave {group.name}?</span> The family keeps all its recipes and shared dinners. You'll start a family of your own with copies of the recipes you added.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button onClick={handleLeaveGroup} disabled={loading} className="btn-sm inline-flex items-center gap-1.5 min-h-9 px-4 rounded-full font-semibold bg-error text-on-ink hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
+                                            <LogOut size={16} aria-hidden="true" /> Leave family
+                                        </button>
+                                        <button onClick={() => setConfirmLeave(false)} className="btn-ghost btn-sm">Stay</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button onClick={() => setConfirmLeave(true)} className="btn-ghost btn-sm !text-error hover:!bg-error-bg">
                                     <LogOut size={16} aria-hidden="true" /> Leave family
                                 </button>
-                                <button onClick={() => setConfirmLeave(false)} className="btn-ghost btn-sm">Stay</button>
-                            </div>
-                        </div>
-                    ) : (
-                        <button onClick={() => setConfirmLeave(true)} className="btn-ghost btn-sm !text-error hover:!bg-error-bg">
-                            <LogOut size={16} aria-hidden="true" /> Leave family
-                        </button>
+                            )}
+                        </>
                     )}
                 </div>
             )}
