@@ -305,12 +305,18 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     setSelectedRecipe(recipe);
   };
 
+  // The recipe sheet has already asked
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm('Delete this recipe?')) {
+    try {
       await deleteRecipe(id);
-      await loadData();
       if (selectedRecipe?.id === id) closeRecipe();
+      setRecipes(prev => prev.filter(r => r.id !== id));
+      showToast('Recipe deleted');
+      await loadData();
+    } catch (err) {
+      console.error('Failed to delete recipe', err);
+      showToast("That recipe couldn't be deleted. Try again.");
     }
   };
 

@@ -35,6 +35,9 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
     const closeRef = useRef<HTMLButtonElement>(null);
     const [menuOpen, setMenuOpen] = useState(false);
+    // Delete asks in the menu itself: window.confirm is silently skipped in some installed apps and web views
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    useEffect(() => { if (!menuOpen) setConfirmingDelete(false); }, [menuOpen]);
     const menuOpenRef = useRef(menuOpen);
     menuOpenRef.current = menuOpen;
     const { closing, close } = useAnimatedClose(onClose);
@@ -131,16 +134,36 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                     <MoreHorizontal size={20} />
                                 </button>
                                 {menuOpen && (
-                                    <div role="menu" className="absolute right-0 top-12 w-44 p-1.5 rounded-[16px] bg-surface border border-border shadow-[var(--elev-md)]" onClick={e => e.stopPropagation()}>
-                                        {onEdit && (
-                                            <button role="menuitem" onClick={() => { setMenuOpen(false); onEdit(); }} className="w-full flex items-center gap-2.5 min-h-10 px-3 rounded-[10px] text-sm font-semibold hover:bg-surface-sunken">
-                                                <Pencil size={16} aria-hidden="true" /> Edit recipe
-                                            </button>
-                                        )}
-                                        {onDelete && (
-                                            <button role="menuitem" onClick={(e) => { setMenuOpen(false); onDelete(recipe.id, e); }} className="w-full flex items-center gap-2.5 min-h-10 px-3 rounded-[10px] text-sm font-semibold text-error hover:bg-error-bg">
-                                                <Trash2 size={16} aria-hidden="true" /> Delete recipe
-                                            </button>
+                                    <div role="menu" className={`absolute right-0 top-12 ${confirmingDelete ? 'w-64' : 'w-44'} p-1.5 rounded-[16px] bg-surface border border-border shadow-[var(--elev-md)]`} onClick={e => e.stopPropagation()}>
+                                        {confirmingDelete ? (
+                                            <div className="p-2 space-y-3" role="alertdialog" aria-labelledby="delete-recipe-question">
+                                                <p id="delete-recipe-question" className="text-sm">
+                                                    <span className="font-semibold">Delete this recipe?</span> It goes for everyone in your family.
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        autoFocus
+                                                        onClick={(e) => { setMenuOpen(false); onDelete?.(recipe.id, e); }}
+                                                        className="btn-base btn-sm flex-1 bg-error-bg text-error hover:opacity-90"
+                                                    >
+                                                        <Trash2 size={16} aria-hidden="true" /> Delete
+                                                    </button>
+                                                    <button onClick={() => setConfirmingDelete(false)} className="btn-secondary btn-sm flex-1">Cancel</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {onEdit && (
+                                                    <button role="menuitem" onClick={() => { setMenuOpen(false); onEdit(); }} className="w-full flex items-center gap-2.5 min-h-10 px-3 rounded-[10px] text-sm font-semibold hover:bg-surface-sunken">
+                                                        <Pencil size={16} aria-hidden="true" /> Edit recipe
+                                                    </button>
+                                                )}
+                                                {onDelete && (
+                                                    <button role="menuitem" onClick={() => setConfirmingDelete(true)} className="w-full flex items-center gap-2.5 min-h-10 px-3 rounded-[10px] text-sm font-semibold text-error hover:bg-error-bg">
+                                                        <Trash2 size={16} aria-hidden="true" /> Delete recipe
+                                                    </button>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 )}
