@@ -14,8 +14,8 @@
   /* "Market day": DM Sans for body and UI text, Bricolage Grotesque
      (font-display) for titles, headings and big figures. font-serif is kept
      as an alias of the display face so older heading markup still works. */
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-sans: 'DM Sans Variable', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
 
   /* A larger small-type scale: text-xs is 13px and text-sm 15px, so captions
      and list rows read comfortably without touching spacing */

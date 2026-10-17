@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { App } from './App';
+// Self-hosted so the service worker precaches them: a Google Fonts <link> in <head>
+// blocked the first paint (a white screen before the splash) on a cold launch.
+import '@fontsource-variable/dm-sans/opsz.css';
+import '@fontsource-variable/bricolage-grotesque/opsz.css';
 import './index.css';
 
 const rootElement = document.getElementById('root');
