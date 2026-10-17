@@ -762,7 +762,7 @@ const TrackerApp: React.FC = () => {
                         loading view never blanks the page; lazy chunks are prefetched at start-up. */}
                     {renderView(AppView.TODAY, <TrackToday {...trackProps} />)}
                     {renderView(AppView.ANALYTICS, <TrackAnalytics {...trackProps} />)}
-                    {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} />)}
+                    {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} onLogMeal={meal => handleLogMeal(meal, true)} />)}
                     {renderView(AppView.RECIPES, <RecipeLibrary />)}
                     {renderView(AppView.SHOPPING, <div className="max-w-6xl"><ShoppingList /></div>)}
                     {renderView(AppView.FAMILY, <FamilyView myAvatar={userStats.avatar} onSaveAvatar={avatar => handleSaveStats({ ...userStats, avatar })} />)}
