@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Check, ShoppingBasket } from 'lucide-react';
 import { AggregatedIngredient } from '../types';
+import { formatAmount } from '../utils/scaleIngredient';
 
 interface IngredientReviewCardProps {
   ingredient: AggregatedIngredient;
@@ -8,7 +9,7 @@ interface IngredientReviewCardProps {
   onTogglePantry: (ingredientName: string, inPantry: boolean) => void;
 }
 
-/** One ingredient in the pantry check: tap the pill to flip between "Buy" and "Have it". */
+/** One ingredient in the pantry check: tap the chip to flip between "Buy" and "Have it" (ink when you have it). */
 export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
   ingredient,
   inPantry,
@@ -23,7 +24,7 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
         <div className={`flex-1 min-w-0 ${inPantry ? 'text-muted' : ''}`}>
           <p className="font-semibold first-letter:uppercase leading-snug">{ingredient.name}</p>
           <p className="text-xs text-muted mt-0.5">
-            {ingredient.totalQuantity} {ingredient.unit}
+            {formatAmount(ingredient.totalQuantity, ingredient.unit)}
             {usedIn > 1 ? (
               <>
                 {' · '}
@@ -44,11 +45,9 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
           onClick={() => onTogglePantry(ingredient.name, !inPantry)}
           aria-pressed={inPantry}
           aria-label={inPantry ? `${ingredient.name}: have it at home. Tap to buy instead` : `${ingredient.name}: need to buy. Tap if you have it`}
-          className={`shrink-0 min-h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full text-sm font-semibold transition-colors active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${inPantry
-            ? 'bg-weight-bg text-weight-text'
-            : 'bg-calories-bg text-calories-text'}`}
+          className="chip hit-target shrink-0 min-w-[6.5rem] active:scale-[0.98]"
         >
-          {inPantry ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : <ShoppingBasket size={14} aria-hidden="true" />}
+          {inPantry ? <Check size={16} strokeWidth={3} aria-hidden="true" /> : <ShoppingBasket size={16} aria-hidden="true" />}
           {inPantry ? 'Have it' : 'Buy'}
         </button>
       </div>
@@ -57,7 +56,7 @@ export const IngredientReviewCard: React.FC<IngredientReviewCardProps> = ({
         <ul className="pb-2.5 px-2 space-y-0.5">
           {ingredient.recipes.map((recipe) => (
             <li key={recipe.id} className="text-xs text-muted pl-3 border-l-2 border-border">
-              {recipe.name}: {recipe.quantity} {ingredient.unit}
+              {recipe.name}: {formatAmount(recipe.quantity, ingredient.unit)}
             </li>
           ))}
         </ul>

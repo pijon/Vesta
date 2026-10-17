@@ -43,7 +43,7 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, on
         <>
             {reorderable && (
                 <span
-                    className="hidden md:flex size-8 shrink-0 items-center justify-center text-muted cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+                    className="flex size-8 shrink-0 items-center justify-center text-muted cursor-grab active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100 transition-opacity touch-none"
                     onPointerDown={(e) => dragControls.start(e)}
                     aria-hidden="true"
                 >
@@ -56,7 +56,7 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, on
                 aria-pressed={isChecked}
                 aria-label={isChecked ? `Put ${item.ingredientName} back on the list` : `Mark ${item.ingredientName} as in the basket`}
                 className={`size-11 shrink-0 flex items-center justify-center rounded-full border-2 transition-colors active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${isChecked
-                    ? 'bg-secondary border-secondary text-secondary-foreground'
+                    ? 'bg-ink border-ink text-on-ink'
                     : 'border-border-control text-transparent hover:text-muted hover:border-main'}`}
             >
                 <Check size={20} strokeWidth={3} />
@@ -76,7 +76,7 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, on
                                 if (e.key === 'Escape') setIsEditing(false);
                             }}
                             aria-label={`Quantity of ${item.ingredientName}`}
-                            className="input !min-h-9 !py-1 !px-2 w-32 font-bold"
+                            className="input min-h-9 py-1 px-2 w-32 font-bold"
                         />
                     ) : (
                         <button
@@ -96,17 +96,18 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ item, recipes, onRemove, on
             </div>
 
             <div className="flex shrink-0 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+                {/* Phones copy the whole list from the hero; the row keeps room for the name */}
                 <button
                     onClick={handleCopy}
                     aria-label={copied ? 'Copied' : `Copy ${item.ingredientName}`}
-                    className="size-9 flex items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                    className="hidden md:flex size-9 items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                     {copied ? <CopyCheck size={16} className="text-weight-text" /> : <Copy size={16} />}
                 </button>
                 <button
                     onClick={onRemove}
                     aria-label={`Remove ${item.ingredientName}`}
-                    className="size-9 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                    className="hit-target size-9 flex items-center justify-center rounded-full text-muted hover:bg-error-bg hover:text-error transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                     <Trash2 size={16} />
                 </button>
