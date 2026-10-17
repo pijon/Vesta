@@ -13,13 +13,15 @@ interface SheetProps {
   size?: 'md' | 'lg' | 'xl';
   /** Field to focus when the sheet opens (default: the close button) */
   initialFocus?: React.RefObject<HTMLElement | null>;
+  /** Keep the full height whatever the content, so controls at the top don't move as it changes */
+  fixedHeight?: boolean;
 }
 
 /**
  * Bottom sheet on mobile, centred dialog from md up. Escape closes it, focus starts on the
  * close button (or `initialFocus`) and returns to the opener, and the page behind stops scrolling.
  */
-export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children, footer, size = 'md', initialFocus }) => {
+export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children, footer, size = 'md', initialFocus, fixedHeight }) => {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const { closing, close } = useAnimatedClose(onClose);
@@ -49,7 +51,7 @@ export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children
           aria-modal="true"
           aria-labelledby={titleId}
           onClick={e => e.stopPropagation()}
-          className={`bg-surface w-full ${size === 'xl' ? 'md:max-w-4xl' : size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-lg'} rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden modal-panel ${closing ? 'is-closing' : ''}`}
+          className={`bg-surface w-full ${size === 'xl' ? 'md:max-w-4xl' : size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-lg'} rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] ${fixedHeight ? 'h-[90vh] md:h-[min(85vh,720px)]' : 'max-h-[90vh] md:max-h-[85vh]'} flex flex-col overflow-hidden modal-panel ${closing ? 'is-closing' : ''}`}
         >
           <div className="flex items-start gap-3 px-5 pt-5 pb-3">
             <div className="flex-1 min-w-0">

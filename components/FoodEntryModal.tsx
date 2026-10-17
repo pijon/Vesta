@@ -207,8 +207,9 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
     </button>
   );
 
+  // Fixed height: the tabs would otherwise move with each tab's content, and a second tap could land on the backdrop
   return (
-    <Sheet title="Log food" onClose={onClose} footer={footer} initialFocus={textRef}>
+    <Sheet title="Log food" onClose={onClose} footer={footer} initialFocus={textRef} fixedHeight>
       <div className="space-y-4">
         {/* Mode */}
         <div role="radiogroup" aria-label="How to add food" className="segmented pill-group grid grid-cols-4 w-full">
