@@ -109,7 +109,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
           </button>
         )}
         {ownerName && (
-          <span className="absolute top-2 left-2 badge badge-workout !py-0.5 shadow-[var(--elev-sm)]"><UsersRound size={12} aria-hidden="true" /> {ownerName.split(' ')[0]}</span>
+          <span className="absolute top-2 left-2 badge badge-neutral !py-0.5 shadow-[var(--elev-sm)]"><UsersRound size={12} aria-hidden="true" /> {ownerName.split(' ')[0]}</span>
         )}
         {plannedLabel && (
           <span className="absolute left-2 bottom-2 badge badge-ink !py-0.5"><CalendarCheck size={12} aria-hidden="true" /> {plannedLabel}</span>
@@ -125,8 +125,9 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
         >
           <h3 className="font-display font-extrabold text-[15px] leading-5 line-clamp-2">{meal.name}</h3>
         </button>
+        {/* Phones show just the highlight when there is one: the meal type is what the filters are for */}
         <p className="text-xs text-muted truncate">
-          {visual.label}{highlight && ` · ${highlight}`}
+          {highlight ? <><span className="max-sm:hidden">{visual.label} · </span>{highlight}</> : visual.label}
         </p>
 
         <div className="flex items-end justify-between gap-2 mt-auto pt-2">
@@ -203,7 +204,7 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
             {tags.slice(0, 2).map(t => <span key={t} className="hidden sm:inline">· {t}</span>)}
             {plannedLabel && <span className="badge badge-ink !py-0"><CalendarCheck size={11} aria-hidden="true" /> {plannedLabel}</span>}
             {!plannedLabel && historyLabel && <span>· {historyLabel}</span>}
-            {ownerName && <span className="badge badge-workout !py-0"><UsersRound size={11} aria-hidden="true" /> {ownerName.split(' ')[0]}</span>}
+            {ownerName && <span className="badge badge-neutral !py-0"><UsersRound size={11} aria-hidden="true" /> {ownerName.split(' ')[0]}</span>}
           </span>
         </span>
       </button>

@@ -567,7 +567,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               id="recipe-search"
               type="search"
               className="input w-full !pl-11"
-              placeholder="Search name, ingredient or tag"
+              placeholder="Search recipes"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -609,7 +609,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           )}
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5" role="group" aria-label="Filter recipes">
+        {/* Phones scroll the chips sideways; from md they wrap, so none hide past the edge */}
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5 md:flex-wrap md:overflow-visible" role="group" aria-label="Filter recipes">
           {chip(<><Heart size={14} fill={showFavoritesOnly ? 'currentColor' : 'none'} aria-hidden="true" /> Favourites</>, showFavoritesOnly, () => setShowFavoritesOnly(v => !v))}
           {duplicateIds.size > 0 && chip(<><Copy size={14} aria-hidden="true" /> Duplicates · {duplicateIds.size}</>, activeFilter === 'duplicates', () => setActiveFilter(f => (f === 'duplicates' ? 'all' : 'duplicates')))}
           {(familyCount > 0
@@ -620,7 +621,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               {chip(label, activeFilter === value, () => setActiveFilter(f => (f === value ? 'all' : value)))}
             </React.Fragment>
           ))}
-          <span className="shrink-0 w-px my-1.5 bg-border" aria-hidden="true" />
+          {/* Space, rather than a line, between the kinds of meal and the tags */}
+          <span className="shrink-0 w-2" aria-hidden="true" />
           {fastDayCount > 0 && chip(<><Flame size={14} aria-hidden="true" /> Fast day friendly</>, fastDayFriendly, () => setFastDayFriendly(v => !v), 'fasting')}
           {tagChips.map(([tag]) => (
             <React.Fragment key={tag}>
