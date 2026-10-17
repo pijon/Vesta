@@ -69,3 +69,22 @@ export const importRecipeImageFromUrl = async (pageUrl: string, recipeId: string
         return null;
     }
 };
+
+const checkRecipePageCallable = httpsCallable<{ pageUrl: string }, { ok: boolean; reason?: 'blocked' | 'not-found' }>(
+    functions,
+    'checkRecipePage',
+    { timeout: 20_000 }
+);
+
+/**
+ * Quick look at a recipe link before the slow AI read, so a site that blocks readers
+ * fails in about a second. Inconclusive checks (including errors) count as readable.
+ */
+export const checkRecipePage = async (pageUrl: string): Promise<{ ok: boolean; reason?: 'blocked' | 'not-found' }> => {
+    try {
+        return (await checkRecipePageCallable({ pageUrl })).data;
+    } catch (error) {
+        console.warn('Recipe page check failed:', error);
+        return { ok: true };
+    }
+};

@@ -72,7 +72,9 @@ const safeFetch = async (raw: string, accept: string): Promise<{ res: Response; 
       url = await assertPublicUrl(new URL(location, url).href);
       continue;
     }
-    if (!res.ok) throw new HttpsError('not-found', `Fetch of ${url.host} failed with status ${res.status}.`);
+    if (!res.ok) {
+      throw new HttpsError('not-found', `Fetch of ${url.host} failed with status ${res.status}.`, { status: res.status });
+    }
     return { res, url };
   }
   throw new HttpsError('not-found', 'Too many redirects.');
@@ -234,6 +236,44 @@ const copyPageImage = async (uid: string, pageUrl: string, recipeId: string): Pr
     url: `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`,
   };
 };
+
+export type RecipePageCheck = { ok: true } | { ok: false; reason: 'blocked' | 'not-found' };
+
+/** Statuses that mean the site refuses automated readers (or the page is gone), so the AI fetch would only wait and fail. */
+export const classifyPageStatus = (status: number): RecipePageCheck => {
+  if (status === 401 || status === 403 || status === 429 || status === 451) return { ok: false, reason: 'blocked' };
+  if (status === 404 || status === 410) return { ok: false, reason: 'not-found' };
+  return { ok: true };
+};
+
+/**
+ * Cheap check run before the slow AI page read: some sites (News Corp, for one) answer bots with a 403,
+ * and Gemini's urlContext then spends a long time before giving up. Only definite refusals fail;
+ * anything uncertain (timeouts, 5xx) returns ok so the real import still gets its try.
+ */
+export const checkRecipePage = onCall<{ pageUrl: string }>(
+  { region: 'europe-west1', timeoutSeconds: 15, maxInstances: 10 },
+  async (request): Promise<RecipePageCheck> => {
+    if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Sign in first.');
+    const { pageUrl } = request.data ?? {};
+    if (typeof pageUrl !== 'string') throw new HttpsError('invalid-argument', 'pageUrl is required.');
+
+    try {
+      const page = await safeFetch(pageUrl, 'text/html,application/xhtml+xml');
+      await page.res.body?.cancel();
+      return { ok: true };
+    } catch (error) {
+      if (error instanceof HttpsError) {
+        const status = (error.details as { status?: number } | undefined)?.status;
+        if (status !== undefined) return classifyPageStatus(status);
+        // Bad URL, unresolvable host or blocked address: nothing the AI could read either.
+        if (error.code === 'invalid-argument' || error.code === 'not-found') return { ok: false, reason: 'not-found' };
+      }
+      logger.warn('Recipe page check inconclusive', { pageUrl, reason: error instanceof Error ? error.message : String(error) });
+      return { ok: true };
+    }
+  }
+);
 
 export { sendReminders, sendTestReminder } from './reminders';
 export { generateAi } from './ai';

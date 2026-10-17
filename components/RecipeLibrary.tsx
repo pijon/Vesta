@@ -17,7 +17,7 @@ import { RecipeCard, RecipeRow, RecipeShelfCard } from './RecipeCard';
 import { favouritesShelf, notHadInAWhile } from '../utils/recipeShelves';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
-import { importRecipeImageFromUrl } from '../utils/storageUtils';
+import { importRecipeImageFromUrl, checkRecipePage } from '../utils/storageUtils';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
@@ -238,6 +238,16 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     setImportError(null);
     try {
       const sourceUrl = getRecipeUrl(inputText);
+      if (sourceUrl) {
+        // Some sites refuse automated readers; find out in a second instead of after a long AI wait.
+        const check = await checkRecipePage(sourceUrl);
+        if (!check.ok) {
+          setImportError(check.reason === 'blocked'
+            ? "That site doesn't let Vesta read its pages. Copy the recipe text and paste it here instead."
+            : "We couldn't find a page at that link. Check the address, or paste the recipe text instead.");
+          return;
+        }
+      }
       // Copy the page's photo in parallel with reading the recipe; a user upload wins.
       const pageImage = sourceUrl && !uploadedImage
         ? importRecipeImageFromUrl(sourceUrl, newRecipeId)
