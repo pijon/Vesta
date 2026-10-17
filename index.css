@@ -743,7 +743,7 @@
   }
   /* Navigation labels in the display face, so they carry the look rather than read as UI text */
   .tab-label {
-    @apply text-[11px] leading-none font-display font-bold tracking-[-0.01em];
+    @apply text-[11px] leading-none font-display font-extrabold tracking-[-0.01em];
   }
 
   /* Sidebar from the nav breakpoint (md width, 640px tall) up: icon rail (icon over label) on tablets, icon beside label on desktop. A
@@ -751,8 +751,11 @@
      lg:pl-60 gutter) and shaped like the cards, so it sits with the content instead of competing
      with it. The current item is the one strong mark: an ink pill, as on the phone tab bar. */
   .side-nav {
-    @apply hidden nav:flex flex-col fixed top-3 bottom-3 left-[var(--nav-inset-left)] z-40 w-[calc(5rem-12px)] lg:w-[calc(15rem-12px)] px-2 lg:px-4 py-6 rounded-[28px] border border-border bg-surface;
+    @apply hidden nav:flex flex-col fixed top-3 bottom-3 left-[var(--nav-inset-left)] z-40 w-[calc(5.5rem-12px)] lg:w-[calc(15rem-12px)] px-2 lg:px-4 py-6 rounded-[28px] border border-transparent bg-surface;
+    box-shadow: var(--elev-sm);
   }
+  /* Borderless in light mode like the cards; dark keeps the hairline, as the surface is close to the page */
+  .dark .side-nav { border-color: var(--border); }
   .side-item {
     @apply w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 py-2 lg:pl-1.5 lg:pr-3 rounded-[20px] lg:rounded-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
     color: var(--text-muted);
@@ -773,7 +776,7 @@
   .side-item[aria-current="page"] .side-icon { background: var(--on-ink); color: var(--ink); }
   .side-foot { border-color: var(--border); }
   .side-label {
-    @apply text-[11px] leading-none lg:text-[17px] lg:leading-6 font-display font-bold tracking-[-0.01em] lg:tracking-[-0.02em];
+    @apply text-[11px] leading-none lg:text-[17px] lg:leading-6 font-display font-extrabold tracking-[-0.01em] lg:tracking-[-0.02em];
   }
 
   /* Sliding selection (SelectionPill): the ink pill is its own element that glides between items,
