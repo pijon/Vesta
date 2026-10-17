@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ThemePreference } from '../hooks/useTheme';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { proteinTarget } from '../utils/planUtils';
-import { Check, Copy, CloudUpload, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Upload } from 'lucide-react';
+import { BellRing, Check, CircleAlert, Code, Copy, CloudUpload, Database, Download, Droplet, Egg, Gauge, LogOut, PlayCircle, RefreshCw, Scale, Sparkles, Store, SunMoon, Target, Timer, Upload, UserRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { ReminderSettings } from './ReminderSettings';
 import { EatingOutHistorySettings } from './EatingOutHistorySettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
@@ -13,6 +14,7 @@ import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 import { SelectionPill } from './SelectionPill';
 import { MemberAvatar } from './MemberAvatar';
 import { ConfirmSheet } from './ConfirmSheet';
+import { Switch } from './Switch';
 
 const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label: string }[] = [
     { id: '12:12', hours: 12, label: 'Gentle' },
@@ -42,10 +44,21 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 
 const CREDIT_OPTIONS: { value: WorkoutCalorieCredit; label: string; example: string }[] = [
-    { value: 1, label: 'Add all', example: '300 burned → +300' },
-    { value: 0.5, label: 'Add half', example: '300 burned → +150' },
-    { value: 0, label: "Don't add", example: 'Burn not counted' },
+    { value: 1, label: 'Add all', example: '300 → +300' },
+    { value: 0.5, label: 'Add half', example: '300 → +150' },
+    { value: 0, label: "Don't add", example: 'Not counted' },
 ];
+
+/** A settings card's title: a round tinted icon beside the heading and its description */
+const SectionTitle: React.FC<{ id: string; icon: LucideIcon; tile: string; title: React.ReactNode; children?: React.ReactNode }> = ({ id, icon: Icon, tile, title, children }) => (
+    <div className="flex items-start gap-3 min-w-0">
+        <span className={`icon-tile ${tile} size-10 shrink-0 flex items-center justify-center`}><Icon size={18} strokeWidth={2.25} aria-hidden="true" /></span>
+        <div className="min-w-0">
+            <h2 id={id} className="heading-3 pt-2">{title}</h2>
+            {children && <p className="text-sm text-muted mt-1">{children}</p>}
+        </div>
+    </div>
+);
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
     stats,
@@ -244,6 +257,56 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         );
     };
 
+    // A target as an editable figure inside its metric tile: the number is the input itself.
+    // While focused the line under it shows the valid range, and an invalid value shows why.
+    const figure = (
+        key: keyof ReturnType<typeof toForm>,
+        label: string,
+        unit: string,
+        opts: { range: string; note?: string; inputMode?: 'decimal' | 'numeric'; placeholder?: string; icon?: LucideIcon }
+    ) => {
+        const id = `settings-${key}`;
+        const error = errors[key];
+        const shown = form[key] || opts.placeholder || '';
+        return (
+            // The whole figure area focuses the input, so a one-digit figure is still easy to tap
+            <div className="group min-w-0 cursor-text" onClick={e => { if (!(e.target instanceof HTMLInputElement)) document.getElementById(id)?.focus(); }}>
+                <label htmlFor={id} className="flex items-center gap-1.5 text-xs font-semibold">{opts.icon && <opts.icon size={16} strokeWidth={2.25} aria-hidden="true" />}{label}</label>
+                <div className="flex items-baseline gap-0.5 mt-1.5">
+                    {/* The hidden twin sizes the input to its text */}
+                    <span className="relative min-w-0 -ml-1 font-display font-extrabold text-[26px] leading-[30px] tracking-tight">
+                        <span aria-hidden="true" className="invisible block whitespace-pre px-1 overflow-hidden">{shown || ' '}</span>
+                        <input
+                            id={id}
+                            type="text"
+                            inputMode={opts.inputMode ?? 'numeric'}
+                            value={form[key]}
+                            onChange={update(key)}
+                            placeholder={opts.placeholder}
+                            aria-invalid={!!error}
+                            aria-describedby={`${id}-note`}
+                            className={`absolute inset-0 w-full bg-transparent px-1 rounded-lg placeholder:text-muted hover:bg-surface focus:bg-surface focus:text-main focus:outline-2 focus:outline-offset-2 focus:outline-[var(--focus-ring)] ${error ? 'outline-2 outline-offset-2 outline-[var(--error)]' : ''}`}
+                        />
+                    </span>
+                    <span className="text-xs font-semibold">{unit}</span>
+                </div>
+                <p id={`${id}-note`} className="text-xs font-medium mt-1 min-h-4">
+                    {error
+                        ? <span className="inline-flex items-start gap-1"><CircleAlert size={14} className="shrink-0 mt-px" aria-hidden="true" />{error}</span>
+                        : <>
+                            {opts.note && <span className="group-focus-within:hidden">{opts.note}</span>}
+                            <span className={opts.note ? 'hidden group-focus-within:inline' : 'sr-only group-focus-within:not-sr-only'}>{opts.range}</span>
+                        </>}
+                </p>
+            </div>
+        );
+    };
+
+    const protocolLabel = fastingConfig.protocol === 'custom'
+        ? `${fastingConfig.targetFastHours} h fast`
+        : fastingConfig.protocol;
+    const selectedProtocol = PROTOCOLS.find(pr => pr.id === protocol);
+
     return (
         <div className="space-y-6 pb-20">
             {/* Account: the page's one bold block, as the family sees you */}
@@ -251,37 +314,97 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <MemberAvatar avatar={stats.avatar} uid={user?.uid ?? ''} size={64} className="shrink-0" />
                 <div className="flex-1 min-w-0">
                     <p className="font-display font-extrabold text-[32px] leading-9 tracking-tight truncate">{displayName}</p>
-                    {user?.email && <p className="text-sm font-medium truncate">{user.email}</p>}
+                    <ul className="flex flex-wrap gap-1.5 mt-2" aria-label="Your targets">
+                        {stats.goalWeight ? <li className="badge badge-ink">{stats.goalWeight} kg goal</li> : null}
+                        <li className="badge badge-ink">{(stats.nonFastDayCalories || 2000).toLocaleString()} kcal</li>
+                        <li className="badge badge-ink">{protocolLabel}</li>
+                    </ul>
                 </div>
             </section>
 
             {/* Goals */}
             <section className="card" aria-labelledby="goals-heading">
                 <div className="p-5 md:p-6 space-y-6">
-                    <div>
-                        <h2 id="goals-heading" className="heading-2">Your goals</h2>
-                        <p className="text-sm text-muted mt-0.5">These drive the targets on Today and in the planner.</p>
-                    </div>
+                    <SectionTitle id="goals-heading" icon={Target} tile="tile-calories" title="Your goals">
+                        Tap a number to change it. Today and the planner follow these.
+                    </SectionTitle>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {field('name', 'Name', { inputMode: 'text', placeholder: 'What should we call you?' })}
-                        {field('goalWeight', 'Goal weight', { unit: 'kg', inputMode: 'decimal' })}
-                    </div>
+                    {field('name', 'Name', { inputMode: 'text', placeholder: 'What should we call you?' })}
 
-                    <div className="border-t border-border pt-5 space-y-4">
-                        <h3 className="heading-4">Daily targets</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {field('dailyCalorieGoal', 'Fast days', { unit: 'kcal', hint: 'Calories on fast days' })}
-                            {field('nonFastDayCalories', 'Other days', { unit: 'kcal', hint: 'Calories on nourish days' })}
-                            {field('dailyProteinGoal', 'Protein', { unit: 'g', placeholder: String(proteinTarget({ ...stats, dailyProteinGoal: undefined })), hint: 'Empty uses 1.6 g per kg of goal weight' })}
-                            {field('dailyWaterGoal', 'Water', { unit: 'litres', inputMode: 'decimal' })}
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                        <div className="tile tile-calories col-span-3">
+                            <p className="flex items-center gap-1.5 text-xs font-semibold"><Gauge size={16} strokeWidth={2.25} aria-hidden="true" /> Calories a day</p>
+                            <div className="grid grid-cols-2 gap-4 mt-1">
+                                {figure('dailyCalorieGoal', 'Fast days', 'kcal', { range: '400 to 5000' })}
+                                <div className="border-l-[1.5px] border-current/25 pl-4 min-w-0">
+                                    {figure('nonFastDayCalories', 'Other days', 'kcal', { range: '800 to 6000' })}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="tile tile-weight">
+                            {figure('goalWeight', 'Goal', 'kg', { range: '30 to 300', inputMode: 'decimal', icon: Scale })}
+                        </div>
+                        <div className="tile tile-water">
+                            {figure('dailyWaterGoal', 'Water', 'litres', { range: '0.5 to 6', inputMode: 'decimal', icon: Droplet })}
+                        </div>
+                        <div className="tile tile-neutral">
+                            {figure('dailyProteinGoal', 'Protein', 'g', {
+                                range: 'Empty for auto',
+                                icon: Egg,
+                                note: form.dailyProteinGoal ? undefined : 'Auto',
+                                placeholder: String(proteinTarget({ ...stats, goalWeight: form.goalWeight && !errors.goalWeight ? num(form.goalWeight) : stats.goalWeight, dailyProteinGoal: undefined })),
+                            })}
+                        </div>
+
+                        <div className="tile tile-fasting col-span-3 md:col-span-6">
+                            <p id="fasting-heading" className="flex items-center gap-1.5 text-xs font-semibold"><Timer size={16} strokeWidth={2.25} aria-hidden="true" /> Fasting window</p>
+                            <div role="radiogroup" aria-labelledby="fasting-heading" className="grid grid-cols-5 gap-1.5 mt-3 md:max-w-md">
+                                {PROTOCOLS.map(p => {
+                                    const active = protocol === p.id;
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            role="radio"
+                                            aria-checked={active}
+                                            aria-label={`${p.id}, ${p.label.toLowerCase()}`}
+                                            onClick={() => setProtocol(p.id)}
+                                            className={`chip px-0 font-display font-extrabold ${active ? '' : 'bg-surface text-main'}`}
+                                        >
+                                            {p.id}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs font-medium mt-2">
+                                {selectedProtocol
+                                    ? `${selectedProtocol.label}: ${selectedProtocol.hours} hours fasting, ${24 - selectedProtocol.hours} eating`
+                                    : `You're on a custom ${fastingConfig.targetFastHours}-hour fast`}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-sm">
+                                <input
+                                    id="settings-fastBreakCalories"
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={form.fastBreakCalories}
+                                    onChange={update('fastBreakCalories')}
+                                    aria-invalid={!!errors.fastBreakCalories}
+                                    aria-describedby="settings-fastBreakCalories-note"
+                                    className={`w-16 min-h-10 rounded-full bg-surface text-main text-center font-semibold focus:outline-2 focus:outline-offset-2 focus:outline-[var(--focus-ring)] ${errors.fastBreakCalories ? 'outline-2 outline-offset-2 outline-[var(--error)]' : ''}`}
+                                />
+                                <label htmlFor="settings-fastBreakCalories">kcal allowed while fasting</label>
+                            </div>
+                            <p id="settings-fastBreakCalories-note" className="text-xs font-medium mt-1">
+                                {errors.fastBreakCalories
+                                    ? <span className="inline-flex items-start gap-1"><CircleAlert size={14} className="shrink-0 mt-px" aria-hidden="true" />{errors.fastBreakCalories}</span>
+                                    : 'Food or drink up to this, like a coffee, doesn\'t end your fast. 0 means anything does.'}
+                            </p>
                         </div>
                     </div>
 
                     <div className="border-t border-border pt-5 space-y-3">
                         <div>
                             <h3 className="heading-4" id="credit-heading">Workout calories</h3>
-                            <p className="text-sm text-muted">How much of a workout's burn to add to the day's calories. Watches and machines often overestimate it, so adding half is a safer choice when you're losing weight.</p>
+                            <p className="text-sm text-muted">How much of a workout's burn to add to the day's calories. Watches tend to overestimate, so half is safer.</p>
                         </div>
                         <div role="radiogroup" aria-labelledby="credit-heading" className="grid grid-cols-3 gap-2">
                             {CREDIT_OPTIONS.map(o => {
@@ -292,49 +415,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         role="radio"
                                         aria-checked={active}
                                         onClick={() => { setForm(f => ({ ...f, workoutCalorieCredit: String(o.value) })); }}
-                                        className={`rounded-[14px] border px-2 py-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
-                                            ? 'bg-workout-bg text-workout-text border-transparent'
-                                            : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                                        className="chip flex-col gap-0 px-2 py-2.5 min-h-14"
                                     >
                                         <span className="block font-semibold">{o.label}</span>
-                                        <span className={`block text-xs ${active ? '' : 'text-muted'}`}>{o.example}</span>
+                                        <span className={`block text-xs font-medium ${active ? '' : 'text-muted'}`}>{o.example}</span>
                                     </button>
                                 );
                             })}
                         </div>
                     </div>
 
-                    <div className="border-t border-border pt-5 space-y-3">
-                        <div>
-                            <h3 className="heading-4">Fasting window</h3>
-                            <p className="text-sm text-muted">Hours fasting : hours eating</p>
-                        </div>
-                        <div role="radiogroup" aria-label="Fasting window" className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                            {PROTOCOLS.map(p => {
-                                const active = protocol === p.id;
-                                return (
-                                    <button
-                                        key={p.id}
-                                        role="radio"
-                                        aria-checked={active}
-                                        onClick={() => setProtocol(p.id)}
-                                        className={`rounded-[14px] border px-2 py-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
-                                            ? 'bg-fasting-bg text-fasting-text border-transparent'
-                                            : 'bg-surface border-border hover:bg-surface-sunken'}`}
-                                    >
-                                        <span className="block font-display font-extrabold text-lg leading-6">{p.id}</span>
-                                        <span className={`block text-xs ${active ? '' : 'text-muted'}`}>{p.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {fastingConfig.protocol === 'custom' && protocol === 'custom' && (
-                            <p className="text-xs text-muted">You're on a custom {fastingConfig.targetFastHours}-hour fast.</p>
-                        )}
-                        <div className="sm:w-1/2 sm:pr-2">
-                            {field('fastBreakCalories', 'Allowed while fasting', { unit: 'kcal', hint: 'Food or drink up to this much, like a coffee, is logged without ending your fast. 0 means anything ends it.' })}
-                        </div>
-                    </div>
                 </div>
 
                 <div className="flex items-center gap-2 px-5 md:px-6 py-4 border-t border-border text-sm text-muted min-h-14" role="status" aria-live="polite">
@@ -348,10 +438,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Appearance: applies at once, outside the goals form */}
             <section className="card p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4" aria-labelledby="appearance-heading">
-                <div>
-                    <h2 id="appearance-heading" className="heading-2">Appearance</h2>
-                    <p className="text-sm text-muted mt-0.5">System follows your device, light or dark.</p>
-                </div>
+                <SectionTitle id="appearance-heading" icon={SunMoon} tile="tile-neutral" title="Appearance">
+                    System follows your device, light or dark.
+                </SectionTitle>
                 <div role="radiogroup" aria-labelledby="appearance-heading" className="segmented pill-group self-start md:self-auto">
                     {THEME_OPTIONS.map(o => (
                         <button
@@ -370,29 +459,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Reminders */}
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="reminders-heading">
-                <div>
-                    <h2 id="reminders-heading" className="heading-2">Reminders</h2>
-                    <p className="text-sm text-muted mt-0.5">Gentle nudges to log and weigh in, so your personal target has the data it needs.</p>
-                </div>
+                <SectionTitle id="reminders-heading" icon={BellRing} tile="tile-water" title="Reminders">
+                    Gentle nudges to log and weigh in, so your personal target has the data it needs.
+                </SectionTitle>
                 <ReminderSettings />
             </section>
 
             {/* Eating out */}
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="eating-out-heading">
-                <div>
-                    <h2 id="eating-out-heading" className="heading-2">Eating out</h2>
-                    <p className="text-sm text-muted mt-0.5">Dishes you've logged, offered again when you plan or log a meal out. Fix a name or calories, or remove one.</p>
-                </div>
+                <SectionTitle id="eating-out-heading" icon={Store} tile="tile-workout" title="Eating out">
+                    Dishes you've logged, offered again when you plan or log a meal out.
+                </SectionTitle>
                 <EatingOutHistorySettings />
             </section>
 
             {/* Data */}
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="data-heading">
                 <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <h2 id="data-heading" className="heading-2">Your data</h2>
-                        <p className="text-sm text-muted mt-0.5">Download a backup, restore one, or pull the latest from the cloud.</p>
-                    </div>
+                    <SectionTitle id="data-heading" icon={Database} tile="tile-neutral" title="Your data">
+                        Download a backup, restore one, or pull the latest from the cloud.
+                    </SectionTitle>
                     {dataStatus && <span className="badge badge-weight shrink-0" role="status">{dataStatus}</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -421,44 +507,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {isDevMode && (
                 <section className="card p-5 md:p-6 space-y-5" aria-labelledby="dev-heading">
                     <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <h2 id="dev-heading" className="heading-2 flex items-center gap-2">
-                                Developer <span className="badge badge-fasting">Verified</span>
-                            </h2>
-                            <p className="text-sm text-muted mt-0.5">Feature flags and recovery tools for testing.</p>
-                        </div>
+                        <SectionTitle id="dev-heading" icon={Code} tile="tile-neutral" title="Developer">
+                            Feature flags and recovery tools for testing.
+                        </SectionTitle>
                         <button onClick={resetFlags} className="btn-ghost btn-sm shrink-0">Reset flags</button>
                     </div>
 
-                    <label className="flex items-center justify-between gap-4 rounded-[14px] bg-surface-sunken p-4 cursor-pointer">
-                        <span>
+                    <div className="flex items-center justify-between gap-4 rounded-[20px] bg-surface-sunken p-4">
+                        <label htmlFor="flag-useGeminiExperimental" className="cursor-pointer">
                             <span className="block font-semibold">Gemini 3.8 Flash</span>
                             <span className="block text-sm text-muted">Off uses Gemini 3.5 Flash-Lite, a lighter model</span>
-                        </span>
-                        <input
-                            type="checkbox"
-                            role="switch"
-                            className="sr-only peer"
-                            checked={featureFlags.useGeminiExperimental ?? true}
-                            onChange={() => toggleFeatureFlag('useGeminiExperimental')}
-                        />
-                        <span aria-hidden="true" className="relative shrink-0 w-12 h-7 rounded-full bg-border-control peer-checked:bg-ink transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
-                    </label>
+                        </label>
+                        <Switch id="flag-useGeminiExperimental" checked={featureFlags.useGeminiExperimental ?? true} onChange={() => toggleFeatureFlag('useGeminiExperimental')} />
+                    </div>
 
-                    <label className="flex items-center justify-between gap-4 rounded-[14px] bg-surface-sunken p-4 cursor-pointer">
-                        <span>
+                    <div className="flex items-center justify-between gap-4 rounded-[20px] bg-surface-sunken p-4">
+                        <label htmlFor="flag-quickMeals" className="cursor-pointer">
                             <span className="block font-semibold">Quick meals</span>
                             <span className="block text-sm text-muted">Plan meals without a recipe from the planner search</span>
-                        </span>
-                        <input
-                            type="checkbox"
-                            role="switch"
-                            className="sr-only peer"
-                            checked={featureFlags.quickMeals ?? true}
-                            onChange={() => toggleFeatureFlag('quickMeals')}
-                        />
-                        <span aria-hidden="true" className="relative shrink-0 w-12 h-7 rounded-full bg-border-control peer-checked:bg-ink transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
-                    </label>
+                        </label>
+                        <Switch id="flag-quickMeals" checked={featureFlags.quickMeals ?? true} onChange={() => toggleFeatureFlag('quickMeals')} />
+                    </div>
 
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => setConfirming('sync')} className="btn-secondary btn-sm"><CloudUpload size={16} aria-hidden="true" /> Force sync</button>
@@ -472,7 +541,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     {showDebug && (
-                        <div className="rounded-[14px] bg-surface-sunken p-4 space-y-1">
+                        <div className="rounded-[20px] bg-surface-sunken p-4 space-y-1">
                             <h3 className="font-sans text-xs font-semibold text-muted mb-2">Local storage</h3>
                             {Object.entries(debugInfo).map(([key, value]) => (
                                 <div key={key} className="flex justify-between gap-3 text-xs">
@@ -490,10 +559,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Account actions, last: rarely needed */}
             <section className="card p-5 md:p-6 flex items-center justify-between gap-4" aria-labelledby="account-heading">
-                <div className="min-w-0">
-                    <h2 id="account-heading" className="heading-2">Account</h2>
-                    {user?.email && <p className="text-sm text-muted mt-0.5 truncate">Signed in as {user.email}</p>}
-                </div>
+                <SectionTitle id="account-heading" icon={UserRound} tile="tile-neutral" title="Account">
+                    {user?.email && <>Signed in as <span className="break-all">{user.email}</span></>}
+                </SectionTitle>
                 <button onClick={() => setConfirming('logout')} className="btn-secondary btn-sm shrink-0">
                     <LogOut size={16} aria-hidden="true" /> Log out
                 </button>
