@@ -246,7 +246,8 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             const name = displayName(isFood ? entry.item.name : entry.workout.type);
             const FoodIcon = isFood ? foodIconFor({ name: entry.item.name }) ?? CookingPot : null;
             const WorkoutIcon = isFood ? null : workoutIconFor(entry.workout.type);
-            const protein = isFood && typeof entry.item.protein === 'number' ? ` · ${entry.item.protein} g protein` : '';
+            // 0 g is usually protein that was never filled in, so it's left out rather than shown as fact
+            const protein = isFood && typeof entry.item.protein === 'number' && entry.item.protein > 0 ? ` · ${entry.item.protein} g protein` : '';
             return (
               <li key={entry.id} className="border-t border-border first:border-t-0">
                 <button
@@ -315,7 +316,8 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               <span className="block text-sm font-bold text-secondary">Next up · {clockTime(slotTime(slotFor(meal)))}</span>
             )}
             {!isNext && <span className="block text-sm text-muted">{details}</span>}
-            <span className={`text-[17px] font-semibold leading-snug line-clamp-2 ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
+            {/* The next meal gets a third line: the header no longer names it */}
+            <span className={`text-[17px] font-semibold leading-snug ${isNext ? 'line-clamp-3' : 'line-clamp-2'} ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
             {isNext && details && <span className="block text-sm text-muted">{details}</span>}
           </span>
         </button>
@@ -453,7 +455,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
         {/* The day's totals are in the hero and the period headings, so the header is just the title */}
         <div className="flex justify-between items-center gap-3 px-1 pb-3">
           <h2 className="heading-2">What you’ve eaten</h2>
-          <button onClick={onLogFood} className="btn-secondary btn-sm shrink-0"><Plus size={16} aria-hidden="true" /> Add</button>
+          <button onClick={onLogFood} className="btn-secondary btn-sm shrink-0"><Plus size={16} aria-hidden="true" /> Log</button>
         </div>
 
         {frequentFoods.length > 0 && (
@@ -498,7 +500,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                   aria-expanded={showAllLoggedItems}
                 >
                   {showAllLoggedItems ? 'Show fewer' : `Show ${hiddenCount} earlier ${hiddenCount === 1 ? 'entry' : 'entries'}`}
-                  <ChevronDown size={16} className={`transition-transform ${showAllLoggedItems ? '' : 'rotate-180'}`} />
+                  <ChevronDown size={16} aria-hidden="true" className={`transition-transform ${showAllLoggedItems ? 'rotate-180' : ''}`} />
                 </button>
               )}
 

@@ -447,7 +447,6 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           burnCredit={stats.workoutCalorieCredit ?? 1}
           protein={proteinToday}
           isFastDay={!isNonFastDay}
-          meals={{ total: todayPlan.meals.length, eaten: todayPlan.meals.filter(meal => isMealEaten(todayPlan, meal)).length }}
           onLogFood={onOpenFoodModal}
         />
         <TodayStrip
