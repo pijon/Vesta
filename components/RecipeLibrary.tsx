@@ -189,7 +189,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       setEditForm(null); // Cleanup
     } catch (e) {
       console.error("Failed to save recipe", e);
-      alert("That recipe couldn't be saved. Try again.");
+      showToast("That recipe couldn't be saved. Try again.");
     } finally {
       setIsSaving(false);
     }

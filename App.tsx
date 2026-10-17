@@ -666,29 +666,27 @@ const TrackerApp: React.FC = () => {
         return [greeting, ...(isFastDay(todayPlan) ? ['fast day'] : []), status].join(' · ');
     };
 
-    const getHeaderInfo = (): { title: string; subtitle: string } => {
-        const greeting = `${getGreeting()}, ${userStats.name || 'Family'}`;
-
+    // The greeting belongs on Today, with the day's next meal; other pages just say where you are
+    const getHeaderInfo = (): { title: string; subtitle?: string } => {
         switch (view) {
             case AppView.TODAY:
                 return {
                     title: new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }),
-                    subtitle: getTodayLine(greeting),
+                    subtitle: getTodayLine(`${getGreeting()}, ${userStats.name || 'Family'}`),
                 };
             case AppView.ANALYTICS:
-                return { title: 'Analytics', subtitle: greeting };
+                return { title: 'Analytics' };
             case AppView.PLANNER:
-                return { title: 'Planner', subtitle: greeting };
-            case AppView.RECIPES:
-                return { title: 'Recipes', subtitle: greeting };
             case AppView.SHOPPING:
-                return { title: 'Planner', subtitle: greeting };
+                return { title: 'Planner' };
+            case AppView.RECIPES:
+                return { title: 'Recipes' };
             case AppView.FAMILY:
-                return { title: 'Family', subtitle: greeting };
+                return { title: 'Family' };
             case AppView.SETTINGS:
-                return { title: 'Settings', subtitle: greeting };
+                return { title: 'Settings' };
             default:
-                return { title: 'Vesta', subtitle: greeting };
+                return { title: 'Vesta' };
         }
     };
 
