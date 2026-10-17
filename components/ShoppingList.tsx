@@ -14,6 +14,7 @@ import { parseIngredients, convertToPurchasableQuantities } from '../services/ge
 import { ParsedIngredient, AggregatedIngredient, PurchasableItem } from '../types';
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
+import { ConfirmSheet } from './ConfirmSheet';
 import { localDateString } from '../utils/dateUtils';
 import { CircleAlert, ArrowLeft, CalendarHeart, Check, Copy, CopyCheck, ListChecks, PartyPopper, RotateCcw, ShoppingBasket } from 'lucide-react';
 
@@ -543,32 +544,31 @@ export const ShoppingList: React.FC = () => {
     }
   };
 
-  const handleResetList = async () => {
-    if (confirm('This will clear all shopping list data and start fresh from selection. Continue?')) {
-      const newState = {
-        pantryChecks: {},
-        purchased: [],
-        removed: [],
-        lastGeneratedDate: '',
-        cachedPurchasableItems: [],
-        cachedParsedIngredients: [],
-        cachedAggregatedIngredients: [],
-        ingredientsHash: '',
-        selectedMealIds: []
-      };
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const resetList = async () => {
+    const newState = {
+      pantryChecks: {},
+      purchased: [],
+      removed: [],
+      lastGeneratedDate: '',
+      cachedPurchasableItems: [],
+      cachedParsedIngredients: [],
+      cachedAggregatedIngredients: [],
+      ingredientsHash: '',
+      selectedMealIds: []
+    };
 
-      await saveEnhancedShoppingState(newState);
-      setShoppingState(newState);
-      setInventory(await getPantryInventory()); // Refresh inventory too just in case
+    await saveEnhancedShoppingState(newState);
+    setShoppingState(newState);
+    setInventory(await getPantryInventory()); // Refresh inventory too just in case
 
-      setPhase('selection');
-      setPurchasableItems([]);
-      setAggregatedIngredients([]);
-      setIsProcessing(false);
+    setPhase('selection');
+    setPurchasableItems([]);
+    setAggregatedIngredients([]);
+    setIsProcessing(false);
 
-      // Default select all again when resetting
-      setSelectedMealIds(new Set(availableMeals.map(m => m.id)));
-    }
+    // Default select all again when resetting
+    setSelectedMealIds(new Set(availableMeals.map(m => m.id)));
   };
 
   const handleToggleMeal = (mealId: string) => {
@@ -612,6 +612,17 @@ export const ShoppingList: React.FC = () => {
           </li>
         ))}
       </ol>
+      {/* Every phase shows the step bar, so the Start over question lives here (it renders in a portal) */}
+      {confirmingReset && (
+        <ConfirmSheet
+          title="Start the list over?"
+          message="Your shopping list, pantry checks and ticked items are cleared, and you choose meals again."
+          confirmLabel="Start over"
+          tone="danger"
+          onConfirm={resetList}
+          onClose={() => setConfirmingReset(false)}
+        />
+      )}
     </nav>
   );
 
@@ -780,7 +791,7 @@ export const ShoppingList: React.FC = () => {
             <h2 className="heading-2">Check your pantry</h2>
             <p className="text-sm text-muted mt-0.5">Tap anything you already have at home.</p>
           </div>
-          <button onClick={handleResetList} className="btn-ghost btn-sm shrink-0">
+          <button onClick={() => setConfirmingReset(true)} className="btn-ghost btn-sm shrink-0">
             <RotateCcw size={16} aria-hidden="true" /> Start over
           </button>
         </div>
@@ -878,7 +889,7 @@ export const ShoppingList: React.FC = () => {
             <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
               <ArrowLeft size={16} aria-hidden="true" /> Pantry
             </button>
-            <button onClick={handleResetList} className="btn-ghost btn-sm">
+            <button onClick={() => setConfirmingReset(true)} className="btn-ghost btn-sm">
               <RotateCcw size={16} aria-hidden="true" /> Start over
             </button>
           </div>
@@ -891,7 +902,7 @@ export const ShoppingList: React.FC = () => {
             <button onClick={() => setPhase('requirements')} className="btn-ghost btn-sm">
               <ArrowLeft size={16} aria-hidden="true" /> Pantry
             </button>
-            <button onClick={handleResetList} className="btn-ghost btn-sm !px-3" aria-label="Start over">
+            <button onClick={() => setConfirmingReset(true)} className="btn-ghost btn-sm !px-3" aria-label="Start over">
               <RotateCcw size={16} aria-hidden="true" /> <span className="hidden md:inline">Start over</span>
             </button>
           </div>
