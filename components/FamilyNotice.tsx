@@ -46,7 +46,7 @@ export const FamilyNotice: React.FC<{
   return (
     <div
       role="status"
-      className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:bottom-8 z-[60] flex items-center gap-3 badge-ink !rounded-full pl-1.5 pr-1.5 py-1.5 text-sm font-semibold shadow-[var(--elev-md)] toast-in max-w-[calc(100vw-32px)]"
+      className="fixed left-1/2 -translate-x-1/2 bottom-[calc(var(--tab-bar-bottom)+94px)] nav:bottom-8 z-[60] flex items-center gap-3 badge-ink !rounded-full pl-1.5 pr-1.5 py-1.5 text-sm font-semibold shadow-[var(--elev-md)] toast-in max-w-[calc(100vw-32px)]"
     >
       <MemberAvatar uid={by} avatar={family?.avatars.get(by)} size={32} className="shrink-0" />
       <span className="min-w-0 line-clamp-2">{message}</span>

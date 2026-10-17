@@ -7,7 +7,7 @@ interface HeaderProps {
     title: string;
     subtitle?: string;
     onNavigate: (view: AppView) => void;
-    /** The signed-in user, for their avatar (phones; from md up it's in the sidebar) */
+    /** The signed-in user, for their avatar (with the tab bar; with the sidebar it's there) */
     me?: { uid: string; name?: string; avatar?: Avatar };
     showSundayReset?: boolean;
     onOpenSundayReset?: () => void;
@@ -37,11 +37,11 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                 )}
 
-                {/* Phones only: from md up, you and Settings are in the sidebar */}
+                {/* With the tab bar only: with the sidebar, you and Settings are in it */}
                 {me?.uid && (
                     <button
                         onClick={() => onNavigate(AppView.FAMILY)}
-                        className="md:hidden shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                        className="nav:hidden shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                         aria-label={me.name ? `${me.name}: your family` : 'Your family'}
                     >
                         <MemberAvatar avatar={me.avatar} uid={me.uid} />
@@ -50,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <button
                     onClick={() => onNavigate(AppView.SETTINGS)}
-                    className="icon-btn md:hidden"
+                    className="icon-btn nav:hidden"
                     aria-label="Settings"
                 >
                     <SlidersHorizontal size={20} />

@@ -13,7 +13,7 @@ interface SidebarProps {
   me?: { uid: string; name?: string; avatar?: Avatar };
 }
 
-/** Primary navigation from md up: an icon rail on tablets, a labelled sidebar on desktop. Phones use MobileBottomNav. */
+/** Primary navigation from the nav breakpoint (md width, 640px tall) up: an icon rail on tablets, a labelled sidebar on desktop. Phones, and short screens such as a phone in landscape, use MobileBottomNav. */
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me }) => {
   const item = ({ view, label, Icon }: (typeof NAV_ITEMS)[number]) => (
     <button

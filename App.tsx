@@ -723,10 +723,10 @@ const TrackerApp: React.FC = () => {
             <Sidebar currentView={view} onNavigate={handleNavigate} me={me} />
 
             {/* Main Content Wrapper */}
-            <div className="w-full md:pl-20 lg:pl-60">
+            <div className="w-full nav:pl-[calc(var(--nav-inset-left)+68px)] nav:lg:pl-[calc(var(--nav-inset-left)+228px)] nav:pr-[env(safe-area-inset-right)]">
                 {/* Main Content */}
                 {/* The tab bar floats above the bottom edge, so the page needs room under it */}
-                <main className="pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0 pt-8 md:pt-12">
+                <main className="pb-[calc(var(--tab-bar-bottom)+86px)] nav:pb-0 pt-8 md:pt-12">
                     <div className="max-w-6xl mx-auto px-4 md:px-8">
                         <Header
                             title={headerInfo.title}

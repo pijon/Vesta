@@ -10,6 +10,11 @@
 /* dark: utilities follow the in-app .dark class (set in App.tsx), not the OS setting */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* nav: the sidebar layout. Needs md width and room for the whole sidebar (about 620px), so short
+   screens such as a phone in landscape keep the tab bar. Use it, not md:, for anything that
+   depends on which nav is showing. */
+@custom-variant nav (@media (width >= 48rem) and (height >= 40rem));
+
 @theme {
   /* "Market day": DM Sans for body and UI text, Bricolage Grotesque
      (font-display) for titles, headings and big figures. font-serif is kept
@@ -290,6 +295,14 @@
 
 @layer base {
   :root {
+    /* Where the floating nav sits. The phone tab bar dips into the home-indicator area, like iOS's own
+       capsule, instead of stacking on top of it. The side insets keep the bar and sidebar clear of
+       the notch / Dynamic Island in landscape. Anything placed relative to the tab bar uses
+       --tab-bar-bottom. */
+    --tab-bar-bottom: max(10px, calc(env(safe-area-inset-bottom) - 12px));
+    --nav-inset-left: max(12px, env(safe-area-inset-left));
+    --nav-inset-right: max(12px, env(safe-area-inset-right));
+
     /* Light. Contrast ratios are on `background` unless noted. */
     --background: #FFF1D6;
     --surface: #FFF9EC;
@@ -473,7 +486,7 @@
 }
 
 /* Design system classes live in the components layer, so utilities in markup override them
-   (md:hidden on an .icon-btn, mt-2 on a .btn-sm). Anything in @layer utilities beats them. */
+   (nav:hidden on an .icon-btn, mt-2 on a .btn-sm). Anything in @layer utilities beats them. */
 @layer components {
   /* ============================================
      DESIGN SYSTEM CLASSES (direction C)
@@ -716,7 +729,7 @@
      the current tab the one ink mark. Solid rather than glass: blur would make the labels' contrast
      depend on what scrolls underneath. The shadow keeps it apart from that content. */
   .tab-bar {
-    @apply fixed left-3 right-3 bottom-[calc(10px+env(safe-area-inset-bottom))] z-50 flex justify-center gap-0.5 p-1.5 rounded-full border border-border bg-surface md:hidden;
+    @apply fixed left-[var(--nav-inset-left)] right-[var(--nav-inset-right)] bottom-[var(--tab-bar-bottom)] z-50 flex justify-center gap-0.5 p-1.5 rounded-full border border-border bg-surface nav:hidden;
     box-shadow: var(--elev-md);
   }
   .tab-item {
@@ -733,12 +746,12 @@
     @apply text-[11px] leading-none font-display font-bold tracking-[-0.01em];
   }
 
-  /* Sidebar from md up: icon rail (icon over label) on tablets, icon beside label on desktop. A
+  /* Sidebar from the nav breakpoint (md width, 640px tall) up: icon rail (icon over label) on tablets, icon beside label on desktop. A
      floating panel in the card colour, inset from the window edges (it still fills the md:pl-20 /
      lg:pl-60 gutter) and shaped like the cards, so it sits with the content instead of competing
      with it. The current item is the one strong mark: an ink pill, as on the phone tab bar. */
   .side-nav {
-    @apply hidden md:flex flex-col fixed top-3 bottom-3 left-3 z-40 w-[calc(5rem-12px)] lg:w-[calc(15rem-12px)] px-2 lg:px-4 py-6 rounded-[28px] border border-border bg-surface;
+    @apply hidden nav:flex flex-col fixed top-3 bottom-3 left-[var(--nav-inset-left)] z-40 w-[calc(5rem-12px)] lg:w-[calc(15rem-12px)] px-2 lg:px-4 py-6 rounded-[28px] border border-border bg-surface;
   }
   .side-item {
     @apply w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 py-2 lg:pl-1.5 lg:pr-3 rounded-[20px] lg:rounded-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2;
