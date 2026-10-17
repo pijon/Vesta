@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ThemePreference } from '../hooks/useTheme';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { proteinTarget } from '../utils/planUtils';
-import { BellRing, Check, CircleAlert, Code, Copy, CloudUpload, Database, Download, Droplet, Egg, Gauge, LogOut, PlayCircle, RefreshCw, Scale, Sparkles, Store, SunMoon, Target, Timer, Upload, UserRound } from 'lucide-react';
+import { BellRing, Check, CircleAlert, Code, Copy, CloudUpload, Database, Download, Droplet, Egg, Gauge, LogOut, Pencil, PlayCircle, RefreshCw, Scale, Sparkles, Store, SunMoon, Target, Timer, Upload, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ReminderSettings } from './ReminderSettings';
 import { EatingOutHistorySettings } from './EatingOutHistorySettings';
@@ -222,41 +222,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         flash('Up to date');
     };
 
-    const displayName = form.name.trim() || stats.name || 'You';
-
-    const field = (
-        key: keyof ReturnType<typeof toForm>,
-        label: string,
-        opts: { unit?: string; hint?: string; inputMode?: 'decimal' | 'numeric' | 'text'; placeholder?: string } = {}
-    ) => {
-        const id = `settings-${key}`;
-        const error = errors[key];
-        return (
-            <div>
-                <label htmlFor={id} className="block text-sm font-semibold mb-1.5">{label}</label>
-                <div className="relative">
-                    <input
-                        id={id}
-                        type="text"
-                        inputMode={opts.inputMode ?? 'numeric'}
-                        value={form[key]}
-                        onChange={update(key)}
-                        placeholder={opts.placeholder}
-                        aria-invalid={!!error}
-                        aria-describedby={error ? `${id}-error` : opts.hint ? `${id}-hint` : undefined}
-                        className={`input w-full ${opts.unit ? 'pr-14' : ''} ${error ? 'input-error' : ''}`}
-                    />
-                    {opts.unit && (
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted pointer-events-none">{opts.unit}</span>
-                    )}
-                </div>
-                {error
-                    ? <p id={`${id}-error`} className="text-xs text-error mt-1">{error}</p>
-                    : opts.hint && <p id={`${id}-hint`} className="text-xs text-muted mt-1">{opts.hint}</p>}
-            </div>
-        );
-    };
-
     // A target as an editable figure inside its metric tile: the number is the input itself.
     // While focused the line under it shows the valid range, and an invalid value shows why.
     const figure = (
@@ -313,7 +278,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <section className="hero p-5 md:p-6 flex items-center gap-4" aria-label="Account">
                 <MemberAvatar avatar={stats.avatar} uid={user?.uid ?? ''} size={64} className="shrink-0" />
                 <div className="flex-1 min-w-0">
-                    <p className="font-display font-extrabold text-[32px] leading-9 tracking-tight truncate">{displayName}</p>
+                    {/* The name is edited in place, sized to its text like the goal figures */}
+                    <div className="flex items-center gap-2 min-w-0 cursor-text" onClick={e => { if (!(e.target instanceof HTMLInputElement)) document.getElementById('settings-name')?.focus(); }}>
+                        <label htmlFor="settings-name" className="sr-only">Name</label>
+                        <span className="relative min-w-0 -ml-1.5 font-display font-extrabold text-[32px] leading-9 tracking-tight">
+                            <span aria-hidden="true" className="invisible block whitespace-pre px-1.5 truncate">{form.name || 'Your name'}</span>
+                            <input
+                                id="settings-name"
+                                type="text"
+                                autoComplete="given-name"
+                                value={form.name}
+                                onChange={update('name')}
+                                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                placeholder="Your name"
+                                className="absolute inset-0 w-full bg-transparent px-1.5 rounded-xl placeholder:text-[var(--hero-foreground)] focus:bg-surface focus:text-main focus:placeholder:text-muted focus:outline-2 focus:outline-offset-2 focus:outline-[var(--focus-ring)]"
+                            />
+                        </span>
+                        <Pencil size={18} strokeWidth={2.25} className="shrink-0" aria-hidden="true" />
+                    </div>
                     <ul className="flex flex-wrap gap-1.5 mt-2" aria-label="Your targets">
                         {stats.goalWeight ? <li className="badge badge-ink">{stats.goalWeight} kg goal</li> : null}
                         <li className="badge badge-ink">{(stats.nonFastDayCalories || 2000).toLocaleString()} kcal</li>
@@ -328,8 +310,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <SectionTitle id="goals-heading" icon={Target} tile="tile-calories" title="Your goals">
                         Tap a number to change it. Today and the planner follow these.
                     </SectionTitle>
-
-                    {field('name', 'Name', { inputMode: 'text', placeholder: 'What should we call you?' })}
 
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                         <div className="tile tile-calories col-span-3">
