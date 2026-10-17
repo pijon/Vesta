@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest';
+import { Recipe } from '../types';
+import { favouritesShelf, notHadInAWhile } from './recipeShelves';
+
+const TODAY = '2026-10-17';
+const recipe = (id: string, extra: Partial<Recipe> = {}) => ({ id, name: id, calories: 400, ...extra }) as Recipe;
+const ids = (rs: Recipe[]) => rs.map(r => r.id);
+
+describe('notHadInAWhile', () => {
+  const recipes = ['a', 'b', 'c', 'd', 'e', 'f'].map(id => recipe(id));
+  const lastHad = { a: '2026-08-01', b: '2026-09-20', c: '2026-09-26', d: '2026-10-10', e: '2026-09-01' };
+
+  it('keeps recipes last had three weeks ago or more, oldest first', () => {
+    expect(ids(notHadInAWhile(recipes, lastHad, {}, TODAY))).toEqual(['a', 'e', 'b', 'c']);
+  });
+
+  it('leaves out recipes never had and ones planned again', () => {
+    const shelf = ids(notHadInAWhile(recipes, lastHad, { e: '2026-10-20' }, TODAY));
+    expect(shelf).not.toContain('f');
+    expect(shelf).not.toContain('e');
+  });
+
+  it('is empty with fewer than three', () => {
+    expect(notHadInAWhile(recipes, { a: '2026-08-01', b: '2026-09-01' }, {}, TODAY)).toEqual([]);
+  });
+});
+
+describe('favouritesShelf', () => {
+  it('puts the favourites not had for longest first', () => {
+    const recipes = [
+      recipe('x', { isFavorite: true }), recipe('y', { isFavorite: true }), recipe('z', { isFavorite: true }), recipe('n'),
+    ];
+    expect(ids(favouritesShelf(recipes, { x: '2026-10-15', y: '2026-09-01' }))).toEqual(['z', 'y', 'x']);
+  });
+
+  it('is empty with fewer than three favourites', () => {
+    expect(favouritesShelf([recipe('x', { isFavorite: true }), recipe('y', { isFavorite: true })], {})).toEqual([]);
+  });
+});

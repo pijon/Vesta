@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUpDown, ChefHat, Copy, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
+import { ArrowUpDown, ChefHat, ChevronRight, Copy, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
 import { getCachedRecipes } from '../utils/cacheService';
 import { addDays } from '../utils/planUtils';
 import { Recipe } from '../types';
@@ -13,7 +13,8 @@ import { ensureWarm, usePrewarmed } from '../utils/prewarm';
 import { AddToPlanSheet } from './AddToPlanSheet';
 import { CookingMode } from './CookingMode';
 import { parseRecipeText, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
-import { RecipeCard, RecipeRow } from './RecipeCard';
+import { RecipeCard, RecipeRow, RecipeShelfCard } from './RecipeCard';
+import { favouritesShelf, notHadInAWhile } from '../utils/recipeShelves';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { importRecipeImageFromUrl } from '../utils/storageUtils';
@@ -436,6 +437,39 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
   const familyCount = allRecipes.filter(r => !isAddedBy(r, myUid)).length;
 
+  // Shelves above the grid, for choosing what to cook; only when browsing, not searching or filtering
+  const notHadShelf = useMemo(() => notHadInAWhile(allRecipes, history?.lastHad ?? {}, history?.next ?? {}, today), [allRecipes, history, today]);
+  const favouriteShelf = useMemo(() => favouritesShelf(allRecipes, history?.lastHad ?? {}), [allRecipes, history]);
+  const showShelves = !onSelect && !filtersActive && !(isLoading && recipes.length === 0) && (notHadShelf.length > 0 || favouriteShelf.length > 0);
+  const favouriteCount = allRecipes.filter(r => r.isFavorite).length;
+  const toAllRecipes = () => window.setTimeout(() => document.getElementById('all-recipes')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+
+  const shelf = (id: string, title: string, subtitle: string, items: Recipe[], detail: (r: Recipe) => string, onSeeAll: () => void) => (
+    <section aria-labelledby={id} className="space-y-2.5">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id={id} className="heading-3">{title}</h2>
+          <p className="text-sm text-muted">{subtitle}</p>
+        </div>
+        <button onClick={onSeeAll} className="btn-ghost btn-sm shrink-0 -mr-2">See all <ChevronRight size={16} aria-hidden="true" /></button>
+      </div>
+      {/* Scrolls sideways, running to the page edges */}
+      <ul className="flex gap-2.5 overflow-x-auto no-scrollbar snap-x scroll-px-4 md:scroll-px-8 -mx-4 px-4 md:-mx-8 md:px-8 pb-1">
+        {items.map(recipe => (
+          <li key={recipe.id} className="contents">
+            <RecipeShelfCard
+              meal={recipe}
+              onClick={() => openRecipe(recipe)}
+              onToggleFavorite={(e) => toggleFavorite(e, recipe)}
+              plannedLabel={plannedLabelFor(history?.next[recipe.id], today)}
+              detail={detail(recipe)}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+
   const handleSetImage = async (recipe: Recipe, image: string) => {
     const updated = { ...recipe, image };
     await saveRecipe(updated);
@@ -636,6 +670,18 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         <p className="text-sm text-muted" role="status">
           These recipes share a name with another. Open the copy you don't need and delete it from its ⋯ menu.
         </p>
+      )}
+
+      {showShelves && (
+        <div className="space-y-6">
+          {notHadShelf.length > 0 && shelf('shelf-not-had', 'Not had in a while', "Good ones you haven't cooked lately", notHadShelf,
+            r => (historyLabelFor(history?.lastHad[r.id], today) ?? '').replace(/^Had/, 'Last had'),
+            () => { setSortOption('lastHad'); toAllRecipes(); })}
+          {favouriteShelf.length > 0 && shelf('shelf-favourites', 'Favourites', `${favouriteCount} ${favouriteCount === 1 ? 'recipe' : 'recipes'}`, favouriteShelf,
+            r => `${r.calories} kcal`,
+            () => { setShowFavoritesOnly(true); toAllRecipes(); })}
+          <h2 id="all-recipes" className="heading-3 scroll-mt-6 pt-2">All recipes</h2>
+        </div>
       )}
 
       {/* Grid or list */}
