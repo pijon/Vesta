@@ -218,3 +218,44 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
     </li>
   );
 };
+
+interface RecipeShelfCardProps {
+  meal: Meal;
+  onClick: () => void;
+  onToggleFavorite?: (e: React.MouseEvent) => void;
+  plannedLabel?: string;
+  /** The line under the name, e.g. "Last had 5 weeks ago" or "524 kcal" */
+  detail: string;
+}
+
+/** Smaller card for a shelf: photo with a heart, the name and one line. */
+export const RecipeShelfCard: React.FC<RecipeShelfCardProps> = ({ meal, onClick, onToggleFavorite, plannedLabel, detail }) => (
+  <article className="group card card-hover overflow-hidden w-[148px] md:w-[168px] shrink-0 snap-start">
+    <div className="relative">
+      <button
+        onClick={onClick}
+        className="block w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
+        aria-label={`Open ${meal.name}`}
+      >
+        <RecipeThumb meal={meal} className="w-full aspect-[4/3]" iconSize={26} zoom plate="h-[58%] aspect-square" />
+      </button>
+      {onToggleFavorite && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(e); }}
+          aria-label={meal.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+          aria-pressed={!!meal.isFavorite}
+          className={`hit-target absolute top-1.5 right-1.5 size-8 flex items-center justify-center rounded-full bg-surface shadow-[var(--elev-sm)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${meal.isFavorite ? 'text-primary' : 'text-main'}`}
+        >
+          <Heart size={15} fill={meal.isFavorite ? 'currentColor' : 'none'} />
+        </button>
+      )}
+      {plannedLabel && (
+        <span className="absolute left-1.5 bottom-1.5 badge badge-ink !py-0.5 !text-[11px]"><CalendarCheck size={11} aria-hidden="true" /> {plannedLabel}</span>
+      )}
+    </div>
+    <button onClick={onClick} tabIndex={-1} className="block w-full text-left px-2.5 pt-2 pb-2.5">
+      <h3 className="font-display font-extrabold text-sm leading-[18px] line-clamp-2 min-h-9">{meal.name}</h3>
+      <p className="text-xs text-muted mt-0.5 truncate">{detail}</p>
+    </button>
+  </article>
+);
