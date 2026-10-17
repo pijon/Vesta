@@ -31,6 +31,8 @@ interface PlannerAddSheetProps {
   recipes: Recipe[];
   familyRecipes: Recipe[];
   leftovers: LeftoverOption[];
+  /** In a family with other members: a quick meal can be the family's */
+  inFamily: boolean;
   /** Name of the meal a side is being added to */
   mainMealName?: string;
   mainMealCalories?: number;
@@ -42,7 +44,7 @@ const PAGE = 40;
 
 /** Pick a recipe for one slot: leftovers first, then the library with search and quick filters. */
 export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
-  mode, slot, title, caloriesLeft, isFastDay, recipes, familyRecipes, leftovers,
+  mode, slot, title, caloriesLeft, isFastDay, recipes, familyRecipes, leftovers, inFamily,
   mainMealName, mainMealCalories, onPick, onClose,
 }) => {
   const [search, setSearch] = useState('');
@@ -209,7 +211,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
           </div>
         }
       >
-        <QuickMealForm id={quickFormId} initialName={quickDraft} slot={slot} isSide={mode === 'side'} onSubmit={meal => onPick(meal)} />
+        <QuickMealForm id={quickFormId} initialName={quickDraft} slot={slot} isSide={mode === 'side'} askFamily={inFamily && mode === 'add'} onSubmit={meal => onPick(meal)} />
       </Sheet>
     );
   }

@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { FamilyDinnerChange } from '../services/storageService';
+import { FamilyMealChange } from '../services/storageService';
 import { familyData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
-import { addDays } from '../utils/planUtils';
+import { addDays, slotLabel } from '../utils/planUtils';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { MemberAvatar } from './MemberAvatar';
 
@@ -17,11 +17,11 @@ const whenLabel = (date: string, today: string) => {
 };
 
 /**
- * Points out family dinners another member just planned, with their avatar: "Anna planned Tacos
+ * Points out family meals another member just planned, with their avatar: "Anna planned Tacos
  * for dinner tomorrow". View opens the Planner on that day. Goes away by itself after a while.
  */
 export const FamilyNotice: React.FC<{
-  changes: FamilyDinnerChange[];
+  changes: FamilyMealChange[];
   onView: (date: string) => void;
   onDismiss: () => void;
 }> = ({ changes, onView, onDismiss }) => {
@@ -38,10 +38,10 @@ export const FamilyNotice: React.FC<{
   const today = localDateString();
   const dates = Array.from(new Set<string>(changes.map(c => c.date))).sort();
   const message = changes.length === 1
-    ? `${name} planned ${first.name} for dinner ${whenLabel(first.date, today)}`
+    ? `${name} planned ${first.name} for ${slotLabel(first.slot).toLowerCase()} ${whenLabel(first.date, today)}`
     : dates.length === 1
-      ? `${name} planned ${changes.length} dinners ${whenLabel(dates[0], today)}`
-      : `${name} planned ${changes.length} family dinners`;
+      ? `${name} planned ${changes.length} family meals ${whenLabel(dates[0], today)}`
+      : `${name} planned ${changes.length} family meals`;
 
   return (
     <div

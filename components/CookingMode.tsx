@@ -98,7 +98,7 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose }) => 
     const steps = recipe.instructions?.filter(s => s.trim()) ?? [];
     const baseServings = recipe.servings > 0 ? recipe.servings : 1;
     const [step, setStep] = useState(0);
-    const [servings, setServings] = useState(recipe.cookingServings && recipe.cookingServings > 0 ? recipe.cookingServings : baseServings);
+    const [servings, setServings] = useState(baseServings);
     const [checked, setChecked] = useState<Set<number>>(new Set());
     // On phones the ingredients open over the step; from lg they sit beside it
     const [showIngredients, setShowIngredients] = useState(steps.length === 0);

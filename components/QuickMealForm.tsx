@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, UserRound, UsersRound } from 'lucide-react';
 import { MealSlot, QuickMealKind, Recipe } from '../types';
 import { QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
 import { QUICK_MEAL_KINDS } from '../utils/mealVisual';
@@ -12,6 +12,8 @@ interface QuickMealFormProps {
   initialName: string;
   slot: MealSlot;
   isSide: boolean;
+  /** Ask whether it's a family meal or just the user's (in a family, when adding a meal) */
+  askFamily?: boolean;
   onSubmit: (meal: Recipe) => void;
 }
 
@@ -27,9 +29,12 @@ export const PRESET_LABELS = ['Light', 'Regular', 'Hearty'];
 const KINDS: QuickMealKind[] = ['home', 'out', 'ready'];
 
 /** Plan a meal without a recipe. Only the name is required; calories may be a preset, an estimate or left out. */
-export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, slot, isSide, onSubmit }) => {
+export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, slot, isSide, askFamily = false, onSubmit }) => {
   const [name, setName] = useState(initialName);
   const kindPillId = useId();
+  const familyPillId = useId();
+  // Like a meal from a recipe: a dinner starts out as the family's
+  const [familyMeal, setFamilyMeal] = useState(slot === 'dinner');
   const [kind, setKind] = useState<QuickMealKind>(slot === 'snack' ? 'ready' : 'home');
   const [preset, setPreset] = useState<number | null>(null);
   const [exact, setExact] = useState('');
@@ -80,6 +85,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
       servings: 1,
       description: QUICK_MEAL_DESCRIPTION,
       quick: { kind, estimated: estimated || undefined, noCalories: calories === null || undefined },
+      ...(askFamily ? { familyMeal } : {}),
     });
   };
 
@@ -114,8 +120,26 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
         </div>
       </fieldset>
 
+      {askFamily && (
+        <div role="radiogroup" aria-label="Who it's for" className="segmented pill-group grid grid-cols-2 w-full">
+          {([[true, 'Family', UsersRound], [false, 'Just me', UserRound]] as const).map(([value, label, Icon]) => (
+            <button
+              key={label}
+              type="button"
+              role="radio"
+              aria-checked={familyMeal === value}
+              onClick={() => setFamilyMeal(value)}
+              className="segment justify-center gap-1.5"
+            >
+              {familyMeal === value && <SelectionPill group={familyPillId} />}
+              <Icon size={15} aria-hidden="true" /> {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <fieldset>
-        <legend className="text-sm font-semibold text-muted mb-1.5">Calories <span className="font-normal">· optional</span></legend>
+        <legend className="text-sm font-semibold text-muted mb-1.5">Calories <span className="font-normal">· {askFamily && familyMeal ? 'per person, ' : ''}optional</span></legend>
         <div className="grid grid-cols-4 gap-2">
           {presets.map((kcal, i) => (
             <button

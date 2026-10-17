@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
 import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
-import { saveDayPlan, getDayPlan, getDailySummaries, recordEatingOutDish } from '../services/storageService';
+import { saveDayPlan, saveFamilyMealOut, getDayPlan, getDailySummaries, recordEatingOutDish } from '../services/storageService';
+import { currentUid } from '../services/firebase';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, isRememberableDish, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, nextMealIndex, mealKey, planMeal, slotFor, slotTime } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, isRememberableDish, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, nextMealIndex, mealKey, planMeal, setFamilyMealOut, slotFor, slotTime } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
 import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { EatingOutCard } from './EatingOutCard';
@@ -339,6 +340,22 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     setToast({ message: `Deleted ${workout.type}`, undo: () => { onAddWorkout(workout); } });
   };
 
+  /** The user isn't eating a family meal (out), or is again */
+  const handleFamilyMealOut = async (meal: Recipe, out: boolean, plan: DayPlan = todayPlan) => {
+    const uid = currentUid();
+    if (!uid || !meal.instanceId) return;
+    const next = setFamilyMealOut(plan, meal.instanceId, uid, out);
+    try {
+      await saveFamilyMealOut(next, meal.instanceId, out);
+    } catch (e) {
+      console.error('Failed to save plan', e);
+      setToast({ message: "Couldn't save that change. Check your connection." });
+      return;
+    }
+    refreshData();
+    if (out) setToast({ message: `You're not eating ${meal.name}`, undo: () => { handleFamilyMealOut(meal, false, next); } });
+  };
+
   const handleSwapMeal = (index: number) => {
     setActiveMealIndexToSwap(index);
     setIsMealSelectorOpen(true);
@@ -351,8 +368,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     const updatedCompletedIds = todayPlan.completedMealIds.filter(id => id !== mealKey(oldMeal));
 
     newMeals[activeMealIndexToSwap] = planMeal(recipe, slotFor(oldMeal), {
-      familyDinner: oldMeal.familyDinner,
-      cookingServings: oldMeal.cookingServings,
+      familyMeal: oldMeal.familyMeal,
+      notEating: oldMeal.notEating,
     });
 
     const updatedPlan: DayPlan = {
@@ -473,6 +490,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onDeleteFoodItem={handleDeleteFoodItem}
         onNavigate={onNavigate}
         onSwapMeal={handleSwapMeal}
+        onSetFamilyMealOut={(meal, out) => { handleFamilyMealOut(meal, out); }}
         nextIndex={nextIndex}
         caloriesLeft={dailyTarget - consumed + creditedBurn(caloriesBurned, stats)}
         frequentFoods={frequentFoods}

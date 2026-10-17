@@ -1,4 +1,4 @@
-import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta } from "../types";
+import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot } from "../types";
 import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, toStoredRecipe } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
@@ -161,12 +161,12 @@ const dehydrateMeal = (meal: Recipe): PlannedMeal => {
   const meta: PlannedMealMeta = {
     slot: meal.slot,
     instanceId: meal.instanceId,
-    cookingServings: meal.cookingServings,
     isPacked: meal.isPacked || undefined,
     isLeftover: meal.isLeftover || undefined,
     sides: meal.sides?.length ? meal.sides.map(side => dehydrateMeal(side)) : undefined,
-    familyDinner: meal.familyDinner || undefined,
+    familyMeal: meal.familyMeal || undefined,
     addedBy: meal.addedBy,
+    notEating: meal.notEating?.length ? meal.notEating : undefined,
   };
 
   const isLibraryRecipe = !isQuickMeal(meal) && (!!meal.originalRecipeId || !!meal.id);
@@ -239,11 +239,11 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[
     const meta: Partial<Recipe> = {
       slot: meal.slot,
       instanceId: meal.instanceId,
-      cookingServings: meal.cookingServings,
       isPacked: meal.isPacked,
       isLeftover: meal.isLeftover,
-      familyDinner: meal.familyDinner,
+      familyMeal: meal.familyMeal,
       addedBy: meal.addedBy,
+      notEating: meal.notEating,
       sides: meal.sides ? meal.sides.map(hydrateOne) : undefined,
     };
 
@@ -299,28 +299,44 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[
   return plannedMeals.filter(Boolean).map(hydrateOne);
 };
 
-// --- Family dinners ---
-// With a family group, dinners planned in the dinner slot are shared: they live in
-// groups/{groupId}/dinners/{date} as { date, meals: { [instanceId]: PlannedMeal & { position } } }
-// and appear in every member's day plan with familyDinner set. Each meal is its own map
-// entry, so members editing different dinners at once don't overwrite each other.
+// --- Family meals ---
+// With a family group, meals marked as family meals (any slot; new dinners start out as one) are
+// shared: they live in groups/{groupId}/dinners/{date} (named when only dinners were shared) as
+// { date, meals: { [instanceId]: PlannedMeal & { position } } } and appear in every member's day
+// plan with familyMeal set. Each meal is its own map entry, so members editing different meals at
+// once don't overwrite each other. A member who isn't eating one adds their uid to its notEating,
+// which only saveFamilyMealOut writes; the meal then sits in their plan's familyMealsOut.
 
-type StoredFamilyDinner = PlannedMeal & { position?: number };
+type StoredFamilyMeal = PlannedMeal & { position?: number };
 
-/** What each loaded family-dinner doc held, by `${groupId}/${date}`, so saves only write real changes. */
-const loadedFamilyDinners = new Map<string, Map<string, string>>();
+/** A loaded family meal: its stored form without notEating, and whether the user is out of it */
+type LoadedFamilyMeal = { stored: string; out: boolean };
 
-const familyDinnersRef = (groupId: string, date: string) => doc(db, 'groups', groupId, 'dinners', date);
+/** What each loaded family-meal doc held, by `${groupId}/${date}`, so saves only write real changes. */
+const loadedFamilyMeals = new Map<string, Map<string, LoadedFamilyMeal>>();
 
-const hydrateFamilyDinners = async (groupId: string, date: string, stored?: Record<string, StoredFamilyDinner>): Promise<Recipe[]> => {
-  const entries = Object.values(stored || {}).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-  const meals = (await hydratePlannedMeals(entries)).map(meal => ({ ...meal, slot: 'dinner' as const, familyDinner: true }));
-  loadedFamilyDinners.set(`${groupId}/${date}`, new Map(meals.map(meal => [meal.instanceId!, JSON.stringify(dehydrateMeal(meal))])));
+const familyMealsRef = (groupId: string, date: string) => doc(db, 'groups', groupId, 'dinners', date);
+
+/** A family meal's stored form, apart from who isn't eating it (saved on its own) */
+const storedFamilyMeal = (meal: Recipe) => {
+  const { notEating, ...stored } = dehydrateMeal(meal);
+  return { stored, notEating };
+};
+
+const hydrateFamilyMeals = async (groupId: string, date: string, stored?: Record<string, StoredFamilyMeal>): Promise<Recipe[]> => {
+  // An entry with no type is a notEating change that landed after its meal was removed
+  const entries = Object.values(stored || {}).filter(entry => entry.type).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const me = currentUid();
+  const meals = (await hydratePlannedMeals(entries)).map(meal => ({ ...meal, slot: meal.slot || 'dinner' as const, familyMeal: true }));
+  loadedFamilyMeals.set(`${groupId}/${date}`, new Map(meals.map(meal => [meal.instanceId!, {
+    stored: JSON.stringify(storedFamilyMeal(meal).stored),
+    out: !!me && !!meal.notEating?.includes(me),
+  }])));
   return meals;
 };
 
-/** Family dinners for a date range, keyed by date. Empty without a family group. */
-export const getFamilyDinnersInRange = async (startDate: string, endDate: string): Promise<Record<string, Recipe[]>> => {
+/** Family meals for a date range, keyed by date. Empty without a family group. */
+export const getFamilyMealsInRange = async (startDate: string, endDate: string): Promise<Record<string, Recipe[]>> => {
   const groupId = await getMyGroupId();
   if (!groupId) return {};
   try {
@@ -331,38 +347,50 @@ export const getFamilyDinnersInRange = async (startDate: string, endDate: string
     ));
     const result: Record<string, Recipe[]> = {};
     await Promise.all(snapshot.docs.map(async d => {
-      const data = d.data() as { date: string; meals?: Record<string, StoredFamilyDinner> };
-      result[data.date] = await hydrateFamilyDinners(groupId, data.date, data.meals);
+      const data = d.data() as { date: string; meals?: Record<string, StoredFamilyMeal> };
+      result[data.date] = await hydrateFamilyMeals(groupId, data.date, data.meals);
     }));
     return result;
   } catch (e) {
-    console.error('Error fetching family dinners:', e);
+    console.error('Error fetching family meals:', e);
     return {};
   }
 };
 
-/** A family dinner another member planned, noticed while the app was open */
-export interface FamilyDinnerChange {
+/** A family meal another member planned, noticed while the app was open */
+export interface FamilyMealChange {
   date: string;
   name: string;
   /** Uid of the member who planned it */
   by: string;
+  slot: MealSlot;
 }
 
-/** A day plan with its family dinners replaced by `dinners` */
-export const withFamilyDinners = (plan: DayPlan, dinners: Recipe[]): DayPlan =>
-  ({ ...plan, meals: [...plan.meals.filter(meal => !meal.familyDinner), ...dinners] });
+/**
+ * A day plan with its family meals replaced by `familyMeals`: the ones the user is eating go in its
+ * meals, the ones they aren't in familyMealsOut.
+ */
+export const withFamilyMeals = (plan: DayPlan, familyMeals: Recipe[]): DayPlan => {
+  const me = currentUid();
+  const isOut = (meal: Recipe) => !!me && !!meal.notEating?.includes(me);
+  const out = familyMeals.filter(isOut);
+  return {
+    ...plan,
+    meals: [...plan.meals.filter(meal => !meal.familyMeal), ...familyMeals.filter(meal => !isOut(meal))],
+    familyMealsOut: out.length ? out : undefined,
+  };
+};
 
 /**
- * Keeps the family dinners for a date range live. `onUpdate` gets the dinners of each date that
- * changed (an empty list when a date's were all removed), and the dinners other members added since
+ * Keeps the family meals for a date range live. `onUpdate` gets the family meals of each date that
+ * changed (an empty list when a date's were all removed), and the ones other members added since
  * the first update, so they can be pointed out. The cached day plans are kept up to date too.
  * Returns the unsubscribe function; nothing happens without a family group.
  */
-export const subscribeFamilyDinners = (
+export const subscribeFamilyMeals = (
   startDate: string,
   endDate: string,
-  onUpdate: (dinners: Record<string, Recipe[]>, added: FamilyDinnerChange[]) => void,
+  onUpdate: (dinners: Record<string, Recipe[]>, added: FamilyMealChange[]) => void,
 ): (() => void) => {
   let stopped = false;
   let unsubscribe: (() => void) | undefined;
@@ -376,20 +404,20 @@ export const subscribeFamilyDinners = (
     first = false;
     const me = currentUid();
     const dinners: Record<string, Recipe[]> = {};
-    const added: FamilyDinnerChange[] = [];
+    const added: FamilyMealChange[] = [];
     await Promise.all(snapshot.docChanges().map(async change => {
-      const data = change.doc.data() as { date?: string; meals?: Record<string, StoredFamilyDinner> };
+      const data = change.doc.data() as { date?: string; meals?: Record<string, StoredFamilyMeal> };
       const date = data.date || change.doc.id;
-      const meals = change.type === 'removed' ? [] : await hydrateFamilyDinners(groupId, date, data.meals);
-      if (change.type === 'removed') loadedFamilyDinners.delete(`${groupId}/${date}`);
+      const meals = change.type === 'removed' ? [] : await hydrateFamilyMeals(groupId, date, data.meals);
+      if (change.type === 'removed') loadedFamilyMeals.delete(`${groupId}/${date}`);
       dinners[date] = meals;
       const before = seen.get(date) || new Set<string>();
       if (!isFirst) meals.forEach(meal => {
-        if (!before.has(meal.instanceId!) && meal.addedBy && meal.addedBy !== me) added.push({ date, name: meal.name, by: meal.addedBy });
+        if (!before.has(meal.instanceId!) && meal.addedBy && meal.addedBy !== me) added.push({ date, name: meal.name, by: meal.addedBy, slot: meal.slot || 'dinner' });
       });
       seen.set(date, new Set(meals.map(meal => meal.instanceId!)));
       const cached = getCachedDayPlan(date);
-      if (cached) saveToCache(getCacheKey('dayPlan', date), withFamilyDinners(cached, meals));
+      if (cached) saveToCache(getCacheKey('dayPlan', date), withFamilyMeals(cached, meals));
     }));
     if (!stopped && Object.keys(dinners).length > 0) onUpdate(dinners, added);
   };
@@ -401,37 +429,65 @@ export const subscribeFamilyDinners = (
       snapshot => {
         // This device's saves come through too (they match the plan already, and are never announced).
         // One at a time and in order, as hydrating recipes is async
-        queue = queue.then(() => handle(groupId, snapshot)).catch(e => console.error('Error updating family dinners:', e));
+        queue = queue.then(() => handle(groupId, snapshot)).catch(e => console.error('Error updating family meals:', e));
       },
-      e => console.warn('Live family dinners stopped:', e),
+      e => console.warn('Live family meals stopped:', e),
     );
-  }).catch(e => console.warn('Could not start live family dinners:', e));
+  }).catch(e => console.warn('Could not start live family meals:', e));
 
   return () => { stopped = true; unsubscribe?.(); };
 };
 
-/** Writes the family dinners that changed since they were loaded; never removes one this session hasn't seen. */
-const saveFamilyDinners = async (date: string, meals: Recipe[]) => {
+/**
+ * Writes the family meals the user is eating that changed since they were loaded. Never removes one
+ * this session hasn't seen, or one the user isn't eating (those aren't in their plan's meals).
+ * Who isn't eating a meal is only written for a new one (a swap carries it over).
+ */
+const saveFamilyMeals = async (date: string, meals: Recipe[]) => {
   const groupId = await getMyGroupId();
   if (!groupId) return;
   const key = `${groupId}/${date}`;
-  const before = loadedFamilyDinners.get(key) || new Map<string, string>();
-  const after = new Map<string, string>();
+  const before = loadedFamilyMeals.get(key) || new Map<string, LoadedFamilyMeal>();
+  const after = new Map<string, LoadedFamilyMeal>();
   const changes: Record<string, unknown> = {};
 
   meals.forEach((meal, position) => {
     const instanceId = meal.instanceId || crypto.randomUUID();
-    const stored = JSON.stringify(dehydrateMeal({ ...meal, instanceId }));
-    after.set(instanceId, stored);
-    if (before.get(instanceId) !== stored) changes[instanceId] = { ...JSON.parse(stored), position };
+    const { stored, notEating } = storedFamilyMeal({ ...meal, instanceId });
+    const json = JSON.stringify(stored);
+    const loaded = before.get(instanceId);
+    after.set(instanceId, { stored: json, out: false });
+    if (loaded?.stored !== json) changes[instanceId] = loaded ? { ...stored, position } : { ...stored, notEating, position };
   });
-  before.forEach((_, instanceId) => {
-    if (!after.has(instanceId)) changes[instanceId] = deleteField();
+  before.forEach((loaded, instanceId) => {
+    if (after.has(instanceId)) return;
+    if (loaded.out) after.set(instanceId, loaded);
+    else changes[instanceId] = deleteField();
   });
 
   if (Object.keys(changes).length === 0) return;
-  await setDoc(familyDinnersRef(groupId, date), { date, meals: changes }, { merge: true });
-  loadedFamilyDinners.set(key, after);
+  await setDoc(familyMealsRef(groupId, date), { date, meals: changes }, { merge: true });
+  loadedFamilyMeals.set(key, after);
+};
+
+/**
+ * Saves that the user is (out: true) or is again (false) not eating a family meal. `plan` already
+ * has the change (see setFamilyMealOut in planUtils) and is cached as is.
+ */
+export const saveFamilyMealOut = async (plan: DayPlan, instanceId: string, out: boolean) => {
+  const [groupId, me] = [await getMyGroupId(), currentUid()];
+  if (!groupId || !me) return;
+  // Marked first, so saving the plan neither removes the meal nor writes it as new
+  const loaded = loadedFamilyMeals.get(`${groupId}/${plan.date}`)?.get(instanceId);
+  if (loaded) loaded.out = out;
+  await Promise.all([
+    setDoc(familyMealsRef(groupId, plan.date), {
+      date: plan.date,
+      meals: { [instanceId]: { notEating: out ? arrayUnion(me) : arrayRemove(me) } },
+    }, { merge: true }),
+    // The rest of the plan (its calories and eaten marks) as usual
+    saveDayPlan(plan),
+  ]);
 };
 
 /** Gives meals without an instanceId one, so they can be ticked off and moved individually. */
@@ -440,9 +496,9 @@ const withInstanceIds = (meals: Recipe[]) =>
 
 export const getDayPlan = async (date: string): Promise<DayPlan> => {
   try {
-    const [dayDoc, familyDinners] = await Promise.all([
+    const [dayDoc, familyMeals] = await Promise.all([
       getDoc(doc(db, 'users', getUserId(), 'days', date)),
-      getFamilyDinnersInRange(date, date),
+      getFamilyMealsInRange(date, date),
     ]);
 
     const stored = dayDoc.exists()
@@ -450,12 +506,12 @@ export const getDayPlan = async (date: string): Promise<DayPlan> => {
       : null;
     const ownMeals = stored?.meals ? await hydratePlannedMeals(stored.meals) : [];
 
-    const fullPlan: DayPlan = {
+    const fullPlan = withFamilyMeals({
       ...(stored || {}),
       date,
       completedMealIds: stored?.completedMealIds || [],
-      meals: [...ownMeals, ...(familyDinners[date] || [])],
-    };
+      meals: ownMeals,
+    }, familyMeals[date] || []);
 
     saveToCache(getCacheKey('dayPlan', date), fullPlan);
     return fullPlan;
@@ -471,15 +527,16 @@ export const saveDayPlan = async (dayPlan: DayPlan) => {
   // 1. Optimistic Cache Update
   saveToCache(getCacheKey('dayPlan', plan.date), plan);
 
-  // 2. Own meals go in the user's day doc (normalized), family dinners in the group
-  const ownMeals = plan.meals.filter(meal => !meal.familyDinner);
-  const familyDinners = plan.meals.filter(meal => meal.familyDinner);
+  // 2. Own meals go in the user's day doc (normalized), family meals in the group
+  const { familyMealsOut: _out, ...day } = plan;
+  const ownMeals = plan.meals.filter(meal => !meal.familyMeal);
+  const familyMeals = plan.meals.filter(meal => meal.familyMeal);
   const totalCalories = plan.meals.reduce((sum, meal) =>
     sum + (meal.calories || 0) + (meal.sides || []).reduce((s, side) => s + (side.calories || 0), 0), 0);
 
   await Promise.all([
-    setDoc(doc(db, 'users', getUserId(), 'days', plan.date), { ...plan, meals: ownMeals.map(meal => dehydrateMeal(meal)), totalCalories }),
-    saveFamilyDinners(plan.date, familyDinners),
+    setDoc(doc(db, 'users', getUserId(), 'days', plan.date), { ...day, meals: ownMeals.map(meal => dehydrateMeal(meal)), totalCalories }),
+    saveFamilyMeals(plan.date, familyMeals),
   ]);
 };
 
@@ -580,17 +637,17 @@ export const cleanupLegacyData = async (): Promise<{ success: boolean; deletedCo
   }
 };
 
-// Helper to get plan for a range of dates (efficient batch fetch), family dinners included.
+// Helper to get plan for a range of dates (efficient batch fetch), family meals included.
 // Every date in the range gets a plan; days are nourish days unless typed 'fast'.
 export const getDayPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
   try {
-    const [snapshot, familyDinners] = await Promise.all([
+    const [snapshot, familyMeals] = await Promise.all([
       getDocs(query(
         getCollectionRef('days'),
         where('date', '>=', startDate),
         where('date', '<=', endDate)
       )),
-      getFamilyDinnersInRange(startDate, endDate),
+      getFamilyMealsInRange(startDate, endDate),
     ]);
 
     const plans: Record<string, DayPlan> = {};
@@ -620,7 +677,7 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
     for (let d = parseLocalDate(startDate); d <= parseLocalDate(endDate); d.setDate(d.getDate() + 1)) {
       const dateStr = localDateString(d);
       const plan = plans[dateStr] || { date: dateStr, meals: [], completedMealIds: [] };
-      plans[dateStr] = { ...plan, meals: [...plan.meals, ...(familyDinners[dateStr] || [])] };
+      plans[dateStr] = withFamilyMeals(plan, familyMeals[dateStr] || []);
       saveToCache(getCacheKey('dayPlan', dateStr), plans[dateStr]);
     }
 
@@ -631,7 +688,7 @@ export const getDayPlansInRange = async (startDate: string, endDate: string): Pr
   }
 };
 /**
- * Dates each library recipe is planned on in a range (own days plus family dinners), read from
+ * Dates each library recipe is planned on in a range (own days plus family meals), read from
  * the stored references without hydrating recipes. Keyed by recipe id; dates ascending.
  */
 export const getRecipePlanDates = async (startDate: string, endDate: string): Promise<Record<string, string[]>> => {
@@ -679,7 +736,7 @@ export const getCachedPlansInRange = (startDate: string, endDate: string): Recor
 /**
  * Fetches DayPlans for all family members for a range of dates (for the shopping list).
  * The user's plan is the base (type, tips, completed meals); other members' meals are added,
- * tagged with their owner. Family dinners are included once.
+ * tagged with their owner. Family meals are included once (also the ones the user isn't eating).
  */
 export const getFamilyPlansInRange = async (startDate: string, endDate: string): Promise<Record<string, DayPlan>> => {
   const uid = currentUid();
@@ -689,9 +746,9 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
     const group = await getUserGroup();
     if (!group || group.memberIds.length < 2) return getDayPlansInRange(startDate, endDate);
 
-    const [memberDetails, familyDinners] = await Promise.all([
+    const [memberDetails, familyMeals] = await Promise.all([
       getGroupMembersDetails(group.memberIds),
-      getFamilyDinnersInRange(startDate, endDate),
+      getFamilyMealsInRange(startDate, endDate),
     ]);
     const memberNameMap = new Map(memberDetails.map(m => [m.id, m.name]));
 
@@ -737,7 +794,7 @@ export const getFamilyPlansInRange = async (startDate: string, endDate: string):
       });
     });
 
-    Object.entries(familyDinners).forEach(([date, meals]) => {
+    Object.entries(familyMeals).forEach(([date, meals]) => {
       const target = merged[date] || (merged[date] = { date, meals: [], completedMealIds: [] });
       target.meals.push(...meals);
     });

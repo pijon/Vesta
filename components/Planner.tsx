@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingBasket, Sparkles, UsersRound } from 'lucide-react';
 import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
-import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan, subscribeFamilyDinners, withFamilyDinners } from '../services/storageService';
+import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan, saveFamilyMealOut, subscribeFamilyMeals, withFamilyMeals } from '../services/storageService';
 import { familyData } from '../services/pageData';
 import { isAddedBy, withAuthorNames } from '../utils/recipeAuthors';
 import { usePrewarmed } from '../utils/prewarm';
@@ -12,7 +12,7 @@ import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import {
   MEAL_SLOTS, addDays, dayCalories, decideEatingOut, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isBudgetMeal, isFastDay, isMealEaten,
-  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, slotFor, slotLabel, weekDates, weekStart,
+  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, setFamilyMealOut, slotFor, slotLabel, weekDates, weekStart,
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { CookingMode } from './CookingMode';
@@ -29,7 +29,7 @@ const longDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefi
 
 /**
  * Week board: Monday to Sunday, each day with breakfast, lunch, dinner and snack slots.
- * With a family group, dinners are shared with the family; the other slots are personal.
+ * With a family group, a meal can be the family's (new dinners start out that way) or just the user's.
  */
 export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
   const location = useLocation();
@@ -97,11 +97,11 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   // ticked off on Today appear without a loading state
   useEffect(() => { loadWeek(monday); }, [monday, loadWeek]);
 
-  // Family dinners other members plan, move or remove appear as they happen (only while the
+  // Family meals other members plan, move or remove appear as they happen (only while the
   // Planner is shown: a hidden page's effects are paused)
-  useEffect(() => subscribeFamilyDinners(monday, addDays(monday, 6), dinners => {
+  useEffect(() => subscribeFamilyMeals(monday, addDays(monday, 6), familyMeals => {
     const next = { ...plansRef.current };
-    Object.entries(dinners).forEach(([date, meals]) => { next[date] = withFamilyDinners(next[date] || emptyDayPlan(date), meals); });
+    Object.entries(familyMeals).forEach(([date, meals]) => { next[date] = withFamilyMeals(next[date] || emptyDayPlan(date), meals); });
     plansRef.current = next;
     setPlans(next);
   }), [monday]);
@@ -145,14 +145,12 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const updateDay = (date: string, change: (plan: DayPlan) => DayPlan) => updateDays({ [date]: change });
 
   /**
-   * A planned copy of a recipe for a slot, shared with the family when it's a dinner. A quick meal's
-   * shopping items are what to buy for the portions planned, so they aren't scaled up again.
+   * A planned copy of a recipe for a slot (a new dinner is the family's).
    */
   const newMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}) => {
-    // Eating out is personal: a budget never becomes a shared family dinner
-    const personal: Partial<Recipe> = isBudgetMeal(recipe) ? { familyDinner: false, cookingServings: 1 } : {};
-    const meal = planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: myUid }, { ...extra, ...personal });
-    return isQuickMeal(recipe) && !meal.isLeftover ? { ...meal, servings: meal.cookingServings || 1 } : meal;
+    // Eating out is personal: a budget never becomes a family meal
+    const personal: Partial<Recipe> = isBudgetMeal(recipe) ? { familyMeal: false } : {};
+    return planRecipe(recipe, slot, { inFamily, addedBy: myUid }, { ...extra, ...personal });
   };
 
   const replaceAt = (meals: Recipe[], index: number, meal: Recipe) => meals.map((m, i) => (i === index ? meal : m));
@@ -177,7 +175,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     if (mode === 'swap' && index !== undefined) {
       updateDay(date, plan => {
         const old = plan.meals[index];
-        const meal = newMeal(recipe, slot, { familyDinner: old.familyDinner, cookingServings: old.cookingServings });
+        const meal = newMeal(recipe, slot, { familyMeal: old.familyMeal, notEating: old.notEating });
         return {
           ...plan,
           meals: replaceAt(plan.meals, index, meal),
@@ -190,39 +188,29 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
     const source = options?.leftoverOf;
     if (source) {
-      const sourceDate = leftoverDates.current.get(mealKey(source));
-      const leftover = newMeal(source, slot, { isLeftover: true, sides: source.sides, cookingServings: undefined });
-      const changes: Record<string, (plan: DayPlan) => DayPlan> = {
-        [date]: plan => ({ ...plan, meals: [...plan.meals, leftover] }),
-      };
-      if (sourceDate) {
-        const addPortion = (plan: DayPlan) => ({
-          ...plan,
-          meals: plan.meals.map(m => mealKey(m) === mealKey(source) ? { ...m, cookingServings: (m.cookingServings || 1) + 1 } : m),
-        });
-        const sameDay = changes[sourceDate];
-        changes[sourceDate] = sameDay ? (plan => addPortion(sameDay(plan))) : addPortion;
-      }
-      updateDays(changes);
+      const leftover = newMeal(source, slot, { isLeftover: true, sides: source.sides, familyMeal: false });
+      updateDay(date, plan => ({ ...plan, meals: [...plan.meals, leftover] }));
       showToast(`Planned leftovers of ${source.name}`);
       return;
     }
 
-    updateDay(date, plan => ({ ...plan, meals: [...plan.meals, newMeal(recipe, slot)] }));
+    // A quick meal says itself whether it's the family's (its form asks); a recipe goes by the slot
+    const sharing = isQuickMeal(recipe) && recipe.familyMeal !== undefined ? { familyMeal: recipe.familyMeal } : {};
+    updateDay(date, plan => ({ ...plan, meals: [...plan.meals, newMeal(recipe, slot, sharing)] }));
     showToast(`Added ${recipe.name} to ${longDay(date)}`);
   };
 
   const moveMeal = (from: MealTarget, toDate: string, toSlot: MealSlot, copy: boolean) => {
     const meal = planFor(from.date).meals[from.index];
     if (!meal) return;
-    const shared = inFamily && toSlot === 'dinner' && !isBudgetMeal(meal);
+    // A family meal stays the family's wherever it goes (a copy starts with everyone eating)
     const placed: Recipe = {
       ...meal,
       slot: toSlot,
       instanceId: copy ? crypto.randomUUID() : meal.instanceId,
-      familyDinner: shared,
+      familyMeal: inFamily && !!meal.familyMeal,
+      notEating: copy ? undefined : meal.notEating,
       isPacked: toSlot === 'lunch' ? meal.isPacked : false,
-      cookingServings: shared && !meal.familyDinner ? family!.memberCount : meal.cookingServings,
     };
     if (from.date === toDate) {
       updateDay(toDate, plan => ({
@@ -248,15 +236,9 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const planLeftoversTomorrow = (target: MealTarget) => {
     const meal = planFor(target.date).meals[target.index];
     const tomorrow = addDays(target.date, 1);
-    const leftover = newMeal(meal, 'lunch', { isLeftover: true, sides: meal.sides, cookingServings: undefined, familyDinner: false });
-    updateDays({
-      [target.date]: plan => ({
-        ...plan,
-        meals: replaceAt(plan.meals, target.index, { ...meal, cookingServings: (meal.cookingServings || 1) + 1 }),
-      }),
-      [tomorrow]: plan => ({ ...plan, meals: [...plan.meals, leftover] }),
-    });
-    showToast(`Cooking one extra portion for ${longDay(tomorrow)} lunch`);
+    const leftover = newMeal(meal, 'lunch', { isLeftover: true, sides: meal.sides, familyMeal: false });
+    updateDay(tomorrow, plan => ({ ...plan, meals: [...plan.meals, leftover] }));
+    showToast(`Planned leftovers for ${longDay(tomorrow)} lunch`);
   };
 
   const removeMeal = (target: MealTarget) => {
@@ -272,6 +254,33 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const editMeal = (target: MealTarget, change: (meal: Recipe) => Recipe) =>
     updateDay(target.date, plan => ({ ...plan, meals: replaceAt(plan.meals, target.index, change(plan.meals[target.index])) }));
 
+  /** Shares a meal with the family, or keeps it just for the user */
+  const setFamilyMeal = (target: MealTarget, shared: boolean) => {
+    editMeal(target, m => ({ ...m, familyMeal: shared, notEating: undefined }));
+    showToast(shared ? 'Shared with your family' : 'Now just yours');
+  };
+
+  /** The user isn't eating a family meal (out), or is again */
+  const setOut = (date: string, meal: Recipe, out: boolean) => {
+    if (!myUid || !meal.instanceId) return;
+    const next = setFamilyMealOut(planFor(date), meal.instanceId, myUid, out);
+    plansRef.current = { ...plansRef.current, [date]: next };
+    setPlans(plansRef.current);
+    saveFamilyMealOut(next, meal.instanceId, out)
+      .then(() => onPlanChanged?.())
+      .catch(e => {
+        console.error('Failed to save plan', e);
+        showToast("Couldn't save that change. Check your connection.");
+        loadWeek(monday);
+      });
+    showToast(out ? `You're not eating ${meal.name}` : `You're eating ${meal.name}`);
+  };
+
+  /** Other family members not eating a family meal */
+  const outNames = (meal: Recipe) => (meal.notEating || [])
+    .filter(id => id !== myUid)
+    .map(id => family?.names.get(id) || 'Someone');
+
   const toggleFastDay = (date: string) => updateDay(date, plan => ({ ...plan, type: isFastDay(plan) ? 'non-fast' : 'fast' }));
 
   /** Fills this week's empty slots from last week's plan. Nothing already planned is replaced. */
@@ -286,7 +295,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       const taken = new Set(current.meals.map(slotFor));
       const additions = source.meals
         .filter(m => !m.isLeftover && slotFor(m) !== 'snack' && !taken.has(slotFor(m)))
-        .map(m => newMeal(m, slotFor(m), { cookingServings: m.cookingServings, isPacked: m.isPacked, sides: m.sides }));
+        .map(m => newMeal(m, slotFor(m), { familyMeal: inFamily && !!m.familyMeal, isPacked: m.isPacked, sides: m.sides }));
       if (additions.length === 0) return;
       copied += additions.length;
       changes[date] = plan => ({
@@ -313,9 +322,9 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       const from = addDays(date, -back);
       (plans[from]?.meals || []).forEach(meal => {
         const slot = slotFor(meal);
-        // Dinners, and lunches cooked for more than one, make leftovers
+        // Dinners, and lunches from recipes for more than one, make leftovers
         if (meal.isLeftover || (isQuickMeal(meal) && meal.quick?.kind !== 'home')) return;
-        if (!(slot === 'dinner' || (slot === 'lunch' && (meal.cookingServings || 1) > 1)) || (back === 0 && slot === 'lunch')) return;
+        if (!(slot === 'dinner' || (slot === 'lunch' && (meal.servings || 1) > 1)) || (back === 0 && slot === 'lunch')) return;
         leftoverDates.current.set(mealKey(meal), from);
         options.push({ meal, from: `${back === 0 ? 'today’s' : longDay(from)} ${slotLabel(slot).toLowerCase()}`.replace(/^t/, 'T') });
       });
@@ -354,7 +363,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const renderMeal = (date: string, plan: DayPlan, meal: Recipe, index: number) => {
     const visual = mealVisualFor(meal);
     const eaten = isMealEaten(plan, meal);
-    const addedBy = meal.familyDinner && meal.addedBy && meal.addedBy !== myUid ? family?.names.get(meal.addedBy) : undefined;
+    const addedBy = meal.familyMeal && meal.addedBy && meal.addedBy !== myUid ? family?.names.get(meal.addedBy) : undefined;
+    const othersOut = meal.familyMeal ? outNames(meal) : [];
     const quick = isQuickMeal(meal);
     const toBuy = quick ? (meal.ingredients?.length ?? 0) : 0;
     return (
@@ -367,7 +377,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           }}
           onClick={() => setMealTarget({ date, index })}
           className="w-full flex items-center gap-2.5 py-1.5 px-1.5 -mx-1.5 rounded-[12px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] @min-[66rem]/week:cursor-grab"
-          aria-label={`${meal.name}, ${mealKcalSpoken(meal)}${quick ? ', no recipe' : ''}${meal.familyDinner ? ', family dinner' : ''}${eaten ? ', eaten' : ''}. Open options`}
+          aria-label={`${meal.name}, ${mealKcalSpoken(meal)}${quick ? ', no recipe' : ''}${meal.familyMeal ? ', family meal' : ''}${eaten ? ', eaten' : ''}. Open options`}
         >
           {meal.isMissing ? (
             <span className={`${thumb} flex items-center justify-center shrink-0 bg-surface-sunken text-muted`}>
@@ -386,11 +396,11 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
               {meal.isMissing ? <span>Swap or remove</span> : <span className="whitespace-nowrap">{mealKcalLabel(meal)}</span>}
               {toBuy > 0 && <span className="inline-flex items-center gap-0.5" title={`${toBuy} to buy`}><ShoppingBasket size={12} aria-hidden="true" />{toBuy}</span>}
               {meal.sides && meal.sides.length > 0 && <span>· +{meal.sides.length} side{meal.sides.length > 1 ? 's' : ''}</span>}
-              {meal.familyDinner && <UsersRound size={12} className="text-workout-text" aria-hidden="true" />}
+              {meal.familyMeal && <UsersRound size={12} className="text-workout-text" aria-hidden="true" />}
               {addedBy && <span className="truncate">{addedBy}</span>}
+              {othersOut.length > 0 && <span className="truncate">· {othersOut.join(', ')} out</span>}
               {meal.isLeftover && <Repeat size={12} aria-hidden="true" />}
               {meal.isPacked && <Package size={12} aria-hidden="true" />}
-              {(meal.cookingServings || 1) > 1 && !meal.isLeftover && <span className="whitespace-nowrap">· for {meal.cookingServings}</span>}
             </span>
           </span>
           {eaten && <Check size={16} className="shrink-0 text-secondary" aria-hidden="true" />}
@@ -399,8 +409,25 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     );
   };
 
+  /** A family meal the user isn't eating: muted, with a way back in */
+  const renderMealOut = (date: string, meal: Recipe) => (
+    <li key={meal.instanceId} className="flex items-center gap-2.5 py-1.5">
+      <span className="flex-1 min-w-0 text-xs text-muted">
+        <span className="font-semibold">{meal.name}</span> · family meal, you're out
+      </span>
+      <button
+        onClick={() => setOut(date, meal, false)}
+        className="btn-ghost btn-sm shrink-0"
+        aria-label={`Eat ${meal.name} with the family after all`}
+      >
+        I'm in
+      </button>
+    </li>
+  );
+
   const renderSlot = (date: string, plan: DayPlan, slot: MealSlot, label: string) => {
     const entries = plan.meals.map((meal, index) => ({ meal, index })).filter(({ meal }) => slotFor(meal) === slot);
+    const mealsOut = (plan.familyMealsOut || []).filter(meal => slotFor(meal) === slot);
     const dropKey = `${date}/${slot}`;
     return (
       <section
@@ -419,7 +446,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         }}
         className={`min-w-0 border-t border-border py-1.5 md:px-1 md:-mx-1 md:rounded-[10px] transition-colors ${dragOver === dropKey ? 'bg-surface-sunken' : ''}`}
       >
-        {entries.length === 0 ? (
+        {entries.length === 0 && mealsOut.length === 0 ? (
           <button
             onClick={() => setAddTarget({ date, slot, mode: 'add' })}
             className="group/add w-[calc(100%+0.75rem)] -mx-1.5 px-1.5 flex items-center justify-between gap-2 min-h-10 @min-[66rem]/week:min-h-9 rounded-[10px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
@@ -435,7 +462,6 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             <div className="flex items-center justify-between gap-2 min-h-7">
               <h4 className="font-sans text-xs font-semibold text-muted">
                 {label}
-                {slot === 'dinner' && inFamily && <span className="sr-only"> (shared with family)</span>}
               </h4>
               <button
                 onClick={() => setAddTarget({ date, slot, mode: 'add' })}
@@ -445,7 +471,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                 <Plus size={16} />
               </button>
             </div>
-            <ul>{entries.map(({ meal, index }) => renderMeal(date, plan, meal, index))}</ul>
+            <ul>
+              {entries.map(({ meal, index }) => renderMeal(date, plan, meal, index))}
+              {mealsOut.map(meal => renderMealOut(date, meal))}
+            </ul>
           </>
         )}
       </section>
@@ -479,7 +508,6 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           {upcoming.length > 0 && (
             <span className="badge badge-neutral">{openSlots === 0 ? 'Every meal planned' : `${openSlots} meal${openSlots === 1 ? '' : 's'} to plan`}</span>
           )}
-          {inFamily && <span className="badge badge-workout"><UsersRound size={12} aria-hidden="true" /> Dinners shared with family</span>}
           {!isCurrentWeek && (
             <button onClick={() => setMonday(weekStart(today))} className="badge badge-neutral md:hidden underline underline-offset-2">Back to this week</button>
           )}
@@ -597,6 +625,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       {addTarget && addTargetPlan && (
         <PlannerAddSheet
           mode={addTarget.mode}
+          inFamily={inFamily}
           slot={addTarget.slot}
           title={
             addTarget.mode === 'side' ? 'Add a side'
@@ -622,6 +651,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           slot={slotFor(mealSheetMeal)}
           dates={[...dates, ...weekDates(addDays(monday, 7))].filter(d => d >= today || dates.includes(d)).slice(0, 14)}
           addedByName={mealSheetMeal.addedBy && mealSheetMeal.addedBy !== myUid ? family?.names.get(mealSheetMeal.addedBy) : undefined}
+          outNames={outNames(mealSheetMeal)}
           inFamily={inFamily}
           onView={() => { setViewRecipe(mealSheetMeal); setMealTarget(null); }}
           onCook={() => { setCookRecipe(mealSheetMeal); setMealTarget(null); }}
@@ -631,9 +661,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           onMove={(d, s) => { moveMeal(mealTarget, d, s, false); setMealTarget(null); }}
           onCopy={(d, s) => { moveMeal(mealTarget, d, s, true); setMealTarget(null); }}
           onPlanLeftovers={() => { planLeftoversTomorrow(mealTarget); setMealTarget(null); }}
-          onSetCookingServings={n => editMeal(mealTarget, m => ({ ...m, cookingServings: n }))}
           onSetShopping={items => editMeal(mealTarget, m => ({ ...m, ingredients: items }))}
           onTogglePacked={() => editMeal(mealTarget, m => ({ ...m, isPacked: !m.isPacked }))}
+          onSetFamilyMeal={shared => setFamilyMeal(mealTarget, shared)}
+          onNotEating={() => { setOut(mealTarget.date, mealSheetMeal, true); setMealTarget(null); }}
           onRemove={() => { removeMeal(mealTarget); setMealTarget(null); }}
           onDecideEatingOut={() => { setDecideTarget(mealTarget); setMealTarget(null); }}
           onClose={() => setMealTarget(null)}

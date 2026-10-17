@@ -132,16 +132,15 @@ describe('planMeal', () => {
 });
 
 describe('planRecipe', () => {
-  it('shares a dinner with the family and cooks it for everyone', () => {
-    const meal = planRecipe(recipe(), 'dinner', { familySize: 4, addedBy: 'me' });
-    expect(meal.familyDinner).toBe(true);
-    expect(meal.cookingServings).toBe(4);
+  it('makes a new dinner a family meal', () => {
+    const meal = planRecipe(recipe(), 'dinner', { inFamily: true, addedBy: 'me' });
+    expect(meal.familyMeal).toBe(true);
     expect(meal.addedBy).toBe('me');
   });
 
   it('keeps other meals, and meals without a family, personal', () => {
-    expect(planRecipe(recipe(), 'lunch', { familySize: 4 })).toMatchObject({ familyDinner: false, cookingServings: 1 });
-    expect(planRecipe(recipe(), 'dinner', { familySize: null })).toMatchObject({ familyDinner: false, cookingServings: 1 });
+    expect(planRecipe(recipe(), 'lunch', { inFamily: true }).familyMeal).toBe(false);
+    expect(planRecipe(recipe(), 'dinner', { inFamily: false }).familyMeal).toBe(false);
   });
 });
 

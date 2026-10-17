@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, BookOpen, ChefHat, Copy, MapPin, Minus, MoveRight, Package, Plus, Repeat, Shuffle, Trash2, UsersRound, X,
+  ArrowLeft, BookOpen, ChefHat, Copy, MapPin, MoveRight, Package, Plus, Repeat, Shuffle, Trash2, UserRound, UserX, UsersRound, X,
 } from 'lucide-react';
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
+import { SelectionPill } from './SelectionPill';
 import { mealVisualFor } from '../utils/mealVisual';
 import { MEAL_SLOTS, PLANNABLE_SLOTS, isBudgetMeal, isQuickMeal, mealKcalLabel } from '../utils/planUtils';
 import { parseLocalDate } from '../utils/dateUtils';
@@ -14,8 +15,10 @@ interface PlannerMealSheetProps {
   slot: MealSlot;
   /** Dates offered for move and copy */
   dates: string[];
-  /** Name of the family member who planned a family dinner */
+  /** Name of the family member who planned a family meal */
   addedByName?: string;
+  /** Names of the other family members not eating this family meal */
+  outNames?: string[];
   inFamily: boolean;
   onView: () => void;
   onCook: () => void;
@@ -25,10 +28,13 @@ interface PlannerMealSheetProps {
   onMove: (date: string, slot: MealSlot) => void;
   onCopy: (date: string, slot: MealSlot) => void;
   onPlanLeftovers: () => void;
-  onSetCookingServings: (servings: number) => void;
   /** Replace a home-cooked quick meal's shopping items */
   onSetShopping: (items: string[]) => void;
   onTogglePacked: () => void;
+  /** Share the meal with the family, or keep it just for the user */
+  onSetFamilyMeal: (family: boolean) => void;
+  /** The user isn't eating this family meal */
+  onNotEating: () => void;
   onRemove: () => void;
   /** Fill an eating-out budget with the real place and meal */
   onDecideEatingOut: () => void;
@@ -40,15 +46,14 @@ const dayName = (date: string, style: 'long' | 'short' = 'long') =>
 
 /** Everything you can do with one planned meal. */
 export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
-  meal, date, slot, dates, addedByName, inFamily,
+  meal, date, slot, dates, addedByName, outNames = [], inFamily,
   onView, onCook, onSwap, onAddSide, onRemoveSide, onMove, onCopy, onPlanLeftovers,
-  onSetCookingServings, onSetShopping, onTogglePacked, onRemove, onDecideEatingOut, onClose,
+  onSetShopping, onTogglePacked, onSetFamilyMeal, onNotEating, onRemove, onDecideEatingOut, onClose,
 }) => {
   const [picker, setPicker] = useState<'move' | 'copy' | null>(null);
   const [pickDate, setPickDate] = useState(date);
   const [pickSlot, setPickSlot] = useState<MealSlot>(slot);
   const visual = mealVisualFor(meal);
-  const portions = meal.cookingServings || 1;
   const isCustom = isQuickMeal(meal);
   const isBudget = isBudgetMeal(meal);
   const hasRecipe = !isCustom && ((meal.ingredients?.length ?? 0) > 0 || (meal.instructions?.length ?? 0) > 0);
@@ -128,11 +133,6 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
               </button>
             ))}
           </div>
-          {inFamily && (
-            <p className="text-xs text-muted mt-3">
-              {pickSlot === 'dinner' ? 'Dinners are shared with your family.' : 'Breakfast and lunch are just yours.'}
-            </p>
-          )}
         </fieldset>
       </Sheet>
     );
@@ -148,24 +148,29 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
         <div className="flex flex-wrap gap-1.5">
           <span className={`badge ${isCustom && meal.quick?.kind ? visual.tint : 'badge-neutral'}`}><visual.Icon size={12} aria-hidden="true" /> {visual.label}</span>
           {isCustom && <span className="badge badge-neutral">No recipe</span>}
-          {meal.familyDinner && (
-            <span className="badge badge-workout"><UsersRound size={12} aria-hidden="true" /> Family dinner{addedByName ? ` · planned by ${addedByName}` : ''}</span>
+          {meal.familyMeal && (
+            <span className="badge badge-workout"><UsersRound size={12} aria-hidden="true" /> Family meal{addedByName ? ` · planned by ${addedByName}` : ''}</span>
           )}
+          {meal.familyMeal && outNames.length > 0 && <span className="badge badge-neutral"><UserX size={12} aria-hidden="true" /> {outNames.join(', ')} not eating</span>}
           {meal.isLeftover && <span className="badge badge-neutral"><Repeat size={12} aria-hidden="true" /> Leftovers</span>}
           {meal.isPacked && <span className="badge badge-water"><Package size={12} aria-hidden="true" /> Packed</span>}
         </div>
 
-        {!meal.isLeftover && !isBudget && (
-          <div className="flex items-center justify-between gap-3 rounded-[14px] bg-surface-sunken px-4 py-3">
-            <div>
-              <p className="font-semibold">Cooking for</p>
-              <p className="text-xs text-muted">Scales the shopping list</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button onClick={() => onSetCookingServings(Math.max(1, portions - 1))} disabled={portions <= 1} className="icon-btn bg-surface" aria-label="One portion fewer"><Minus size={18} /></button>
-              <span className="w-8 text-center font-display font-extrabold text-xl" aria-live="polite">{portions}</span>
-              <button onClick={() => onSetCookingServings(Math.min(20, portions + 1))} className="icon-btn bg-surface" aria-label="One portion more"><Plus size={18} /></button>
-            </div>
+        {/* Eating out and leftovers are the user's own */}
+        {inFamily && !meal.isLeftover && !isBudget && (
+          <div role="radiogroup" aria-label="Who it's for" className="segmented pill-group grid grid-cols-2 w-full">
+            {([[true, 'Family', UsersRound], [false, 'Just me', UserRound]] as const).map(([family, label, Icon]) => (
+              <button
+                key={label}
+                role="radio"
+                aria-checked={!!meal.familyMeal === family}
+                onClick={() => { if (!!meal.familyMeal !== family) onSetFamilyMeal(family); }}
+                className="segment justify-center gap-1.5"
+              >
+                {!!meal.familyMeal === family && <SelectionPill group="planner-meal-family-pill" />}
+                <Icon size={15} aria-hidden="true" /> {label}
+              </button>
+            ))}
           </div>
         )}
 
@@ -204,11 +209,12 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
           {hasRecipe && action(<ChefHat size={18} />, 'Cook', onCook)}
           {action(<Shuffle size={18} />, 'Swap for another meal', onSwap)}
           {action(<Plus size={18} />, 'Add a side', onAddSide)}
-          {!meal.isLeftover && !isBudget && action(<Repeat size={18} />, 'Make extra for leftovers tomorrow', onPlanLeftovers)}
+          {!meal.isLeftover && !isBudget && action(<Repeat size={18} />, 'Plan leftovers for lunch tomorrow', onPlanLeftovers)}
           {action(<MoveRight size={18} />, 'Move to another day', () => setPicker('move'))}
           {action(<Copy size={18} />, 'Copy to another day', () => setPicker('copy'))}
           {slot === 'lunch' && action(<Package size={18} />, meal.isPacked ? 'Packed lunch' : 'Mark as packed lunch', onTogglePacked, 'default', !!meal.isPacked)}
-          {action(<Trash2 size={18} />, meal.familyDinner ? 'Remove from family dinner' : 'Remove', onRemove, 'danger')}
+          {meal.familyMeal && action(<UserX size={18} />, 'I\'m not eating this', onNotEating)}
+          {action(<Trash2 size={18} />, meal.familyMeal ? 'Remove for the whole family' : 'Remove', onRemove, 'danger')}
         </ul>
       </div>
     </Sheet>
