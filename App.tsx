@@ -23,7 +23,6 @@ const prefetchViews = () => {
     void import('./components/FamilyView');
     void import('./components/SettingsView');
 };
-import BatchPlannerModal from './components/BatchPlannerModal';
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -132,6 +131,9 @@ const TrackerApp: React.FC = () => {
         navigate(routes[newView] || '/today');
     };
 
+    // The Sunday reset: the Planner's next seven days, with the week planner open
+    const openWeekPlanner = () => navigate('/mealplanner', { state: { planWeek: true } });
+
     const [todayPlan, setTodayPlan] = useState<DayPlan>(() => {
         const date = localDateString();
         return cache.getCachedDayPlan(date) || { date, meals: [], completedMealIds: [] };
@@ -153,7 +155,6 @@ const TrackerApp: React.FC = () => {
         setIsWeightModalOpen(true);
         navigate(location.pathname, { replace: true });
     }, [location.search, location.pathname, navigate]);
-    const [isSundayResetOpen, setIsSundayResetOpen] = useState(false);
     const [editingWorkout, setEditingWorkout] = useState<WorkoutItem | null>(null);
     // Delete for the workout being edited, from whoever opened the sheet (Today adds Undo)
     const [deleteEditingWorkout, setDeleteEditingWorkout] = useState<(() => void) | undefined>();
@@ -750,7 +751,7 @@ const TrackerApp: React.FC = () => {
                             onNavigate={handleNavigate}
                             me={me}
                             showSundayReset={new Date().getDay() === 0}
-                            onOpenSundayReset={() => setIsSundayResetOpen(true)}
+                            onOpenSundayReset={openWeekPlanner}
                             isSettings={view === AppView.SETTINGS}
                         />
                         {(view === AppView.PLANNER || view === AppView.SHOPPING) && (
@@ -772,7 +773,7 @@ const TrackerApp: React.FC = () => {
                             fastingConfig={fastingState.config}
                             onUpdateFastingConfig={handleUpdateFastingConfig}
                             onTestOnboarding={() => setShowOnboarding(true)}
-                            onTriggerSundayReset={() => setIsSundayResetOpen(true)}
+                            onTriggerSundayReset={openWeekPlanner}
                             onRefreshData={refreshData}
                             themePreference={theme.preference}
                             onChangeTheme={theme.setPreference}
@@ -822,11 +823,6 @@ const TrackerApp: React.FC = () => {
                     />
                 )}
 
-                <BatchPlannerModal
-                    isOpen={isSundayResetOpen}
-                    onClose={() => setIsSundayResetOpen(false)}
-                    mode="sunday_reset"
-                />
             </div>
         </div>
     );
