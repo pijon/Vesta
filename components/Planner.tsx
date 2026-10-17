@@ -12,7 +12,7 @@ import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import {
   MEAL_SLOTS, addDays, dayCalories, decideEatingOut, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isBudgetMeal, isFastDay, isMealEaten,
-  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, setFamilyMealOut, slotFor, slotLabel, weekDates, weekStart,
+  isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, setFamilyMealOut, slotFor, slotLabel, weekDates, rangeStart, isoWeek,
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { CookingMode } from './CookingMode';
@@ -26,17 +26,29 @@ interface MealTarget { date: string; index: number }
 
 const shortDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' });
 const longDay = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'long' });
+/** A Monday after the first day shown: where a new calendar week starts within the seven days */
+const startsWeek = (date: string, index: number) => index > 0 && parseLocalDate(date).getDay() === 1;
 
 /**
- * Week board: Monday to Sunday, each day with breakfast, lunch, dinner and snack slots.
+ * Week board: seven days from today (paging seven at a time), each with breakfast, lunch, dinner and
+ * snack slots, so the days still to plan always fill it. A marker shows where a calendar week starts.
  * With a family group, a meal can be the family's (new dinners start out that way) or just the user's.
  */
 export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
   const location = useLocation();
   const today = localDateString();
-  const [monday, setMonday] = useState(() => weekStart(today));
-  const dates = useMemo(() => weekDates(monday), [monday]);
-  const [plans, setPlans] = useState<Record<string, DayPlan>>(() => getCachedPlansInRange(monday, addDays(monday, 6)) || {});
+  // The first of the seven days shown: today, or today plus or minus a multiple of seven
+  const [start, setStart] = useState(today);
+  // Left open past midnight, the page showing yesterday moves on to the new today
+  const lastToday = useRef(today);
+  useEffect(() => {
+    if (lastToday.current === today) return;
+    const previous = lastToday.current;
+    lastToday.current = today;
+    setStart(s => (s === previous ? today : rangeStart(s, today)));
+  }, [today]);
+  const dates = useMemo(() => weekDates(start), [start]);
+  const [plans, setPlans] = useState<Record<string, DayPlan>>(() => getCachedPlansInRange(start, addDays(start, 6)) || {});
   const plansRef = useRef(plans);
   plansRef.current = plans;
   const [loadedWeeks, setLoadedWeeks] = useState<Set<string>>(new Set());
@@ -78,33 +90,33 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     setLoadedWeeks(prev => new Set(prev).add(start));
   }, []);
 
-  // Phones show one day at a time, picked from a strip of the week's days
+  // Phones show one day at a time, picked from a strip of the seven days
   const [selectedDate, setSelectedDate] = useState(today);
-  // A new week keeps the picked day if it's in it, else picks today in this week and Monday in others
+  // New days shown keep the picked day if it's among them, else pick the first (today, on the first page)
   useEffect(() => {
-    setSelectedDate(d => (weekStart(d) === monday ? d : weekStart(today) === monday ? today : monday));
-  }, [monday, today]);
+    setSelectedDate(d => (rangeStart(d, today) === start ? d : start));
+  }, [start, today]);
   const isPhone = () => window.matchMedia('(max-width: 767px)').matches;
 
   // Opened with a date (e.g. "Plan tomorrow" on Today): show that week, scrolled to the day
   const [scrollToDate, setScrollToDate] = useState<string | null>(null);
   useEffect(() => {
     const date = (location.state as { date?: string } | null)?.date;
-    if (date) { setMonday(weekStart(date)); setScrollToDate(date); setSelectedDate(date); }
+    if (date) { setStart(rangeStart(date, today)); setScrollToDate(date); setSelectedDate(date); }
   }, [location.key]);
 
   // Also re-runs each time the page is shown again (App keeps it in an Activity), so meals
   // ticked off on Today appear without a loading state
-  useEffect(() => { loadWeek(monday); }, [monday, loadWeek]);
+  useEffect(() => { loadWeek(start); }, [start, loadWeek]);
 
   // Family meals other members plan, move or remove appear as they happen (only while the
   // Planner is shown: a hidden page's effects are paused)
-  useEffect(() => subscribeFamilyMeals(monday, addDays(monday, 6), familyMeals => {
+  useEffect(() => subscribeFamilyMeals(start, addDays(start, 6), familyMeals => {
     const next = { ...plansRef.current };
     Object.entries(familyMeals).forEach(([date, meals]) => { next[date] = withFamilyMeals(next[date] || emptyDayPlan(date), meals); });
     plansRef.current = next;
     setPlans(next);
-  }), [monday]);
+  }), [start]);
 
   useEffect(() => {
     // Keep the cached list if the refresh comes back empty (offline)
@@ -114,7 +126,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   }, []);
 
   useEffect(() => {
-    if (!scrollToDate || !loadedWeeks.has(weekStart(scrollToDate))) return;
+    if (!scrollToDate || !loadedWeeks.has(rangeStart(scrollToDate, today))) return;
     // With the day strip the day is already picked and shown, so phones stay at the top
     if (!isPhone()) document.getElementById(`day-${scrollToDate}`)?.scrollIntoView({ block: 'start' });
     setScrollToDate(null);
@@ -139,7 +151,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     } catch (e) {
       console.error('Failed to save plan', e);
       showToast("Couldn't save that change. Check your connection.");
-      loadWeek(monday);
+      loadWeek(start);
     }
   };
   const updateDay = (date: string, change: (plan: DayPlan) => DayPlan) => updateDays({ [date]: change });
@@ -271,7 +283,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       .catch(e => {
         console.error('Failed to save plan', e);
         showToast("Couldn't save that change. Check your connection.");
-        loadWeek(monday);
+        loadWeek(start);
       });
     showToast(out ? `You're not eating ${meal.name}` : `You're eating ${meal.name}`);
   };
@@ -283,13 +295,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
   const toggleFastDay = (date: string) => updateDay(date, plan => ({ ...plan, type: isFastDay(plan) ? 'non-fast' : 'fast' }));
 
-  /** Fills this week's empty slots from last week's plan. Nothing already planned is replaced. */
+  /** Fills the empty slots of the days shown from the same weekdays a week earlier. Nothing already planned is replaced. */
   const copyLastWeek = async () => {
-    const previous = await getDayPlansInRange(addDays(monday, -7), addDays(monday, -1));
+    const previous = await getDayPlansInRange(addDays(start, -7), addDays(start, -1));
     let copied = 0;
     const changes: Record<string, (plan: DayPlan) => DayPlan> = {};
-    dates.forEach((date, i) => {
-      const source = previous[addDays(monday, i - 7)];
+    dates.forEach(date => {
+      const source = previous[addDays(date, -7)];
       if (!source || source.meals.length === 0) return;
       const current = planFor(date);
       const taken = new Set(current.meals.map(slotFor));
@@ -305,7 +317,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       });
     });
     if (copied === 0) {
-      showToast('Nothing to copy: last week was empty or this week is already planned');
+      showToast('Nothing to copy: the week before was empty or these days are already planned');
       return;
     }
     await updateDays(changes);
@@ -332,20 +344,21 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     return options.reverse();
   };
 
-  const isCurrentWeek = monday === weekStart(today);
-  const weekTitle = isCurrentWeek ? 'This week'
-    : monday === addDays(weekStart(today), 7) ? 'Next week'
-    : monday === addDays(weekStart(today), -7) ? 'Last week'
-    : `Week of ${parseLocalDate(monday).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+  const isCurrentWeek = start === today;
   const rangeLabel = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
     .formatRange(parseLocalDate(dates[0]), parseLocalDate(dates[6]));
+  // Further out, the dates themselves are the title
+  const weekTitle = isCurrentWeek ? 'Next 7 days'
+    : start === addDays(today, 7) ? 'The 7 days after'
+    : start === addDays(today, -7) ? 'The 7 days before'
+    : rangeLabel;
   const upcoming = dates.filter(d => d >= today);
   const fastDays = dates.filter(d => isFastDay(plans[d])).length;
   const openSlots = upcoming.reduce((sum, d) => {
     const taken = new Set((plans[d]?.meals || []).map(slotFor));
     return sum + (['breakfast', 'lunch', 'dinner'] as MealSlot[]).filter(s => !taken.has(s)).length;
   }, 0);
-  const isLoading = !loadedWeeks.has(monday) && dates.every(d => !plans[d]);
+  const isLoading = !loadedWeeks.has(start) && dates.every(d => !plans[d]);
 
   const decideMeal = decideTarget ? planFor(decideTarget.date).meals[decideTarget.index] : undefined;
   const mealSheetMeal = mealTarget ? planFor(mealTarget.date).meals[mealTarget.index] : undefined;
@@ -490,14 +503,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       {/* Week header */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <button onClick={() => setMonday(m => addDays(m, -7))} className="icon-btn" aria-label="Previous week"><ChevronLeft size={20} /></button>
+          <button onClick={() => setStart(s => addDays(s, -7))} className="icon-btn" aria-label="Previous 7 days"><ChevronLeft size={20} /></button>
           <div className="flex-1 min-w-0 text-center md:text-left md:flex-none">
             <h2 className="heading-2">{weekTitle}</h2>
-            <p className="text-sm text-muted">{rangeLabel}</p>
+            {weekTitle !== rangeLabel && <p className="text-sm text-muted">{rangeLabel}</p>}
           </div>
-          <button onClick={() => setMonday(m => addDays(m, 7))} className="icon-btn" aria-label="Next week"><ChevronRight size={20} /></button>
+          <button onClick={() => setStart(s => addDays(s, 7))} className="icon-btn" aria-label="Next 7 days"><ChevronRight size={20} /></button>
           {!isCurrentWeek && (
-            <button onClick={() => setMonday(weekStart(today))} className="btn-ghost btn-sm hidden md:inline-flex">Back to this week</button>
+            <button onClick={() => setStart(today)} className="btn-ghost btn-sm hidden md:inline-flex">Back to today</button>
           )}
           <div className="hidden md:flex flex-1 justify-end gap-2">
             <button onClick={copyLastWeek} className="btn-secondary btn-sm"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
@@ -511,15 +524,15 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             <span className="badge badge-neutral">{openSlots === 0 ? 'Every meal planned' : `${openSlots} meal${openSlots === 1 ? '' : 's'} to plan`}</span>
           )}
           {!isCurrentWeek && (
-            <button onClick={() => setMonday(weekStart(today))} className="badge badge-neutral md:hidden underline underline-offset-2">Back to this week</button>
+            <button onClick={() => setStart(today)} className="badge badge-neutral md:hidden underline underline-offset-2">Back to today</button>
           )}
         </div>
 
       </section>
 
       {/* Phones: pick a day; a dot marks days with meals (filled) or nothing yet (ring) */}
-      <div className="grid grid-cols-7 gap-1 md:hidden" aria-label="Days of the week">
-        {dates.map(date => {
+      <div className="grid grid-cols-7 gap-1 md:hidden" aria-label="Days">
+        {dates.map((date, i) => {
           const selected = date === selectedDate;
           const planned = (plans[date]?.meals.length ?? 0) > 0;
           return (
@@ -528,9 +541,11 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
               onClick={() => setSelectedDate(date)}
               aria-pressed={selected}
               aria-current={date === today ? 'date' : undefined}
-              aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}${planned ? '' : ', nothing planned'}`}
-              className={`min-h-16 rounded-[18px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${selected ? 'bg-ink text-on-ink' : 'hover:bg-surface-sunken'}`}
+              aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}${startsWeek(date, i) ? `, week ${isoWeek(date)}` : ''}${planned ? '' : ', nothing planned'}`}
+              className={`relative min-h-16 rounded-[18px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${selected ? 'bg-ink text-on-ink' : 'hover:bg-surface-sunken'}`}
             >
+              {/* A new calendar week starts here */}
+              {startsWeek(date, i) && <span className="absolute -left-[3px] top-2 bottom-2 w-0.5 rounded-full bg-border-control" aria-hidden="true" />}
               <span className={`text-xs font-semibold ${selected ? '' : 'text-muted'}`}>{shortDay(date)}</span>
               <span className={`font-display font-extrabold text-lg leading-6 ${!selected && date === today ? 'text-primary' : !selected && date < today ? 'text-muted' : ''}`}>{parseLocalDate(date).getDate()}</span>
               <span
@@ -553,7 +568,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         </div>
       ) : (
         <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-4 @min-[66rem]/week:grid-cols-7 md:gap-3 @min-[66rem]/week:gap-x-2">
-          {dates.map(date => {
+          {dates.map((date, i) => {
             const plan = plans[date] || emptyDayPlan(date);
             const kcal = dayCalories(plan);
             const approx = dayKcalApprox(plan);
@@ -567,9 +582,16 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
               <article
                 key={date}
                 id={`day-${date}`}
-                aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
-                className={`card min-w-0 scroll-mt-24 px-4 pb-2 @min-[66rem]/week:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isPast ? '!bg-transparent' : ''} ${date !== selectedDate ? 'max-md:hidden' : ''}`}
+                aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}${startsWeek(date, i) ? `, week ${isoWeek(date)}` : ''}`}
+                className={`card relative min-w-0 scroll-mt-24 px-4 pb-2 @min-[66rem]/week:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isPast ? '!bg-transparent' : ''} ${date !== selectedDate ? 'max-md:hidden' : ''}`}
               >
+                {/* A new calendar week starts here: a line in the gap before the day, named in seven columns */}
+                {startsWeek(date, i) && (
+                  <>
+                    <span className="hidden md:block absolute -left-[7px] @min-[66rem]/week:-left-[5px] top-3 bottom-3 w-0.5 rounded-full bg-border-control" aria-hidden="true" />
+                    <span className="hidden @min-[66rem]/week:block absolute left-1 -top-5 text-xs font-semibold text-muted whitespace-nowrap" aria-hidden="true">Week {isoWeek(date)}</span>
+                  </>
+                )}
                 <header className="pt-3.5 pb-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     {/* Today is marked by an ink pill on its date */}
@@ -651,7 +673,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           meal={mealSheetMeal}
           date={mealTarget.date}
           slot={slotFor(mealSheetMeal)}
-          dates={[...dates, ...weekDates(addDays(monday, 7))].filter(d => d >= today || dates.includes(d)).slice(0, 14)}
+          dates={[...dates, ...weekDates(addDays(start, 7))].filter(d => d >= today || dates.includes(d)).slice(0, 14)}
           addedByName={mealSheetMeal.addedBy && mealSheetMeal.addedBy !== myUid ? family?.names.get(mealSheetMeal.addedBy) : undefined}
           outNames={outNames(mealSheetMeal)}
           inFamily={inFamily}
@@ -693,7 +715,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         isOpen={showBatchPlanner}
         onClose={() => {
           setShowBatchPlanner(false);
-          loadWeek(monday);
+          loadWeek(start);
           onPlanChanged?.();
         }}
       />
