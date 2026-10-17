@@ -103,6 +103,12 @@ export interface PeriodSummary {
   avgCalories: number | null;
   avgTarget: number | null;
   daysOnTarget: number;
+  /** Fully logged nourish days, and how many stayed within their target */
+  nourishLogged: number;
+  nourishOnTarget: number;
+  /** Fully logged fast days, and how many were kept (within the fast-day target) */
+  fastDaysLogged: number;
+  fastDaysKept: number;
   fastDays: number;
   avgFastDayCalories: number | null;
   avgFast: number | null;
@@ -130,6 +136,10 @@ export const summarize = (days: AnalyticsDay[], targetFastHours: number): Period
     avgCalories: average(logged.map(d => d.calories)),
     avgTarget: average(logged.map(d => d.calorieTarget)),
     daysOnTarget: logged.filter(d => d.goals.calories).length,
+    nourishLogged: logged.length - fastDaysLogged.length,
+    nourishOnTarget: logged.filter(d => !d.isFastDay && d.goals.calories).length,
+    fastDaysLogged: fastDaysLogged.length,
+    fastDaysKept: fastDaysLogged.filter(d => d.goals.calories).length,
     fastDays: days.filter(d => d.isFastDay).length,
     avgFastDayCalories: average(fastDaysLogged.map(d => d.calories)),
     avgFast: average(fasts),
@@ -144,6 +154,76 @@ export const summarize = (days: AnalyticsDay[], targetFastHours: number): Period
     waterDaysMet: days.filter(d => d.goals.water).length,
     waterDaysLogged: waterDays.length,
   };
+};
+
+/** A stretch this long with nothing logged ends one spell of tracking; charts start after the latest */
+const CHART_BREAK_DAYS = 14;
+
+/**
+ * Where the period's charts start: the first active day after the latest long break, so a stray
+ * day logged weeks before you really started doesn't squash everything since into a corner.
+ * Charts always keep at least `minDays`.
+ */
+export const chartStart = (days: AnalyticsDay[], minDays = 14): number => {
+  // Food and fasts only: the charts that use this are about eating
+  const active = days.map(d => d.logged || d.fastHours !== null);
+  let start = active.indexOf(true);
+  if (start < 0) return 0;
+  let idle = 0;
+  active.forEach((on, i) => {
+    if (on) {
+      if (idle >= CHART_BREAK_DAYS) start = i;
+      idle = 0;
+    } else idle++;
+  });
+  return Math.max(0, Math.min(start, days.length - minDays));
+};
+
+export interface WeightProgress {
+  /** Latest smoothed trend weight */
+  current: number;
+  /** Where the current spell of weigh-ins started, and the trend's change since */
+  since: string;
+  change: number;
+  /** kg per week (negative = losing): the projection's pace, else the trend over the last four weeks */
+  ratePerWeek: number | null;
+  /** kg still to go (positive) when there's a goal */
+  toGoal: number | null;
+  projection: WeightProjection | null;
+  /** The trend over the last 90 days of the current spell, for a small line */
+  line: { time: number; trend: number }[];
+}
+
+/** Progress towards the goal, from the smoothed trend; it doesn't depend on the chosen period */
+export const weightProgress = (history: WeightEntry[], goal: number, today = localDateString()): WeightProgress | null => {
+  const trend = weightTrend(history).filter(p => p.date <= today);
+  if (!trend.length) return null;
+  const latest = trend[trend.length - 1];
+  const run = trend.filter(p => p.run === latest.run);
+  const recent = run.filter(p => p.date >= addDays(today, -(PROJECTION_WINDOW_DAYS - 1)));
+  const projection = projectGoal(history, goal, today);
+  let ratePerWeek = projection?.ratePerWeek ?? null;
+  if (ratePerWeek === null && recent.length >= 2 && (recent[recent.length - 1].time - recent[0].time) / 86_400_000 >= 14) {
+    const xs = recent.map(p => (p.time - recent[0].time) / 86_400_000);
+    const mx = average(xs)!;
+    const my = average(recent.map(p => p.trend))!;
+    ratePerWeek = 7 * xs.reduce((sum, x, i) => sum + (x - mx) * (recent[i].trend - my), 0) / xs.reduce((sum, x) => sum + (x - mx) ** 2, 0);
+  }
+  return {
+    current: latest.trend,
+    since: run[0].date,
+    change: latest.trend - run[0].trend,
+    ratePerWeek,
+    toGoal: goal > 0 ? Math.abs(latest.trend - goal) : null,
+    projection,
+    line: run.filter(p => p.date >= addDays(today, -89)).map(p => ({ time: p.time, trend: p.trend })),
+  };
+};
+
+/** When the goal would be reached losing (or gaining) `ratePerWeek` kg a week from `current` */
+export const goalDateAtPace = (current: number, goal: number, ratePerWeek: number, today = localDateString()): string | null => {
+  if (!(goal > 0) || ratePerWeek <= 0 || Math.abs(current - goal) < 0.05) return null;
+  return addDays(today, Math.round((Math.abs(current - goal) / ratePerWeek) * 7));
 };
 
 export interface WeightPoint { date: string; time: number; weight: number }

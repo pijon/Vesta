@@ -96,18 +96,25 @@ const FindingRow: React.FC<{ finding: Finding; isRead: boolean; onAction: (a: Co
   );
 };
 
-/** Analytics: all guidance, in order of what matters most. */
-export const CoachPanel: React.FC<CoachInput & CoachHandlers> = props => {
+/** Analytics: all guidance, in order of what matters most. `unlock` is a last row about what's still
+ *  needed for the burn estimate, shown until it's ready. */
+export const CoachPanel: React.FC<CoachInput & CoachHandlers & { unlock?: React.ReactNode }> = props => {
   const { unread, read } = useSplitFindings(props, props.coachRead);
   const runAction = useRunAction(props.stats, props);
   const [showRead, setShowRead] = useState(false);
   return (
     <section className="card p-4 md:p-6" aria-labelledby="coach-title">
-      <h2 id="coach-title" className="heading-3">Guidance</h2>
-      <p className="text-sm text-muted mt-0.5 mb-4">What your last few weeks say, most important first.</p>
-      {unread.length ? (
+      <div className="flex items-start gap-3 mb-4">
+        <span className="icon-tile tile-neutral size-10 shrink-0 flex items-center justify-center"><Lightbulb size={18} strokeWidth={2.25} aria-hidden="true" /></span>
+        <div className="min-w-0">
+          <h2 id="coach-title" className="heading-3 pt-2">What to do next</h2>
+          <p className="text-sm text-muted mt-1">From your last few weeks, most important first.</p>
+        </div>
+      </div>
+      {unread.length || props.unlock ? (
         <ul className="divide-y divide-border">
           {unread.map(f => <FindingRow key={f.id} finding={f} isRead={false} onAction={runAction} onSetRead={props.onSetCoachRead} />)}
+          {props.unlock && <li className="py-4 first:pt-0 last:pb-0">{props.unlock}</li>}
         </ul>
       ) : (
         <p className="text-sm text-muted">
