@@ -391,12 +391,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             </span>
           )}
           <span className="flex-1 min-w-0">
-            <span className={`text-[15px] @min-[66rem]/week:text-sm font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
+            {/* Seven columns are about 150px: a smaller name keeps long (often compound) words whole. No
+                automatic hyphens: the page is English, and its rules mangle Swedish names */}
+            <span className={`text-[15px] @min-[66rem]/week:text-xs font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted mt-0.5">
               {meal.isMissing ? <span>Swap or remove</span> : <span className="whitespace-nowrap">{mealKcalLabel(meal)}</span>}
               {toBuy > 0 && <span className="inline-flex items-center gap-0.5" title={`${toBuy} to buy`}><ShoppingBasket size={12} aria-hidden="true" />{toBuy}</span>}
               {meal.sides && meal.sides.length > 0 && <span>· +{meal.sides.length} side{meal.sides.length > 1 ? 's' : ''}</span>}
-              {meal.familyMeal && <UsersRound size={12} className="text-workout-text" aria-hidden="true" />}
+              {meal.familyMeal && <UsersRound size={12} aria-hidden="true" />}
               {addedBy && <span className="truncate">{addedBy}</span>}
               {othersOut.length > 0 && <span className="truncate">· {othersOut.join(', ')} out</span>}
               {meal.isLeftover && <Repeat size={12} aria-hidden="true" />}
@@ -465,7 +467,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
               </h4>
               <button
                 onClick={() => setAddTarget({ date, slot, mode: 'add' })}
-                className="size-7 -mr-1 flex items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                className="hit-target size-7 -mr-1 flex items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 aria-label={`Add another ${slot === 'snack' ? 'snack' : label.toLowerCase()} on ${longDay(date)}`}
               >
                 <Plus size={16} />
@@ -559,14 +561,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             const target = dayTarget(plan, stats);
             const fast = isFastDay(plan);
             const isToday = date === today;
-            // Days gone by are outlined rather than filled, so the days still to plan stand out
+            // Days gone by are left unfilled (dark mode keeps the card outline), so the days still to plan stand out
             const isPast = date < today;
             return (
               <article
                 key={date}
                 id={`day-${date}`}
                 aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
-                className={`card min-w-0 scroll-mt-24 px-4 pb-2 @min-[66rem]/week:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isPast ? '!bg-transparent border border-border' : ''} ${date !== selectedDate ? 'max-md:hidden' : ''}`}
+                className={`card min-w-0 scroll-mt-24 px-4 pb-2 @min-[66rem]/week:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isPast ? '!bg-transparent' : ''} ${date !== selectedDate ? 'max-md:hidden' : ''}`}
               >
                 <header className="pt-3.5 pb-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -579,7 +581,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                       aria-pressed={fast}
                       aria-label={`Fast day on ${longDay(date)}`}
                       title={fast ? 'Fast day: tap to make it a nourish day' : 'Nourish day: tap to make it a fast day'}
-                      className={`shrink-0 inline-flex items-center justify-center gap-1 min-h-8 min-w-8 px-2.5 @min-[66rem]/week:px-0 rounded-full text-xs font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${fast ? 'bg-fasting-bg text-fasting-text border-transparent' : 'border-border text-muted hover:bg-surface-sunken hover:text-main'}`}
+                      className={`shrink-0 inline-flex items-center justify-center gap-1 min-h-8 min-w-8 px-2.5 @min-[66rem]/week:px-0 rounded-full text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${fast ? 'bg-fasting-bg text-fasting-text' : 'bg-surface-sunken text-muted hover:text-main'}`}
                     >
                       <Flame size={14} aria-hidden="true" />
                       {/* Off, it says what tapping does; on, what the day is */}
@@ -598,7 +600,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                     </div>
                     <div className="h-1.5 rounded-full bg-surface-sunken overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${kcal > target ? 'bg-warning' : fast ? 'bg-fasting' : 'bg-primary'}`}
+                        className={`h-full rounded-full ${kcal > target ? 'bg-warning' : fast ? 'bg-fasting' : 'bg-calories'}`}
                         style={{ width: `${target > 0 ? Math.min(kcal / target, 1) * 100 : 0}%` }}
                       />
                     </div>
