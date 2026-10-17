@@ -418,106 +418,43 @@ export const analyzeFoodImage = async (imageBase64: string, mimeType: string): P
   }
 };
 
-export type DayConfig = {
-  date: string;
-  type: 'fast' | 'non-fast';
-  meals: number;
-  useLeftovers: boolean;
-  ignore: boolean;
-};
+/**
+ * Reads a wish for the week ("more fish", "no pasta", "quick dinners") into the recipes the local
+ * week planner (utils/weekPlanner.ts) should favour and those it should leave out. The model only
+ * sorts the family's recipes; it never picks the plan.
+ */
+export const readWeekHint = async (
+  hint: string,
+  recipes: Pick<Recipe, 'id' | 'name' | 'tags'>[]
+): Promise<{ prefer: string[]; avoid: string[] }> => {
+  if (!hint.trim() || recipes.length === 0) return { prefer: [], avoid: [] };
+  const response = await generateWithFallback({
+    model: GEMINI_FAST_MODEL,
+    contents: `Someone is planning their meals for the week and wrote this wish: "${scrubPII(hint.trim())}"
 
-export const planSpecificDays = async (
-  recipes: Recipe[],
-  dayConfigs: DayConfig[],
-  /** The user's own calorie targets (dayTarget in utils/planUtils.ts) */
-  targets: { fast: number; nourish: number },
-  season: string = 'Current'
-): Promise<{ date: string, mealIds: string[], type?: 'fast' | 'non-fast' }[]> => {
-  // Filter out ignored days
-  const activeDays = dayConfigs.filter(d => !d.ignore);
-  if (activeDays.length === 0) return [];
+Here are their recipes, numbered:
+${recipes.map((r, i) => `${i + 1}. ${scrubPII(r.name)}${r.tags?.length ? ` [${r.tags.map(scrubPII).join(', ')}]` : ''}`).join('\n')}
 
-  // OPTIMIZATION: Map complex UUIDs to simple integer IDs
-  const recipeMap = new Map<string, string>();
-  const simplifiedRecipes = recipes.map((r, index) => {
-    const simpleId = (index + 1).toString();
-    recipeMap.set(simpleId, r.id);
-    return {
-      id: simpleId,
-      name: scrubPII(r.name),
-      calories: r.calories,
-      tags: r.tags?.map(scrubPII)
-    };
+Answer with the numbers of the recipes that fit the wish well (prefer), and of those that go against it (avoid). Leave out recipes the wish says nothing about. Use only numbers from the list.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          prefer: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+          avoid: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+        },
+        required: ['prefer', 'avoid'],
+      },
+    },
   });
-
-  const schedulePrompt = activeDays.map(day => `
-    DATE: ${day.date}
-    TYPE: ${day.type} (target ~${day.type === 'fast' ? targets.fast : targets.nourish} kcal)
-    MEALS: ${day.meals} meals
-    LEFTOVERS: ${day.useLeftovers ? 'MUST use leftovers from previous dinner for lunch' : 'No constraint'}
-  `).join('\n');
-
-  const prompt = `
-    You are an expert meal planner for Mediterranean-style nutrition. Create a plan for the following specific schedule:
-
-    ${schedulePrompt}
-
-    VARIETY REQUIREMENTS:
-    1. PROTEIN ROTATION: Rotate protein sources (chicken, fish, eggs, legumes, etc.)
-    2. MEAL TYPE BALANCE: Varied breakfasts (eggs, yogurt, oats)
-    3. LEFTOVERS: If a day requests leftovers, you MUST schedule the previous day's DINNER as the current day's LUNCH.
-
-    RECIPE SELECTION RULES:
-    1. Use ONLY the recipes provided in the JSON list below (return simple IDs like "1", "2")
-    2. Pick meals whose calories add up close to each day's target, without going over it
-    3. SEASONAL PREFERENCE: Current season is "${season}".
-
-    AVAILABLE RECIPES:
-    ${JSON.stringify(simplifiedRecipes)}
-
-    CRITICAL: Return a JSON array matching the requested dates.
-  `;
-
-  try {
-    const activeModel = getModel();
-    const response = await generateWithFallback({
-      model: activeModel,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              date: { type: Type.STRING, description: "YYYY-MM-DD" },
-              mealIds: { type: Type.ARRAY, items: { type: Type.STRING } },
-              type: { type: Type.STRING, enum: ['fast', 'non-fast'] }
-            },
-            required: ["date", "mealIds", "type"]
-          }
-        }
-      }
-    });
-
-    const output = response.text;
-    if (!output) throw new Error("No response from AI");
-
-    const parsedData: { date: string, mealIds: string[], type?: 'fast' | 'non-fast' }[] = JSON.parse(output);
-
-    // Map back simple IDs to Real UUIDs
-    const finalPlan = parsedData.map(day => ({
-      ...day,
-      mealIds: day.mealIds
-        .map(simpleId => recipeMap.get(simpleId))
-        .filter((id): id is string => !!id)
-    }));
-
-    return finalPlan;
-  } catch (error) {
-    console.error("Error generating plan:", error);
-    throw error;
-  }
+  const parsed = JSON.parse(response.text || '{}') as { prefer?: unknown[]; avoid?: unknown[] };
+  // Numbers back to the real ids; anything not on the list is dropped
+  const ids = (list: unknown[] | undefined) => (list || [])
+    .map(n => (typeof n === 'number' ? recipes[n - 1]?.id : undefined))
+    .filter((id): id is string => !!id);
+  const avoid = ids(parsed.avoid);
+  return { prefer: ids(parsed.prefer).filter(id => !avoid.includes(id)), avoid };
 };
 
 const ingredientParseSchema: Schema = {

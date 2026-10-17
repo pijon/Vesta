@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingBasket, Sparkles, UsersRound } from 'lucide-react';
+import { CalendarPlus, Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingBasket, UsersRound } from 'lucide-react';
 import { DayPlan, MealSlot, Recipe, UserStats } from '../types';
 import { getCachedPlansInRange, getDayPlan, getDayPlansInRange, getRecipes, saveDayPlan, saveFamilyMealOut, subscribeFamilyMeals, withFamilyMeals } from '../services/storageService';
 import { familyData } from '../services/pageData';
@@ -16,7 +16,8 @@ import {
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { CookingMode } from './CookingMode';
-import BatchPlannerModal from './BatchPlannerModal';
+import { WeekPlannerSheet } from './WeekPlannerSheet';
+import { Proposal } from '../utils/weekPlanner';
 import { AddMode, LeftoverOption, PlannerAddSheet } from './PlannerAddSheet';
 import { PlannerMealSheet } from './PlannerMealSheet';
 import { EatingOutDecideSheet } from './EatingOutDecideSheet';
@@ -62,7 +63,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const [decideTarget, setDecideTarget] = useState<MealTarget | null>(null);
   const [viewRecipe, setViewRecipe] = useState<Recipe | null>(null);
   const [cookRecipe, setCookRecipe] = useState<Recipe | null>(null);
-  const [showBatchPlanner, setShowBatchPlanner] = useState(false);
+  const [showWeekPlanner, setShowWeekPlanner] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
@@ -98,11 +99,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   }, [start, today]);
   const isPhone = () => window.matchMedia('(max-width: 767px)').matches;
 
-  // Opened with a date (e.g. "Plan tomorrow" on Today): show that week, scrolled to the day
+  // Opened with a date (e.g. "Plan tomorrow" on Today): show that week, scrolled to the day.
+  // Opened to plan the week (the Sunday reset): the next seven days, with the week planner open
   const [scrollToDate, setScrollToDate] = useState<string | null>(null);
   useEffect(() => {
-    const date = (location.state as { date?: string } | null)?.date;
-    if (date) { setStart(rangeStart(date, today)); setScrollToDate(date); setSelectedDate(date); }
+    const state = location.state as { date?: string; planWeek?: boolean } | null;
+    if (state?.date) { setStart(rangeStart(state.date, today)); setScrollToDate(state.date); setSelectedDate(state.date); }
+    if (state?.planWeek) { setStart(today); setShowWeekPlanner(true); }
   }, [location.key]);
 
   // Also re-runs each time the page is shown again (App keeps it in an Activity), so meals
@@ -210,6 +213,23 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     const sharing = isQuickMeal(recipe) && recipe.familyMeal !== undefined ? { familyMeal: recipe.familyMeal } : {};
     updateDay(date, plan => ({ ...plan, meals: [...plan.meals, newMeal(recipe, slot, sharing)] }));
     showToast(`Added ${recipe.name} to ${longDay(date)}`);
+  };
+
+  /** Adds the week planner's meals, and saves the days it made fast or nourish days */
+  const addWeekPlan = async (proposals: Proposal[], fastDays: Record<string, boolean>) => {
+    const changes: Record<string, (plan: DayPlan) => DayPlan> = {};
+    new Set([...proposals.map(p => p.date), ...Object.keys(fastDays)]).forEach(date => {
+      const added = proposals.filter(p => p.date === date).map(p => (p.leftover
+        ? newMeal(p.recipe, p.slot, { isLeftover: true, familyMeal: false, sides: p.sides })
+        : newMeal(p.recipe, p.slot)));
+      changes[date] = plan => ({
+        ...plan,
+        ...(date in fastDays && { type: fastDays[date] ? 'fast' : 'non-fast' }),
+        meals: [...plan.meals, ...added],
+      });
+    });
+    await updateDays(changes);
+    if (proposals.length) showToast(`Added ${proposals.length} meal${proposals.length === 1 ? '' : 's'} to the week`);
   };
 
   const moveMeal = (from: MealTarget, toDate: string, toSlot: MealSlot, copy: boolean) => {
@@ -514,7 +534,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           )}
           <div className="hidden md:flex flex-1 justify-end gap-2">
             <button onClick={copyLastWeek} className="btn-secondary btn-sm"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
-            <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
+            <button onClick={() => setShowWeekPlanner(true)} disabled={upcoming.length === 0} className="btn-secondary btn-sm"><CalendarPlus size={16} aria-hidden="true" /> Plan the week</button>
           </div>
         </div>
 
@@ -640,7 +660,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       {/* Phones: the week's actions under the day, so the day strip stays near the top */}
     <div className="flex gap-2 md:hidden">
       <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
-      <button onClick={() => setShowBatchPlanner(true)} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><Sparkles size={16} aria-hidden="true" /> Fill with AI</button>
+      <button onClick={() => setShowWeekPlanner(true)} disabled={upcoming.length === 0} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CalendarPlus size={16} aria-hidden="true" /> Plan the week</button>
     </div>
 
       <p className="hidden lg:block text-xs text-muted">Drag a meal to move it. Hold Alt (Option) while dropping to copy it instead.</p>
@@ -710,15 +730,16 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       {viewRecipe && <RecipeDetailModal recipe={viewRecipe} onClose={() => setViewRecipe(null)} />}
       {cookRecipe && <CookingMode recipe={cookRecipe} onClose={() => setCookRecipe(null)} />}
 
-      <BatchPlannerModal
-        mode="manual"
-        isOpen={showBatchPlanner}
-        onClose={() => {
-          setShowBatchPlanner(false);
-          loadWeek(start);
-          onPlanChanged?.();
-        }}
-      />
+      {showWeekPlanner && upcoming.length > 0 && (
+        <WeekPlannerSheet
+          dates={upcoming}
+          plans={plans}
+          recipes={recipes}
+          stats={stats}
+          onSave={addWeekPlan}
+          onClose={() => setShowWeekPlanner(false)}
+        />
+      )}
 
       {toast && (
         <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(var(--tab-bar-bottom)+94px)] nav:bottom-8 z-[60] badge-ink !rounded-full !px-4 !py-2.5 text-sm font-semibold shadow-[var(--elev-md)] toast-in max-w-[calc(100vw-32px)] text-center">
