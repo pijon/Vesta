@@ -390,7 +390,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
               {addedBy && <span className="truncate">{addedBy}</span>}
               {meal.isLeftover && <Repeat size={12} aria-hidden="true" />}
               {meal.isPacked && <Package size={12} aria-hidden="true" />}
-              {(meal.cookingServings || 1) > 1 && !meal.isLeftover && <span>· ×{meal.cookingServings}</span>}
+              {(meal.cookingServings || 1) > 1 && !meal.isLeftover && <span className="whitespace-nowrap">· for {meal.cookingServings}</span>}
             </span>
           </span>
           {eaten && <Check size={16} className="shrink-0 text-secondary" aria-hidden="true" />}
@@ -502,7 +502,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
               className={`min-h-16 rounded-[18px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${selected ? 'bg-ink text-on-ink' : 'hover:bg-surface-sunken'}`}
             >
               <span className={`text-xs font-semibold ${selected ? '' : 'text-muted'}`}>{shortDay(date)}</span>
-              <span className={`font-display font-extrabold text-lg leading-6 ${!selected && date === today ? 'text-primary' : ''}`}>{parseLocalDate(date).getDate()}</span>
+              <span className={`font-display font-extrabold text-lg leading-6 ${!selected && date === today ? 'text-primary' : !selected && date < today ? 'text-muted' : ''}`}>{parseLocalDate(date).getDate()}</span>
               <span
                 className={`size-1.5 rounded-full ${planned ? (selected ? 'bg-on-ink' : 'bg-primary') : `border ${selected ? 'border-on-ink' : 'border-border-control'}`}`}
                 aria-hidden="true"
@@ -511,6 +511,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           );
         })}
       </div>
+      <p className="md:hidden flex justify-center gap-4 -mt-3 text-xs text-muted" aria-hidden="true">
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary" /> Meals planned</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full border border-border-control" /> Nothing yet</span>
+      </p>
 
       {/* Days */}
       {isLoading ? (
@@ -527,13 +531,14 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             const target = dayTarget(plan, stats);
             const fast = isFastDay(plan);
             const isToday = date === today;
+            // Days gone by are outlined rather than filled, so the days still to plan stand out
             const isPast = date < today;
             return (
               <article
                 key={date}
                 id={`day-${date}`}
                 aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
-                className={`card min-w-0 scroll-mt-24 px-4 pb-2 @min-[66rem]/week:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${date !== selectedDate ? 'max-md:hidden' : ''}`}
+                className={`card min-w-0 scroll-mt-24 px-4 pb-2 @min-[66rem]/week:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${isPast ? '!bg-transparent border border-border' : ''} ${date !== selectedDate ? 'max-md:hidden' : ''}`}
               >
                 <header className="pt-3.5 pb-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -549,7 +554,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                       className={`shrink-0 inline-flex items-center justify-center gap-1 min-h-8 min-w-8 px-2.5 @min-[66rem]/week:px-0 rounded-full text-xs font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${fast ? 'bg-fasting-bg text-fasting-text border-transparent' : 'border-border text-muted hover:bg-surface-sunken hover:text-main'}`}
                     >
                       <Flame size={14} aria-hidden="true" />
-                      <span className="@min-[66rem]/week:sr-only">Fast day</span>
+                      {/* Off, it says what tapping does; on, what the day is */}
+                      <span className="@min-[66rem]/week:sr-only">{fast ? 'Fast day' : 'Make fast day'}</span>
                     </button>
                   </div>
                   <div>
