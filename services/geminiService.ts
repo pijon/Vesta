@@ -1,4 +1,4 @@
-import { Type, Schema, GenerateContentParameters } from "@google/genai";
+import type { Type as SchemaType, Schema, GenerateContentParameters } from "@google/genai";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
 import {
@@ -45,6 +45,15 @@ const SIDE_DISH_PROMPT = `
   
   Return JSON array of 3 Recipe objects.
 `;
+
+// The schema type names, as plain strings: importing the SDK's Type enum at runtime put all of
+// @google/genai into the startup bundle, though the request goes through the Cloud Function.
+const Type = {
+  OBJECT: 'OBJECT' as SchemaType.OBJECT,
+  ARRAY: 'ARRAY' as SchemaType.ARRAY,
+  STRING: 'STRING' as SchemaType.STRING,
+  NUMBER: 'NUMBER' as SchemaType.NUMBER,
+};
 
 interface AiRequest {
   model: string;

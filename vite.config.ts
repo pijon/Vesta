@@ -95,9 +95,7 @@ export default defineConfig(({ command, mode }) => {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
             'ui-framer': ['framer-motion'],
-            'ui-recharts': ['recharts'],
-            'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage', 'firebase/analytics'],
-            'genai': ['@google/genai']
+            'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage', 'firebase/analytics']
           }
         }
       }
