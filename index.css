@@ -217,6 +217,8 @@
   --animate-slide-in-right: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   /* Page switch: replays each time a page is shown (it's display: none while hidden) */
   --animate-page-in: pageIn 0.32s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+  /* Showing a page: opacity only. Sliding the whole page left a ghost of the hero above it in iOS Safari */
+  --animate-page-fade: fadeIn 0.24s ease-out both;
 
   @keyframes pageIn {
     from {

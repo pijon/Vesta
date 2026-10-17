@@ -707,7 +707,7 @@ const TrackerApp: React.FC = () => {
         (target === AppView.PLANNER || target === AppView.SHOPPING ? 'max-w-[100rem]' : 'max-w-6xl');
     const renderView = (target: AppView, content: React.ReactNode) => (
         <Activity key={target} mode={view === target ? 'visible' : 'hidden'}>
-            <div className={`${pageWidth(target)} mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0 motion-safe:animate-page-in`}>
+            <div className={`${pageWidth(target)} mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0 motion-safe:animate-page-fade`}>
                 <React.Suspense fallback={<ViewSkeleton />}>{content}</React.Suspense>
             </div>
         </Activity>
