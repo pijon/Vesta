@@ -38,6 +38,12 @@ const format = (value: number, metric: boolean, comma: boolean) => {
   return comma ? decimal.replace('.', ',') : decimal;
 };
 
+/** An amount in a unit for display ("0.6666 cup" → "⅔ cup", "333.33 g" → "335 g") */
+export const formatAmount = (value: number, unit: string): string => {
+  const amount = format(value, METRIC.test(unit), false);
+  return unit && unit !== 'item' ? `${amount} ${unit}` : amount;
+};
+
 export const scaleIngredient = (line: string, factor: number): string => {
   if (factor === 1) return line;
   const match = line.match(AMOUNT);

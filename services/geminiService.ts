@@ -499,6 +499,7 @@ export const parseIngredients = async (ingredientTexts: string[]): Promise<Array
     // Batch in chunks of 150 (Flash model has large context) to reduce round-trips
     const chunkSize = 150;
     const chunkPromises = [];
+    let failedChunks = 0;
 
     for (let i = 0; i < missingTexts.length; i += chunkSize) {
       const chunk = missingTexts.slice(i, i + chunkSize);
@@ -568,10 +569,14 @@ EXAMPLES:
               });
             } else {
               console.warn("Chunk mismatch in parsing");
+              failedChunks++;
             }
+          } else {
+            failedChunks++;
           }
         } catch (error) {
           console.error("Error parsing ingredient chunk:", error);
+          failedChunks++;
         }
       })());
     }
@@ -585,19 +590,15 @@ EXAMPLES:
     } catch (e) {
       console.error("Failed to save ingredient cache", e);
     }
+    // A guessed parse ("2 tbsp olive oil" as one item) makes a wrong list; what did parse is
+    // cached, so trying again only asks for the rest
+    if (failedChunks > 0) throw new Error("We couldn't read some of the ingredients. Try again.");
   } else {
     console.log(`[AI Parsing] All ${ingredientTexts.length} ingredients found in cache. Instant return.`);
   }
 
   // 4. Construct Result
-  const results = ingredientTexts.map(text => {
-    const cached = cache[text];
-    if (cached) return cached;
-    // Fallback
-    return { name: text.toLowerCase().trim(), quantity: 1, unit: 'item' };
-  });
-
-  return results;
+  return ingredientTexts.map(text => cache[text]);
 };
 
 const purchasableItemSchema: Schema = {
