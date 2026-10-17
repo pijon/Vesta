@@ -789,6 +789,52 @@
     .moment-pop { animation: none; }
   }
 
+  /* The Vesta mark's flame lights from the bowl when it appears, then flickers gently with a
+     rest between flickers. Origin is the flame's base, so it sways from the bowl's rim. */
+  .vesta-flame {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation:
+      flameIgnite 0.8s cubic-bezier(0.22, 0.8, 0.3, 1) 0.1s backwards,
+      flameFlicker 4.8s ease-in-out 0.9s infinite;
+  }
+  @keyframes flameIgnite {
+    0% { transform: scale(0.3, 0); opacity: 0; }
+    55% { transform: scale(1.04, 1.12); opacity: 1; }
+    100% { transform: none; }
+  }
+  @keyframes flameFlicker {
+    0%, 50%, 100% { transform: none; }
+    10% { transform: scale(0.97, 1.05) skewX(-2.5deg); }
+    20% { transform: scale(1.02, 0.97) skewX(1.5deg); }
+    30% { transform: scale(0.98, 1.04) skewX(-1deg); }
+    40% { transform: scale(1.01, 0.99) skewX(0.5deg); }
+    70% { transform: scale(0.99, 1.02) skewX(1deg); }
+    85% { transform: scale(1.01, 0.99) skewX(-0.5deg); }
+  }
+  /* When a goal is hit anywhere (useMoment), the flame leaps up once and the tile gives a small pop */
+  .vesta-flare {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+  .is-flaring { animation: markPop 0.9s cubic-bezier(0.22, 0.8, 0.3, 1); }
+  .is-flaring .vesta-flare { animation: flameFlare 0.9s cubic-bezier(0.22, 0.8, 0.3, 1); }
+  @keyframes flameFlare {
+    0% { transform: none; }
+    28% { transform: scale(1.14, 1.24); }
+    50% { transform: scale(0.95, 0.9); }
+    70% { transform: scale(1.04, 1.08); }
+    100% { transform: none; }
+  }
+  @keyframes markPop {
+    0%, 100% { transform: none; }
+    28% { transform: scale(1.08) rotate(-3deg); }
+    55% { transform: scale(0.98) rotate(1deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vesta-flame, .is-flaring, .is-flaring .vesta-flare { animation: none; }
+  }
+
   /* Formerly frosted glass; now a solid card surface */
   .glass-card {
     background: var(--surface);
