@@ -38,7 +38,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me, f
 
   return (
     <nav aria-label="Main" className="side-nav">
-      <div className="flex items-center justify-center lg:justify-start gap-3 lg:px-3 mb-6">
+      {/* Same inset as the items, so the mark sits on the icon column and the wordmark on the labels */}
+      <div className="flex items-center justify-center lg:justify-start gap-3 lg:pl-1.5 mb-6">
         <VestaMark />
         <span className="hidden lg:block font-display font-extrabold text-xl lowercase tracking-[-0.03em]">Vesta</span>
       </div>
