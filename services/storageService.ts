@@ -2,6 +2,7 @@ import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, Fo
 import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, toStoredRecipe } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
+import { forgetFamilyUpdate, recordFamilyUpdate } from "./activityService";
 import { currentUid, db } from "./firebase";
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, deleteField, arrayUnion, arrayRemove, query, where, orderBy, limit, onSnapshot, DocumentData, QuerySnapshot } from "firebase/firestore";
 
@@ -77,6 +78,7 @@ export const setRecipeFavorite = async (id: string, favorite: boolean) => {
 
 export const deleteRecipe = async (id: string) => {
   await deleteDoc(await familyRecipeRef(id));
+  void forgetFamilyUpdate('recipe', id);
 };
 
 // --- Base64 Image Migration (Database Normalization) ---
@@ -468,6 +470,18 @@ const saveFamilyMeals = async (date: string, meals: Recipe[]) => {
   if (Object.keys(changes).length === 0) return;
   await setDoc(familyMealsRef(groupId, date), { date, meals: changes }, { merge: true });
   loadedFamilyMeals.set(key, after);
+
+  // Tell the family about meals the user planned (new here: also moved, swapped in or shared),
+  // and stop telling them about ones removed from this day
+  const me = currentUid();
+  meals.forEach(meal => {
+    if (meal.instanceId && !before.has(meal.instanceId) && meal.addedBy === me) {
+      void recordFamilyUpdate({ type: 'planned', name: meal.name, date, slot: meal.slot || 'dinner' }, meal.instanceId);
+    }
+  });
+  before.forEach((_, instanceId) => {
+    if (changes[instanceId] && !after.has(instanceId)) void forgetFamilyUpdate('planned', instanceId, date);
+  });
 };
 
 /**
@@ -488,6 +502,9 @@ export const saveFamilyMealOut = async (plan: DayPlan, instanceId: string, out: 
     // The rest of the plan (its calories and eaten marks) as usual
     saveDayPlan(plan),
   ]);
+  const meal = [...plan.meals, ...(plan.familyMealsOut || [])].find(m => m.instanceId === instanceId);
+  if (!out) void forgetFamilyUpdate('notEating', instanceId);
+  else if (meal) void recordFamilyUpdate({ type: 'notEating', name: meal.name, date: plan.date, slot: meal.slot || 'dinner' }, instanceId);
 };
 
 /** Gives meals without an instanceId one, so they can be ticked off and moved individually. */

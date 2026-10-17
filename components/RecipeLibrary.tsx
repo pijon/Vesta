@@ -5,6 +5,7 @@ import { getCachedRecipes } from '../utils/cacheService';
 import { addDays } from '../utils/planUtils';
 import { Recipe } from '../types';
 import { getRecipes, saveRecipe, deleteRecipe, setRecipeFavorite } from '../services/storageService';
+import { recordFamilyUpdate } from '../services/activityService';
 import { currentUid } from '../services/firebase';
 import { isAddedBy, withAuthorNames } from '../utils/recipeAuthors';
 import { familyData, recipeHistoryData } from '../services/pageData';
@@ -289,8 +290,14 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     setNewRecipeId(crypto.randomUUID()); // Generate new ID for next recipe
   };
 
+  /** Saves a recipe the user just added, and tells the family */
+  const saveNewRecipe = async (recipe: Recipe) => {
+    await saveRecipe(recipe);
+    void recordFamilyUpdate({ type: 'recipe', name: recipe.name, recipeId: recipe.id }, recipe.id);
+  };
+
   const finishImport = async (newRecipe: Recipe) => {
-    await saveRecipe(newRecipe);
+    await saveNewRecipe(newRecipe);
     await loadData();
     resetImport();
     // Open the newly created recipe
@@ -298,7 +305,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   };
 
   const handleSaveGeneratedRecipe = async (recipe: Recipe) => {
-    await saveRecipe(recipe);
+    await saveNewRecipe(recipe);
     await loadData();
 
     // Open the newly saved recipe

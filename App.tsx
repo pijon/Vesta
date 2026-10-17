@@ -28,6 +28,7 @@ import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { FamilyNotice } from './components/FamilyNotice';
+import { subscribeFamilyUpdates } from './services/activityService';
 import { Sidebar } from './components/Sidebar';
 import { PlannerTabs } from './components/PlannerTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
@@ -265,6 +266,10 @@ const TrackerApp: React.FC = () => {
         if (dinners[tomorrowDate]) setTomorrowPlan(apply(tomorrowDate));
         if (added.length) setFamilyNotice(added);
     }), [todayDate, tomorrowDate]);
+
+    // Family updates from others not seen yet: a dot on the Family tab
+    const [familyUnseen, setFamilyUnseen] = useState(0);
+    useEffect(() => subscribeFamilyUpdates((_, unseen) => setFamilyUnseen(unseen)), []);
 
     // Coming back to Today reloads it: plans also change from Recipes ("Add to plan") and other family members
     const lastView = useRef(view);
@@ -722,7 +727,7 @@ const TrackerApp: React.FC = () => {
 
 
             {/* Sidebar and header: who's signed in, as their family sees them */}
-            <Sidebar currentView={view} onNavigate={handleNavigate} me={me} />
+            <Sidebar currentView={view} onNavigate={handleNavigate} me={me} familyUnseen={familyUnseen} />
 
             {/* Main Content Wrapper */}
             <div className="w-full nav:pl-[calc(var(--nav-inset-left)+68px)] nav:lg:pl-[calc(var(--nav-inset-left)+228px)] nav:pr-[env(safe-area-inset-right)]">
@@ -771,6 +776,7 @@ const TrackerApp: React.FC = () => {
                 <MobileBottomNav
                     currentView={view}
                     onNavigate={handleNavigate}
+                    familyUnseen={familyUnseen}
                 />
 
                 {/* Global Modals */}

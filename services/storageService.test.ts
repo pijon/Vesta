@@ -11,6 +11,7 @@ const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId } = await import('./groupService');
 const { getDayPlan, saveDayPlan, saveFamilyMealOut, subscribeFamilyMeals } = await import('./storageService');
 const { getCachedDayPlan } = await import('../utils/cacheService');
+const { groupFamilyUpdates, recordFamilyUpdate } = await import('./activityService');
 
 const chili: Recipe = {
   id: 'r1', name: 'Chili', calories: 520, protein: 35, servings: 4,
@@ -370,5 +371,63 @@ describe('live family meals', () => {
     await new Promise(r => setTimeout(r, 20));
     expect(updates).toEqual([]);
     stop();
+  });
+});
+
+describe('family updates', () => {
+  beforeEach(() => { setFamily(['me', 'partner']); });
+  const updates = () => [...store.docs.entries()]
+    .filter(([path]) => path.startsWith('groups/g/activity/'))
+    .map(([, data]) => data as { id: string; type: string; name?: string; date?: string; by: string });
+
+  it('tells the family about a family meal the user plans, and forgets it when removed', async () => {
+    const dinner = planMeal(chili, 'dinner', { familyMeal: true, addedBy: 'me' });
+    await saveDayPlan(plan('2026-10-20', [dinner]));
+    await vi.waitFor(() => expect(updates()).toMatchObject([{ type: 'planned', name: 'Chili', date: '2026-10-20', by: 'me' }]));
+
+    const loaded = await getDayPlan('2026-10-20');
+    await saveDayPlan({ ...loaded, meals: [] });
+    await vi.waitFor(() => expect(updates()).toEqual([]));
+  });
+
+  it("keeps the update when a meal moves to another day, and doesn't announce others' meals or own ones", async () => {
+    const dinner = planMeal(chili, 'dinner', { familyMeal: true, addedBy: 'me' });
+    await saveDayPlan(plan('2026-10-21', [dinner, planMeal(chili, 'dinner', { familyMeal: true, addedBy: 'partner' }), planMeal(chili, 'lunch')]));
+    await vi.waitFor(() => expect(updates()).toHaveLength(1));
+
+    const loaded = await getDayPlan('2026-10-21');
+    await saveDayPlan({ ...loaded, meals: loaded.meals.filter(m => m.instanceId !== dinner.instanceId) });
+    await saveDayPlan(plan('2026-10-22', [dinner]));
+    await new Promise(r => setTimeout(r, 20));
+    expect(updates()).toMatchObject([{ type: 'planned', date: '2026-10-22' }]);
+  });
+
+  it('says when the user is out of a family meal, and takes it back when they are in again', async () => {
+    const dinner = planMeal(chili, 'dinner', { familyMeal: true, addedBy: 'partner' });
+    await saveDayPlan(plan('2026-10-23', [dinner]));
+    const loaded = await getDayPlan('2026-10-23');
+    const out = setFamilyMealOut(loaded, dinner.instanceId!, 'me', true);
+    await saveFamilyMealOut(out, dinner.instanceId!, true);
+    await vi.waitFor(() => expect(updates()).toMatchObject([{ type: 'notEating', name: 'Chili', by: 'me' }]));
+
+    await saveFamilyMealOut(setFamilyMealOut(out, dinner.instanceId!, 'me', false), dinner.instanceId!, false);
+    await vi.waitFor(() => expect(updates()).toEqual([]));
+  });
+
+  it('keeps nothing for a family of one', async () => {
+    setFamily(['me']);
+    forgetMyGroupId();
+    await recordFamilyUpdate({ type: 'recipe', name: 'Chili', recipeId: 'r1' }, 'r1');
+    expect(updates()).toEqual([]);
+  });
+
+  it("groups a member's updates of one kind close together, newest first", () => {
+    const u = (id: string, by: string, type: 'recipe' | 'planned', minutesAgo: number) =>
+      ({ id, by, at: 1_000_000_000 - minutesAgo * 60_000, type, name: id, recipeId: id, date: '2026-10-20', slot: 'dinner' as const });
+    const groups = groupFamilyUpdates([
+      u('a', 'partner', 'planned', 0), u('b', 'partner', 'planned', 30), u('c', 'partner', 'planned', 80),
+      u('d', 'partner', 'recipe', 90), u('e', 'me', 'recipe', 95), u('f', 'partner', 'planned', 300),
+    ]);
+    expect(groups.map(g => g.updates.map(x => x.id))).toEqual([['a', 'b', 'c'], ['d'], ['e'], ['f']]);
   });
 });

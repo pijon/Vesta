@@ -3,7 +3,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { AppView, Avatar } from '../types';
 import { MemberAvatar } from './MemberAvatar';
 import { SelectionPill } from './SelectionPill';
-import { NAV_ITEMS, isNavCurrent } from './MobileBottomNav';
+import { NAV_ITEMS, NavIcon, isNavCurrent, navItemLabel } from './MobileBottomNav';
 import { VestaMark } from './VestaMark';
 
 interface SidebarProps {
@@ -11,24 +11,30 @@ interface SidebarProps {
   onNavigate: (view: AppView) => void;
   /** The signed-in user, at the foot of the sidebar; opens Settings (Family has its own item) */
   me?: { uid: string; name?: string; avatar?: Avatar };
+  /** Family updates from others not seen yet */
+  familyUnseen?: number;
 }
 
 /** Primary navigation from the nav breakpoint (md width, 640px tall) up: an icon rail on tablets, a labelled sidebar on desktop. Phones, and short screens such as a phone in landscape, use MobileBottomNav. */
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me }) => {
-  const item = ({ view, label, Icon }: (typeof NAV_ITEMS)[number]) => (
-    <button
-      key={view}
-      onClick={() => onNavigate(view)}
-      aria-current={isNavCurrent(view, currentView) ? 'page' : undefined}
-      className="side-item"
-    >
-      {isNavCurrent(view, currentView) && <SelectionPill group="side-nav-pill" />}
-      <span className="side-icon">
-        <Icon size={20} strokeWidth={isNavCurrent(view, currentView) ? 2.5 : 2.25} />
-      </span>
-      <span className="side-label">{label}</span>
-    </button>
-  );
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me, familyUnseen = 0 }) => {
+  const item = ({ view, label, Icon }: (typeof NAV_ITEMS)[number]) => {
+    const dot = view === AppView.FAMILY && familyUnseen > 0 && currentView !== AppView.FAMILY;
+    return (
+      <button
+        key={view}
+        onClick={() => onNavigate(view)}
+        aria-current={isNavCurrent(view, currentView) ? 'page' : undefined}
+        aria-label={navItemLabel(label, dot)}
+        className="side-item"
+      >
+        {isNavCurrent(view, currentView) && <SelectionPill group="side-nav-pill" />}
+        <span className="side-icon">
+          <NavIcon Icon={Icon} size={20} current={isNavCurrent(view, currentView)} dot={dot} />
+        </span>
+        <span className="side-label">{label}</span>
+      </button>
+    );
+  };
 
   return (
     <nav aria-label="Main" className="side-nav">

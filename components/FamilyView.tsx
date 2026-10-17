@@ -6,6 +6,8 @@ import {
 } from '../services/groupService';
 import { FamilyFaces, MemberAvatar, resolveAvatar } from './MemberAvatar';
 import { AvatarPicker } from './AvatarPicker';
+import { FamilyUpdates } from './FamilyUpdates';
+import { recordFamilyUpdate } from '../services/activityService';
 import { currentUid } from '../services/firebase';
 import { familyData } from '../services/pageData';
 import { ensureWarm } from '../utils/prewarm';
@@ -27,7 +29,7 @@ const dangerButton = 'btn-sm inline-flex items-center gap-1.5 min-h-9 px-4 round
 /**
  * The Family page: who's in the family and how to change that. The admin can remove members;
  * anyone can invite with the code, rename the family or leave. Each member picks their own avatar,
- * and the family is shown as its members' faces. Shared dinners are in the planner.
+ * and the family is shown as its members' faces, with what they've been up to. Family meals are in the planner.
  */
 export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }) => {
     const [group, setGroup] = useState<Group | null>(null);
@@ -115,6 +117,7 @@ export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }
         if (!inviteCodeInput.trim()) return;
         run(async () => {
             await joinGroup(inviteCodeInput);
+            void recordFamilyUpdate({ type: 'joined' });
             setInviteCodeInput('');
             await loadGroup();
         }, "That code didn't work. Check it and try again.");
@@ -271,7 +274,7 @@ export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }
                                 {confirming && (
                                     <div role="alertdialog" aria-label={`Remove ${member.name}?`} className="mt-2 rounded-[14px] bg-error-bg p-4 space-y-3">
                                         <p className="text-sm">
-                                            <span className="font-semibold">Remove {member.name}?</span> Recipes and dinners stay with {group.name}. Next time they open Vesta they'll start a family of their own, with copies of the recipes they added or have planned.
+                                            <span className="font-semibold">Remove {member.name}?</span> Recipes and family meals stay with {group.name}. Next time they open Vesta they'll start a family of their own, with copies of the recipes they added or have planned.
                                         </p>
                                         <div className="flex flex-wrap gap-2">
                                             <button onClick={() => handleRemove(member)} disabled={busy} className={dangerButton}>
@@ -291,7 +294,7 @@ export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }
                         {confirmLeave ? (
                             <div role="alertdialog" aria-label="Leave family?" className="rounded-[14px] bg-error-bg p-4 space-y-3">
                                 <p className="text-sm">
-                                    <span className="font-semibold">Leave {group.name}?</span> The family keeps all its recipes and shared dinners. You'll start a family of your own with copies of the recipes you added.
+                                    <span className="font-semibold">Leave {group.name}?</span> The family keeps all its recipes and family meals. You'll start a family of your own with copies of the recipes you added.
                                     {isAdmin && ' Someone else in the family becomes its admin.'}
                                 </p>
                                 <div className="flex flex-wrap gap-2">
@@ -310,11 +313,13 @@ export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }
                 )}
             </section>
 
+            {!isSolo && <FamilyUpdates me={me} members={faces} />}
+
             {/* Adding someone: the code to share */}
             <section className="card p-5 md:p-6" aria-labelledby="invite-heading">
                 <h2 id="invite-heading" className="heading-3">Invite someone</h2>
                 <p className="text-sm text-muted mt-0.5">
-                    They enter this code on their Family page. Everyone shares the family's recipes and dinners.
+                    They enter this code on their Family page. Everyone shares the family's recipes and family meals.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                     <button

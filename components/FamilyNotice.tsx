@@ -2,19 +2,13 @@ import React, { useEffect } from 'react';
 import { FamilyMealChange } from '../services/storageService';
 import { familyData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
-import { addDays, slotLabel } from '../utils/planUtils';
-import { localDateString, parseLocalDate } from '../utils/dateUtils';
+import { mealWhen } from '../utils/planUtils';
+import { localDateString } from '../utils/dateUtils';
 import { MemberAvatar } from './MemberAvatar';
 
-/** "tonight", "tomorrow", "on Friday" (this week) or "on 3 Nov" */
-const whenLabel = (date: string, today: string) => {
-  if (date === today) return 'tonight';
-  if (date === addDays(today, 1)) return 'tomorrow';
-  const d = parseLocalDate(date);
-  return date <= addDays(today, 6)
-    ? `on ${d.toLocaleDateString(undefined, { weekday: 'long' })}`
-    : `on ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
-};
+/** "today", "tomorrow", "on Friday" (this week) or "on 3 Nov" */
+const dayLabel = (date: string, today: string) =>
+  date === today ? 'today' : mealWhen('dinner', date, today).replace(/^dinner /, '');
 
 /**
  * Points out family meals another member just planned, with their avatar: "Anna planned Tacos
@@ -38,9 +32,9 @@ export const FamilyNotice: React.FC<{
   const today = localDateString();
   const dates = Array.from(new Set<string>(changes.map(c => c.date))).sort();
   const message = changes.length === 1
-    ? `${name} planned ${first.name} for ${slotLabel(first.slot).toLowerCase()} ${whenLabel(first.date, today)}`
+    ? `${name} planned ${first.name} for ${mealWhen(first.slot, first.date, today)}`
     : dates.length === 1
-      ? `${name} planned ${changes.length} family meals ${whenLabel(dates[0], today)}`
+      ? `${name} planned ${changes.length} family meals ${dayLabel(dates[0], today)}`
       : `${name} planned ${changes.length} family meals`;
 
   return (

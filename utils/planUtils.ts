@@ -285,3 +285,14 @@ export const setFamilyMealOut = (plan: DayPlan, instanceId: string, uid: string,
     completedMealIds: out ? plan.completedMealIds.filter(id => id !== instanceId) : plan.completedMealIds,
   };
 };
+
+/** A planned meal's slot and day in words: "dinner tonight", "lunch tomorrow", "dinner on Friday" (this week), "lunch on 3 Nov" */
+export const mealWhen = (slot: MealSlot, date: string, today = localDateString()) => {
+  const meal = slotLabel(slot).toLowerCase();
+  if (date === today) return slot === 'dinner' ? 'dinner tonight' : `${meal} today`;
+  if (date === addDays(today, 1)) return `${meal} tomorrow`;
+  const d = parseLocalDate(date);
+  return date > today && date <= addDays(today, 6)
+    ? `${meal} on ${d.toLocaleDateString(undefined, { weekday: 'long' })}`
+    : `${meal} on ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+};
