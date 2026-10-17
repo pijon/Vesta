@@ -232,7 +232,25 @@ export const addDays = (date: string, days: number) => {
   return localDateString(d);
 };
 
-export const weekDates = (monday: string) => Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+/** Seven days from `start` (a Monday for a calendar week, or any day for the planner's rolling week) */
+export const weekDates = (start: string) => Array.from({ length: 7 }, (_, i) => addDays(start, i));
+
+/**
+ * The first day of the planner's seven-day page that holds `date`: pages run from today in steps
+ * of seven, so the page with today starts on today.
+ */
+export const rangeStart = (date: string, today: string) => {
+  const days = Math.round((parseLocalDate(date).getTime() - parseLocalDate(today).getTime()) / 86_400_000);
+  return addDays(today, Math.floor(days / 7) * 7);
+};
+
+/** ISO 8601 week number: weeks start on Monday, and week 1 holds the year's first Thursday */
+export const isoWeek = (date: string) => {
+  const d = parseLocalDate(date);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7)); // that week's Thursday
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d.getTime() - jan4.getTime()) / 86_400_000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+};
 
 /** A fresh planned copy of a recipe for a slot. */
 export const planMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}): Recipe => ({

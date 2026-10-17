@@ -3,7 +3,7 @@ import { Recipe } from '../types';
 import {
   addDays, grams, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, isRememberableDish, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
   mealKey, mealProtein, planMeal, planRecipe, plannableSlotFor, proteinTarget, QUICK_MEAL_DESCRIPTION, slotFor,
-  weekDates, weekStart,
+  weekDates, weekStart, rangeStart, isoWeek,
 } from './planUtils';
 
 const recipe = (fields: Partial<Recipe> = {}): Recipe => ({
@@ -259,5 +259,34 @@ describe('grams', () => {
     expect(grams(3.5)).toBe('3.5');
     expect(grams(9.96)).toBe('10');
     expect(grams(4)).toBe('4');
+  });
+});
+
+describe('rangeStart', () => {
+  const today = '2026-10-17'; // a Saturday
+  it('starts the page that holds today on today', () => {
+    expect(rangeStart('2026-10-17', today)).toBe('2026-10-17');
+    expect(rangeStart('2026-10-23', today)).toBe('2026-10-17');
+  });
+  it('steps seven days at a time either way', () => {
+    expect(rangeStart('2026-10-24', today)).toBe('2026-10-24');
+    expect(rangeStart('2026-11-02', today)).toBe('2026-10-31');
+    expect(rangeStart('2026-10-16', today)).toBe('2026-10-10');
+    expect(rangeStart('2026-10-10', today)).toBe('2026-10-10');
+  });
+  it('is not thrown by a daylight saving change', () => {
+    // Clocks go back on Oct 25 in Europe and Nov 1 in the US
+    expect(rangeStart('2026-11-07', today)).toBe('2026-11-07');
+  });
+});
+
+describe('isoWeek', () => {
+  it('numbers weeks from the one holding the first Thursday', () => {
+    expect(isoWeek('2026-10-19')).toBe(43);
+    expect(isoWeek('2026-10-18')).toBe(42); // Sunday ends week 42
+    expect(isoWeek('2026-01-01')).toBe(1); // a Thursday
+    expect(isoWeek('2025-12-29')).toBe(1); // the Monday of that week
+    expect(isoWeek('2027-01-01')).toBe(53); // a Friday: still 2026's last week
+    expect(isoWeek('2027-01-04')).toBe(1);
   });
 });
