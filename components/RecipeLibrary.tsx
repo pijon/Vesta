@@ -94,7 +94,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [sortOption, setSortOption] = useState<string>('name');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   // The Family page links here with ?filter=family
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const filterParam = searchParams.get('filter');
   useEffect(() => {
     if (filterParam === 'family') setActiveFilter('family');
@@ -154,6 +154,22 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       setIsEditing(true);
     }
   };
+
+  // The shopping list links here with ?edit=<recipe id> to add a recipe's missing ingredients
+  const editParam = searchParams.get('edit');
+  useEffect(() => {
+    if (!editParam) return;
+    const recipe = recipes.find(r => r.id === editParam);
+    if (!recipe) {
+      if (!isLoading) setSearchParams(prev => { prev.delete('edit'); return prev; }, { replace: true });
+      return;
+    }
+    setSelectedRecipe(recipe);
+    setEditForm({ ...recipe });
+    setUploadedImage(recipe.image || null);
+    setIsEditing(true);
+    setSearchParams(prev => { prev.delete('edit'); return prev; }, { replace: true });
+  }, [editParam, recipes, isLoading]);
 
   const cancelEditing = () => {
     setIsEditing(false);

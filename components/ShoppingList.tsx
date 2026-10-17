@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { shoppingData } from '../services/pageData';
 import { ensureWarm, peekWarm } from '../utils/prewarm';
 import { Reorder } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import {
   getPantryInventory,
   addToPantry,
@@ -27,6 +28,8 @@ interface PlanMeal {
   cookingServings?: number;
 
   isLeftover?: boolean;
+  /** A quick meal: no library recipe to add ingredients to */
+  isQuick?: boolean;
   isShared?: boolean;
   ownerName?: string;
 }
@@ -225,6 +228,7 @@ export const ShoppingList: React.FC = () => {
             cookingServings: meal.cookingServings,
 
             isLeftover: meal.isLeftover,
+            isQuick: !!meal.quick,
             isShared: meal.isShared,
             ownerName: meal.ownerName
           });
@@ -701,11 +705,22 @@ export const ShoppingList: React.FC = () => {
                                 <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted mt-0.5">
                                   {meal.isLeftover
                                     ? 'Leftover · nothing to buy'
-                                    : meal.ingredients.length > 0 ? `${meal.ingredients.length} ingredients` : 'No ingredients listed'}
+                                    : meal.ingredients.length > 0 ? `${meal.ingredients.length} ingredients`
+                                    : meal.isQuick ? 'Quick meal · nothing to buy' : 'No ingredients listed'}
                                   {meal.isShared && <span className="badge badge-workout !py-0">From {meal.ownerName?.split(' ')[0] || 'family'}</span>}
                                 </span>
                               </span>
                             </button>
+                            {!meal.isLeftover && !meal.isQuick && meal.ingredients.length === 0 && (
+                              // Beside the toggle, not inside it: lines up under the meal name
+                              <Link
+                                to={`/recipes?edit=${encodeURIComponent(meal.id)}`}
+                                aria-label={`Add ingredients to ${meal.name}`}
+                                className="inline-flex items-center min-h-9 ml-16 -mt-1 text-xs font-semibold text-primary underline underline-offset-2"
+                              >
+                                Add ingredients
+                              </Link>
+                            )}
                           </li>
                         );
                       })}
@@ -715,10 +730,16 @@ export const ShoppingList: React.FC = () => {
               })}
             </div>
 
+            {selectedMealIds.size > 0 && selectedIngredientCount === 0 && (
+              <p className="text-sm text-muted text-center">
+                Nothing to buy for the meals you chose. Add ingredients to their recipes, or choose other meals.
+              </p>
+            )}
+
             {stickyAction(
               <button
                 onClick={handleAnalyzeIngredients}
-                disabled={isProcessing || selectedMealIds.size === 0}
+                disabled={isProcessing || selectedIngredientCount === 0}
                 className="btn-primary btn-lg shadow-[var(--elev-md)]"
               >
                 {isProcessing ? <span className="spinner spinner-sm" aria-hidden="true" /> : <ListChecks size={20} aria-hidden="true" />}
