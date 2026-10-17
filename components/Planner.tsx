@@ -349,7 +349,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   // --- Render ---
 
   // Meal thumbnails: round plates
-  const thumb = 'size-11 xl:hidden rounded-full';
+  const thumb = 'size-11 @min-[66rem]/week:hidden rounded-full';
 
   const renderMeal = (date: string, plan: DayPlan, meal: Recipe, index: number) => {
     const visual = mealVisualFor(meal);
@@ -366,7 +366,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             e.dataTransfer.effectAllowed = 'move';
           }}
           onClick={() => setMealTarget({ date, index })}
-          className="w-full flex items-center gap-2.5 py-1.5 px-1.5 -mx-1.5 rounded-[12px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] xl:cursor-grab"
+          className="w-full flex items-center gap-2.5 py-1.5 px-1.5 -mx-1.5 rounded-[12px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] @min-[66rem]/week:cursor-grab"
           aria-label={`${meal.name}, ${mealKcalSpoken(meal)}${quick ? ', no recipe' : ''}${meal.familyDinner ? ', family dinner' : ''}${eaten ? ', eaten' : ''}. Open options`}
         >
           {meal.isMissing ? (
@@ -381,7 +381,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
             </span>
           )}
           <span className="flex-1 min-w-0">
-            <span className={`text-[15px] xl:text-sm font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] hyphens-auto ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
+            <span className={`text-[15px] @min-[66rem]/week:text-sm font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted mt-0.5">
               {meal.isMissing ? <span>Swap or remove</span> : <span className="whitespace-nowrap">{mealKcalLabel(meal)}</span>}
               {toBuy > 0 && <span className="inline-flex items-center gap-0.5" title={`${toBuy} to buy`}><ShoppingBasket size={12} aria-hidden="true" />{toBuy}</span>}
@@ -422,12 +422,12 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
         {entries.length === 0 ? (
           <button
             onClick={() => setAddTarget({ date, slot, mode: 'add' })}
-            className="group/add w-[calc(100%+0.75rem)] -mx-1.5 px-1.5 flex items-center justify-between gap-2 min-h-10 xl:min-h-9 rounded-[10px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className="group/add w-[calc(100%+0.75rem)] -mx-1.5 px-1.5 flex items-center justify-between gap-2 min-h-10 @min-[66rem]/week:min-h-9 rounded-[10px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             aria-label={`Add ${slot === 'snack' ? 'a snack' : label.toLowerCase()} on ${longDay(date)}`}
           >
             <span className="text-xs font-semibold text-muted">{label}</span>
             <span className="flex items-center gap-1 text-xs font-semibold text-muted group-hover/add:text-main">
-              <Plus size={14} aria-hidden="true" /><span className="xl:hidden">Add</span>
+              <Plus size={14} aria-hidden="true" /><span className="@min-[66rem]/week:hidden">Add</span>
             </span>
           </button>
         ) : (
@@ -452,8 +452,10 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
     );
   };
 
+  // The week goes to seven columns when the page has room for them (about 150px a day), not at a
+  // screen width: how wide the page is depends on the sidebar too, and narrower columns break names mid-word
   return (
-    <div className="space-y-5 pb-4">
+    <div className="space-y-5 pb-4 @container/week">
       {/* Week header */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
@@ -512,11 +514,11 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
 
       {/* Days */}
       {isLoading ? (
-        <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 md:gap-3 xl:gap-2" aria-busy="true" aria-label="Loading the week">
-          {dates.map(d => <div key={d} className="card h-48 xl:h-96 animate-pulse" />)}
+        <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-4 @min-[66rem]/week:grid-cols-7 md:gap-3 @min-[66rem]/week:gap-2" aria-busy="true" aria-label="Loading the week">
+          {dates.map(d => <div key={d} className="card h-48 @min-[66rem]/week:h-96 animate-pulse" />)}
         </div>
       ) : (
-        <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 md:gap-3 xl:gap-x-2">
+        <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-4 @min-[66rem]/week:grid-cols-7 md:gap-3 @min-[66rem]/week:gap-x-2">
           {dates.map(date => {
             const plan = plans[date] || emptyDayPlan(date);
             const kcal = dayCalories(plan);
@@ -531,7 +533,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                 key={date}
                 id={`day-${date}`}
                 aria-label={`${longDay(date)} ${parseLocalDate(date).getDate()}`}
-                className={`card min-w-0 scroll-mt-24 px-4 pb-2 xl:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${date !== selectedDate ? 'max-md:hidden' : ''}`}
+                className={`card min-w-0 scroll-mt-24 px-4 pb-2 @min-[66rem]/week:px-3 md:grid md:grid-rows-subgrid md:row-span-5 md:gap-y-0 ${date !== selectedDate ? 'max-md:hidden' : ''}`}
               >
                 <header className="pt-3.5 pb-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -544,21 +546,21 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
                       aria-pressed={fast}
                       aria-label={`Fast day on ${longDay(date)}`}
                       title={fast ? 'Fast day: tap to make it a nourish day' : 'Nourish day: tap to make it a fast day'}
-                      className={`shrink-0 inline-flex items-center justify-center gap-1 min-h-8 min-w-8 px-2.5 xl:px-0 rounded-full text-xs font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${fast ? 'bg-fasting-bg text-fasting-text border-transparent' : 'border-border text-muted hover:bg-surface-sunken hover:text-main'}`}
+                      className={`shrink-0 inline-flex items-center justify-center gap-1 min-h-8 min-w-8 px-2.5 @min-[66rem]/week:px-0 rounded-full text-xs font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${fast ? 'bg-fasting-bg text-fasting-text border-transparent' : 'border-border text-muted hover:bg-surface-sunken hover:text-main'}`}
                     >
                       <Flame size={14} aria-hidden="true" />
-                      <span className="xl:sr-only">Fast day</span>
+                      <span className="@min-[66rem]/week:sr-only">Fast day</span>
                     </button>
                   </div>
                   <div>
                     <div className="flex justify-between text-xs mb-1" title={withoutKcal ? `${withoutKcal} meal${withoutKcal > 1 ? 's' : ''} without kcal` : undefined}>
                       <span className={kcal > target ? 'text-warning font-semibold' : 'text-muted'}>
-                        {isToday && <span className="text-main font-semibold xl:sr-only">Today · </span>}
-                        {fast && <span className="text-fasting-text font-semibold xl:sr-only">Fast · </span>}
+                        {isToday && <span className="text-main font-semibold @min-[66rem]/week:sr-only">Today · </span>}
+                        {fast && <span className="text-fasting-text font-semibold @min-[66rem]/week:sr-only">Fast · </span>}
                         {approx && <><span aria-hidden="true">≈ </span><span className="sr-only">About </span></>}{kcal} / {target} kcal
-                        {withoutKcal > 0 && <span className="xl:sr-only"> · {withoutKcal} without kcal</span>}
+                        {withoutKcal > 0 && <span className="@min-[66rem]/week:sr-only"> · {withoutKcal} without kcal</span>}
                       </span>
-                      {kcal > target && <span className="text-warning font-semibold xl:hidden">{kcal - target} over</span>}
+                      {kcal > target && <span className="text-warning font-semibold @min-[66rem]/week:hidden">{kcal - target} over</span>}
                     </div>
                     <div className="h-1.5 rounded-full bg-surface-sunken overflow-hidden">
                       <div
