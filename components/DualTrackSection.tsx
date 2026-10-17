@@ -463,8 +463,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
           {logEntries.length === 0 ? (
             <div className="tile tile-neutral items-center text-center py-8 mx-2">
               <p className="font-semibold">Your day starts here</p>
-              <p className="text-sm text-muted mt-1 mb-4">Log a meal or a workout and it will show up on this timeline.</p>
-              <button onClick={onLogFood} className="btn-secondary btn-sm"><Plus size={16} aria-hidden="true" /> Log food</button>
+              <p className="text-sm text-muted mt-1">Log a meal or a workout and it will show up on this timeline.</p>
             </div>
           ) : (
             <>

@@ -51,6 +51,8 @@ export const fastingProgress = ({ elapsedHours, targetHours, lastAteTime, firstM
 export const waterPace = (liters: number, goal: number, now = new Date()) => {
   if (liters >= goal) return 'Goal reached';
   const dayShare = Math.min(Math.max((now.getHours() + now.getMinutes() / 60 - 7) / 14, 0), 1);
-  if (dayShare === 0 && liters === 0) return null;
-  return liters >= goal * dayShare - 0.25 ? 'On track' : 'Top up';
+  const onTrack = liters >= goal * dayShare - 0.25;
+  // Nothing drunk yet isn't "on track", however early: say nothing until it's behind
+  if (liters === 0 && onTrack) return null;
+  return onTrack ? 'On track' : 'Top up';
 };

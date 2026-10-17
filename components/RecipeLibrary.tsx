@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUpDown, ChefHat, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
+import { ArrowUpDown, ChefHat, Copy, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
 import { getCachedRecipes } from '../utils/cacheService';
 import { addDays } from '../utils/planUtils';
 import { Recipe } from '../types';
@@ -20,6 +20,7 @@ import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { SelectionPill } from './SelectionPill';
+import { duplicateRecipeIds, findSameName } from '../utils/recipeDuplicates';
 
 
 
@@ -113,6 +114,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   const [imageError, setImageError] = useState<string | null>(null);
   const [newRecipeId, setNewRecipeId] = useState<string>(crypto.randomUUID()); // Generate ID upfront for Storage upload
   const [importError, setImportError] = useState<string | null>(null);
+  // An import whose name matches a recipe already in the library, waiting for the user's call
+  const [sameName, setSameName] = useState<{ existing: Recipe; recipe: Recipe } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const showToast = (message: string) => {
     setToast(message);
@@ -259,17 +262,13 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           newRecipe.image = image;
         }
 
-
-        await saveRecipe(newRecipe);
-        await loadData();
-        setIsAdding(false);
-        setInputText('');
-        setUploadedImage(null);
-        setImageError(null);
-        setNewRecipeId(crypto.randomUUID()); // Generate new ID for next recipe
-
-        // Open the newly created recipe
-        setSelectedRecipe(newRecipe);
+        // Importing the same recipe twice is easy to do; ask before adding a second copy
+        const existing = findSameName(recipes, newRecipe.name);
+        if (existing) {
+          setSameName({ existing, recipe: newRecipe });
+          return;
+        }
+        await finishImport(newRecipe);
       }
     } catch (e: any) {
       console.error("AI Import Failed:", e);
@@ -279,6 +278,23 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const resetImport = () => {
+    setIsAdding(false);
+    setInputText('');
+    setUploadedImage(null);
+    setImageError(null);
+    setSameName(null);
+    setNewRecipeId(crypto.randomUUID()); // Generate new ID for next recipe
+  };
+
+  const finishImport = async (newRecipe: Recipe) => {
+    await saveRecipe(newRecipe);
+    await loadData();
+    resetImport();
+    // Open the newly created recipe
+    setSelectedRecipe(newRecipe);
   };
 
   const handleSaveGeneratedRecipe = async (recipe: Recipe) => {
@@ -343,6 +359,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   }, [allRecipes]);
   const fastDayCount = useMemo(() => allRecipes.filter(r => r.calories > 0 && r.calories <= FAST_DAY_KCAL).length, [allRecipes]);
 
+  // Recipes that share a name with another, usually the same recipe imported twice
+  const duplicateIds = useMemo(() => duplicateRecipeIds(allRecipes), [allRecipes]);
+  useEffect(() => {
+    if (activeFilter === 'duplicates' && duplicateIds.size === 0) setActiveFilter('all');
+  }, [activeFilter, duplicateIds]);
+
   const query = searchQuery.trim().toLowerCase();
   const lastHad = (r: Recipe) => history?.lastHad[r.id] ?? '';
   const filteredRecipes = allRecipes
@@ -354,6 +376,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         (recipe.ingredients || []).some(i => i.toLowerCase().includes(query));
 
       const matchesFilter = activeFilter === 'all' ||
+        (activeFilter === 'duplicates' && duplicateIds.has(recipe.id)) ||
         (activeFilter === 'mine' && isAddedBy(recipe, myUid)) ||
         (activeFilter === 'family' && !isAddedBy(recipe, myUid)) ||
         tags.includes(activeFilter);
@@ -365,7 +388,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       return matchesSearch && matchesFilter && matchesTag && matchesFastDay && matchesFavorite;
     })
     .sort((a, b) => {
-      switch (sortOption) {
+      // Copies side by side, whatever the sort
+      switch (activeFilter === 'duplicates' ? 'name' : sortOption) {
         case 'caloriesLow':
           return a.calories - b.calories;
         case 'caloriesHigh':
@@ -472,13 +496,25 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           <textarea
             id="import-text"
             value={inputText}
-            onChange={(e) => { setInputText(e.target.value); setImportError(null); }}
+            onChange={(e) => { setInputText(e.target.value); setImportError(null); setSameName(null); }}
             className={`input w-full min-h-[140px] ${importError ? 'input-error' : ''}`}
             placeholder="https://… or: Chicken stir fry, serves 4. 500 g chicken breast, 2 peppers…"
             aria-invalid={!!importError}
             aria-describedby={importError ? 'import-error' : undefined}
           />
           {importError && <p id="import-error" className="text-sm text-error -mt-2">{importError}</p>}
+
+          {sameName && (
+            <div className="tile tile-neutral gap-3" role="alert">
+              <p className="text-sm">
+                <span className="font-semibold">You already have “{sameName.existing.name}”.</span> Open it, or import this one as a second copy.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => { const { existing } = sameName; resetImport(); openRecipe(existing); }} className="btn-primary btn-sm">Open it</button>
+                <button onClick={() => finishImport(sameName.recipe)} className="btn-secondary btn-sm">Import anyway</button>
+              </div>
+            </div>
+          )}
 
           <div>
             <p className="text-sm font-semibold mb-2">Photo <span className="font-normal text-muted">(optional)</span></p>
@@ -562,6 +598,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5" role="group" aria-label="Filter recipes">
           {chip(<><Heart size={14} fill={showFavoritesOnly ? 'currentColor' : 'none'} aria-hidden="true" /> Favourites</>, showFavoritesOnly, () => setShowFavoritesOnly(v => !v))}
+          {duplicateIds.size > 0 && chip(<><Copy size={14} aria-hidden="true" /> Duplicates · {duplicateIds.size}</>, activeFilter === 'duplicates', () => setActiveFilter(f => (f === 'duplicates' ? 'all' : 'duplicates')))}
           {(familyCount > 0
             ? [['mine', 'Mine'], ['family', 'Family'], ['breakfast', 'Breakfast'], ['main meal', 'Main meals'], ['light meal', 'Light meals'], ['snack', 'Snacks']]
             : [['breakfast', 'Breakfast'], ['main meal', 'Main meals'], ['light meal', 'Light meals'], ['snack', 'Snacks']]
@@ -579,6 +616,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           ))}
         </div>
       </div>
+
+      {activeFilter === 'duplicates' && (
+        <p className="text-sm text-muted" role="status">
+          These recipes share a name with another. Open the copy you don't need and delete it from its ⋯ menu.
+        </p>
+      )}
 
       {/* Grid or list */}
       <div className={view === 'list' && !onSelect && filteredRecipes.length > 0 && !(isLoading && recipes.length === 0) ? 'card p-1.5' : `grid gap-2.5 md:gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 ${isLoading && recipes.length === 0 ? '' : 'stagger'}`}>

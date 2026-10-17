@@ -697,9 +697,13 @@ const TrackerApp: React.FC = () => {
     // Every page lives in an Activity: hidden pages are pre-rendered in the background and keep
     // their state, but their effects pause and they don't re-render, so switching is instant.
     // Effects re-run when a page is shown again, which quietly refreshes its data.
+    // The planner's week of seven columns gets more room on big screens than the other pages. Shopping
+    // shares its tabs, so it gets the same page (its list keeps the usual width) and the tabs stay put
+    const pageWidth = (target: AppView) =>
+        (target === AppView.PLANNER || target === AppView.SHOPPING ? 'max-w-[100rem]' : 'max-w-6xl');
     const renderView = (target: AppView, content: React.ReactNode) => (
         <Activity key={target} mode={view === target ? 'visible' : 'hidden'}>
-            <div className="max-w-6xl mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0 motion-safe:animate-page-in">
+            <div className={`${pageWidth(target)} mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0 motion-safe:animate-page-in`}>
                 <React.Suspense fallback={<ViewSkeleton />}>{content}</React.Suspense>
             </div>
         </Activity>
@@ -727,7 +731,7 @@ const TrackerApp: React.FC = () => {
                 {/* Main Content */}
                 {/* The tab bar floats above the bottom edge, so the page needs room under it */}
                 <main className="pb-[calc(var(--tab-bar-bottom)+86px)] nav:pb-0 pt-8 md:pt-12">
-                    <div className="max-w-6xl mx-auto px-4 md:px-8">
+                    <div className={`${pageWidth(view)} mx-auto px-4 md:px-8`}>
                         <Header
                             title={headerInfo.title}
                             subtitle={headerInfo.subtitle}
@@ -746,7 +750,7 @@ const TrackerApp: React.FC = () => {
                     {renderView(AppView.ANALYTICS, <TrackAnalytics {...trackProps} />)}
                     {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} />)}
                     {renderView(AppView.RECIPES, <RecipeLibrary />)}
-                    {renderView(AppView.SHOPPING, <ShoppingList />)}
+                    {renderView(AppView.SHOPPING, <div className="max-w-6xl"><ShoppingList /></div>)}
                     {renderView(AppView.FAMILY, <FamilyView myAvatar={userStats.avatar} onSaveAvatar={avatar => handleSaveStats({ ...userStats, avatar })} />)}
                     {renderView(AppView.SETTINGS, (
                         <SettingsView
