@@ -9,9 +9,6 @@ interface CaloriesHeroProps {
     /** Share of workout calories added to the budget (Settings): 1, 0.5 or 0 */
     burnCredit?: number;
     isFastDay: boolean;
-    protein?: { eaten: number; target: number };
-    /** Today's planned meals and how many are eaten, for the segmented bar */
-    meals: { total: number; eaten: number };
     onLogFood: () => void;
 }
 
@@ -27,8 +24,6 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
     caloriesBurned,
     burnCredit = 1,
     isFastDay,
-    protein,
-    meals,
     onLogFood,
 }) => {
     const credited = Math.round(caloriesBurned * burnCredit);
@@ -36,16 +31,16 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
     const remaining = budget - caloriesEaten;
     const isOver = remaining < 0;
     const detail = [
-        `${fmt(caloriesEaten)} of ${fmt(budget)} eaten`,
-        ...(credited > 0 ? [`+${fmt(credited)} exercise`] : []),
-        ...(protein ? [`protein ${fmt(protein.eaten)} of ${fmt(protein.target)} g`] : []),
+        // The target as set, with any workout credit after it, so the sum reads at a glance
+        `${fmt(caloriesEaten)} eaten of ${fmt(caloriesGoal)}`,
+        ...(credited > 0 ? [`+${fmt(credited)} from exercise`] : []),
     ].join(' · ');
 
     return (
         <section className="hero flex flex-col gap-4 p-5 md:p-6" aria-label="Today's calories">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-[15px] font-bold">{isOver ? 'Over today' : 'Calories left'}</p>
-                <p className="inline-flex items-center gap-1 text-sm font-medium">
+                <p className="badge badge-ink">
                     {isFastDay && <Flame size={14} aria-hidden="true" />}
                     {isFastDay ? 'Fast day' : 'Nourish day'}
                 </p>
@@ -56,32 +51,19 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
                 <span className="sr-only"> kcal{isOver ? ' over' : ' left'}</span>
             </p>
 
-            {meals.total >= 2 ? (
+            <div
+                className="h-2.5 rounded-full bg-current/20 overflow-hidden"
+                role="progressbar"
+                aria-label="Calories eaten of today's budget"
+                aria-valuemin={0}
+                aria-valuemax={Math.round(budget)}
+                aria-valuenow={Math.round(caloriesEaten)}
+            >
                 <div
-                    className="grid gap-1.5"
-                    style={{ gridTemplateColumns: `repeat(${meals.total}, minmax(0, 1fr))` }}
-                    role="img"
-                    aria-label={`${meals.eaten} of ${meals.total} planned meals eaten`}
-                >
-                    {Array.from({ length: meals.total }, (_, i) => (
-                        <span key={i} className={`h-2.5 rounded-full transition-colors duration-500 ${i < meals.eaten ? 'bg-current' : 'bg-current/20'}`} />
-                    ))}
-                </div>
-            ) : (
-                <div
-                    className="h-2.5 rounded-full bg-current/20 overflow-hidden"
-                    role="progressbar"
-                    aria-label="Calories eaten of today's budget"
-                    aria-valuemin={0}
-                    aria-valuemax={Math.round(budget)}
-                    aria-valuenow={Math.round(caloriesEaten)}
-                >
-                    <div
-                        className="h-full rounded-full bg-current transition-[width] duration-700 motion-reduce:transition-none"
-                        style={{ width: `${Math.min(Math.max(budget > 0 ? caloriesEaten / budget : 0, 0), 1) * 100}%` }}
-                    />
-                </div>
-            )}
+                    className="h-full rounded-full bg-current transition-[width] duration-700 motion-reduce:transition-none"
+                    style={{ width: `${Math.min(Math.max(budget > 0 ? caloriesEaten / budget : 0, 0), 1) * 100}%` }}
+                />
+            </div>
 
             <p className="text-sm font-medium tabular-nums">{detail}</p>
 

@@ -667,7 +667,8 @@ const TrackerApp: React.FC = () => {
             ? 'nothing planned yet'
             : next === undefined
                 ? 'all meals eaten'
-                : `${slotLabel(slotFor(todayPlan.meals[next])).toLowerCase()} next: ${todayPlan.meals[next].name}`;
+                // The meal itself is the highlighted row on Today's plate
+                : `${slotLabel(slotFor(todayPlan.meals[next])).toLowerCase()} next`;
         return [greeting, ...(isFastDay(todayPlan) ? ['fast day'] : []), status].join(' · ');
     };
 
