@@ -450,6 +450,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             firstMealTime,
             history: effectiveHistory,
             today: dailyLog.date,
+            onOpen: () => onNavigate(AppView.ANALYTICS),
           }}
         />
       </div>

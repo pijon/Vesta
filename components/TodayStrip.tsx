@@ -8,7 +8,7 @@ interface TodayStripProps {
     water: { liters: number; goal: number; onAdd: (amount: number) => void };
     weight: { kg: number | null; ratePerWeek: number | null; onUpdate: () => void; onOpen: () => void };
     workouts: { caloriesBurned: number; types: string[]; streak: number; onLog: () => void; onOpen: () => void };
-    fasting: FastingInput;
+    fasting: FastingInput & { onOpen: () => void };
 }
 
 /** Sign from the rounded value, so −0.04 reads ±0.0 rather than −0.0 */
@@ -108,7 +108,7 @@ export const TodayStrip: React.FC<TodayStripProps> = ({ water, weight, workouts,
                 <Cell
                     label={workouts.streak > 1 ? `Workouts · ${workouts.streak} days` : 'Workouts'}
                     dot="workout"
-                    figure={workouts.types.length ? <><AnimatedNumber value={workouts.caloriesBurned} format={n => String(Math.round(n))} /><span className="text-sm font-semibold"> kcal</span></> : '–'}
+                    figure={<><AnimatedNumber value={workouts.caloriesBurned} format={n => String(Math.round(n))} /><span className="text-sm font-semibold"> kcal</span></>}
                     caption={workouts.types.length ? [...new Set(workouts.types)].join(', ') : 'Nothing logged yet'}
                     onOpen={workouts.onOpen}
                     openLabel="Workout overview"
@@ -119,7 +119,9 @@ export const TodayStrip: React.FC<TodayStripProps> = ({ water, weight, workouts,
                     label="Fasting"
                     dot="fasting"
                     figure={fastFigure}
-                    caption={`${fastCaption} · ${fast.hits} of 7`}
+                    caption={`${fastCaption} · ${fast.hits} of 7 days`}
+                    onOpen={fasting.onOpen}
+                    openLabel={`Fasting history: target reached on ${fast.hits} of the last 7 days`}
                     done={fastDone}
                     moment={fastMoment}
                 />
