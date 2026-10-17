@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThemePreference } from '../hooks/useTheme';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { proteinTarget } from '../utils/planUtils';
@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { localDateString } from '../utils/dateUtils';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 import { SelectionPill } from './SelectionPill';
+import { MemberAvatar } from './MemberAvatar';
 
 const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label: string }[] = [
     { id: '12:12', hours: 12, label: 'Gentle' },
@@ -78,14 +79,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const { user, logout } = useAuth();
     const [hasCopiedId, setHasCopiedId] = useState(false);
 
-    // Sync local state when the saved values change elsewhere
-    useEffect(() => { setForm(toForm(stats, fastingConfig)); }, [stats, fastingConfig]);
-    useEffect(() => { setProtocol(fastingConfig.protocol); }, [fastingConfig]);
-    useEffect(() => { if (showDebug) setDebugInfo(getLocalStorageDebugInfo()); }, [showDebug]);
-
     const update = (field: keyof ReturnType<typeof toForm>) => (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm(f => ({ ...f, [field]: e.target.value }));
-        setSaveState('idle');
     };
 
     // Validation: every target must be a sensible positive number
@@ -98,33 +93,63 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (form.dailyProteinGoal && !(num(form.dailyProteinGoal) >= 30 && num(form.dailyProteinGoal) <= 400)) errors.dailyProteinGoal = 'Enter 30 to 400 g, or leave empty';
     if (!(Number.isInteger(num(form.fastBreakCalories)) && num(form.fastBreakCalories) >= 0 && num(form.fastBreakCalories) <= 200)) errors.fastBreakCalories = 'Enter 0 to 200 kcal';
     const hasErrors = Object.keys(errors).length > 0;
-    const isDirty = JSON.stringify(form) !== JSON.stringify(toForm(stats, fastingConfig)) || protocol !== fastingConfig.protocol;
 
-    const handleSave = async () => {
-        if (hasErrors || !isDirty) return;
+    // What the form would save, and the form those saved values read back as ("2,5" litres and
+    // "2.5" are the same goal, so typing one doesn't count as a change or get overwritten)
+    type Form = ReturnType<typeof toForm>;
+    const toStats = (f: Form): UserStats => ({
+        ...stats,
+        name: f.name.trim(),
+        goalWeight: f.goalWeight ? num(f.goalWeight) : stats.goalWeight,
+        dailyCalorieGoal: Math.round(num(f.dailyCalorieGoal)),
+        nonFastDayCalories: Math.round(num(f.nonFastDayCalories)),
+        dailyWaterGoal: Math.round(num(f.dailyWaterGoal) * 1000),
+        workoutCalorieCredit: Number(f.workoutCalorieCredit) as WorkoutCalorieCredit,
+        dailyProteinGoal: f.dailyProteinGoal ? Math.round(num(f.dailyProteinGoal)) : undefined,
+    });
+    const toFasting = (f: Form, p: FastingProtocol): FastingConfig => ({
+        ...fastingConfig,
+        protocol: p,
+        targetFastHours: p === fastingConfig.protocol ? fastingConfig.targetFastHours : PROTOCOLS.find(pr => pr.id === p)?.hours ?? fastingConfig.targetFastHours,
+        fastBreakCalories: num(f.fastBreakCalories),
+    });
+    const sameAsSaved = (f: Form, p: FastingProtocol) =>
+        !hasErrors && p === fastingConfig.protocol
+        && JSON.stringify(toForm(toStats(f), toFasting(f, p))) === JSON.stringify(toForm(stats, fastingConfig));
+    const isDirty = !sameAsSaved(form, protocol);
+
+    // Goals save themselves, like Appearance: shortly after the last change, or straight away when
+    // the page is left (hidden pages pause, and coming back reloads the saved values)
+    const pendingSave = useRef(false);
+    const save = async () => {
+        pendingSave.current = false;
         setSaveState('saving');
-        onUpdateStats({
-            ...stats,
-            name: form.name.trim(),
-            goalWeight: form.goalWeight ? num(form.goalWeight) : stats.goalWeight,
-            dailyCalorieGoal: Math.round(num(form.dailyCalorieGoal)),
-            nonFastDayCalories: Math.round(num(form.nonFastDayCalories)),
-            dailyWaterGoal: Math.round(num(form.dailyWaterGoal) * 1000),
-            workoutCalorieCredit: Number(form.workoutCalorieCredit) as WorkoutCalorieCredit,
-            dailyProteinGoal: form.dailyProteinGoal ? Math.round(num(form.dailyProteinGoal)) : undefined,
-        });
-        const fastBreakCalories = num(form.fastBreakCalories);
-        if (protocol !== fastingConfig.protocol || fastBreakCalories !== (fastingConfig.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES)) {
-            await onUpdateFastingConfig({
-                ...fastingConfig,
-                protocol,
-                targetFastHours: protocol === fastingConfig.protocol ? fastingConfig.targetFastHours : PROTOCOLS.find(p => p.id === protocol)?.hours ?? fastingConfig.targetFastHours,
-                fastBreakCalories,
-            });
+        onUpdateStats(toStats(form));
+        const fasting = toFasting(form, protocol);
+        if (fasting.protocol !== fastingConfig.protocol || fasting.fastBreakCalories !== (fastingConfig.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES)) {
+            await onUpdateFastingConfig(fasting);
         }
         setSaveState('saved');
         setTimeout(() => setSaveState(s => (s === 'saved' ? 'idle' : s)), 2500);
     };
+    const saveRef = useRef(save);
+    saveRef.current = save;
+
+    useEffect(() => {
+        pendingSave.current = isDirty && !hasErrors;
+        if (!pendingSave.current) return;
+        const timer = setTimeout(() => saveRef.current(), 800);
+        return () => clearTimeout(timer);
+    }, [form, protocol]);
+    useEffect(() => () => { if (pendingSave.current) saveRef.current(); }, []);
+
+    // Pick up saved values that changed elsewhere, unless an edit is still on its way
+    useEffect(() => {
+        if (pendingSave.current || sameAsSaved(form, protocol)) return;
+        setForm(toForm(stats, fastingConfig));
+        setProtocol(fastingConfig.protocol);
+    }, [stats, fastingConfig]);
+    useEffect(() => { if (showDebug) setDebugInfo(getLocalStorageDebugInfo()); }, [showDebug]);
 
     const flash = (message: string) => {
         setDataStatus(message);
@@ -234,22 +259,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     return (
         <div className="space-y-6 pb-20">
-            {/* Account: the page's one bold block, the name set large */}
-        <section className="hero p-5 md:p-6 flex flex-wrap items-center gap-4" aria-label="Account">
-                <span className="size-16 shrink-0 rounded-full bg-surface text-main flex items-center justify-center font-display font-extrabold text-3xl" aria-hidden="true">
-                    {displayName.charAt(0).toUpperCase()}
-                </span>
+            {/* Account: the page's one bold block, as the family sees you */}
+            <section className="hero p-5 md:p-6 flex items-center gap-4" aria-label="Account">
+                <MemberAvatar avatar={stats.avatar} uid={user?.uid ?? ''} size={64} className="shrink-0" />
                 <div className="flex-1 min-w-0">
                     <p className="font-display font-extrabold text-[32px] leading-9 tracking-tight truncate">{displayName}</p>
                     {user?.email && <p className="text-sm font-medium truncate">{user.email}</p>}
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="btn-base btn-sm shrink-0 hover:opacity-90"
-                    style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
-                >
-                    <LogOut size={16} aria-hidden="true" /> Log out
-                </button>
             </section>
 
             {/* Goals */}
@@ -288,7 +304,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         key={o.value}
                                         role="radio"
                                         aria-checked={active}
-                                        onClick={() => { setForm(f => ({ ...f, workoutCalorieCredit: String(o.value) })); setSaveState('idle'); }}
+                                        onClick={() => { setForm(f => ({ ...f, workoutCalorieCredit: String(o.value) })); }}
                                         className={`rounded-[14px] border px-2 py-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
                                             ? 'bg-workout-bg text-workout-text border-transparent'
                                             : 'bg-surface border-border hover:bg-surface-sunken'}`}
@@ -314,7 +330,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         key={p.id}
                                         role="radio"
                                         aria-checked={active}
-                                        onClick={() => { setProtocol(p.id); setSaveState('idle'); }}
+                                        onClick={() => setProtocol(p.id)}
                                         className={`rounded-[14px] border px-2 py-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
                                             ? 'bg-fasting-bg text-fasting-text border-transparent'
                                             : 'bg-surface border-border hover:bg-surface-sunken'}`}
@@ -334,14 +350,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 px-5 md:px-6 py-4 border-t border-border">
-                    <p className={`text-sm text-muted mr-auto ${saveState === 'saved' ? 'sr-only' : ''}`} role="status" aria-live="polite">
-                        {saveState === 'saved' ? 'Saved' : hasErrors ? 'Fix the highlighted fields to save' : isDirty ? 'Unsaved changes' : ''}
-                    </p>
-                    <button onClick={handleSave} disabled={!isDirty || hasErrors || saveState === 'saving'} className="btn-primary">
-                        {saveState === 'saved' ? <Check size={18} aria-hidden="true" /> : null}
-                        {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save changes'}
-                    </button>
+                <div className="flex items-center gap-2 px-5 md:px-6 py-4 border-t border-border text-sm text-muted min-h-14" role="status" aria-live="polite">
+                    {hasErrors
+                        ? 'Fix the highlighted fields and they\'ll save'
+                        : saveState === 'saved' || (!isDirty && saveState !== 'saving')
+                            ? <><Check size={16} aria-hidden="true" /> {saveState === 'saved' ? 'Saved' : 'Changes save as you go'}</>
+                            : 'Saving…'}
                 </div>
             </section>
 
@@ -486,6 +500,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <p className="text-xs text-muted">Developer access comes from a Firebase custom claim. Ask an admin to grant it.</p>
                 </section>
             )}
+
+            {/* Account actions, last: rarely needed */}
+            <section className="card p-5 md:p-6 flex items-center justify-between gap-4" aria-labelledby="account-heading">
+                <div className="min-w-0">
+                    <h2 id="account-heading" className="heading-2">Account</h2>
+                    {user?.email && <p className="text-sm text-muted mt-0.5 truncate">Signed in as {user.email}</p>}
+                </div>
+                <button onClick={handleLogout} className="btn-secondary btn-sm shrink-0">
+                    <LogOut size={16} aria-hidden="true" /> Log out
+                </button>
+            </section>
         </div>
     );
 };
