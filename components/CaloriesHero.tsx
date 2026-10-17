@@ -9,7 +9,6 @@ interface CaloriesHeroProps {
     /** Share of workout calories added to the budget (Settings): 1, 0.5 or 0 */
     burnCredit?: number;
     isFastDay: boolean;
-    protein?: { eaten: number; target: number };
     onLogFood: () => void;
 }
 
@@ -25,7 +24,6 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
     caloriesBurned,
     burnCredit = 1,
     isFastDay,
-    protein,
     onLogFood,
 }) => {
     const credited = Math.round(caloriesBurned * burnCredit);
@@ -36,7 +34,6 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
         // The target as set, with any workout credit after it, so the sum reads at a glance
         `${fmt(caloriesEaten)} eaten of ${fmt(caloriesGoal)}`,
         ...(credited > 0 ? [`+${fmt(credited)} from exercise`] : []),
-        ...(protein ? [`protein ${fmt(protein.eaten)} of ${fmt(protein.target)} g`] : []),
     ].join(' · ');
 
     return (

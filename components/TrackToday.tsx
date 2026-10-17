@@ -445,12 +445,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           caloriesEaten={consumed}
           caloriesBurned={caloriesBurned}
           burnCredit={stats.workoutCalorieCredit ?? 1}
-          protein={proteinToday}
           isFastDay={!isNonFastDay}
           onLogFood={onOpenFoodModal}
         />
         <TodayStrip
           water={{ liters: (dailyLog.waterIntake || 0) / 1000, goal: stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5, onAdd: handleAddWaterClick }}
+          protein={proteinToday}
           weight={{ kg: weightInfo.current, ratePerWeek: weightInfo.ratePerWeek, onUpdate: onOpenWeightModal, onOpen: () => onNavigate(AppView.ANALYTICS) }}
           workouts={{
             caloriesBurned,
