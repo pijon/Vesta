@@ -35,7 +35,12 @@ const startsWeek = (date: string, index: number) => index > 0 && parseLocalDate(
  * snack slots, so the days still to plan always fill it. A marker shows where a calendar week starts.
  * With a family group, a meal can be the family's (new dinners start out that way) or just the user's.
  */
-export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }> = ({ stats, onPlanChanged }) => {
+export const Planner: React.FC<{
+  stats: UserStats;
+  onPlanChanged?: () => void;
+  /** Logs a meal of today's as eaten (the food log and the fast); the Planner ticks it off */
+  onLogMeal?: (meal: Recipe) => Promise<void>;
+}> = ({ stats, onPlanChanged, onLogMeal }) => {
   const location = useLocation();
   const today = localDateString();
   // The first of the seven days shown: today, or today plus or minus a multiple of seven
@@ -63,6 +68,8 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
   const [decideTarget, setDecideTarget] = useState<MealTarget | null>(null);
   const [viewRecipe, setViewRecipe] = useState<Recipe | null>(null);
   const [cookRecipe, setCookRecipe] = useState<Recipe | null>(null);
+  /** Where the meal being cooked is planned, so it can be ticked off when it's today's */
+  const [cookTarget, setCookTarget] = useState<MealTarget | null>(null);
   const [showWeekPlanner, setShowWeekPlanner] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -281,6 +288,26 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       completedMealIds: plan.completedMealIds.filter(id => id !== mealKey(meal)),
     }));
     showToast(`Removed ${meal.name}`);
+  };
+
+  /** Ticks off one of today's meals after cooking it and logs it, as ticking it on Today does. */
+  const markEaten = async (meal: Recipe) => {
+    if (!onLogMeal) return;
+    const key = mealKey(meal);
+    const plan = planFor(today);
+    const updated = { ...plan, completedMealIds: [...new Set([...plan.completedMealIds, key])] };
+    plansRef.current = { ...plansRef.current, [today]: updated };
+    setPlans(plansRef.current);
+    showToast(`Marked ${meal.name} as eaten`);
+    try {
+      await saveDayPlan(updated);
+      await onLogMeal(meal);
+    } catch (e) {
+      console.error('Failed to mark the meal as eaten', e);
+      showToast("Couldn't save that. Check your connection.");
+      loadWeek(start);
+    }
+    onPlanChanged?.();
   };
 
   const editMeal = (target: MealTarget, change: (meal: Recipe) => Recipe) =>
@@ -698,7 +725,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           outNames={outNames(mealSheetMeal)}
           inFamily={inFamily}
           onView={() => { setViewRecipe(mealSheetMeal); setMealTarget(null); }}
-          onCook={() => { setCookRecipe(mealSheetMeal); setMealTarget(null); }}
+          onCook={() => { setCookRecipe(mealSheetMeal); setCookTarget(mealTarget); setMealTarget(null); }}
           onSwap={() => { setAddTarget({ date: mealTarget.date, slot: slotFor(mealSheetMeal), mode: 'swap', index: mealTarget.index }); setMealTarget(null); }}
           onAddSide={() => { setAddTarget({ date: mealTarget.date, slot: slotFor(mealSheetMeal), mode: 'side', index: mealTarget.index }); setMealTarget(null); }}
           onRemoveSide={i => editMeal(mealTarget, m => ({ ...m, sides: (m.sides || []).filter((_, j) => j !== i) }))}
@@ -728,7 +755,13 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
       )}
 
       {viewRecipe && <RecipeDetailModal recipe={viewRecipe} onClose={() => setViewRecipe(null)} />}
-      {cookRecipe && <CookingMode recipe={cookRecipe} onClose={() => setCookRecipe(null)} />}
+      {cookRecipe && (
+        <CookingMode
+          recipe={cookRecipe}
+          onEaten={cookTarget?.date === today && onLogMeal && !isMealEaten(planFor(today), cookRecipe) ? () => markEaten(cookRecipe) : undefined}
+          onClose={() => { setCookRecipe(null); setCookTarget(null); }}
+        />
+      )}
 
       {showWeekPlanner && upcoming.length > 0 && (
         <WeekPlannerSheet
