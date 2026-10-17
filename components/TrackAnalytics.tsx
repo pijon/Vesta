@@ -102,12 +102,16 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     const tickDate = (date: string) => period === 'week'
         ? parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })
         : shortDate(date);
-    const tickInterval = period === 'week' ? 0 : period === 'month' ? 6 : 14;
+    // The charts start at the first day with anything in it (two weeks at least), not at a long
+    // empty stretch before you started
+    const firstActive = days.findIndex(d => d.logged || d.burned > 0 || d.fastHours > 0);
+    const chartDays = firstActive <= 0 ? days : days.slice(Math.min(firstActive, Math.max(0, days.length - 14)));
+    const tickInterval = period === 'week' ? 0 : Math.max(1, Math.floor(chartDays.length / 6));
 
     // Calorie, fasting and movement series: unlogged days stay empty so they show as gaps
-    const calorieData = days.map(d => ({ ...d, eaten: d.logged ? d.calories : null }));
-    const fastData = days.map(d => ({ ...d, fast: d.fastHours }));
-    const moveData = days.map(d => ({ ...d, kcal: d.burned > 0 ? d.burned : null }));
+    const calorieData = chartDays.map(d => ({ ...d, eaten: d.logged ? d.calories : null }));
+    const fastData = chartDays.map(d => ({ ...d, fast: d.fastHours }));
+    const moveData = chartDays.map(d => ({ ...d, kcal: d.burned > 0 ? d.burned : null }));
 
     // --- Weight chart: the smoothed trend as a line, scale readings as dots ---
     const weightData = useMemo(() => {
@@ -251,7 +255,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
             />
 
             {insights.length > 0 && (
-                <Panel title="Insights" subtitle={compared ? `The last ${periodDays} days against the ${periodDays} before` : `The last ${periodDays} days; comparisons start once the ${periodDays} before have 3 logged days`}>
+                <Panel title="Insights" subtitle={compared ? `The last ${periodDays} days against the ${periodDays} before` : `The last ${periodDays} days. Log 3 days in the ${periodDays} before and you'll see how they compare.`}>
                     <ul className="space-y-2.5">
                         {insights.map(insight => {
                             const { Icon, className, label } = INSIGHT_TONE[insight.tone];
@@ -311,8 +315,10 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                         </p>
                         {projection && (
                             <p className="text-sm text-muted mt-3">
-                                At your pace over the last four weeks ({signed(projection.ratePerWeek, 2)} kg a week) you'd reach {stats.goalWeight} kg around {goalDay(projection.date)},
-                                {projection.latest ? ` likely between ${goalDay(projection.earliest)} and ${goalDay(projection.latest)}.` : ` or later if the pace slows; ${goalDay(projection.earliest)} at the earliest.`}
+                                At your pace over the last four weeks ({signed(projection.ratePerWeek, 2)} kg a week) you'd reach {stats.goalWeight} kg around {goalDay(projection.date)}
+                                {projection.latest
+                                    ? `, likely between ${goalDay(projection.earliest)} and ${goalDay(projection.latest)}.`
+                                    : `. It could be as soon as ${goalDay(projection.earliest)}, or later if the pace slows.`}
                             </p>
                         )}
                     </>

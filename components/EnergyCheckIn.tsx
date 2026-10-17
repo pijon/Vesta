@@ -37,7 +37,10 @@ const Progress: React.FC<{ label: string; value: number; of: number; hint?: stri
   <div>
     <div className="flex items-baseline justify-between gap-3 text-sm">
       <span className="font-semibold">{label}</span>
-      <span className="text-muted whitespace-nowrap">{Math.min(value, of)} of {of}</span>
+      <span className="text-muted whitespace-nowrap inline-flex items-center gap-1">
+        {value >= of && <Check size={14} strokeWidth={3} className="text-weight-text" aria-label="Done" />}
+        {Math.min(value, of)} of {of}
+      </span>
     </div>
     <div className="mt-1.5 h-2 rounded-full bg-surface-sunken overflow-hidden" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={of} aria-valuenow={Math.min(value, of)}>
       <div className="h-full rounded-full bg-weight transition-[width] duration-700" style={{ width: `${Math.min(value / of, 1) * 100}%` }} />
@@ -45,6 +48,16 @@ const Progress: React.FC<{ label: string; value: number; of: number; hint?: stri
     {hint && <p className="text-xs text-muted mt-1">{hint}</p>}
   </div>
 );
+
+const plural = (n: number, one: string, many: string) => `${n} more ${n === 1 ? one : many}`;
+/** What's still missing, in words: "4 more fully logged days and 1 more weigh-in" */
+export const stillNeeded = (estimate: EnergyEstimate) => {
+  const parts: string[] = [];
+  if (estimate.loggedDays < MIN_LOGGED_DAYS) parts.push(plural(MIN_LOGGED_DAYS - estimate.loggedDays, 'fully logged day', 'fully logged days'));
+  if (estimate.weighIns < MIN_WEIGH_INS) parts.push(plural(MIN_WEIGH_INS - estimate.weighIns, 'weigh-in', 'weigh-ins'));
+  else if (estimate.weighSpanDays < MIN_WEIGH_SPAN_DAYS) parts.push('weigh-ins spread over two weeks');
+  return parts.length ? parts.join(' and ') : 'a little more data';
+};
 
 /** What's still needed before the estimate can be made */
 const Requirements: React.FC<{ estimate: EnergyEstimate }> = ({ estimate }) => (
@@ -93,7 +106,7 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
 
       {!estimate.ready || estimate.expenditure === null ? (
         <>
-          <p className="text-sm mb-4">Vesta needs a bit more to go on. Once both are filled, you'll see your burn and a calorie target for the pace you choose.</p>
+          <p className="text-sm mb-4">Vesta needs {stillNeeded(estimate)} to work out your burn. Then you'll see it here, with a calorie target for the pace you choose.</p>
           <Requirements estimate={estimate} />
         </>
       ) : (

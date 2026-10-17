@@ -163,6 +163,12 @@ export const isRememberableDish = (meal: Pick<Recipe, 'quick'>) =>
 /** Round a calorie figure to the nearest 50, the grain a restaurant budget is set at. */
 export const roundBudget = (kcal: number) => Math.max(0, Math.round(kcal / 50) * 50);
 
+/** Grams the way a nutrition label shows them: whole from 10 g, one decimal below ("3.5"), never "46.28" */
+export const grams = (n: number) => {
+  const rounded = n >= 10 ? Math.round(n) : Math.round(n * 10) / 10;
+  return String(rounded);
+};
+
 /** "650 kcal", "≈ 650 kcal", "700 kcal budget" or "kcal not set". */
 export const mealKcalLabel = (meal: Recipe) =>
   isBudgetMeal(meal) ? `${mealCalories(meal)} kcal budget`

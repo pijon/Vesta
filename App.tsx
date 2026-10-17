@@ -739,6 +739,7 @@ const TrackerApp: React.FC = () => {
                             me={me}
                             showSundayReset={new Date().getDay() === 0}
                             onOpenSundayReset={() => setIsSundayResetOpen(true)}
+                            isSettings={view === AppView.SETTINGS}
                         />
                         {(view === AppView.PLANNER || view === AppView.SHOPPING) && (
                             <PlannerTabs currentView={view} onNavigate={handleNavigate} />

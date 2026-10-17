@@ -9,7 +9,7 @@ import { VestaMark } from './VestaMark';
 interface SidebarProps {
   currentView: AppView;
   onNavigate: (view: AppView) => void;
-  /** The signed-in user, shown above Settings; opens the Family page */
+  /** The signed-in user, at the foot of the sidebar; opens Settings (Family has its own item) */
   me?: { uid: string; name?: string; avatar?: Avatar };
 }
 
@@ -40,13 +40,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me })
         {NAV_ITEMS.map(item)}
       </div>
       <div className="side-foot pill-group mt-auto pt-4 border-t flex flex-col gap-1">
-        {me?.uid && (
-          <button onClick={() => onNavigate(AppView.FAMILY)} className="side-item" aria-label={me.name ? `${me.name}: your family` : 'Your family'}>
-            <MemberAvatar avatar={me.avatar} uid={me.uid} size={36} />
-            <span className="side-label truncate">{me.name || 'You'}</span>
+        {/* You and your settings in one place: your account, goals and preferences live on Settings */}
+        {me?.uid ? (
+          <button
+            onClick={() => onNavigate(AppView.SETTINGS)}
+            aria-current={currentView === AppView.SETTINGS ? 'page' : undefined}
+            className="side-item"
+            aria-label={`${me.name || 'You'}: settings`}
+          >
+            {currentView === AppView.SETTINGS && <SelectionPill group="side-nav-pill" />}
+            <MemberAvatar avatar={me.avatar} uid={me.uid} size={36} className="shrink-0" />
+            <span className="side-label min-w-0">
+              <span className="block truncate">{me.name || 'You'}</span>
+              <span className="block text-xs font-medium opacity-80">Settings</span>
+            </span>
           </button>
+        ) : (
+          item({ view: AppView.SETTINGS, label: 'Settings', Icon: SlidersHorizontal })
         )}
-        {item({ view: AppView.SETTINGS, label: 'Settings', Icon: SlidersHorizontal })}
       </div>
     </nav>
   );
