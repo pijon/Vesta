@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
 import { motion } from 'framer-motion';
-import { Coffee, Salad, Cookie, CookingPot, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen } from 'lucide-react';
+import { Coffee, Salad, Cookie, CookingPot, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen, UserX } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
 import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel, slotTime } from '../utils/planUtils';
@@ -19,6 +19,8 @@ interface DualTrackSectionProps {
   onDeleteFoodItem: (itemId: string) => void;
   onNavigate: (view: AppView) => void;
   onSwapMeal: (index: number) => void;
+  /** The user isn't eating a family meal (out), or is again; family meals offer this instead of Swap */
+  onSetFamilyMealOut: (meal: Recipe, out: boolean) => void;
   /** The plan index of the next meal still to eat, shown as a highlighted row */
   nextIndex?: number;
   /** Calories left today (target − eaten + burned), to say whether the rest of the plan fits */
@@ -97,6 +99,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   onDeleteFoodItem,
   onNavigate,
   onSwapMeal,
+  onSetFamilyMealOut,
   nextIndex,
   caloriesLeft,
   frequentFoods,
@@ -202,6 +205,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
 
 
   const plannedMeals = todayPlan.meals || [];
+  const mealsOut = todayPlan.familyMealsOut || [];
   const eatenCount = plannedMeals.filter(m => isMealEaten(todayPlan, m)).length;
   const remainingPlannedCalories = plannedMeals
     .filter(m => !isMealEaten(todayPlan, m))
@@ -278,7 +282,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     const isEaten = isMealEaten(todayPlan, meal);
     const isNext = index === nextIndex && !isEaten;
     const visual = mealVisualFor(meal);
-    const forWho = [meal.familyDinner ? 'Family dinner' : null, meal.cookingServings ? `for ${meal.cookingServings}` : null].filter(Boolean).join(' ');
+    const forWho = meal.familyMeal ? 'Family meal' : null;
     const details = [
       slotLabel(slotFor(meal)),
       mealKcalLabel(meal),
@@ -317,13 +321,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
         </button>
         {!isEaten && (
           <button
-            onClick={() => onSwapMeal(index)}
+            onClick={() => (meal.familyMeal ? onSetFamilyMealOut(meal, true) : onSwapMeal(index))}
             className={`hit-target size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:text-main transition-[opacity,colors] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${isNext
               ? 'hover:bg-surface'
               : 'hover:bg-surface-sunken md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'}`}
-            aria-label={`Swap ${meal.name}`}
+            aria-label={meal.familyMeal ? `I'm not eating ${meal.name}` : `Swap ${meal.name}`}
+            title={meal.familyMeal ? 'Not eating this' : undefined}
           >
-            <Shuffle size={16} />
+            {meal.familyMeal ? <UserX size={16} /> : <Shuffle size={16} />}
           </button>
         )}
         <motion.button
@@ -417,6 +422,25 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             </section>
             ))}
             </>
+          )}
+          {/* Family meals the user said they aren't eating: not counted, with a way back in */}
+          {mealsOut.length > 0 && (
+            <ul className="border-t border-border">
+              {mealsOut.map(meal => (
+                <li key={meal.instanceId} className="flex items-center gap-3 py-2.5">
+                  <span className="flex-1 min-w-0 text-sm text-muted">
+                    {slotLabel(slotFor(meal))} · <span className="font-semibold">{meal.name}</span> · family meal, you're out
+                  </span>
+                  <button
+                    onClick={() => onSetFamilyMealOut(meal, false)}
+                    className="btn-ghost btn-sm shrink-0"
+                    aria-label={`Eat ${meal.name} with the family after all`}
+                  >
+                    I'm in
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>

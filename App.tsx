@@ -2,7 +2,7 @@ import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, use
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus } from './types';
 import { addDays, isFastDay, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
-import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage, subscribeFamilyDinners, withFamilyDinners, FamilyDinnerChange } from './services/storageService';
+import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage, subscribeFamilyMeals, withFamilyMeals, FamilyMealChange } from './services/storageService';
 import * as cache from './utils/cacheService';
 import { useTheme } from './hooks/useTheme';
 // Lazy load non-critical components for performance
@@ -255,12 +255,12 @@ const TrackerApp: React.FC = () => {
         }
     }, [todayDate, tomorrowDate, setDailyLogState]);
 
-    // Family dinners are live: one another member plans or changes shows up on Today straight away,
+    // Family meals are live: one another member plans or changes shows up on Today straight away,
     // and a new one is pointed out wherever the user is
-    const [familyNotice, setFamilyNotice] = useState<FamilyDinnerChange[] | null>(null);
+    const [familyNotice, setFamilyNotice] = useState<FamilyMealChange[] | null>(null);
     const dismissFamilyNotice = useCallback(() => setFamilyNotice(null), []);
-    useEffect(() => subscribeFamilyDinners(todayDate, addDays(todayDate, 6), (dinners, added) => {
-        const apply = (date: string) => (plan: DayPlan) => (plan.date === date ? withFamilyDinners(plan, dinners[date]) : plan);
+    useEffect(() => subscribeFamilyMeals(todayDate, addDays(todayDate, 6), (dinners, added) => {
+        const apply = (date: string) => (plan: DayPlan) => (plan.date === date ? withFamilyMeals(plan, dinners[date]) : plan);
         if (dinners[todayDate]) setTodayPlan(apply(todayDate));
         if (dinners[tomorrowDate]) setTomorrowPlan(apply(tomorrowDate));
         if (added.length) setFamilyNotice(added);

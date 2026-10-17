@@ -22,7 +22,6 @@ export interface Recipe {
   sharedAt?: number;
   ownerId?: string;    // UID of the member whose plan a meal comes from (family shopping list)
   ownerName?: string;  // Display name of that member, or of the member who added a recipe
-  cookingServings?: number; // Override for shopping list calculations (how many people you are cooking for)
   originalRecipeId?: string; // Reference to the original library recipe for hydration
   isLeftover?: boolean; // If true, this is a leftover from a previous meal
   isPacked?: boolean;   // If true, this is a packed lunch/meal
@@ -30,8 +29,10 @@ export interface Recipe {
   // Set on meals inside a DayPlan (see PlannedMealMeta)
   slot?: MealSlot;
   instanceId?: string;
-  familyDinner?: boolean;
+  familyMeal?: boolean;
   addedBy?: string;
+  /** Uids of the family members not eating a family meal */
+  notEating?: string[];
   /** Planned reference whose library recipe no longer exists */
   isMissing?: boolean;
   /** Set on planned meals with no library recipe behind them (quick meals) */
@@ -86,15 +87,15 @@ export interface PlannedMealMeta {
   slot?: MealSlot;
   /** Unique per planned meal; completedMealIds and leftovers point at it */
   instanceId?: string;
-  /** Portions to cook (shopping list scale); servings stays the recipe's yield */
-  cookingServings?: number;
   isPacked?: boolean;
   isLeftover?: boolean;
   sides?: PlannedMeal[];
-  /** Shared family dinner (stored in groups/{groupId}/dinners/{date}) */
-  familyDinner?: boolean;
+  /** Shared family meal, in any slot (stored in groups/{groupId}/dinners/{date}) */
+  familyMeal?: boolean;
   /** Uid of the member who planned it */
   addedBy?: string;
+  /** Uids of the family members not eating a family meal */
+  notEating?: string[];
 }
 
 /** Lightweight reference to a library recipe */
@@ -148,6 +149,11 @@ export interface DayPlan {
   tips?: string;
   totalCalories?: number;
   type?: 'fast' | 'non-fast'; // For 5:2 diet
+  /**
+   * Family meals the user said they're not eating: shown muted and left out of the day's meals and
+   * calories. They stay in the group's doc and are never saved in the user's own day doc.
+   */
+  familyMealsOut?: Recipe[];
 }
 
 export interface WeightEntry {
@@ -237,6 +243,8 @@ export interface EnhancedShoppingState {
   cachedAggregatedIngredients: AggregatedIngredient[];
   ingredientsHash: string;
   selectedMealIds?: string[];
+  /** Portions to buy for, by planned meal, where the user changed them from the recipe's servings */
+  portions?: Record<string, number>;
 }
 
 /** A food the user already has numbers for: one of their recipes (per portion) or something they logged */

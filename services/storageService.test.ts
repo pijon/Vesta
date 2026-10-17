@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DayPlan, PlannedMeal, Recipe } from '../types';
-import { decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, planMeal, withLiveBudgets, QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
+import { decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, planMeal, setFamilyMealOut, withLiveBudgets, QUICK_MEAL_DESCRIPTION } from '../utils/planUtils';
 
 const fake = vi.hoisted(() => ({ uid: 'me' }));
 
@@ -9,7 +9,7 @@ vi.mock('./firebase', () => ({ db: {}, auth: { currentUser: null }, currentUid: 
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId } = await import('./groupService');
-const { getDayPlan, saveDayPlan, subscribeFamilyDinners } = await import('./storageService');
+const { getDayPlan, saveDayPlan, saveFamilyMealOut, subscribeFamilyMeals } = await import('./storageService');
 const { getCachedDayPlan } = await import('../utils/cacheService');
 
 const chili: Recipe = {
@@ -38,21 +38,21 @@ beforeEach(() => {
 
 describe('day plans', () => {
   it('stores library recipes as references, never the full recipe', async () => {
-    await saveDayPlan(plan('2026-10-01', [planMeal(chili, 'dinner', { cookingServings: 2, isPacked: true })]));
+    await saveDayPlan(plan('2026-10-01', [planMeal(chili, 'dinner', { isPacked: true })]));
     const [stored] = storedDay('2026-10-01').meals;
-    expect(stored).toMatchObject({ type: 'reference', recipeId: 'r1', slot: 'dinner', cookingServings: 2, isPacked: true });
+    expect(stored).toMatchObject({ type: 'reference', recipeId: 'r1', slot: 'dinner', isPacked: true });
     expect(stored).not.toHaveProperty('ingredients');
     expect(stored).not.toHaveProperty('name');
   });
 
   it('loads a planned recipe back with its library details and plan settings', async () => {
-    const meal = planMeal(chili, 'dinner', { cookingServings: 2, isLeftover: true });
+    const meal = planMeal(chili, 'dinner', { isLeftover: true });
     await saveDayPlan(plan('2026-10-02', [meal], { completedMealIds: [meal.instanceId!], type: 'fast' }));
     const loaded = await getDayPlan('2026-10-02');
     expect(loaded).toMatchObject({ date: '2026-10-02', type: 'fast', completedMealIds: [meal.instanceId] });
     expect(loaded.meals[0]).toMatchObject({
       name: 'Chili', calories: 520, ingredients: chili.ingredients, slot: 'dinner',
-      instanceId: meal.instanceId, cookingServings: 2, isLeftover: true,
+      instanceId: meal.instanceId, isLeftover: true,
     });
   });
 
@@ -140,27 +140,27 @@ describe('day plans', () => {
   });
 });
 
-describe('family dinners', () => {
+describe('family meals', () => {
   beforeEach(() => { setFamily(['me', 'partner']); });
   const dinners = (date: string) => (store.docs.get(`groups/g/dinners/${date}`)?.meals ?? {}) as Record<string, PlannedMeal & { position: number }>;
 
   it("splits family dinners into the group's doc and merges them back", async () => {
     const lunch = planMeal(chili, 'lunch');
-    const dinner = planMeal(chili, 'dinner', { familyDinner: true, cookingServings: 4 });
+    const dinner = planMeal(chili, 'dinner', { familyMeal: true, isPacked: true });
     await saveDayPlan(plan('2026-10-11', [lunch, dinner]));
 
     expect(storedDay('2026-10-11').meals.map(m => m.instanceId)).toEqual([lunch.instanceId]);
-    expect(dinners('2026-10-11')[dinner.instanceId!]).toMatchObject({ type: 'reference', recipeId: 'r1', cookingServings: 4, position: 0 });
+    expect(dinners('2026-10-11')[dinner.instanceId!]).toMatchObject({ type: 'reference', recipeId: 'r1', isPacked: true, position: 0 });
 
     const loaded = await getDayPlan('2026-10-11');
-    expect(loaded.meals.map(m => [m.instanceId, m.slot, !!m.familyDinner])).toEqual([
+    expect(loaded.meals.map(m => [m.instanceId, m.slot, !!m.familyMeal])).toEqual([
       [lunch.instanceId, 'lunch', false],
       [dinner.instanceId, 'dinner', true],
     ]);
   });
 
   it('only removes dinners this session has seen, never ones added since by someone else', async () => {
-    const mine = planMeal(chili, 'dinner', { familyDinner: true });
+    const mine = planMeal(chili, 'dinner', { familyMeal: true });
     await saveDayPlan(plan('2026-10-12', [mine]));
     const loaded = await getDayPlan('2026-10-12');
 
@@ -176,23 +176,140 @@ describe('family dinners', () => {
   });
 
   it("doesn't rewrite the group's doc when the family dinners didn't change", async () => {
-    await saveDayPlan(plan('2026-10-13', [planMeal(chili, 'dinner', { familyDinner: true })]));
+    await saveDayPlan(plan('2026-10-13', [planMeal(chili, 'dinner', { familyMeal: true })]));
     const loaded = await getDayPlan('2026-10-13');
     store.writes.length = 0;
     await saveDayPlan({ ...loaded, completedMealIds: [loaded.meals[0].instanceId!] });
     expect(store.writes).toEqual(['users/me/days/2026-10-13']);
   });
+
+  it('keeps a family meal in any slot, and a dinner just for the user', async () => {
+    const breakfast = planMeal(chili, 'breakfast', { familyMeal: true });
+    const dinner = planMeal(chili, 'dinner');
+    await saveDayPlan(plan('2026-10-14', [breakfast, dinner]));
+
+    expect(Object.keys(dinners('2026-10-14'))).toEqual([breakfast.instanceId]);
+    expect(storedDay('2026-10-14').meals.map(m => m.instanceId)).toEqual([dinner.instanceId]);
+    const loaded = await getDayPlan('2026-10-14');
+    expect(loaded.meals.map(m => [m.instanceId, m.slot, !!m.familyMeal])).toEqual([
+      [dinner.instanceId, 'dinner', false],
+      [breakfast.instanceId, 'breakfast', true],
+    ]);
+  });
+
+  it('moves a meal between the family and the user when it is shared or made just theirs', async () => {
+    const dinner = planMeal(chili, 'dinner', { familyMeal: true });
+    await saveDayPlan(plan('2026-10-15', [dinner]));
+    const loaded = await getDayPlan('2026-10-15');
+
+    await saveDayPlan({ ...loaded, meals: [{ ...loaded.meals[0], familyMeal: false }] });
+    expect(dinners('2026-10-15')).toEqual({});
+    expect(storedDay('2026-10-15').meals.map(m => m.instanceId)).toEqual([dinner.instanceId]);
+  });
+
+  describe('not eating', () => {
+    const date = '2026-10-16';
+    /** A family dinner and the user's own lunch, loaded */
+    const setUp = async () => {
+      const lunch = planMeal(chili, 'lunch');
+      const dinner = planMeal(chili, 'dinner', { familyMeal: true });
+      await saveDayPlan(plan(date, [lunch, dinner], { completedMealIds: [dinner.instanceId!] }));
+      return { lunch, dinner, loaded: await getDayPlan(date) };
+    };
+    /** Runs as the other family member, signed in elsewhere */
+    const asPartner = async (fn: () => Promise<void>) => {
+      store.docs.set('users/partner', { groupId: 'g' });
+      fake.uid = 'partner';
+      forgetMyGroupId();
+      try { await fn(); } finally { fake.uid = 'me'; forgetMyGroupId(); }
+    };
+    const goOut = async (loaded: DayPlan, instanceId: string) => {
+      const next = setFamilyMealOut(loaded, instanceId, 'me', true);
+      await saveFamilyMealOut(next, instanceId, true);
+      return next;
+    };
+
+    it("leaves the meal for the family and takes it off the user's day", async () => {
+      const { lunch, dinner, loaded } = await setUp();
+      const next = await goOut(loaded, dinner.instanceId!);
+
+      expect(next.meals.map(m => m.instanceId)).toEqual([lunch.instanceId]);
+      expect(next.completedMealIds).toEqual([]);
+      expect(dinners(date)[dinner.instanceId!]).toMatchObject({ recipeId: 'r1', notEating: ['me'] });
+      expect(storedDay(date).totalCalories).toBe(520);
+      expect(storedDay(date)).not.toHaveProperty('familyMealsOut');
+
+      // Read back: out of the meals, into familyMealsOut
+      const reloaded = await getDayPlan(date);
+      expect(reloaded.meals.map(m => m.instanceId)).toEqual([lunch.instanceId]);
+      expect(reloaded.familyMealsOut?.map(m => m.instanceId)).toEqual([dinner.instanceId]);
+
+      // Another member still has it
+      await asPartner(async () => {
+        const theirs = await getDayPlan(date);
+        expect(theirs.meals.map(m => [m.instanceId, m.notEating])).toEqual([[dinner.instanceId, ['me']]]);
+        expect(theirs.familyMealsOut).toBeUndefined();
+      });
+    });
+
+    it("isn't removed for the family when the user saves their plan without it", async () => {
+      const { lunch, dinner, loaded } = await setUp();
+      const next = await goOut(loaded, dinner.instanceId!);
+      await saveDayPlan({ ...next, meals: [...next.meals, planMeal(chili, 'snack')], familyMealsOut: undefined });
+      expect(Object.keys(dinners(date))).toEqual([dinner.instanceId]);
+      expect(storedDay(date).meals.map(m => m.instanceId)).toContain(lunch.instanceId);
+    });
+
+    it('keeps both members out when they say so at the same time', async () => {
+      const { dinner, loaded } = await setUp();
+      // The partner's change lands first, unseen by this session
+      await store.api.setDoc({ path: `groups/g/dinners/${date}` }, { meals: { [dinner.instanceId!]: { notEating: store.api.arrayUnion('partner') } } }, { merge: true });
+      await goOut(loaded, dinner.instanceId!);
+      expect(dinners(date)[dinner.instanceId!].notEating).toEqual(['partner', 'me']);
+    });
+
+    it("keeps who's out when someone edits the meal, and lets the user back in", async () => {
+      const { dinner, loaded } = await setUp();
+      const next = await goOut(loaded, dinner.instanceId!);
+
+      await asPartner(async () => {
+        const theirs = await getDayPlan(date);
+        await saveDayPlan({ ...theirs, meals: theirs.meals.map(m => ({ ...m, isPacked: true })) });
+      });
+      // This session loads the plan again, as the live listener would
+      await getDayPlan(date);
+      expect(dinners(date)[dinner.instanceId!]).toMatchObject({ isPacked: true, notEating: ['me'] });
+
+      const back = setFamilyMealOut(next, dinner.instanceId!, 'me', false);
+      await saveFamilyMealOut(back, dinner.instanceId!, false);
+      expect(dinners(date)[dinner.instanceId!].notEating).toEqual([]);
+      expect(back.meals.map(m => m.instanceId)).toContain(dinner.instanceId);
+      expect(back.familyMealsOut).toBeUndefined();
+      expect(storedDay(date).totalCalories).toBe(1040);
+    });
+
+    it('carries who is out over to a meal swapped in', async () => {
+      const { lunch, dinner } = await setUp();
+      await store.api.setDoc({ path: `groups/g/dinners/${date}` }, { meals: { [dinner.instanceId!]: { notEating: ['partner'] } } }, { merge: true });
+      const fresh = await getDayPlan(date);
+      const old = fresh.meals.find(m => m.instanceId === dinner.instanceId)!;
+      const swapped = planMeal(chili, 'dinner', { familyMeal: true, notEating: old.notEating });
+      await saveDayPlan({ ...fresh, meals: [fresh.meals.find(m => m.instanceId === lunch.instanceId)!, swapped] });
+      expect(Object.keys(dinners(date))).toEqual([swapped.instanceId]);
+      expect(dinners(date)[swapped.instanceId!].notEating).toEqual(['partner']);
+    });
+  });
 });
 
-describe('live family dinners', () => {
+describe('live family meals', () => {
   beforeEach(() => {
     setFamily(['me', 'partner']);
     putRecipe({ ...chili, id: 'p1', name: 'Pad thai', createdBy: 'partner' });
   });
-  type Update = { dinners: Record<string, Recipe[]>; added: { date: string; name: string; by: string }[] };
+  type Update = { dinners: Record<string, Recipe[]>; added: { date: string; name: string; by: string; slot: string }[] };
   const listen = (start: string, end: string) => {
     const updates: Update[] = [];
-    const stop = subscribeFamilyDinners(start, end, (dinners, added) => updates.push({ dinners, added }));
+    const stop = subscribeFamilyMeals(start, end, (dinners, added) => updates.push({ dinners, added }));
     return { updates, stop };
   };
   /** A dinner saved by the partner on another device */
@@ -209,7 +326,7 @@ describe('live family dinners', () => {
     partnerPlans('2026-10-20', 'a');
     const { updates, stop } = listen('2026-10-20', '2026-10-26');
     await vi.waitFor(() => expect(updates).toHaveLength(1));
-    expect(updates[0].dinners['2026-10-20'].map(m => [m.name, m.familyDinner, m.slot])).toEqual([['Pad thai', true, 'dinner']]);
+    expect(updates[0].dinners['2026-10-20'].map(m => [m.name, m.familyMeal, m.slot])).toEqual([['Pad thai', true, 'dinner']]);
     expect(updates[0].added).toEqual([]);
     stop();
   });
@@ -218,7 +335,7 @@ describe('live family dinners', () => {
     const { updates, stop } = listen('2026-10-20', '2026-10-26');
     await new Promise(r => setTimeout(r, 20)); // listening
     partnerPlans('2026-10-21', 'b');
-    await vi.waitFor(() => expect(updates.at(-1)?.added).toEqual([{ date: '2026-10-21', name: 'Pad thai', by: 'partner' }]));
+    await vi.waitFor(() => expect(updates.at(-1)?.added).toEqual([{ date: '2026-10-21', name: 'Pad thai', by: 'partner', slot: 'dinner' }]));
     expect(updates.at(-1)!.dinners['2026-10-21'].map(m => m.instanceId)).toEqual(['b']);
     stop();
   });
@@ -227,7 +344,7 @@ describe('live family dinners', () => {
     const lunch = planMeal(chili, 'lunch');
     await saveDayPlan(plan('2026-10-22', [lunch]));
     const { updates, stop } = listen('2026-10-20', '2026-10-26');
-    await saveDayPlan(plan('2026-10-22', [lunch, planMeal(chili, 'dinner', { familyDinner: true, addedBy: 'me' })]));
+    await saveDayPlan(plan('2026-10-22', [lunch, planMeal(chili, 'dinner', { familyMeal: true, addedBy: 'me' })]));
     partnerPlans('2026-10-22', 'c');
     await vi.waitFor(() => expect(getCachedDayPlan('2026-10-22')?.meals.map(m => m.name)).toEqual(['Chili', 'Chili', 'Pad thai']));
     expect(updates.flatMap(u => u.added).map(a => a.name)).toEqual(['Pad thai']);

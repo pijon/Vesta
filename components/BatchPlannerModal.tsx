@@ -104,7 +104,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
     const handleAcceptPlan = async () => {
         setIsLoading(true);
         try {
-            // Fill only the open slots: meals already planned (and family dinners) stay
+            // Fill only the open slots: meals already planned (and family meals) stay
             const inFamily = ((await getUserGroup())?.memberIds.length ?? 0) > 1;
             for (const day of generatedPlan) {
                 const existing = await getDayPlan(day.date);
@@ -116,7 +116,7 @@ const BatchPlannerModal: React.FC<BatchPlannerModalProps> = ({ isOpen, onClose, 
                     const slot = slotFor(recipe);
                     if (slot === 'snack' || taken.has(slot)) return;
                     taken.add(slot);
-                    added.push(planMeal(recipe, slot, { familyDinner: inFamily && slot === 'dinner' }));
+                    added.push(planMeal(recipe, slot, { familyMeal: inFamily && slot === 'dinner' }));
                 });
 
                 await saveDayPlan({

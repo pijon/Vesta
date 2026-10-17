@@ -39,7 +39,7 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
     setSaving(true);
     try {
       const plan = await getDayPlan(date);
-      const meal = planRecipe(recipe, slot, { familySize: family?.memberCount, addedBy: currentUid() });
+      const meal = planRecipe(recipe, slot, { inFamily: !!family, addedBy: currentUid() });
       await saveDayPlan({ ...plan, meals: [...plan.meals, meal] });
       onAdded(`Added ${recipe.name} to ${target}`, date);
     } catch (e) {
@@ -81,7 +81,7 @@ export const AddToPlanSheet: React.FC<AddToPlanSheetProps> = ({ recipe, onClose,
         </div>
         {family && (
           <p className="text-xs text-muted mt-3">
-            {slot === 'dinner' ? `Dinners are shared with your family and cooked for ${family.memberCount}.` : 'Breakfast and lunch are just yours.'}
+            {slot === 'dinner' ? 'Planned as a family meal.' : 'Planned just for you.'} You can change that in the Planner.
           </p>
         )}
       </fieldset>

@@ -16,17 +16,20 @@ import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
 import { ConfirmSheet } from './ConfirmSheet';
 import { localDateString } from '../utils/dateUtils';
-import { CircleAlert, ArrowLeft, CalendarHeart, Check, Copy, CopyCheck, ListChecks, PartyPopper, RotateCcw, ShoppingBasket } from 'lucide-react';
+import { CircleAlert, ArrowLeft, CalendarHeart, Check, Copy, CopyCheck, ListChecks, Minus, PartyPopper, Plus, RotateCcw, ShoppingBasket } from 'lucide-react';
 
 type Phase = 'selection' | 'requirements' | 'shopping';
 
 interface PlanMeal {
+  /** This planned meal (the same recipe can be planned on several days) */
+  key: string;
+  /** Its recipe */
   id: string;
   name: string;
   date: string;
   ingredients: string[];
+  /** The recipe's servings: the portions bought unless the user picks others */
   servings?: number;
-  cookingServings?: number;
 
   isLeftover?: boolean;
   /** A quick meal: no library recipe to add ingredients to */
@@ -39,6 +42,8 @@ export const ShoppingList: React.FC = () => {
   const [phase, setPhase] = useState<Phase>('selection');
   const [availableMeals, setAvailableMeals] = useState<PlanMeal[]>([]);
   const [selectedMealIds, setSelectedMealIds] = useState<Set<string>>(new Set());
+  /** Portions to buy for, by meal key, where the user changed them from the recipe's servings */
+  const [portions, setPortions] = useState<Record<string, number>>({});
 
   // Keep existing state for downstream phases
   const [aggregatedIngredients, setAggregatedIngredients] = useState<AggregatedIngredient[]>([]);
@@ -65,7 +70,8 @@ export const ShoppingList: React.FC = () => {
     cachedParsedIngredients: ParsedIngredient[],
     cachedAggregatedIngredients: AggregatedIngredient[],
     ingredientsHash: string,
-    selectedMealIds?: string[]
+    selectedMealIds?: string[],
+    portions?: Record<string, number>
   }>({
     purchased: [],
     removed: [],
@@ -137,8 +143,8 @@ export const ShoppingList: React.FC = () => {
   const refreshPlannedMeals = () => {
     if (isProcessing) return;
     loadPlannedMeals(true).then(meals => {
-      const added = meals.filter(m => !knownMealIds.current.has(m.id)).map(m => m.id);
-      knownMealIds.current = new Set(meals.map(m => m.id));
+      const added = meals.filter(m => !knownMealIds.current.has(m.key)).map(m => m.key);
+      knownMealIds.current = new Set(meals.map(m => m.key));
       setAvailableMeals(meals);
       if (phase === 'selection' && added.length > 0) {
         setSelectedMealIds(prev => new Set([...prev, ...added]));
@@ -162,6 +168,7 @@ export const ShoppingList: React.FC = () => {
       const mealsPromise = Promise.resolve(extractMealsFromPlan(warm.plans));
 
       setShoppingState(enhancedState);
+      setPortions(enhancedState.portions || {});
       setInventory(pantryInventory);
 
       if (enhancedState.cachedPurchasableItems.length > 0) {
@@ -178,16 +185,17 @@ export const ShoppingList: React.FC = () => {
 
         const meals = await mealsPromise;
         setAvailableMeals(meals);
-        knownMealIds.current = new Set(meals.map(m => m.id));
-        // Legacy lists saved no selection: treat every planned meal as selected
-        if (!enhancedState.selectedMealIds) setSelectedMealIds(new Set(meals.map(m => m.id)));
+        knownMealIds.current = new Set(meals.map(m => m.key));
+        // Lists saved with no selection, or one by recipe (before meals had keys): every planned meal is selected
+        const saved = new Set(enhancedState.selectedMealIds || []);
+        if (!meals.some(m => saved.has(m.key))) setSelectedMealIds(new Set(meals.map(m => m.key)));
       } else {
         // No active list, start fresh in selection mode with every meal selected
         setLoadingMessage('Loading meal plan...');
         const meals = await mealsPromise;
         setAvailableMeals(meals);
-        knownMealIds.current = new Set(meals.map(m => m.id));
-        setSelectedMealIds(new Set(meals.map(m => m.id)));
+        knownMealIds.current = new Set(meals.map(m => m.key));
+        setSelectedMealIds(new Set(meals.map(m => m.key)));
         setPhase('selection');
       }
 
@@ -219,14 +227,14 @@ export const ShoppingList: React.FC = () => {
 
       if (dayDate >= today) {
         const day = plan[dateStr];
-        day.meals.forEach((meal: any) => {
+        day.meals.forEach((meal: any, index: number) => {
           meals.push({
+            key: meal.instanceId || `${day.date}/${meal.id}/${index}`,
             id: meal.id,
             name: meal.name,
             date: day.date,
             ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
             servings: meal.servings,
-            cookingServings: meal.cookingServings,
 
             isLeftover: meal.isLeftover,
             isQuick: !!meal.quick,
@@ -246,7 +254,7 @@ export const ShoppingList: React.FC = () => {
       setError(null);
 
       // Filter meals based on selection
-      const selectedMeals = availableMeals.filter(meal => selectedMealIds.has(meal.id));
+      const selectedMeals = availableMeals.filter(meal => selectedMealIds.has(meal.key));
 
       if (selectedMeals.length === 0) {
         setError("Please select at least one meal to generate a list.");
@@ -257,7 +265,8 @@ export const ShoppingList: React.FC = () => {
       // Save selection state
       const newShoppingState = {
         ...shoppingState,
-        selectedMealIds: Array.from(selectedMealIds)
+        selectedMealIds: Array.from(selectedMealIds),
+        portions,
       };
       setShoppingState(newShoppingState);
       await saveEnhancedShoppingState(newShoppingState);
@@ -271,12 +280,8 @@ export const ShoppingList: React.FC = () => {
           return;
         }
 
-        // Calculate scale factor: cookingServings / servings. Default to 1 if missing.
-        const baseServings = meal.servings || 1;
-        const targetServings = meal.cookingServings || baseServings;
-        const scale = targetServings / baseServings;
-
-        console.log(`Scaling ${meal.name}: ${targetServings}/${baseServings} = ${scale}`);
+        // A recipe's ingredients are for its servings; a quick meal's items are what to buy as they are
+        const scale = meal.isQuick ? 1 : portionsFor(meal) / (meal.servings || 1);
 
         meal.ingredients.forEach(ing => {
           ingredientsToProcess.push({
@@ -334,7 +339,8 @@ export const ShoppingList: React.FC = () => {
       cachedParsedIngredients: parsedWithRecipeInfo,
       cachedAggregatedIngredients: aggregated,
       ingredientsHash: currentHash,
-      selectedMealIds: Array.from(selectedMealIds) // Ensure selection is saved with cache
+      selectedMealIds: Array.from(selectedMealIds), // Ensure selection is saved with cache
+      portions,
     };
 
     await saveEnhancedShoppingState(newState);
@@ -555,7 +561,8 @@ export const ShoppingList: React.FC = () => {
       cachedParsedIngredients: [],
       cachedAggregatedIngredients: [],
       ingredientsHash: '',
-      selectedMealIds: []
+      selectedMealIds: [],
+      portions: {},
     };
 
     await saveEnhancedShoppingState(newState);
@@ -568,7 +575,8 @@ export const ShoppingList: React.FC = () => {
     setIsProcessing(false);
 
     // Default select all again when resetting
-    setSelectedMealIds(new Set(availableMeals.map(m => m.id)));
+    setSelectedMealIds(new Set(availableMeals.map(m => m.key)));
+    setPortions({});
   };
 
   const handleToggleMeal = (mealId: string) => {
@@ -581,9 +589,16 @@ export const ShoppingList: React.FC = () => {
     setSelectedMealIds(newSelection);
   };
 
+  /** Portions to buy for a meal: the recipe's servings unless the user changed them */
+  const portionsFor = (meal: PlanMeal) => portions[meal.key] ?? (meal.servings || 1);
+  const setMealPortions = (meal: PlanMeal, n: number) => setPortions(prev => {
+    const { [meal.key]: _old, ...rest } = prev;
+    return n === (meal.servings || 1) ? rest : { ...rest, [meal.key]: n };
+  });
+
   const handleSelectAll = (selectAll: boolean) => {
     if (selectAll) {
-      setSelectedMealIds(new Set(availableMeals.map(m => m.id)));
+      setSelectedMealIds(new Set(availableMeals.map(m => m.key)));
     } else {
       setSelectedMealIds(new Set());
     }
@@ -656,7 +671,7 @@ export const ShoppingList: React.FC = () => {
       mealsByDate.get(meal.date)!.push(meal);
     });
     const selectedIngredientCount = availableMeals
-      .filter(m => selectedMealIds.has(m.id) && !m.isLeftover)
+      .filter(m => selectedMealIds.has(m.key) && !m.isLeftover)
       .reduce((sum, m) => sum + m.ingredients.length, 0);
 
     return (
@@ -697,11 +712,13 @@ export const ShoppingList: React.FC = () => {
                     </h3>
                     <ul>
                       {meals.map(meal => {
-                        const isSelected = selectedMealIds.has(meal.id);
+                        const isSelected = selectedMealIds.has(meal.key);
+                        const scalable = isSelected && !meal.isLeftover && !meal.isQuick && meal.ingredients.length > 0;
+                        const count = portionsFor(meal);
                         return (
-                          <li key={meal.id}>
+                          <li key={meal.key}>
                             <button
-                              onClick={() => handleToggleMeal(meal.id)}
+                              onClick={() => handleToggleMeal(meal.key)}
                               aria-pressed={isSelected}
                               className="w-full flex items-center gap-3 px-2 py-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
                             >
@@ -722,6 +739,15 @@ export const ShoppingList: React.FC = () => {
                                 </span>
                               </span>
                             </button>
+                            {scalable && (
+                              // Beside the toggle, not inside it: lines up under the meal name
+                              <div className="flex items-center gap-1 ml-16 -mt-1 pb-1">
+                                <span className="text-xs text-muted mr-1">Portions</span>
+                                <button onClick={() => setMealPortions(meal, Math.max(1, count - 1))} disabled={count <= 1} className="icon-btn size-8" aria-label={`One portion fewer of ${meal.name}`}><Minus size={16} /></button>
+                                <span className="w-6 text-center font-semibold tabular-nums" aria-live="polite">{count}</span>
+                                <button onClick={() => setMealPortions(meal, Math.min(20, count + 1))} className="icon-btn size-8" aria-label={`One portion more of ${meal.name}`}><Plus size={16} /></button>
+                              </div>
+                            )}
                             {!meal.isLeftover && !meal.isQuick && meal.ingredients.length === 0 && (
                               // Beside the toggle, not inside it: lines up under the meal name
                               <Link

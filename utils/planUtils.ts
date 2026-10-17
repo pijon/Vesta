@@ -243,26 +243,45 @@ export const planMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> 
   isLeftover: false,
   isPacked: false,
   sides: [],
-  familyDinner: false,
+  familyMeal: false,
   ...extra,
 });
 
 /**
- * A recipe planned into a slot by the current user. With a family group (familySize set), a
- * dinner is shared with the family and cooked for everyone; other meals are personal.
+ * A recipe planned into a slot by the current user. In a family, a new dinner starts out as a
+ * family meal; other meals are just for the user. Portions are picked in the shopping list.
  */
 export const planRecipe = (
   recipe: Recipe,
   slot: MealSlot,
-  { familySize, addedBy }: { familySize?: number | null; addedBy?: string },
+  { inFamily, addedBy }: { inFamily: boolean; addedBy?: string },
   extra: Partial<Recipe> = {},
 ): Recipe => {
-  const shared = !!familySize && slot === 'dinner';
   return planMeal(recipe, slot, {
-    familyDinner: shared,
-    cookingServings: shared ? familySize! : 1,
+    familyMeal: inFamily && slot === 'dinner',
     addedBy,
     ownerId: recipe.ownerId,
     ...extra,
   });
+};
+
+/**
+ * A day plan with the user (uid) out of a family meal (out: true) or eating it again (false). A meal
+ * they're out of moves from the plan's meals to familyMealsOut, and stops counting as eaten.
+ */
+export const setFamilyMealOut = (plan: DayPlan, instanceId: string, uid: string, out: boolean): DayPlan => {
+  const meal = [...plan.meals, ...(plan.familyMealsOut || [])].find(m => m.instanceId === instanceId);
+  if (!meal) return plan;
+  const others = (meal.notEating || []).filter(id => id !== uid);
+  const notEating = out ? [...others, uid] : others;
+  const updated: Recipe = { ...meal, notEating: notEating.length ? notEating : undefined };
+  const meals = plan.meals.filter(m => m.instanceId !== instanceId);
+  const mealsOut = (plan.familyMealsOut || []).filter(m => m.instanceId !== instanceId);
+  if (out) mealsOut.push(updated);
+  return {
+    ...plan,
+    meals: out ? meals : [...meals, updated],
+    familyMealsOut: mealsOut.length ? mealsOut : undefined,
+    completedMealIds: out ? plan.completedMealIds.filter(id => id !== instanceId) : plan.completedMealIds,
+  };
 };

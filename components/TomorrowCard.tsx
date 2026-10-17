@@ -67,7 +67,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
                   <span className="block text-xs text-muted">{label}</span>
                   <span className="block font-semibold leading-snug truncate">{meal.name}</span>
                 </span>
-                {meal.familyDinner && <UsersRound size={14} className="text-workout-text shrink-0" aria-label="Family dinner" />}
+                {meal.familyMeal && <UsersRound size={14} className="text-workout-text shrink-0" aria-label="Family meal" />}
                 <span className="text-sm text-muted whitespace-nowrap">{mealKcalLabel(meal)}</span>
               </li>
             );
