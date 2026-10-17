@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Recipe } from '../types';
 import {
-  addDays, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, isRememberableDish, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
+  addDays, grams, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, isRememberableDish, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
   mealKey, mealProtein, planMeal, planRecipe, plannableSlotFor, proteinTarget, QUICK_MEAL_DESCRIPTION, slotFor,
   weekDates, weekStart,
 } from './planUtils';
@@ -247,5 +247,18 @@ describe('eatingOutDishMeal', () => {
     const decided = decideEatingOut(eatingOutBudgetMeal('dinner', 700), 'Pad thai at Thai corner', 650, { place: ' Thai corner ', dish: 'Pad thai' });
     expect(decided.quick).toMatchObject({ place: 'Thai corner', dish: 'Pad thai' });
     expect(isRememberableDish(decided)).toBe(true);
+  });
+});
+
+describe('grams', () => {
+  it('rounds to whole grams from 10 g', () => {
+    expect(grams(46.28)).toBe('46');
+    expect(grams(10)).toBe('10');
+  });
+
+  it('keeps one decimal below 10 g', () => {
+    expect(grams(3.5)).toBe('3.5');
+    expect(grams(9.96)).toBe('10');
+    expect(grams(4)).toBe('4');
   });
 });

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Meal } from '../types';
 import { mealVisualFor } from '../utils/mealVisual';
+import { grams } from '../utils/planUtils';
 import { CalendarCheck, CalendarPlus, Heart, UsersRound } from 'lucide-react';
 
 interface RecipeCardProps {
@@ -32,13 +33,17 @@ export const highlightTag = (tags: string[] = []) => {
  */
 const RecipeThumb: React.FC<{ meal: Meal; className: string; iconSize: number; zoom?: boolean; plate?: string }> = ({ meal, className, iconSize, zoom, plate }) => {
   const visual = mealVisualFor(meal);
-  if (meal.image) {
+  // A photo that won't load shows the meal's icon instead of a broken image
+  const [failed, setFailed] = useState(false);
+  if (meal.image && !failed) {
+    // Sunken while the photo loads, so the tile isn't a blank card
     return (
       <img
         src={meal.image}
         alt=""
         loading="lazy"
-        className={`${className} object-cover ${zoom ? 'motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-[1.04]' : ''}`}
+        onError={() => setFailed(true)}
+        className={`${className} object-cover bg-surface-sunken ${zoom ? 'motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-[1.04]' : ''}`}
       />
     );
   }
@@ -129,9 +134,9 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
             <span className="font-display font-extrabold text-lg">{meal.calories}</span>
             <span className="text-xs font-semibold text-muted"> kcal</span>
             {showMacros ? (
-              <span className="block text-xs text-muted mt-1">P {meal.protein ?? '–'} · F {meal.fat ?? '–'} · C {meal.carbs ?? '–'}</span>
+              <span className="block text-xs text-muted mt-1">P {meal.protein != null ? grams(meal.protein) : '–'} · F {meal.fat != null ? grams(meal.fat) : '–'} · C {meal.carbs != null ? grams(meal.carbs) : '–'}</span>
             ) : (
-              !!meal.protein && <span className="block text-xs text-muted mt-1 whitespace-nowrap">{meal.protein} g protein</span>
+              !!meal.protein && <span className="block text-xs text-muted mt-1 whitespace-nowrap">{grams(meal.protein)} g protein</span>
             )}
           </p>
           {onAddToPlan && footerButton('Add to plan', onAddToPlan, <CalendarPlus size={16} aria-hidden="true" />, 'Plan')}
@@ -193,7 +198,7 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
           <span className="font-semibold leading-snug line-clamp-2">{meal.name}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-xs text-muted">
             <span><span className="font-semibold text-main">{meal.calories}</span> kcal</span>
-            {!!meal.protein && <span>· {meal.protein} g protein</span>}
+            {!!meal.protein && <span>· {grams(meal.protein)} g protein</span>}
             <span>· {visual.label}</span>
             {tags.slice(0, 2).map(t => <span key={t} className="hidden sm:inline">· {t}</span>)}
             {plannedLabel && <span className="badge badge-ink !py-0"><CalendarCheck size={11} aria-hidden="true" /> {plannedLabel}</span>}

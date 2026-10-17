@@ -7,7 +7,7 @@ import { scaleIngredient } from '../utils/scaleIngredient';
 import { uploadRecipeImage } from '../utils/storageUtils';
 import { currentUid } from '../services/firebase';
 import { CalendarPlus, Camera, Check, ChefHat, ExternalLink, Minus, MoreHorizontal, Pencil, Plus, Trash2, UsersRound, X } from 'lucide-react';
-import { isQuickMeal } from '../utils/planUtils';
+import { grams, isQuickMeal } from '../utils/planUtils';
 
 interface RecipeDetailModalProps {
     recipe: Recipe;
@@ -37,6 +37,18 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     const [menuOpen, setMenuOpen] = useState(false);
     // Delete asks in the menu itself: window.confirm is silently skipped in some installed apps and web views
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    // Scrolled past the title: a solid bar with the name sits behind the controls, so text doesn't
+    // run under them. Scrolled past Add to plan and Cook: they stay at the bottom.
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const titleRef = useRef<HTMLHeadingElement>(null);
+    const actionsRef = useRef<HTMLDivElement>(null);
+    const [pastTitle, setPastTitle] = useState(false);
+    const [pastActions, setPastActions] = useState(false);
+    const handleScroll = () => {
+        const top = (scrollRef.current?.getBoundingClientRect().top ?? 0) + 64;
+        setPastTitle((titleRef.current?.getBoundingClientRect().bottom ?? Infinity) < top);
+        setPastActions((actionsRef.current?.getBoundingClientRect().bottom ?? Infinity) < top);
+    };
     useEffect(() => { if (!menuOpen) setConfirmingDelete(false); }, [menuOpen]);
     const menuOpenRef = useRef(menuOpen);
     menuOpenRef.current = menuOpen;
@@ -92,10 +104,26 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
     const stats = [
         { label: 'Calories', value: recipe.calories, unit: 'kcal' },
-        { label: 'Protein', value: recipe.protein, unit: 'g' },
-        { label: 'Carbs', value: recipe.carbs, unit: 'g' },
-        { label: 'Fat', value: recipe.fat, unit: 'g' },
+        { label: 'Protein', value: recipe.protein != null ? grams(recipe.protein) : undefined, unit: 'g' },
+        { label: 'Carbs', value: recipe.carbs != null ? grams(recipe.carbs) : undefined, unit: 'g' },
+        { label: 'Fat', value: recipe.fat != null ? grams(recipe.fat) : undefined, unit: 'g' },
     ];
+
+    const hasActions = !!(onAddToPlan || (onCook && steps.length > 0));
+    const actions = (
+        <div className="grid grid-cols-2 gap-2 [&>:only-child]:col-span-2">
+            {onAddToPlan && (
+                <button onClick={onAddToPlan} className="btn-primary btn-block px-4 whitespace-nowrap">
+                    <CalendarPlus size={18} aria-hidden="true" /> Add to plan
+                </button>
+            )}
+            {onCook && steps.length > 0 && (
+                <button onClick={onCook} className="btn-secondary btn-block px-4 whitespace-nowrap">
+                    <ChefHat size={18} aria-hidden="true" /> Cook
+                </button>
+            )}
+        </div>
+    );
 
     // "Imported from https://…" becomes a source link; "Imported from text" says nothing useful
     const importedFrom = recipe.description?.match(/^Imported from (https?:\/\/\S+)/)?.[1];
@@ -120,6 +148,13 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                     className={`relative bg-surface w-full md:max-w-5xl rounded-t-[32px] md:rounded-[32px] shadow-[var(--elev-lg)] max-h-[94vh] md:max-h-[92vh] flex flex-col overflow-hidden modal-panel ${closing ? 'is-closing' : ''}`}
                     onClick={e => { e.stopPropagation(); setMenuOpen(false); }}
                 >
+                    <div
+                        className={`absolute inset-x-0 top-0 z-10 h-[72px] flex items-center pl-5 md:pl-8 pr-32 bg-surface border-b border-border transition-opacity duration-200 ${pastTitle ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        aria-hidden="true"
+                    >
+                        <p className="font-display font-extrabold text-lg leading-6 truncate">{recipe.name}</p>
+                    </div>
+
                     {/* Controls stay put while the recipe scrolls */}
                     <div className="absolute top-4 right-4 z-20 flex gap-2">
                         {hasMenu && (
@@ -179,11 +214,11 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                         </button>
                     </div>
 
-                    <div className="overflow-y-auto overscroll-contain">
+                    <div ref={scrollRef} onScroll={handleScroll} className="overflow-y-auto overscroll-contain">
                         {/* Photo beside the essentials on wider screens, above them on phones */}
                         <div className="p-2 md:p-6 md:pb-2 md:grid md:grid-cols-[5fr_6fr] md:gap-8">
                             {recipe.image ? (
-                                <img src={recipe.image} alt="" className="w-full aspect-[16/10] md:aspect-[4/3] object-cover rounded-[28px]" />
+                                <img src={recipe.image} alt="" className="w-full aspect-[16/10] md:aspect-[4/3] object-cover rounded-[28px] bg-surface-sunken" />
                             ) : (
                                 <div className={`w-full aspect-[16/9] md:aspect-[4/3] rounded-[28px] flex flex-col items-center justify-center gap-3 ${visual.tint}`}>
                                     <visual.Icon size={48} strokeWidth={2.25} aria-hidden="true" />
@@ -210,7 +245,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                             <span className="badge badge-workout"><UsersRound size={12} aria-hidden="true" /> From {recipe.ownerName.split(' ')[0]}</span>
                                         )}
                                     </div>
-                                    <h2 id="recipe-title" className="heading-1">{recipe.name}</h2>
+                                    <h2 id="recipe-title" ref={titleRef} className="heading-1">{recipe.name}</h2>
                                     <p className="text-sm text-muted">
                                         {baseServings} {baseServings === 1 ? 'serving' : 'servings'}
                                         {ingredients.length > 0 && ` · ${ingredients.length} ingredients`}
@@ -238,19 +273,8 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
 
                                 {description && <p className="leading-relaxed">{description}</p>}
 
-                                {(onAddToPlan || (onCook && steps.length > 0)) && (
-                                    <div className="md:mt-auto grid grid-cols-2 gap-2 [&>:only-child]:col-span-2">
-                                        {onAddToPlan && (
-                                            <button onClick={onAddToPlan} className="btn-primary btn-block px-4 whitespace-nowrap">
-                                                <CalendarPlus size={18} aria-hidden="true" /> Add to plan
-                                            </button>
-                                        )}
-                                        {onCook && steps.length > 0 && (
-                                            <button onClick={onCook} className="btn-secondary btn-block px-4 whitespace-nowrap">
-                                                <ChefHat size={18} aria-hidden="true" /> Cook
-                                            </button>
-                                        )}
-                                    </div>
+                                {hasActions && (
+                                    <div ref={actionsRef} className="md:mt-auto">{actions}</div>
                                 )}
 
                             </div>
@@ -331,6 +355,9 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                             </div>
                         </div>
                     </div>
+                    {hasActions && pastActions && (
+                        <div className="border-t border-border px-5 py-3 md:px-8 animate-fade-in">{actions}</div>
+                    )}
                 </div>
             </div>
         </Portal>
