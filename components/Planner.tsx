@@ -626,6 +626,7 @@ export const Planner: React.FC<{ stats: UserStats; onPlanChanged?: () => void }>
           onCopy={(d, s) => { moveMeal(mealTarget, d, s, true); setMealTarget(null); }}
           onPlanLeftovers={() => { planLeftoversTomorrow(mealTarget); setMealTarget(null); }}
           onSetCookingServings={n => editMeal(mealTarget, m => ({ ...m, cookingServings: n }))}
+          onSetShopping={items => editMeal(mealTarget, m => ({ ...m, ingredients: items }))}
           onTogglePacked={() => editMeal(mealTarget, m => ({ ...m, isPacked: !m.isPacked }))}
           onRemove={() => { removeMeal(mealTarget); setMealTarget(null); }}
           onDecideEatingOut={() => { setDecideTarget(mealTarget); setMealTarget(null); }}

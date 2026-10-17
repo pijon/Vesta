@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft, BookOpen, ChefHat, Copy, MapPin, Minus, MoveRight, Package, Plus, Repeat, Shuffle, Trash2, UsersRound, X,
 } from 'lucide-react';
@@ -26,6 +26,8 @@ interface PlannerMealSheetProps {
   onCopy: (date: string, slot: MealSlot) => void;
   onPlanLeftovers: () => void;
   onSetCookingServings: (servings: number) => void;
+  /** Replace a home-cooked quick meal's shopping items */
+  onSetShopping: (items: string[]) => void;
   onTogglePacked: () => void;
   onRemove: () => void;
   /** Fill an eating-out budget with the real place and meal */
@@ -40,7 +42,7 @@ const dayName = (date: string, style: 'long' | 'short' = 'long') =>
 export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
   meal, date, slot, dates, addedByName, inFamily,
   onView, onCook, onSwap, onAddSide, onRemoveSide, onMove, onCopy, onPlanLeftovers,
-  onSetCookingServings, onTogglePacked, onRemove, onDecideEatingOut, onClose,
+  onSetCookingServings, onSetShopping, onTogglePacked, onRemove, onDecideEatingOut, onClose,
 }) => {
   const [picker, setPicker] = useState<'move' | 'copy' | null>(null);
   const [pickDate, setPickDate] = useState(date);
@@ -50,6 +52,19 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
   const isCustom = isQuickMeal(meal);
   const isBudget = isBudgetMeal(meal);
   const hasRecipe = !isCustom && ((meal.ingredients?.length ?? 0) > 0 || (meal.instructions?.length ?? 0) > 0);
+
+  // A home-cooked quick meal keeps a shopping list of its own, editable after planning. It saves
+  // when the field is left, or when the sheet closes with it still focused.
+  const hasShopping = isCustom && !isBudget && !meal.isLeftover && (meal.quick?.kind ?? 'home') === 'home';
+  const savedShopping = (meal.ingredients || []).join('\n');
+  const [shopping, setShopping] = useState(savedShopping);
+  const toItems = (text: string) => text.split('\n').map(line => line.trim()).filter(Boolean);
+  const saveShopping = () => {
+    if (toItems(shopping).join('\n') !== toItems(savedShopping).join('\n')) onSetShopping(toItems(shopping));
+  };
+  const saveShoppingRef = useRef(saveShopping);
+  saveShoppingRef.current = saveShopping;
+  useEffect(() => () => saveShoppingRef.current(), []);
 
   const action = (icon: React.ReactNode, label: string, onClick: () => void, tone: 'default' | 'danger' = 'default', pressed?: boolean) => (
     <li>
@@ -152,6 +167,20 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
               <button onClick={() => onSetCookingServings(Math.min(20, portions + 1))} className="icon-btn bg-surface" aria-label="One portion more"><Plus size={18} /></button>
             </div>
           </div>
+        )}
+
+        {hasShopping && (
+          <label className="block">
+            <span className="block text-sm font-semibold text-muted mb-1.5">Shopping <span className="font-normal">· one per line, for the shopping list</span></span>
+            <textarea
+              value={shopping}
+              onChange={e => setShopping(e.target.value)}
+              onBlur={saveShopping}
+              rows={3}
+              placeholder={'Tortillas\nMinced beef 500 g\nAvocados'}
+              className="input w-full resize-none"
+            />
+          </label>
         )}
 
         {meal.sides && meal.sides.length > 0 && (

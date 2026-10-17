@@ -717,7 +717,7 @@ export const ShoppingList: React.FC = () => {
                                   {meal.isLeftover
                                     ? 'Leftover · nothing to buy'
                                     : meal.ingredients.length > 0 ? `${meal.ingredients.length} ingredients`
-                                    : meal.isQuick ? 'Quick meal · nothing to buy' : 'No ingredients listed'}
+                                    : meal.isQuick ? 'Quick meal · add shopping items to it in the planner' : 'No ingredients listed'}
                                   {meal.isShared && <span className="badge badge-workout !py-0">From {meal.ownerName?.split(' ')[0] || 'family'}</span>}
                                 </span>
                               </span>
@@ -743,7 +743,7 @@ export const ShoppingList: React.FC = () => {
 
             {selectedMealIds.size > 0 && selectedIngredientCount === 0 && (
               <p className="text-sm text-muted text-center">
-                Nothing to buy for the meals you chose. Add ingredients to their recipes, or choose other meals.
+                Nothing to buy for the meals you chose. Add ingredients to their recipes or shopping items to quick meals, or choose other meals.
               </p>
             )}
 
