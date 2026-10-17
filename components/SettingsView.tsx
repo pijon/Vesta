@@ -12,6 +12,7 @@ import { localDateString } from '../utils/dateUtils';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 import { SelectionPill } from './SelectionPill';
 import { MemberAvatar } from './MemberAvatar';
+import { ConfirmSheet } from './ConfirmSheet';
 
 const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label: string }[] = [
     { id: '12:12', hours: 12, label: 'Gentle' },
@@ -78,6 +79,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const { isDevMode, featureFlags, toggleFeatureFlag, resetFlags } = useDevMode();
     const { user, logout } = useAuth();
     const [hasCopiedId, setHasCopiedId] = useState(false);
+    // The action waiting on its confirmation sheet (a backup to restore carries its file)
+    const [confirming, setConfirming] = useState<'logout' | 'sync' | { restore: File } | null>(null);
 
     const update = (field: keyof ReturnType<typeof toForm>) => (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm(f => ({ ...f, [field]: e.target.value }));
@@ -156,21 +159,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setTimeout(() => setDataStatus(m => (m === message ? null : m)), 3000);
     };
 
-    const handleForceSync = async () => {
-        if (confirm("Upload the data stored on this device to the cloud?")) {
-            const result = await migrateFromLocalStorage(true);
-            if (result.success) {
-                window.location.reload();
-            } else {
-                alert(`Sync failed: ${result.error}`);
-            }
-        }
-    };
-
-    const handleLogout = async () => {
-        if (confirm("Log out of Vesta on this device?")) {
-            await logout();
-        }
+    const forceSync = async () => {
+        const result = await migrateFromLocalStorage(true);
+        if (result.success) window.location.reload();
+        else flash(`Sync failed: ${result.error}`);
     };
 
     // The preview can be closed without saving; finishing it saves name, weight, goal and targets
@@ -201,18 +193,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         e.target.value = '';
-        if (!file) return;
-        if (!confirm("Importing replaces all of your current Vesta data with this backup. Continue?")) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const result = await importAllData(event.target?.result as string);
-            if (result.success) {
-                window.location.reload();
-            } else {
-                alert(`That backup couldn't be imported: ${result.error}`);
-            }
-        };
-        reader.readAsText(file);
+        if (file) setConfirming({ restore: file });
+    };
+
+    const restoreBackup = async (file: File) => {
+        const result = await importAllData(await file.text());
+        if (result.success) window.location.reload();
+        else flash(`That backup couldn't be restored: ${result.error}`);
     };
 
     const handleRefresh = async () => {
@@ -474,7 +461,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </label>
 
                     <div className="flex flex-wrap gap-2">
-                        <button onClick={handleForceSync} className="btn-secondary btn-sm"><CloudUpload size={16} aria-hidden="true" /> Force sync</button>
+                        <button onClick={() => setConfirming('sync')} className="btn-secondary btn-sm"><CloudUpload size={16} aria-hidden="true" /> Force sync</button>
                         <button onClick={handleTestOnboarding} className="btn-secondary btn-sm"><PlayCircle size={16} aria-hidden="true" /> Preview welcome</button>
                         {onTriggerSundayReset && (
                             <button onClick={onTriggerSundayReset} className="btn-secondary btn-sm"><Sparkles size={16} aria-hidden="true" /> Test Sunday reset</button>
@@ -507,10 +494,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <h2 id="account-heading" className="heading-2">Account</h2>
                     {user?.email && <p className="text-sm text-muted mt-0.5 truncate">Signed in as {user.email}</p>}
                 </div>
-                <button onClick={handleLogout} className="btn-secondary btn-sm shrink-0">
+                <button onClick={() => setConfirming('logout')} className="btn-secondary btn-sm shrink-0">
                     <LogOut size={16} aria-hidden="true" /> Log out
                 </button>
             </section>
+
+            {confirming === 'logout' && (
+                <ConfirmSheet
+                    title="Log out?"
+                    message="You'll need your email and password to sign in again on this device."
+                    confirmLabel="Log out"
+                    onConfirm={logout}
+                    onClose={() => setConfirming(null)}
+                />
+            )}
+            {confirming === 'sync' && (
+                <ConfirmSheet
+                    title="Upload this device's data?"
+                    message="Data saved on this device from older versions of Vesta is written to the cloud, over any matching records, and the app reloads."
+                    confirmLabel="Upload"
+                    tone="danger"
+                    onConfirm={forceSync}
+                    onClose={() => setConfirming(null)}
+                />
+            )}
+            {confirming && typeof confirming === 'object' && (
+                <ConfirmSheet
+                    title="Restore this backup?"
+                    message={<>Everything in Vesta is replaced with <span className="font-semibold text-main">{confirming.restore.name}</span>, and the app reloads. Download a backup first if you might want today's data back.</>}
+                    confirmLabel="Restore"
+                    tone="danger"
+                    onConfirm={() => restoreBackup(confirming.restore)}
+                    onClose={() => setConfirming(null)}
+                />
+            )}
         </div>
     );
 };
