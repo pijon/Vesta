@@ -79,20 +79,6 @@ export default defineConfig(({ command, mode }) => {
                 expiration: { maxEntries: 2 },
                 cacheableResponse: { statuses: [200] },
               },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
             }
           ]
         }
@@ -109,9 +95,7 @@ export default defineConfig(({ command, mode }) => {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
             'ui-framer': ['framer-motion'],
-            'ui-recharts': ['recharts'],
-            'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage', 'firebase/analytics'],
-            'genai': ['@google/genai']
+            'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage', 'firebase/analytics']
           }
         }
       }
