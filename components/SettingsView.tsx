@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ThemePreference } from '../hooks/useTheme';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { proteinTarget } from '../utils/planUtils';
-import { Check, Copy, CloudUpload, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Upload } from 'lucide-react';
+import { BellRing, Check, Code, Copy, CloudUpload, Database, Download, LogOut, PlayCircle, RefreshCw, Sparkles, Store, SunMoon, Target, Upload, UserRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { ReminderSettings } from './ReminderSettings';
 import { EatingOutHistorySettings } from './EatingOutHistorySettings';
 import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLocalStorage } from '../services/storageService';
@@ -13,6 +14,7 @@ import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 import { SelectionPill } from './SelectionPill';
 import { MemberAvatar } from './MemberAvatar';
 import { ConfirmSheet } from './ConfirmSheet';
+import { Switch } from './Switch';
 
 const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label: string }[] = [
     { id: '12:12', hours: 12, label: 'Gentle' },
@@ -42,10 +44,21 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 
 const CREDIT_OPTIONS: { value: WorkoutCalorieCredit; label: string; example: string }[] = [
-    { value: 1, label: 'Add all', example: '300 burned → +300' },
-    { value: 0.5, label: 'Add half', example: '300 burned → +150' },
-    { value: 0, label: "Don't add", example: 'Burn not counted' },
+    { value: 1, label: 'Add all', example: '300 → +300' },
+    { value: 0.5, label: 'Add half', example: '300 → +150' },
+    { value: 0, label: "Don't add", example: 'Not counted' },
 ];
+
+/** A settings card's title: a round tinted icon beside the heading and its description */
+const SectionTitle: React.FC<{ id: string; icon: LucideIcon; tile: string; title: React.ReactNode; children?: React.ReactNode }> = ({ id, icon: Icon, tile, title, children }) => (
+    <div className="flex items-start gap-3 min-w-0">
+        <span className={`icon-tile ${tile} size-10 shrink-0 flex items-center justify-center`}><Icon size={18} strokeWidth={2.25} aria-hidden="true" /></span>
+        <div className="min-w-0">
+            <h2 id={id} className="heading-3 pt-2">{title}</h2>
+            {children && <p className="text-sm text-muted mt-1">{children}</p>}
+        </div>
+    </div>
+);
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
     stats,
@@ -258,10 +271,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Goals */}
             <section className="card" aria-labelledby="goals-heading">
                 <div className="p-5 md:p-6 space-y-6">
-                    <div>
-                        <h2 id="goals-heading" className="heading-2">Your goals</h2>
-                        <p className="text-sm text-muted mt-0.5">These drive the targets on Today and in the planner.</p>
-                    </div>
+                    <SectionTitle id="goals-heading" icon={Target} tile="tile-calories" title="Your goals">
+                        These drive the targets on Today and in the planner.
+                    </SectionTitle>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {field('name', 'Name', { inputMode: 'text', placeholder: 'What should we call you?' })}
@@ -281,7 +293,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div className="border-t border-border pt-5 space-y-3">
                         <div>
                             <h3 className="heading-4" id="credit-heading">Workout calories</h3>
-                            <p className="text-sm text-muted">How much of a workout's burn to add to the day's calories. Watches and machines often overestimate it, so adding half is a safer choice when you're losing weight.</p>
+                            <p className="text-sm text-muted">How much of a workout's burn to add to the day's calories. Watches tend to overestimate, so half is safer.</p>
                         </div>
                         <div role="radiogroup" aria-labelledby="credit-heading" className="grid grid-cols-3 gap-2">
                             {CREDIT_OPTIONS.map(o => {
@@ -292,12 +304,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         role="radio"
                                         aria-checked={active}
                                         onClick={() => { setForm(f => ({ ...f, workoutCalorieCredit: String(o.value) })); }}
-                                        className={`rounded-[14px] border px-2 py-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
-                                            ? 'bg-workout-bg text-workout-text border-transparent'
-                                            : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                                        className="chip flex-col gap-0 px-2 py-2.5 min-h-14"
                                     >
                                         <span className="block font-semibold">{o.label}</span>
-                                        <span className={`block text-xs ${active ? '' : 'text-muted'}`}>{o.example}</span>
+                                        <span className={`block text-xs font-medium ${active ? '' : 'text-muted'}`}>{o.example}</span>
                                     </button>
                                 );
                             })}
@@ -318,12 +328,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         role="radio"
                                         aria-checked={active}
                                         onClick={() => setProtocol(p.id)}
-                                        className={`rounded-[14px] border px-2 py-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${active
-                                            ? 'bg-fasting-bg text-fasting-text border-transparent'
-                                            : 'bg-surface border-border hover:bg-surface-sunken'}`}
+                                        className="chip flex-col gap-0 px-2 py-2.5 min-h-14"
                                     >
                                         <span className="block font-display font-extrabold text-lg leading-6">{p.id}</span>
-                                        <span className={`block text-xs ${active ? '' : 'text-muted'}`}>{p.label}</span>
+                                        <span className={`block text-xs font-medium ${active ? '' : 'text-muted'}`}>{p.label}</span>
                                     </button>
                                 );
                             })}
@@ -348,10 +356,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Appearance: applies at once, outside the goals form */}
             <section className="card p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4" aria-labelledby="appearance-heading">
-                <div>
-                    <h2 id="appearance-heading" className="heading-2">Appearance</h2>
-                    <p className="text-sm text-muted mt-0.5">System follows your device, light or dark.</p>
-                </div>
+                <SectionTitle id="appearance-heading" icon={SunMoon} tile="tile-neutral" title="Appearance">
+                    System follows your device, light or dark.
+                </SectionTitle>
                 <div role="radiogroup" aria-labelledby="appearance-heading" className="segmented pill-group self-start md:self-auto">
                     {THEME_OPTIONS.map(o => (
                         <button
@@ -370,29 +377,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Reminders */}
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="reminders-heading">
-                <div>
-                    <h2 id="reminders-heading" className="heading-2">Reminders</h2>
-                    <p className="text-sm text-muted mt-0.5">Gentle nudges to log and weigh in, so your personal target has the data it needs.</p>
-                </div>
+                <SectionTitle id="reminders-heading" icon={BellRing} tile="tile-water" title="Reminders">
+                    Gentle nudges to log and weigh in, so your personal target has the data it needs.
+                </SectionTitle>
                 <ReminderSettings />
             </section>
 
             {/* Eating out */}
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="eating-out-heading">
-                <div>
-                    <h2 id="eating-out-heading" className="heading-2">Eating out</h2>
-                    <p className="text-sm text-muted mt-0.5">Dishes you've logged, offered again when you plan or log a meal out. Fix a name or calories, or remove one.</p>
-                </div>
+                <SectionTitle id="eating-out-heading" icon={Store} tile="tile-workout" title="Eating out">
+                    Dishes you've logged, offered again when you plan or log a meal out.
+                </SectionTitle>
                 <EatingOutHistorySettings />
             </section>
 
             {/* Data */}
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="data-heading">
                 <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <h2 id="data-heading" className="heading-2">Your data</h2>
-                        <p className="text-sm text-muted mt-0.5">Download a backup, restore one, or pull the latest from the cloud.</p>
-                    </div>
+                    <SectionTitle id="data-heading" icon={Database} tile="tile-neutral" title="Your data">
+                        Download a backup, restore one, or pull the latest from the cloud.
+                    </SectionTitle>
                     {dataStatus && <span className="badge badge-weight shrink-0" role="status">{dataStatus}</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -421,44 +425,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {isDevMode && (
                 <section className="card p-5 md:p-6 space-y-5" aria-labelledby="dev-heading">
                     <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <h2 id="dev-heading" className="heading-2 flex items-center gap-2">
-                                Developer <span className="badge badge-fasting">Verified</span>
-                            </h2>
-                            <p className="text-sm text-muted mt-0.5">Feature flags and recovery tools for testing.</p>
-                        </div>
+                        <SectionTitle id="dev-heading" icon={Code} tile="tile-neutral" title="Developer">
+                            Feature flags and recovery tools for testing.
+                        </SectionTitle>
                         <button onClick={resetFlags} className="btn-ghost btn-sm shrink-0">Reset flags</button>
                     </div>
 
-                    <label className="flex items-center justify-between gap-4 rounded-[14px] bg-surface-sunken p-4 cursor-pointer">
-                        <span>
+                    <div className="flex items-center justify-between gap-4 rounded-[20px] bg-surface-sunken p-4">
+                        <label htmlFor="flag-useGeminiExperimental" className="cursor-pointer">
                             <span className="block font-semibold">Gemini 3.8 Flash</span>
                             <span className="block text-sm text-muted">Off uses Gemini 3.5 Flash-Lite, a lighter model</span>
-                        </span>
-                        <input
-                            type="checkbox"
-                            role="switch"
-                            className="sr-only peer"
-                            checked={featureFlags.useGeminiExperimental ?? true}
-                            onChange={() => toggleFeatureFlag('useGeminiExperimental')}
-                        />
-                        <span aria-hidden="true" className="relative shrink-0 w-12 h-7 rounded-full bg-border-control peer-checked:bg-ink transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
-                    </label>
+                        </label>
+                        <Switch id="flag-useGeminiExperimental" checked={featureFlags.useGeminiExperimental ?? true} onChange={() => toggleFeatureFlag('useGeminiExperimental')} />
+                    </div>
 
-                    <label className="flex items-center justify-between gap-4 rounded-[14px] bg-surface-sunken p-4 cursor-pointer">
-                        <span>
+                    <div className="flex items-center justify-between gap-4 rounded-[20px] bg-surface-sunken p-4">
+                        <label htmlFor="flag-quickMeals" className="cursor-pointer">
                             <span className="block font-semibold">Quick meals</span>
                             <span className="block text-sm text-muted">Plan meals without a recipe from the planner search</span>
-                        </span>
-                        <input
-                            type="checkbox"
-                            role="switch"
-                            className="sr-only peer"
-                            checked={featureFlags.quickMeals ?? true}
-                            onChange={() => toggleFeatureFlag('quickMeals')}
-                        />
-                        <span aria-hidden="true" className="relative shrink-0 w-12 h-7 rounded-full bg-border-control peer-checked:bg-ink transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)] after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
-                    </label>
+                        </label>
+                        <Switch id="flag-quickMeals" checked={featureFlags.quickMeals ?? true} onChange={() => toggleFeatureFlag('quickMeals')} />
+                    </div>
 
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => setConfirming('sync')} className="btn-secondary btn-sm"><CloudUpload size={16} aria-hidden="true" /> Force sync</button>
@@ -472,7 +459,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     {showDebug && (
-                        <div className="rounded-[14px] bg-surface-sunken p-4 space-y-1">
+                        <div className="rounded-[20px] bg-surface-sunken p-4 space-y-1">
                             <h3 className="font-sans text-xs font-semibold text-muted mb-2">Local storage</h3>
                             {Object.entries(debugInfo).map(([key, value]) => (
                                 <div key={key} className="flex justify-between gap-3 text-xs">
@@ -490,10 +477,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Account actions, last: rarely needed */}
             <section className="card p-5 md:p-6 flex items-center justify-between gap-4" aria-labelledby="account-heading">
-                <div className="min-w-0">
-                    <h2 id="account-heading" className="heading-2">Account</h2>
-                    {user?.email && <p className="text-sm text-muted mt-0.5 truncate">Signed in as {user.email}</p>}
-                </div>
+                <SectionTitle id="account-heading" icon={UserRound} tile="tile-neutral" title="Account">
+                    {user?.email && <>Signed in as <span className="break-all">{user.email}</span></>}
+                </SectionTitle>
                 <button onClick={() => setConfirming('logout')} className="btn-secondary btn-sm shrink-0">
                     <LogOut size={16} aria-hidden="true" /> Log out
                 </button>

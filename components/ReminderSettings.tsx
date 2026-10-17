@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CircleAlert, BellOff, BellRing, Check, Loader2, Scale, Send, Share, Store, CookingPot } from 'lucide-react';
 import { ReminderSettings as Settings } from '../types';
+import { Switch } from './Switch';
 import {
   DEFAULT_REMINDERS, currentSubscription, disableReminders, enableReminders, getReminders, pushSupport, saveReminderSettings, sendTestReminder,
 } from '../services/reminderService';
@@ -10,18 +11,6 @@ const WEEKDAYS: { day: number; short: string; label: string }[] = [
   { day: 4, short: 'T', label: 'Thursday' }, { day: 5, short: 'F', label: 'Friday' }, { day: 6, short: 'S', label: 'Saturday' },
   { day: 0, short: 'S', label: 'Sunday' },
 ];
-
-const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label: string }> = ({ checked, onChange, label }) => (
-  <button
-    role="switch"
-    aria-checked={checked}
-    aria-label={label}
-    onClick={() => onChange(!checked)}
-    className={`relative shrink-0 w-11 h-7 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${checked ? 'bg-ink' : 'bg-border-control'}`}
-  >
-    <span className={`absolute top-1 left-1 size-5 rounded-full bg-surface shadow-sm transition-transform ${checked ? 'translate-x-4' : ''}`} />
-  </button>
-);
 
 /** Settings card for push reminders: what to be reminded of, and turning them on for this device. */
 export const ReminderSettings: React.FC = () => {
@@ -117,8 +106,8 @@ export const ReminderSettings: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <ul className="divide-y divide-border rounded-[14px] border border-border">
-        <li className="p-4 space-y-3">
+      <ul className="divide-y divide-border">
+        <li className="py-4 first:pt-0 space-y-3">
           <div className="flex items-start gap-3">
             <span className="icon-tile size-9 shrink-0 tile-calories flex items-center justify-center"><CookingPot size={18} aria-hidden="true" /></span>
             <div className="flex-1 min-w-0">
@@ -129,7 +118,7 @@ export const ReminderSettings: React.FC = () => {
           </div>
           <div className="pl-12">{timeInput(settings.log.time, v => change({ ...settings, log: { ...settings.log, time: v } }), 'Log reminder time', !settings.log.enabled)}</div>
         </li>
-        <li className="p-4 space-y-3">
+        <li className="py-4 first:pt-0 space-y-3">
           <div className="flex items-start gap-3">
             <span className="icon-tile size-9 shrink-0 tile-weight flex items-center justify-center"><Scale size={18} aria-hidden="true" /></span>
             <div className="flex-1 min-w-0">
@@ -138,9 +127,9 @@ export const ReminderSettings: React.FC = () => {
             </div>
             <Switch checked={settings.weighIn.enabled} onChange={v => change({ ...settings, weighIn: { ...settings.weighIn, enabled: v } })} label="Weigh-in reminder" />
           </div>
-          <div className="pl-12 flex flex-wrap items-center gap-3">
-            {timeInput(settings.weighIn.time, v => change({ ...settings, weighIn: { ...settings.weighIn, time: v } }), 'Weigh-in reminder time', !settings.weighIn.enabled)}
-            <div className="flex gap-1" role="group" aria-label="Weigh-in days">
+          <div className="sm:pl-12 flex flex-wrap items-center gap-3">
+            <div className="pl-12 sm:pl-0">{timeInput(settings.weighIn.time, v => change({ ...settings, weighIn: { ...settings.weighIn, time: v } }), 'Weigh-in reminder time', !settings.weighIn.enabled)}</div>
+            <div className="grid grid-cols-7 gap-1 w-full sm:w-auto" role="group" aria-label="Weigh-in days">
               {WEEKDAYS.map(({ day, short, label }) => {
                 const on = settings.weighIn.days.includes(day);
                 return (
@@ -153,7 +142,7 @@ export const ReminderSettings: React.FC = () => {
                       const days = on ? settings.weighIn.days.filter(d => d !== day) : [...settings.weighIn.days, day];
                       if (days.length) change({ ...settings, weighIn: { ...settings.weighIn, days } });
                     }}
-                    className={`size-8 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${on ? 'bg-ink text-on-ink' : 'bg-surface-sunken text-muted hover:text-main'}`}
+                    className={`h-10 min-w-10 rounded-full text-sm font-semibold transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${on ? 'bg-ink text-on-ink' : 'bg-surface-sunken text-muted hover:text-main'}`}
                   >
                     {short}
                   </button>
@@ -162,7 +151,7 @@ export const ReminderSettings: React.FC = () => {
             </div>
           </div>
         </li>
-        <li className="p-4 space-y-3">
+        <li className="py-4 first:pt-0 space-y-3">
           <div className="flex items-start gap-3">
             <span className="icon-tile size-9 shrink-0 tile-workout flex items-center justify-center"><Store size={18} aria-hidden="true" /></span>
             <div className="flex-1 min-w-0">
