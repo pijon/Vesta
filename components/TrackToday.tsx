@@ -47,6 +47,8 @@ interface TrackTodayProps {
   onUpdateStats: (stats: UserStats) => void;
   onLogMeal: (meal: Recipe, isAdding: boolean) => Promise<void>;
   onLogMeals: (entries: { meal: Recipe; at: number }[]) => Promise<void>;
+  /** Shows a change to today's plan at once, while it's saved */
+  onPlanChange: (plan: DayPlan) => void;
   onSetDayStatus: (status: DayLogStatus | undefined) => Promise<DailyLog>;
   onAddFoodLogItems: (items: FoodLogItem[]) => Promise<void>;
   onUpdateFoodItem: (item: FoodLogItem) => Promise<void>;
@@ -76,6 +78,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onUpdateStats,
   onLogMeal,
   onLogMeals,
+  onPlanChange,
   onSetDayStatus,
   onAddFoodLogItems,
   onUpdateFoodItem,
@@ -217,6 +220,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     const meals = indices.map(i => plan.meals[i]).filter(Boolean);
     if (!meals.length) return;
     const completedMealIds = [...new Set([...plan.completedMealIds, ...meals.map(mealKey)])];
+    onPlanChange({ ...storedPlan, completedMealIds });
     await saveDayPlan({ ...plan, completedMealIds });
     await onLogMeals(meals.map(meal => ({ meal, at: timed ? plannedTime(slotFor(meal), now) : now })));
     rememberEaten(meals, plan.date);
@@ -300,9 +304,16 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     }
 
     const updatedPlan = { ...todayPlan, completedMealIds: newCompleted };
-    await saveDayPlan(updatedPlan);
-    await onLogMeal(meal, isAdding);
-    if (isAdding) rememberEaten([meal], todayPlan.date);
+    // Ticked (or unticked) at once; saving, logging and the refresh follow
+    onPlanChange({ ...storedPlan, completedMealIds: newCompleted });
+    try {
+      await saveDayPlan(updatedPlan);
+      await onLogMeal(meal, isAdding);
+      if (isAdding) rememberEaten([meal], todayPlan.date);
+    } catch (e) {
+      console.error('Failed to save the meal', e);
+      setToast({ message: "Couldn't save that. Check your connection." });
+    }
     refreshData();
   };
 
@@ -315,6 +326,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     if (!item) return;
     const key = item.planInstanceId;
     const untick = !!key && todayPlan.completedMealIds.includes(key);
+    if (untick) onPlanChange({ ...storedPlan, completedMealIds: storedPlan.completedMealIds.filter(id => id !== key) });
     await onDeleteFoodItem(itemId);
     if (untick) {
       await saveDayPlan({ ...todayPlan, completedMealIds: todayPlan.completedMealIds.filter(id => id !== key) });

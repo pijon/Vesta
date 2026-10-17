@@ -221,6 +221,13 @@ const TrackerApp: React.FC = () => {
     // Refreshes overlap (every planner edit starts one, so does focus); only the newest may set state,
     // or a slow earlier one lands last and puts back the plan from before the latest change
     const refreshSeq = useRef(0);
+    /** Shows a change to today's plan at once (a meal ticked off), before it's saved. A refresh
+     *  already on its way read the plan before the change, so it's dropped rather than undoing it. */
+    const showTodayPlan = useCallback((plan: DayPlan) => {
+        refreshSeq.current++;
+        setTodayPlan(plan);
+    }, []);
+
     const refreshData = useCallback(async () => {
         const seq = ++refreshSeq.current;
         const editsAtStart = logEdits.current;
@@ -581,6 +588,7 @@ const TrackerApp: React.FC = () => {
         onSetCoachRead: handleSetCoachRead,
         onLogMeal: handleLogMeal,
         onLogMeals: handleLogMeals,
+        onPlanChange: showTodayPlan,
         onSetDayStatus: (status: DayLogStatus | undefined) => updateDailyLog(current => ({ ...current, status })),
         onAddFoodLogItems: handleAddFoodLogItems,
         onUpdateFoodItem: async (item: FoodLogItem) => {
