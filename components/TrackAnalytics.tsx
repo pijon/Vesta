@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, CircleAlert, Droplets, Equal, Flame, Scale, ThumbsUp, Timer } from 'lucide-react';
+import { Activity, CalendarCheck, CircleAlert, CookingPot, Droplet, Egg, Equal, Flag, Flame, Gauge, NotebookPen, Scale, ThumbsUp, Timer } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { AppView, DayPlan, DailyLog, FastingState, UserStats, CoachReadState } from '../types';
 import { analyticsDayTypesData, analyticsSummariesData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
-import { AnalyticsDay, AnalyticsPeriod, Insight, PERIODS, buildDays, insightsFor, summarize, weightSummary } from '../utils/analyticsModel';
+import { AnalyticsDay, AnalyticsPeriod, Insight, PERIODS, buildDays, chartStart, insightsFor, summarize, weightProgress, weightSummary } from '../utils/analyticsModel';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { addDays, proteinTarget } from '../utils/planUtils';
 import { ChartContainer } from './analytics/ChartContainer';
-import { EnergyPanel } from './EnergyCheckIn';
+import { BurnUnlock, EnergyPanel, useEnergy } from './EnergyCheckIn';
 import { CoachPanel } from './CoachPanel';
 import { weightTrend } from '../utils/energyModel';
 import { useReducedMotion } from 'framer-motion';
@@ -30,24 +31,25 @@ interface TrackAnalyticsProps {
 
 const PERIOD_KEY = 'vesta_analytics_period';
 const AXIS = { fontSize: 12, fill: 'var(--text-muted)' };
+/** Fully round bar ends; Recharts clamps the radius to the bar */
+const ROUND: [number, number, number, number] = [999, 999, 999, 999];
 
 const shortDate = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-/** A date that may be months away, with the year when it isn't this one */
-const goalDay = (date: string) => {
-    const d = parseLocalDate(date);
-    return d.toLocaleDateString(undefined, d.getFullYear() === new Date().getFullYear() ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
-};
+const monthYear = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 const longDate = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 const fmt = (n: number) => Math.round(n).toLocaleString();
 const signed = (n: number, digits = 1) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(digits)}`;
 
-/** Card with a heading, optional subtitle and an optional control on the right */
-const Panel: React.FC<{ title: string; subtitle?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, subtitle, action, children, className = '' }) => (
+/** Card with a round tinted icon, a heading, an optional subtitle and an optional control on the right */
+const Panel: React.FC<{ title: string; icon: LucideIcon; tile: string; subtitle?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, icon: Icon, tile, subtitle, action, children, className = '' }) => (
     <section className={`card p-4 md:p-6 ${className}`} aria-label={title}>
         <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="min-w-0">
-                <h2 className="heading-3">{title}</h2>
-                {subtitle && <p className="text-sm text-muted mt-0.5">{subtitle}</p>}
+            <div className="flex items-start gap-3 min-w-0">
+                <span className={`icon-tile ${tile} size-10 shrink-0 flex items-center justify-center`}><Icon size={18} strokeWidth={2.25} aria-hidden="true" /></span>
+                <div className="min-w-0">
+                    <h2 className="heading-3 pt-2">{title}</h2>
+                    {subtitle && <p className="text-sm text-muted mt-1">{subtitle}</p>}
+                </div>
             </div>
             {action}
         </div>
@@ -55,8 +57,19 @@ const Panel: React.FC<{ title: string; subtitle?: React.ReactNode; action?: Reac
     </section>
 );
 
+/** A habit or metric figure on its tint */
+const Stat: React.FC<{ label: string; icon: LucideIcon; tile: string; value: React.ReactNode; unit?: string; sub?: string }> = ({ label, icon: Icon, tile, value, unit, sub }) => (
+    <div className={`tile ${tile} min-w-0`}>
+        <p className="flex items-center gap-1.5 text-xs font-semibold"><Icon size={16} strokeWidth={2.25} aria-hidden="true" /> {label}</p>
+        <p className="mt-1.5 font-display font-extrabold text-[24px] leading-7 tracking-tight">
+            {value}{unit && <span className="font-sans text-xs font-semibold tracking-normal"> {unit}</span>}
+        </p>
+        {sub && <p className="text-xs font-medium mt-0.5">{sub}</p>}
+    </div>
+);
+
 const Empty: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="h-40 flex items-center justify-center rounded-[14px] bg-surface-sunken text-sm text-muted text-center px-6">{children}</div>
+    <div className="h-40 flex items-center justify-center rounded-[20px] bg-surface-sunken text-sm text-muted text-center px-6">{children}</div>
 );
 
 const INSIGHT_TONE: Record<Insight['tone'], { Icon: typeof ThumbsUp; className: string; label: string }> = {
@@ -68,8 +81,30 @@ const INSIGHT_TONE: Record<Insight['tone'], { Icon: typeof ThumbsUp; className: 
 /** Tooltip in the app's card style */
 const ChartTip: React.FC<{ active?: boolean; label?: string | number; lines: (label: string | number) => React.ReactNode }> = ({ active, label, lines }) =>
     active && label !== undefined ? (
-        <div className="rounded-[12px] border border-border bg-surface px-3 py-2 text-sm shadow-[var(--elev-md)]">{lines(label)}</div>
+        <div className="rounded-[16px] border border-border bg-surface px-3 py-2 text-sm shadow-[var(--elev-md)]">{lines(label)}</div>
     ) : null;
+
+/** The trend as a small ink line in the hero, with the goal as a dashed line when it's in view */
+const Sparkline: React.FC<{ line: { time: number; trend: number }[]; goal: number }> = ({ line, goal }) => {
+    if (line.length < 2) return null;
+    const ys = line.map(p => p.trend);
+    let lo = Math.min(...ys), hi = Math.max(...ys);
+    const span = Math.max(hi - lo, 0.5);
+    // Show the goal only when it's close enough not to flatten the line
+    const showGoal = goal > 0 && goal >= lo - span * 1.5 && goal <= hi + span * 1.5;
+    if (showGoal) { lo = Math.min(lo, goal); hi = Math.max(hi, goal); }
+    const t0 = line[0].time, t1 = line[line.length - 1].time;
+    const x = (t: number) => ((t - t0) / Math.max(t1 - t0, 1)) * 296 + 2;
+    const y = (v: number) => 6 + (1 - (v - lo) / Math.max(hi - lo, 0.01)) * 52;
+    const last = line[line.length - 1];
+    return (
+        <svg viewBox="0 0 300 64" preserveAspectRatio="none" className="block w-full h-16 mt-3" aria-hidden="true">
+            {showGoal && <line x1="0" x2="300" y1={y(goal)} y2={y(goal)} stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />}
+            <polyline points={line.map(p => `${x(p.time)},${y(p.trend)}`).join(' ')} fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <circle cx={x(last.time)} cy={y(last.trend)} r="4.5" fill="currentColor" />
+        </svg>
+    );
+};
 
 export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats, onOpenFoodModal, onOpenWeightModal, onNavigate, coachRead, onSetCoachRead }) => {
     const summaries = usePrewarmed(analyticsSummariesData) ?? [];
@@ -86,11 +121,15 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     };
 
     const periodDays = PERIODS.find(p => p.value === period)!.days;
+    const periodName = period === 'quarter' ? '3 months' : period;
     const targetFast = fastingState.config.targetFastHours || 16;
     const days = useMemo(() => buildDays(periodDays, summaries, dayTypes, stats, dailyLog), [periodDays, summaries, dayTypes, stats, dailyLog]);
     const byDate = useMemo(() => new Map(days.map(d => [d.date, d])), [days]);
     const summary = useMemo(() => summarize(days, targetFast), [days, targetFast]);
     const weight = useMemo(() => weightSummary(stats.weightHistory, periodDays, stats.goalWeight), [stats.weightHistory, periodDays, stats.goalWeight]);
+    // Progress and the burn estimate don't follow the period: they read the trend and the last four weeks
+    const progress = useMemo(() => weightProgress(stats.weightHistory, stats.goalWeight), [stats.weightHistory, stats.goalWeight]);
+    const energy = useEnergy(stats, summaries, dayTypes);
     // The period up to yesterday (today is still in progress) against the same length before it
     const { insights, compared } = useMemo(() => {
         const yesterday = addDays(localDateString(), -1);
@@ -102,16 +141,20 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     const tickDate = (date: string) => period === 'week'
         ? parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })
         : shortDate(date);
-    // The charts start at the first day with anything in it (two weeks at least), not at a long
-    // empty stretch before you started
-    const firstActive = days.findIndex(d => d.logged || d.burned > 0 || d.fastHours > 0);
-    const chartDays = firstActive <= 0 ? days : days.slice(Math.min(firstActive, Math.max(0, days.length - 14)));
+    // Charts start where the latest spell of logging does (two weeks at least), not at a stray
+    // early day or a long empty stretch before you started
+    const start = chartStart(days);
+    const chartDays = days.slice(start);
+    const trimmed = start > 0;
     const tickInterval = period === 'week' ? 0 : Math.max(1, Math.floor(chartDays.length / 6));
 
-    // Calorie, fasting and movement series: unlogged days stay empty so they show as gaps
+    // Calorie and fasting series: unlogged days stay empty so they show as gaps
     const calorieData = chartDays.map(d => ({ ...d, eaten: d.logged ? d.calories : null }));
     const fastData = chartDays.map(d => ({ ...d, fast: d.fastHours }));
-    const moveData = chartDays.map(d => ({ ...d, kcal: d.burned > 0 ? d.burned : null }));
+    // Round steps on the calorie axis: 500s, or 1000s above 3000
+    const calorieMax = Math.max(...chartDays.map(d => Math.max(d.calories, d.calorieTarget)), 500);
+    const calorieStep = calorieMax > 3000 ? 1000 : 500;
+    const calorieTicks = Array.from({ length: Math.ceil(calorieMax / calorieStep) + 1 }, (_, i) => i * calorieStep);
 
     // --- Weight chart: the smoothed trend as a line, scale readings as dots ---
     const weightData = useMemo(() => {
@@ -132,42 +175,17 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         return [Math.floor(Math.min(...ys) - 1), Math.ceil(Math.max(...ys) + 1)] as [number, number];
     })();
     const lastPoint = weight.points[weight.points.length - 1];
-    const projection = weight.projection;
     const xDomain: [number, number] | undefined = weight.points.length
         ? [weight.points[0].time, lastPoint.time + 86_400_000]
         : undefined;
 
-    const tiles: { label: string; icon: React.ElementType; tone: string; value: React.ReactNode; sub: string }[] = [
-        {
-            label: 'Weight', icon: Scale, tone: 'tile-weight',
-            value: weight.current !== null ? <><AnimatedNumber value={weight.current} format={n => n.toFixed(1)} /> kg</> : '—',
-            sub: weight.current === null ? 'No weigh-ins yet'
-                : weight.change !== null && !weight.fallback ? `${signed(weight.change)} kg this ${period === 'quarter' ? 'quarter' : period}`
-                : weight.toGoal !== null ? `${Math.abs(weight.toGoal).toFixed(1)} kg to goal` : 'Latest weigh-in',
-        },
-        {
-            label: 'Calories', icon: Flame, tone: 'tile-calories',
-            value: summary.avgCalories !== null ? <><AnimatedNumber value={summary.avgCalories} format={fmt} /> kcal</> : '—',
-            sub: !summary.loggedDays ? 'Nothing logged yet'
-                : summary.avgProtein !== null ? `Daily average · ${fmt(summary.avgProtein)} g protein (target ${proteinTarget(stats)} g)`
-                : `Daily average · ${summary.daysOnTarget} of ${summary.loggedDays} days on target`,
-        },
-        {
-            label: 'Fasting', icon: Timer, tone: 'tile-fasting',
-            value: summary.avgFast !== null ? <><AnimatedNumber value={summary.avgFast} format={n => n.toFixed(1)} /> h</> : '—',
-            sub: summary.longestFast !== null ? `Average · longest ${summary.longestFast.toFixed(1)} h` : 'No fasts recorded',
-        },
-        {
-            label: 'Movement', icon: Activity, tone: 'tile-workout',
-            value: <><AnimatedNumber value={summary.workouts} /> {summary.workouts === 1 ? 'workout' : 'workouts'}</>,
-            sub: summary.burned ? `${fmt(summary.burned)} kcal burned` : 'None logged',
-        },
-        {
-            label: 'Water', icon: Droplets, tone: 'tile-water',
-            value: summary.avgWater !== null ? <><AnimatedNumber value={summary.avgWater / 1000} format={n => n.toFixed(1)} /> L</> : '—',
-            sub: summary.waterDaysLogged ? `Daily average · goal met ${summary.waterDaysMet} of ${summary.waterDaysLogged} days` : 'None logged',
-        },
-    ];
+    // --- Hero chips: pace, change since this spell of weigh-ins began, and what's left ---
+    const heroChips: string[] = [];
+    if (progress) {
+        if (progress.ratePerWeek !== null) heroChips.push(`${signed(progress.ratePerWeek)} kg a week`);
+        if (Math.abs(progress.change) >= 0.1) heroChips.push(`${signed(progress.change)} kg since ${shortDate(progress.since)}`);
+        if (progress.toGoal !== null) heroChips.push(progress.toGoal >= 0.1 ? `${progress.toGoal.toFixed(1)} kg to go` : 'At your goal');
+    }
 
     // --- Consistency calendar: whole weeks (Mon–Sun) covering the period, at least four.
     // Week is the exception: just the period's seven days, in a row ---
@@ -177,17 +195,18 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     const weeks = Math.max(4, Math.ceil(periodDays / 7));
     const thisMonday = addDays(today, -((parseLocalDate(today).getDay() + 6) % 7));
     const calendarWeeks = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(thisMonday, (w - weeks + 1) * 7 + d)));
+    const fastKept = (day: AnalyticsDay | undefined) => !!day && day.isFastDay && day.complete && day.goals.calories;
     const cellStyle = (day: AnalyticsDay | undefined, date: string): React.CSSProperties => {
-        if (date > today) return { background: 'transparent', border: '1px dashed var(--border)' };
-        if (!day || (!day.logged && day.water === 0 && day.workouts === 0)) return { background: 'var(--surface-sunken)' };
-        const met = Number(day.goals.calories) + Number(day.goals.water) + Number(day.goals.movement);
-        return { background: `color-mix(in srgb, var(--weight) ${[22, 45, 70, 100][met]}%, var(--surface-sunken))` };
+        const ring = fastKept(day) ? { boxShadow: 'inset 0 0 0 3px var(--fasting)' } : {};
+        if (date > today) return { background: 'transparent', border: '1px dashed var(--border-control)' };
+        if (day?.complete) return { background: 'var(--weight)', ...ring };
+        if (day?.logged) return { background: 'color-mix(in srgb, var(--weight) 35%, var(--surface-sunken))', ...ring };
+        return { background: 'var(--surface-sunken)' };
     };
     const cellLabel = (day: AnalyticsDay | undefined, date: string) => {
         if (date > today) return `${longDate(date)}: upcoming`;
-        if (!day || (!day.logged && day.water === 0 && day.workouts === 0)) return `${longDate(date)}: nothing logged`;
-        const met = [day.goals.calories && 'calories', day.goals.water && 'water', day.goals.movement && 'movement'].filter(Boolean);
-        return `${longDate(date)}: ${met.length ? `met ${met.join(', ')}` : 'logged, no goals met'}`;
+        const state = day?.complete ? 'fully logged' : day?.logged ? 'partly logged' : 'nothing logged';
+        return `${longDate(date)}: ${state}${fastKept(day) ? ', fast day kept' : day?.isFastDay ? ', fast day' : ''}`;
     };
     // Calendar can reach back before the period: look those days up too
     const calendarDays = useMemo(() => {
@@ -197,8 +216,60 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
 
     return (
         <div className="space-y-4 md:space-y-5 pb-4">
-            {/* Period */}
-            <div className="flex items-center justify-between gap-3">
+            {/* 1. Is it working? Progress towards the goal: the page's one bold block */}
+            <section className="hero p-5 md:p-6" aria-label="Your progress">
+                <p className="text-[15px] font-bold">Your progress</p>
+                {progress ? (
+                    <>
+                        <p className="mt-2 font-display font-extrabold text-[72px] leading-[0.9] tracking-[-0.05em] tabular-nums">
+                            <AnimatedNumber value={progress.current} format={n => n.toFixed(1)} />
+                            <span className="text-2xl tracking-tight"> kg</span>
+                        </p>
+                        <p className="text-sm font-medium mt-1">Trend weight, smoothing out day-to-day changes</p>
+                        {heroChips.length > 0 && (
+                            <ul className="flex flex-wrap gap-1.5 mt-3" aria-label="Progress">
+                                {heroChips.map(c => <li key={c} className="badge badge-ink">{c}</li>)}
+                            </ul>
+                        )}
+                        <Sparkline line={progress.line} goal={stats.goalWeight} />
+                        {progress.projection && (
+                            <p className="flex items-center gap-1.5 text-[15px] font-semibold mt-3">
+                                <Flag size={16} strokeWidth={2.25} aria-hidden="true" /> {stats.goalWeight} kg around {monthYear(progress.projection.date)} at this pace
+                            </p>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <p className="mt-2 font-display font-extrabold text-[72px] leading-[0.9] tracking-[-0.05em]">—</p>
+                        <p className="text-sm font-medium mt-3">Weigh in on Today to start following your progress.</p>
+                    </>
+                )}
+            </section>
+
+            {/* 2. What to do next, including what's still needed for the burn estimate */}
+            <CoachPanel
+                stats={stats}
+                summaries={summaries}
+                dayTypes={dayTypes}
+                dailyLog={dailyLog}
+                onUpdateStats={onUpdateStats}
+                onOpenFoodModal={onOpenFoodModal}
+                onOpenWeightModal={onOpenWeightModal}
+                onNavigate={onNavigate}
+                coachRead={coachRead}
+                onSetCoachRead={onSetCoachRead}
+                unlock={energy.estimate.ready ? undefined : <BurnUnlock estimate={energy.estimate} />}
+            />
+
+            {/* 3. How to get there faster: pace, goal date and target together, once the burn is known */}
+            <EnergyPanel stats={stats} summaries={summaries} dayTypes={dayTypes} onUpdateStats={onUpdateStats} currentWeight={progress?.current ?? null} />
+
+            {/* 4. Habits: everything from here follows the period */}
+            <section className="space-y-3 pt-2" aria-labelledby="habits-heading">
+                <div className="flex items-end justify-between gap-3">
+                    <h2 id="habits-heading" className="heading-2">Your habits</h2>
+                    <p className="text-sm text-muted text-right">{shortDate(days[0].date)} – {shortDate(today)}</p>
+                </div>
                 <div role="radiogroup" aria-label="Period" className="segmented pill-group">
                     {PERIODS.map(p => (
                         <button
@@ -213,68 +284,51 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                         </button>
                     ))}
                 </div>
-                <p className="hidden sm:block text-sm text-muted text-right">{shortDate(days[0].date)} – {shortDate(today)}</p>
-            </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <Stat label="Nourish days" icon={CookingPot} tile="tile-calories"
+                        value={summary.nourishLogged ? summary.nourishOnTarget : '—'}
+                        unit={summary.nourishLogged ? `of ${summary.nourishLogged} on target` : undefined}
+                        sub={summary.nourishLogged ? undefined : 'None fully logged'} />
+                    <Stat label="Fast days" icon={Flame} tile="tile-fasting"
+                        value={summary.fastDaysLogged ? summary.fastDaysKept : '—'}
+                        unit={summary.fastDaysLogged ? `of ${summary.fastDaysLogged} kept` : undefined}
+                        sub={summary.fastDaysLogged
+                            ? `Averaged ${fmt(summary.avgFastDayCalories!)} kcal`
+                            : summary.fastDays ? 'None fully logged' : 'None planned'} />
+                    <Stat label="Fully logged" icon={NotebookPen} tile="tile-neutral"
+                        value={summary.loggedDays} unit={`of ${days.length} days`} />
+                    <Stat label="Protein" icon={Egg} tile="tile-neutral"
+                        value={summary.avgProtein !== null ? fmt(summary.avgProtein) : '—'}
+                        unit={summary.avgProtein !== null ? `of ${proteinTarget(stats)} g` : undefined}
+                        sub={summary.avgProtein !== null ? 'Daily average' : 'Not tracked yet'} />
+                </div>
 
-            {/* Summary: weight is the one bold block, the rest a quiet strip beside it */}
-        <div className="grid lg:grid-cols-[2fr_3fr] gap-3">
-                <section className="hero p-5 md:p-6 flex flex-col gap-3" aria-label="Weight">
-                    <p className="text-[15px] font-bold">Weight</p>
-                    <p className="font-display font-extrabold text-[72px] leading-[0.9] tracking-[-0.05em] tabular-nums">
-                        {weight.current !== null ? <AnimatedNumber value={weight.current} format={n => n.toFixed(1)} /> : '—'}
-                        {weight.current !== null && <span className="text-2xl tracking-tight"> kg</span>}
-                    </p>
-                    <p className="text-sm font-medium mt-auto">{tiles[0].sub}</p>
-                </section>
-                <section className="card p-4 md:p-5 grid grid-cols-2 gap-x-4 gap-y-5" aria-label="Averages">
-                    {tiles.slice(1).map(({ label, value, sub }, i) => (
-                        <div key={label} className="flex flex-col gap-0.5 min-w-0">
-                            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
-                                <span className="size-2 rounded-full shrink-0" style={{ background: `var(--${['calories', 'fasting', 'workout', 'water'][i]})` }} aria-hidden="true" />
-                                {label}
-                            </span>
-                            <span className="font-display font-extrabold text-[22px] leading-7 tracking-tight tabular-nums">{value}</span>
-                            <span className="text-xs text-muted leading-snug">{sub}</span>
-                        </div>
-                    ))}
-                </section>
-            </div>
+                {/* Without a period before to compare with, insights would only repeat the tiles */}
+                {compared && insights.length > 0 && (
+                    <section className="card p-4 md:p-6" aria-label="Insights">
+                        <h3 className="font-semibold">Against the {periodName} before</h3>
+                        <ul className="space-y-2.5 mt-3">
+                            {insights.map(insight => {
+                                const { Icon, className, label } = INSIGHT_TONE[insight.tone];
+                                return (
+                                    <li key={insight.id} className="flex items-start gap-2.5">
+                                        <span className={`mt-0.5 size-6 shrink-0 rounded-full flex items-center justify-center ${className}`}><Icon size={14} aria-hidden="true" /></span>
+                                        <span className="leading-relaxed"><span className="sr-only">{label}: </span>{insight.text}</span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+                )}
+            </section>
 
-            {/* Guidance from the user's own data, and questions about it */}
-            <CoachPanel
-                stats={stats}
-                summaries={summaries}
-                dayTypes={dayTypes}
-                dailyLog={dailyLog}
-                onUpdateStats={onUpdateStats}
-                onOpenFoodModal={onOpenFoodModal}
-                onOpenWeightModal={onOpenWeightModal}
-                onNavigate={onNavigate}
-                coachRead={coachRead}
-                onSetCoachRead={onSetCoachRead}
-            />
-
-            {insights.length > 0 && (
-                <Panel title="Insights" subtitle={compared ? `The last ${periodDays} days against the ${periodDays} before` : `The last ${periodDays} days. Log 3 days in the ${periodDays} before and you'll see how they compare.`}>
-                    <ul className="space-y-2.5">
-                        {insights.map(insight => {
-                            const { Icon, className, label } = INSIGHT_TONE[insight.tone];
-                            return (
-                                <li key={insight.id} className="flex items-start gap-2.5">
-                                    <span className={`mt-0.5 size-6 shrink-0 rounded-full flex items-center justify-center ${className}`}><Icon size={14} aria-hidden="true" /></span>
-                                    <span className="leading-relaxed"><span className="sr-only">{label}: </span>{insight.text}</span>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </Panel>
-            )}
-
-            {/* Weight */}
+            {/* 5. The detail behind it */}
             <Panel
                 title="Weight"
+                icon={Scale}
+                tile="tile-weight"
                 subtitle={
-                    weight.fallback ? `${weight.inPeriod ? 'One weigh-in' : 'No weigh-ins'} this ${period === 'quarter' ? 'quarter' : period}; showing your last ${weight.points.length}`
+                    weight.fallback ? `${weight.inPeriod ? 'One weigh-in' : 'No weigh-ins'} this ${periodName}; showing your last ${weight.points.length}`
                         : weight.ratePerWeek !== null ? `Trend ${signed(weight.ratePerWeek, 2)} kg a week${stats.goalWeight ? ` · goal ${stats.goalWeight} kg` : ''}`
                         : stats.goalWeight ? `Goal ${stats.goalWeight} kg` : undefined
                 }
@@ -310,37 +364,27 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                             </ChartContainer>
                         </div>
                         <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted mt-2">
-                            <span className="inline-flex items-center gap-1.5"><span className="w-4 h-0.5 rounded-full bg-weight" aria-hidden="true" /> Trend, smoothing out day-to-day water changes</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-4 h-0.5 rounded-full bg-weight" aria-hidden="true" /> Trend</span>
                             <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full border-2 border-weight" aria-hidden="true" /> Scale</span>
                         </p>
-                        {projection && (
-                            <p className="text-sm text-muted mt-3">
-                                At your pace over the last four weeks ({signed(projection.ratePerWeek, 2)} kg a week) you'd reach {stats.goalWeight} kg around {goalDay(projection.date)}
-                                {projection.latest
-                                    ? `, likely between ${goalDay(projection.earliest)} and ${goalDay(projection.latest)}.`
-                                    : `. It could be as soon as ${goalDay(projection.earliest)}, or later if the pace slows.`}
-                            </p>
-                        )}
                     </>
                 )}
             </Panel>
 
-            {/* Burn estimate and suggested target */}
-            <EnergyPanel stats={stats} summaries={summaries} dayTypes={dayTypes} onUpdateStats={onUpdateStats} />
-
-            {/* Calories */}
             <Panel
                 title="Calories"
-                subtitle={summary.loggedDays ? `Each day against that day's target · ${summary.loggedDays} of ${days.length} days fully logged` : undefined}
+                icon={Gauge}
+                tile="tile-calories"
+                subtitle={summary.loggedDays ? `${trimmed ? `Since ${shortDate(chartDays[0].date)}, each` : 'Each'} day against its target · ${summary.loggedDays} fully logged` : undefined}
             >
                 {summary.loggedDays === 0 ? <Empty>No food logged in this period.</Empty> : (
                     <>
                         <div className="h-56 md:h-64">
                             <ChartContainer key={period}>
-                                <ComposedChart data={calorieData} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+                                <ComposedChart data={calorieData} margin={{ top: 8, right: 16, bottom: 0, left: -4 }}>
                                     <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={tickDate} interval={tickInterval} />
-                                    <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} />
+                                    <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} ticks={calorieTicks} domain={[0, calorieTicks[calorieTicks.length - 1]]} />
                                     <Tooltip cursor={{ fill: 'var(--surface-sunken)' }} content={({ active, label }) => (
                                         <ChartTip active={active} label={label} lines={l => {
                                             const d = byDate.get(String(l));
@@ -349,7 +393,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                                 <p className="font-semibold">{d.logged ? `${fmt(d.calories)} of ${fmt(d.calorieTarget)} kcal` : 'Nothing logged'}</p></>;
                                         }} />
                                     )} />
-                                    <Bar dataKey="eaten" radius={[4, 4, 0, 0]} maxBarSize={28} {...chartMotion}>
+                                    <Bar dataKey="eaten" radius={ROUND} maxBarSize={20} {...chartMotion}>
                                         {calorieData.map(d => <Cell key={d.date} fill={d.calories > d.calorieTarget ? 'var(--warning)' : 'var(--calories)'} />)}
                                     </Bar>
                                     <Line type="stepAfter" dataKey="calorieTarget" stroke="var(--text-muted)" strokeDasharray="4 4" strokeWidth={1.5} dot={false} isAnimationActive={false} />
@@ -357,65 +401,52 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                             </ChartContainer>
                         </div>
                         <ul className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-muted">
-                            <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-calories" aria-hidden="true" /> Within target</li>
-                            <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-warning" aria-hidden="true" /> Over target</li>
-                            <li className="flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed border-[var(--text-muted)]" aria-hidden="true" /> Target (lower on fast days)</li>
+                            <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-calories" aria-hidden="true" /> On target</li>
+                            <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-warning" aria-hidden="true" /> Over</li>
+                            <li className="flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed border-[var(--text-muted)]" aria-hidden="true" /> Target, lower on fast days</li>
                         </ul>
                     </>
                 )}
             </Panel>
 
-            <div className="grid lg:grid-cols-2 gap-4 md:gap-5">
-                {/* Fasting */}
-                <Panel title="Fasting" subtitle={summary.fastCount ? `Longest fast ending each day · target ${targetFast} h` : undefined}>
-                    {summary.fastCount === 0 ? <Empty>No fasts recorded in this period. Fasts are measured between logged meals.</Empty> : (
-                        <div className="h-48 md:h-56">
-                            <ChartContainer key={period}>
-                                <BarChart data={fastData} margin={{ top: 8, right: 8, bottom: 0, left: -6 }}>
-                                    <CartesianGrid vertical={false} stroke="var(--border)" />
-                                    <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={tickDate} interval={tickInterval} />
-                                    <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} unit=" h" allowDecimals={false} />
-                                    <Tooltip cursor={{ fill: 'var(--surface-sunken)' }} content={({ active, label }) => (
-                                        <ChartTip active={active} label={label} lines={l => {
-                                            const d = byDate.get(String(l));
-                                            return d ? <><p className="text-muted">{longDate(d.date)}</p><p className="font-semibold">{d.fastHours !== null ? `${d.fastHours.toFixed(1)} h fast` : 'No fast recorded'}</p></> : null;
-                                        }} />
-                                    )} />
-                                    <ReferenceLine y={targetFast} stroke="var(--fasting)" strokeDasharray="4 4" />
-                                    <Bar dataKey="fast" fill="var(--fasting)" radius={[4, 4, 0, 0]} maxBarSize={28} {...chartMotion} />
-                                </BarChart>
-                            </ChartContainer>
-                        </div>
-                    )}
-                </Panel>
-
-                {/* Movement */}
-                <Panel title="Movement" subtitle={summary.workouts ? `Calories burned in workouts · ${summary.workouts} ${summary.workouts === 1 ? 'workout' : 'workouts'}` : undefined}>
-                    {summary.workouts === 0 ? <Empty>No workouts logged in this period.</Empty> : (
-                        <div className="h-48 md:h-56">
-                            <ChartContainer key={period}>
-                                <BarChart data={moveData} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-                                    <CartesianGrid vertical={false} stroke="var(--border)" />
-                                    <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={tickDate} interval={tickInterval} />
-                                    <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} />
-                                    <Tooltip cursor={{ fill: 'var(--surface-sunken)' }} content={({ active, label }) => (
-                                        <ChartTip active={active} label={label} lines={l => {
-                                            const d = byDate.get(String(l));
-                                            return d ? <><p className="text-muted">{longDate(d.date)}</p><p className="font-semibold">{d.workouts ? `${d.workouts} ${d.workouts === 1 ? 'workout' : 'workouts'} · ${fmt(d.burned)} kcal` : 'No workout'}</p></> : null;
-                                        }} />
-                                    )} />
-                                    <Bar dataKey="kcal" fill="var(--workout)" radius={[4, 4, 0, 0]} maxBarSize={28} {...chartMotion} />
-                                </BarChart>
-                            </ChartContainer>
-                        </div>
-                    )}
-                </Panel>
-            </div>
-
             <div className="grid lg:grid-cols-2 gap-4 md:gap-5 items-start">
-                {/* Consistency: one square size for month and 3 months (smaller on phones so 13 weeks still fit);
-                    a week is one row of bigger squares */}
-                <Panel title="Consistency" subtitle="Each square is a day: darker means more goals met (calories, water, movement)">
+                <div className="space-y-4 md:space-y-5">
+                    <Panel title="Fasting window" icon={Timer} tile="tile-fasting" subtitle={summary.fastCount ? `Hours between your last and first meal · goal ${targetFast} h` : undefined}>
+                        {summary.fastCount === 0 ? <Empty>No fasts recorded in this period. They're measured between logged meals.</Empty> : (
+                            <div className="h-44 md:h-52">
+                                <ChartContainer key={period}>
+                                    <BarChart data={fastData} margin={{ top: 8, right: 16, bottom: 0, left: -6 }}>
+                                        <CartesianGrid vertical={false} stroke="var(--border)" />
+                                        <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={tickDate} interval={tickInterval} />
+                                        <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} unit=" h" allowDecimals={false} />
+                                        <Tooltip cursor={{ fill: 'var(--surface-sunken)' }} content={({ active, label }) => (
+                                            <ChartTip active={active} label={label} lines={l => {
+                                                const d = byDate.get(String(l));
+                                                return d ? <><p className="text-muted">{longDate(d.date)}</p><p className="font-semibold">{d.fastHours !== null ? `${d.fastHours.toFixed(1)} h fast` : 'No fast recorded'}</p></> : null;
+                                            }} />
+                                        )} />
+                                        <ReferenceLine y={targetFast} stroke="var(--fasting-text)" strokeDasharray="4 4" />
+                                        <Bar dataKey="fast" fill="var(--fasting)" radius={ROUND} maxBarSize={20} {...chartMotion} />
+                                    </BarChart>
+                                </ChartContainer>
+                            </div>
+                        )}
+                    </Panel>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <Stat label="Movement" icon={Activity} tile="tile-workout"
+                            value={summary.workouts} unit={summary.workouts === 1 ? 'workout' : 'workouts'}
+                            sub={summary.burned ? `${fmt(summary.burned)} kcal burned` : 'None logged'} />
+                        <Stat label="Water" icon={Droplet} tile="tile-water"
+                            value={summary.avgWater !== null ? (summary.avgWater / 1000).toFixed(1) : '—'}
+                            unit={summary.avgWater !== null ? 'L a day' : undefined}
+                            sub={summary.waterDaysLogged ? `Goal met ${summary.waterDaysMet} of ${summary.waterDaysLogged} days` : 'None logged'} />
+                    </div>
+                </div>
+
+                {/* Consistency: the habits the plan runs on. One dot size for month and 3 months
+                    (smaller on phones so 13 weeks still fit); a week is one row of bigger dots */}
+                <Panel title="Consistency" icon={CalendarCheck} tile="tile-weight" subtitle="Fully logged days, and fast days you kept">
                     {isWeek ? (
                         <div className="grid grid-cols-7 gap-1.5 md:gap-2 max-w-[26rem] stagger">
                             {weekDates.map(date => {
@@ -426,7 +457,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                             role="img"
                                             aria-label={cellLabel(day, date)}
                                             title={cellLabel(day, date)}
-                                            className={`w-full aspect-square rounded-[8px] ${date === today ? 'ring-2 ring-ink ring-offset-1 ring-offset-[var(--surface)]' : ''}`}
+                                            className={`w-full aspect-square rounded-full ${date === today ? 'outline-2 outline-offset-2 outline-[var(--ink)]' : ''}`}
                                             style={cellStyle(day, date)}
                                         />
                                         <span className="text-xs text-muted" aria-hidden="true">{parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
@@ -455,7 +486,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                                                 role="img"
                                                 aria-label={cellLabel(day, date)}
                                                 title={cellLabel(day, date)}
-                                                className={`size-full rounded-[4px] ${date === today ? 'ring-2 ring-ink ring-offset-1 ring-offset-[var(--surface)]' : ''}`}
+                                                className={`size-full rounded-full ${date === today ? 'outline-2 outline-offset-2 outline-[var(--ink)]' : ''}`}
                                                 style={cellStyle(day, date)}
                                             />
                                         );
@@ -464,16 +495,13 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                             ))}
                         </div>
                     )}
-                    <div className="flex flex-wrap items-center gap-1.5 mt-3 text-xs text-muted">
-                        <span>Not logged</span>
-                        <span className="size-3 rounded-[3px]" style={{ background: 'var(--surface-sunken)' }} aria-hidden="true" />
-                        {[22, 45, 70, 100].map(p => (
-                            <span key={p} className="size-3 rounded-[3px]" style={{ background: `color-mix(in srgb, var(--weight) ${p}%, var(--surface-sunken))` }} aria-hidden="true" />
-                        ))}
-                        <span>All three goals</span>
-                    </div>
+                    <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted">
+                        <li className="flex items-center gap-1.5"><span className="size-3 rounded-full bg-surface-sunken" aria-hidden="true" /> Not logged</li>
+                        <li className="flex items-center gap-1.5"><span className="size-3 rounded-full" style={{ background: 'color-mix(in srgb, var(--weight) 35%, var(--surface-sunken))' }} aria-hidden="true" /> Partly</li>
+                        <li className="flex items-center gap-1.5"><span className="size-3 rounded-full bg-weight" aria-hidden="true" /> Fully logged</li>
+                        <li className="flex items-center gap-1.5"><span className="size-3 rounded-full" style={{ boxShadow: 'inset 0 0 0 2.5px var(--fasting)' }} aria-hidden="true" /> Fast day kept</li>
+                    </ul>
                 </Panel>
-
             </div>
         </div>
     );

@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Check, Gauge } from 'lucide-react';
+import { Check, TrendingDown } from 'lucide-react';
 import { DailySummary, UserStats } from '../types';
 import {
   DEFAULT_LOSS_RATE, EnergyEstimate, LOSS_RATES, MIN_LOGGED_DAYS, MIN_NOURISH_TARGET, MIN_WEIGH_INS, MIN_WEIGH_SPAN_DAYS,
   TargetSuggestion, estimateEnergy, fastDaysPerWeek, suggestTargets,
 } from '../utils/energyModel';
 import { completeDayFor } from '../utils/logCompleteness';
+import { goalDateAtPace } from '../utils/analyticsModel';
+import { parseLocalDate } from '../utils/dateUtils';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
 /** Burn is an estimate; tens are as precise as it gets */
@@ -74,20 +76,38 @@ const Requirements: React.FC<{ estimate: EnergyEstimate }> = ({ estimate }) => (
   </div>
 );
 
+/** Guidance row while the burn can't be worked out yet: what's missing, and how far along it is */
+export const BurnUnlock: React.FC<{ estimate: EnergyEstimate }> = ({ estimate }) => (
+  <div className="flex gap-3">
+    <span className="icon-tile size-9 shrink-0 tile-weight flex items-center justify-center"><TrendingDown size={18} strokeWidth={2.25} aria-hidden="true" /></span>
+    <div className="flex-1 min-w-0">
+      <p className="font-semibold leading-snug">{stillNeeded(estimate).replace(/^./, c => c.toUpperCase())}</p>
+      <p className="text-sm text-muted mt-1 mb-3">Then Vesta can work out your daily burn and a calorie target for the pace you want.</p>
+      <Requirements estimate={estimate} />
+    </div>
+  </div>
+);
+
+const monthYear = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+
 interface PanelProps {
   stats: UserStats;
   summaries: DailySummary[];
   dayTypes: Record<string, string>;
   onUpdateStats: (stats: UserStats) => void;
+  /** Current trend weight, for the goal date at each pace */
+  currentWeight: number | null;
 }
 
-/** Analytics panel: the burn estimate, how it was worked out, and a target for the chosen pace. */
-export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, onUpdateStats }) => {
+/** Analytics panel, once the burn is known: a pace, when it reaches the goal, and the target for it. */
+export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, onUpdateStats, currentWeight }) => {
   const [rate, setRate] = useState<number | undefined>(undefined);
   const { estimate, suggestion, differs, rate: activeRate } = useEnergy(stats, summaries, dayTypes, rate);
   const current = stats.nonFastDayCalories || 2000;
   const [applied, setApplied] = useState(false);
+  if (!estimate.ready || estimate.expenditure === null) return null;
 
+  const goalDate = currentWeight !== null ? goalDateAtPace(currentWeight, stats.goalWeight, suggestion?.weeklyLoss ?? activeRate) : null;
   const apply = () => {
     if (!suggestion) return;
     onUpdateStats({ ...stats, nonFastDayCalories: suggestion.nourish, weeklyLossGoal: activeRate });
@@ -97,76 +117,63 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
   return (
     <section className="card p-4 md:p-6" aria-labelledby="energy-title">
       <div className="flex items-start gap-3 mb-4">
-        <span className="icon-tile size-10 shrink-0 tile-calories flex items-center justify-center"><Gauge size={20} aria-hidden="true" /></span>
+        <span className="icon-tile size-10 shrink-0 tile-weight flex items-center justify-center"><TrendingDown size={18} strokeWidth={2.25} aria-hidden="true" /></span>
         <div className="min-w-0">
-          <h2 id="energy-title" className="heading-3">Your daily burn</h2>
-          <p className="text-sm text-muted mt-0.5">Worked out from what you eat and how your weight moves, so it fits you rather than an average person.</p>
+          <h2 id="energy-title" className="heading-3 pt-2">Your pace</h2>
+          <p className="text-sm text-muted mt-1">You burn about {approx(estimate.expenditure)} kcal a day, worked out from what you eat and how your weight moves.</p>
         </div>
       </div>
 
-      {!estimate.ready || estimate.expenditure === null ? (
-        <>
-          <p className="text-sm mb-4">Vesta needs {stillNeeded(estimate)} to work out your burn. Then you'll see it here, with a calorie target for the pace you choose.</p>
-          <Requirements estimate={estimate} />
-        </>
-      ) : (
-        <div className="grid gap-5 md:grid-cols-2 md:gap-8">
-          <div>
-            <p className="font-display font-extrabold text-4xl leading-tight">≈ {approx(estimate.expenditure)}<span className="text-lg font-bold"> kcal a day</span></p>
-            <p className="text-sm text-muted mt-2">
-              You ate {fmt(estimate.avgIntake!)} kcal a day on average ({estimate.loggedDays} fully logged days) and your weight moved
-              {' '}{estimate.weightChangePerWeek! > 0 ? '+' : '−'}{kg(Math.abs(estimate.weightChangePerWeek!))} kg a week over the last four weeks.
-              {estimate.avgWorkoutBurn > 0 && ` That includes about ${fmt(estimate.avgWorkoutBurn)} kcal a day from workouts.`}
-            </p>
-            <p className="text-xs text-muted mt-2">Updates as you log. Days you only partly log make it look lower than it is.</p>
-          </div>
-
-          <div className="rounded-[14px] bg-surface-sunken p-4">
-            <p className="text-sm font-semibold mb-2" id="rate-label">Pace</p>
-            <div role="radiogroup" aria-labelledby="rate-label" className="grid grid-cols-4 p-1 rounded-full bg-surface">
-              {LOSS_RATES.map(r => (
-                <button
-                  key={r}
-                  role="radio"
-                  aria-checked={activeRate === r}
-                  onClick={() => { setRate(r); setApplied(false); }}
-                  className={`min-h-9 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${activeRate === r ? 'bg-ink text-on-ink' : 'text-muted hover:text-main'}`}
-                >
-                  {kg(r)} kg
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted mt-1.5">a week</p>
-
-            {suggestion && (
-              <>
-                <p className="mt-4 text-sm">Nourish days</p>
-                <p className="font-display font-extrabold text-3xl leading-tight">
-                  {fmt(suggestion.nourish)}<span className="text-base font-bold"> kcal</span>
-                  <span className="text-sm font-sans font-normal text-muted"> · now {fmt(current)}</span>
-                </p>
-                <p className="text-xs text-muted mt-1">
-                  {suggestion.fastDaysPerWeek > 0
-                    ? `With ${suggestion.fastDaysPerWeek} fast ${suggestion.fastDaysPerWeek === 1 ? 'day' : 'days'} a week at ${fmt(suggestion.fast)} kcal, as you've planned lately.`
-                    : 'With no fast days, as you\'ve planned lately.'}
-                  {' '}{(stats.workoutCalorieCredit ?? 1) === 1 ? 'Workout calories are still added on the day.'
-                    : stats.workoutCalorieCredit === 0.5 ? 'Half of workout calories are added on the day.'
-                    : 'Workout calories aren\'t added on the day.'}
-                </p>
-                {suggestion.capped && <p className="text-xs text-muted mt-1">Aiming for {kg(suggestion.weeklyLoss)} kg a week, about 1% of your weight, which is a common upper limit.</p>}
-                {suggestion.floored && <p className="text-xs text-muted mt-1">Kept at {fmt(MIN_NOURISH_TARGET)} kcal, so expect a slower pace than this.</p>}
-                <div className="mt-4">
-                  {applied || !differs ? (
-                    <p className="inline-flex items-center gap-1.5 text-sm font-semibold"><Check size={16} aria-hidden="true" /> {applied ? 'Target updated' : 'Your target already fits this pace'}</p>
-                  ) : (
-                    <button onClick={apply} className="btn-primary btn-sm">Use {fmt(suggestion.nourish)} kcal</button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+      <div className="rounded-[20px] bg-surface-sunken p-4 md:max-w-md">
+        <p className="text-sm font-semibold mb-2" id="rate-label">Lose a week</p>
+        <div role="radiogroup" aria-labelledby="rate-label" className="grid grid-cols-4 p-1 rounded-full bg-surface">
+          {LOSS_RATES.map(r => (
+            <button
+              key={r}
+              role="radio"
+              aria-checked={activeRate === r}
+              onClick={() => { setRate(r); setApplied(false); }}
+              className={`min-h-9 rounded-full text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${activeRate === r ? 'bg-ink text-on-ink' : 'text-muted hover:text-main'}`}
+            >
+              {kg(r)} kg
+            </button>
+          ))}
         </div>
-      )}
+
+        {suggestion && (
+          <>
+            {goalDate && <p className="font-display font-extrabold text-[22px] leading-7 tracking-tight mt-4">{stats.goalWeight} kg around {monthYear(goalDate)}</p>}
+            <p className={goalDate ? 'mt-1' : 'mt-4'}>
+              Nourish days at <span className="font-semibold">{fmt(suggestion.nourish)} kcal</span>
+              <span className="text-sm text-muted"> · now {fmt(current)}</span>
+            </p>
+            <p className="text-xs text-muted mt-1">
+              {suggestion.fastDaysPerWeek > 0
+                ? `With ${suggestion.fastDaysPerWeek} fast ${suggestion.fastDaysPerWeek === 1 ? 'day' : 'days'} a week at ${fmt(suggestion.fast)} kcal, as you've planned lately.`
+                : 'With no fast days, as you\'ve planned lately.'}
+              {' '}{(stats.workoutCalorieCredit ?? 1) === 1 ? 'Workout calories are still added on the day.'
+                : stats.workoutCalorieCredit === 0.5 ? 'Half of workout calories are added on the day.'
+                : 'Workout calories aren\'t added on the day.'}
+            </p>
+            {suggestion.capped && <p className="text-xs text-muted mt-1">Aiming for {kg(suggestion.weeklyLoss)} kg a week, about 1% of your weight, which is a common upper limit.</p>}
+            {suggestion.floored && <p className="text-xs text-muted mt-1">Kept at {fmt(MIN_NOURISH_TARGET)} kcal, so expect a slower pace than this.</p>}
+            <div className="mt-4">
+              {applied || !differs ? (
+                <p className="inline-flex items-center gap-1.5 text-sm font-semibold"><Check size={16} aria-hidden="true" /> {applied ? 'Target updated' : 'Your target already fits this pace'}</p>
+              ) : (
+                <button onClick={apply} className="btn-primary btn-sm">Use {fmt(suggestion.nourish)} kcal</button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <p className="text-xs text-muted mt-3">
+        From {fmt(estimate.avgIntake!)} kcal a day over {estimate.loggedDays} fully logged days, while your weight moved
+        {' '}{estimate.weightChangePerWeek! > 0 ? '+' : '−'}{kg(Math.abs(estimate.weightChangePerWeek!))} kg a week.
+        {estimate.avgWorkoutBurn > 0 && ` That includes about ${fmt(estimate.avgWorkoutBurn)} kcal a day from workouts.`}
+        {' '}Days you only partly log make it look lower than it is.
+      </p>
     </section>
   );
 };
