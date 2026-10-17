@@ -56,9 +56,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, me, f
           >
             {currentView === AppView.SETTINGS && <SelectionPill group="side-nav-pill" />}
             <MemberAvatar avatar={me.avatar} uid={me.uid} size={36} className="shrink-0" />
-            <span className="side-label min-w-0">
-              <span className="block truncate">{me.name || 'You'}</span>
-              <span className="block text-xs font-medium opacity-80">Settings</span>
+            {/* The rail shows "Settings" like its other labels; the labelled sidebar adds your name above it */}
+            <span className="side-label min-w-0 lg:text-left">
+              <span className="hidden lg:block truncate">{me.name || 'You'}</span>
+              <span className="block lg:font-sans lg:text-xs lg:leading-4 lg:font-medium lg:tracking-normal">Settings</span>
             </span>
           </button>
         ) : (
