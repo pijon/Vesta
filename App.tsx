@@ -666,19 +666,17 @@ const TrackerApp: React.FC = () => {
         return 'Good evening';
     };
 
-    /** Today's subtitle: the greeting plus where the day stands, so it changes as you go */
+    /** Today's subtitle: the greeting plus where the day stands. The next meal is the highlighted row on Today's plate */
     const getTodayLine = (greeting: string) => {
-        const next = nextMealIndex(todayPlan);
         const status = todayPlan.meals.length === 0
             ? 'nothing planned yet'
-            : next === undefined
+            : nextMealIndex(todayPlan) === undefined
                 ? 'all meals eaten'
-                // The meal itself is the highlighted row on Today's plate
-                : `${slotLabel(slotFor(todayPlan.meals[next])).toLowerCase()} next`;
-        return [greeting, ...(isFastDay(todayPlan) ? ['fast day'] : []), status].join(' · ');
+                : undefined;
+        return [greeting, ...(isFastDay(todayPlan) ? ['fast day'] : []), ...(status ? [status] : [])].join(' · ');
     };
 
-    // The greeting belongs on Today, with the day's next meal; other pages just say where you are
+    // The greeting belongs on Today, with where the day stands; other pages just say where you are
     const getHeaderInfo = (): { title: string; subtitle?: string } => {
         switch (view) {
             case AppView.TODAY:

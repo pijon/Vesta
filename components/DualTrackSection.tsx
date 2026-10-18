@@ -316,7 +316,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               <span className="block text-sm font-bold text-secondary">Next up · {clockTime(slotTime(slotFor(meal)))}</span>
             )}
             {!isNext && <span className="block text-sm text-muted">{details}</span>}
-            {/* The next meal gets a third line: the header no longer names it */}
+            {/* The next meal gets a third line for its full name */}
             <span className={`break-words text-[17px] font-semibold leading-snug ${isNext ? 'line-clamp-3' : 'line-clamp-2'} ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
             {isNext && details && <span className="block text-sm text-muted">{details}</span>}
           </span>
