@@ -8,9 +8,9 @@ import {
   saveEnhancedShoppingState,
   migrateShoppingState
 } from '../services/storageService';
-import { parseIngredients, convertToPurchasableQuantities } from '../services/geminiService';
+import { parseIngredients } from '../services/geminiService';
 import { ParsedIngredient, AggregatedIngredient, PurchasableItem, EnhancedShoppingState, PantryInventory } from '../types';
-import { PlanMeal, extractMealsFromPlan, hasThingsToBuy, aggregateIngredients, reconcilePurchasable } from '../utils/shoppingUtils';
+import { PlanMeal, extractMealsFromPlan, hasThingsToBuy, aggregateIngredients, toShoppingItems } from '../utils/shoppingUtils';
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
 import { ConfirmSheet } from './ConfirmSheet';
@@ -278,28 +278,14 @@ export const ShoppingList: React.FC = () => {
   const handleGenerateShoppingList = async () => {
     try {
       setIsProcessing(true);
-      setLoadingMessage('Converting to purchasable quantities...');
+      setLoadingMessage('');
       setError(null);
 
       // Filter out pantry items using state
       const pantryNames = new Set(inventory.items.map(item => item.name));
       const toBuy = aggregatedIngredients.filter(ing => !pantryNames.has(ing.name));
 
-      if (toBuy.length === 0) {
-        setPhase('shopping');
-        setPurchasableItems([]);
-        setIsProcessing(false);
-        return;
-      }
-
-      // Convert to purchasable quantities
-      const simplified = toBuy.map(ing => ({
-        name: ing.name,
-        quantity: ing.totalQuantity,
-        unit: ing.unit
-      }));
-
-      const purchasable = reconcilePurchasable(simplified, await convertToPurchasableQuantities(simplified));
+      const purchasable = toShoppingItems(toBuy.map(ing => ({ name: ing.name, quantity: ing.totalQuantity, unit: ing.unit })));
       setPurchasableItems(purchasable);
 
       // Cache results

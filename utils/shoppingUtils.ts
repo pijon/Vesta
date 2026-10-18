@@ -70,20 +70,11 @@ export const aggregateIngredients = (parsed: ParsedIngredient[]): AggregatedIngr
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
-/**
- * Matches the AI's purchasable items to what was asked for: one item per ingredient, under our
- * name. Anything the AI dropped is still on the list, at the amount the recipes need.
- */
-export const reconcilePurchasable = (
-  asked: Array<{ name: string; quantity: number; unit: string }>,
-  returned: PurchasableItem[],
-): PurchasableItem[] => {
-  const byName = new Map(returned.map(item => [item.ingredientName.trim().toLowerCase(), item]));
-  return asked.map(ing => {
-    const match = byName.get(ing.name.trim().toLowerCase());
-    const required = formatAmount(ing.quantity, ing.unit);
-    return match
-      ? { ...match, ingredientName: ing.name }
-      : { ingredientName: ing.name, requiredQuantity: required, purchasableQuantity: required, purchasableSize: '' };
+/** The list's items: what the recipes need, as amounts to buy */
+export const toShoppingItems = (
+  ingredients: Array<{ name: string; quantity: number; unit: string }>,
+): PurchasableItem[] =>
+  ingredients.map(ing => {
+    const amount = formatAmount(ing.quantity, ing.unit);
+    return { ingredientName: ing.name, requiredQuantity: amount, purchasableQuantity: amount, purchasableSize: '' };
   });
-};

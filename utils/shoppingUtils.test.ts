@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DayPlan, ParsedIngredient, Recipe } from '../types';
-import { aggregateIngredients, extractMealsFromPlan, hasThingsToBuy, reconcilePurchasable } from './shoppingUtils';
+import { aggregateIngredients, extractMealsFromPlan, hasThingsToBuy, toShoppingItems } from './shoppingUtils';
 import { formatAmount } from './scaleIngredient';
 
 const recipe = (fields: Partial<Recipe> = {}): Recipe => ({
@@ -59,19 +59,13 @@ describe('aggregateIngredients', () => {
   });
 });
 
-describe('reconcilePurchasable', () => {
-  const asked = [
-    { name: 'olive oil', quantity: 3, unit: 'tbsp' },
-    { name: 'chicken breast', quantity: 333.33, unit: 'g' },
-  ];
-
-  it('keeps our names and adds anything the AI left out at the amount needed', () => {
-    const result = reconcilePurchasable(asked, [
-      { ingredientName: 'Olive Oil ', requiredQuantity: '3 tbsp', purchasableQuantity: '250ml bottle', purchasableSize: '250ml' },
-      { ingredientName: 'bananas', requiredQuantity: '1', purchasableQuantity: '1 bunch', purchasableSize: '1' },
-    ]);
-    expect(result).toEqual([
-      { ingredientName: 'olive oil', requiredQuantity: '3 tbsp', purchasableQuantity: '250ml bottle', purchasableSize: '250ml' },
+describe('toShoppingItems', () => {
+  it('lists each ingredient at the amount the recipes need', () => {
+    expect(toShoppingItems([
+      { name: 'olive oil', quantity: 3, unit: 'tbsp' },
+      { name: 'chicken breast', quantity: 333.33, unit: 'g' },
+    ])).toEqual([
+      { ingredientName: 'olive oil', requiredQuantity: '3 tbsp', purchasableQuantity: '3 tbsp', purchasableSize: '' },
       { ingredientName: 'chicken breast', requiredQuantity: '335 g', purchasableQuantity: '335 g', purchasableSize: '' },
     ]);
   });

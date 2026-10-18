@@ -7,7 +7,7 @@ import {
   GEMINI_MODEL_STABLE,
   DEFAULT_FEATURE_FLAGS
 } from "../constants";
-import { Recipe, FoodLogItem, KnownFood, PurchasableItem, FeatureFlags, MealSlot, QuickMealKind } from "../types";
+import { Recipe, FoodLogItem, KnownFood, FeatureFlags, MealSlot, QuickMealKind } from "../types";
 import { scrubPII } from "../utils/piiScrubber";
 
 // Helper to determine active model
@@ -599,98 +599,6 @@ EXAMPLES:
 
   // 4. Construct Result
   return ingredientTexts.map(text => cache[text]);
-};
-
-const purchasableItemSchema: Schema = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      ingredientName: { type: Type.STRING },
-      requiredQuantity: { type: Type.STRING, description: "What recipe needs" },
-      purchasableQuantity: { type: Type.STRING, description: "What to buy at store" },
-      purchasableSize: { type: Type.STRING, description: "Common store package size" },
-      rationale: { type: Type.STRING, description: "Brief explanation of conversion" }
-    },
-    required: ['ingredientName', 'requiredQuantity', 'purchasableQuantity', 'purchasableSize']
-  }
-};
-
-export const convertToPurchasableQuantities = async (
-  aggregatedIngredients: Array<{ name: string, quantity: number, unit: string }>
-): Promise<PurchasableItem[]> => {
-  const prompt = `
-    You are a grocery shopping assistant specializing in converting recipe quantities to realistic store - buyable amounts.
-
-  TASK: Convert aggregated recipe ingredient quantities into practical grocery store package sizes that customers can actually purchase.
-
-    SHOPPING CONTEXT - Consider:
-- Common package sizes in supermarkets(e.g., olive oil comes in 250ml, 500ml, 1L bottles)
-  - Buy the smallest package that covers the need(but realistic - don't suggest buying a single egg)
-    - Fresh produce often sold by weight or count(e.g., "3 tomatoes" or "500g tomatoes")
-  - Dry goods come in standard packages(flour in 1kg bags, rice in 1kg / 2kg bags)
-  - Spices and seasonings come in small jars(50g - 100g typical)
-  - Dairy products have standard sizes(milk in 1L / 2L, cheese in 200g - 500g blocks)
-  - Meat and fish sold by weight or pre - packaged(chicken breast in 500g - 1kg packs)
-
-    Format:
-    - ingredientName: Must EXACTLY match the input 'name' field.Do not change spelling or capitalization.
-    - requiredQuantity: Show what the recipe needs with unit conversion if helpful(e.g., "1.5 tbsp (≈22ml)")
-  - purchasableQuantity: Suggest the smallest realistic package that covers the need
-    - purchasableSize: The numeric size for comparison
-      - rationale: Brief explanation(max 10 words)
-
-Examples:
-Input: { name: "olive oil", quantity: 1.5, unit: "tbsp" }
-Output: {
-  ingredientName: "olive oil",
-    requiredQuantity: "1.5 tbsp (≈22ml)",
-      purchasableQuantity: "250ml bottle",
-        purchasableSize: "250ml",
-          rationale: "Smallest bottle size, provides many servings"
-}
-
-Input: { name: "chicken breast", quantity: 750, unit: "g" }
-Output: {
-  ingredientName: "chicken breast",
-    requiredQuantity: "750g",
-      purchasableQuantity: "750g pack",
-        purchasableSize: "750g",
-          rationale: "Standard supermarket pack size"
-}
-
-Input: { name: "cumin", quantity: 1, unit: "pinch" }
-Output: {
-  ingredientName: "cumin",
-    requiredQuantity: "1 pinch",
-      purchasableQuantity: "50g jar",
-        purchasableSize: "50g",
-          rationale: "Standard spice jar size"
-}
-
-    Ingredients to convert:
-    ${JSON.stringify(aggregatedIngredients.map(i => ({ ...i, name: scrubPII(i.name) })))}
-`;
-
-  try {
-    const activeModel = getModel();
-    const response = await generateWithFallback({
-      model: activeModel,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: purchasableItemSchema
-      }
-    });
-
-    const output = response.text;
-    if (!output) throw new Error("No response from AI");
-
-    return JSON.parse(output);
-  } catch (error) {
-    console.error("Error converting to purchasable quantities:", error);
-    throw error;
-  }
 };
 
 export const generateRecipeFromIngredients = async (
