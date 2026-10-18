@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ThemePreference } from '../hooks/useTheme';
 import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
 import { proteinTarget } from '../utils/planUtils';
-import { BellRing, Check, CircleAlert, Code, Copy, CloudUpload, Database, Download, Droplet, Egg, Gauge, LogOut, Pencil, PlayCircle, RefreshCw, Scale, Sparkles, Store, SunMoon, Target, Timer, Upload, UserRound } from 'lucide-react';
+import { BellRing, Check, CircleAlert, Code, Copy, CloudUpload, Database, Download, Droplet, Egg, Gauge, LogOut, Pencil, PlayCircle, RefreshCw, Scale, Store, SunMoon, Target, Timer, Upload, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ReminderSettings } from './ReminderSettings';
 import { EatingOutHistorySettings } from './EatingOutHistorySettings';
@@ -30,7 +30,6 @@ interface SettingsViewProps {
     fastingConfig: FastingConfig;
     onUpdateFastingConfig: (config: FastingConfig) => Promise<void>;
     onTestOnboarding: () => void;
-    onTriggerSundayReset?: () => void;
     onRefreshData?: () => Promise<void>;
     themePreference: ThemePreference;
     onChangeTheme: (theme: ThemePreference) => void;
@@ -66,7 +65,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     fastingConfig,
     onUpdateFastingConfig,
     onTestOnboarding,
-    onTriggerSundayReset,
     onRefreshData,
     themePreference,
     onChangeTheme,
@@ -512,9 +510,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => setConfirming('sync')} className="btn-secondary btn-sm"><CloudUpload size={16} aria-hidden="true" /> Force sync</button>
                         <button onClick={handleTestOnboarding} className="btn-secondary btn-sm"><PlayCircle size={16} aria-hidden="true" /> Preview welcome</button>
-                        {onTriggerSundayReset && (
-                            <button onClick={onTriggerSundayReset} className="btn-secondary btn-sm"><Sparkles size={16} aria-hidden="true" /> Test Sunday reset</button>
-                        )}
                         <button onClick={() => setShowDebug(!showDebug)} className="btn-ghost btn-sm" aria-expanded={showDebug}>
                             {showDebug ? 'Hide storage info' : 'Show storage info'}
                         </button>

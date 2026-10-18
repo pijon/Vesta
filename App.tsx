@@ -131,9 +131,6 @@ const TrackerApp: React.FC = () => {
         navigate(routes[newView] || '/today');
     };
 
-    // The Sunday reset: the Planner's next seven days, with the week planner open
-    const openWeekPlanner = () => navigate('/mealplanner', { state: { planWeek: true } });
-
     const [todayPlan, setTodayPlan] = useState<DayPlan>(() => {
         const date = localDateString();
         return cache.getCachedDayPlan(date) || { date, meals: [], completedMealIds: [] };
@@ -750,8 +747,6 @@ const TrackerApp: React.FC = () => {
                             subtitle={headerInfo.subtitle}
                             onNavigate={handleNavigate}
                             me={me}
-                            showSundayReset={new Date().getDay() === 0}
-                            onOpenSundayReset={openWeekPlanner}
                             isSettings={view === AppView.SETTINGS}
                         />
                         {(view === AppView.PLANNER || view === AppView.SHOPPING) && (
@@ -773,7 +768,6 @@ const TrackerApp: React.FC = () => {
                             fastingConfig={fastingState.config}
                             onUpdateFastingConfig={handleUpdateFastingConfig}
                             onTestOnboarding={() => setShowOnboarding(true)}
-                            onTriggerSundayReset={openWeekPlanner}
                             onRefreshData={refreshData}
                             themePreference={theme.preference}
                             onChangeTheme={theme.setPreference}

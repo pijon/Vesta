@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppView, Avatar } from '../types';
 import { MemberAvatar } from './MemberAvatar';
-import { Sparkles, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 
 interface HeaderProps {
     title: string;
@@ -9,8 +9,6 @@ interface HeaderProps {
     onNavigate: (view: AppView) => void;
     /** The signed-in user, for their avatar (with the tab bar; with the sidebar it's there) */
     me?: { uid: string; name?: string; avatar?: Avatar };
-    showSundayReset?: boolean;
-    onOpenSundayReset?: () => void;
     /** On Settings, the avatar that leads there is left out */
     isSettings?: boolean;
 }
@@ -20,8 +18,6 @@ export const Header: React.FC<HeaderProps> = ({
     subtitle,
     onNavigate,
     me,
-    showSundayReset,
-    onOpenSundayReset,
     isSettings,
 }) => {
     return (
@@ -33,13 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
             </div>
             <div className="flex gap-2 items-center shrink-0">
-                {showSundayReset && onOpenSundayReset && (
-                    <button onClick={onOpenSundayReset} className="btn-accent btn-sm hidden md:inline-flex">
-                        <Sparkles size={16} />
-                        Sunday reset
-                    </button>
-                )}
-
                 {/* With the tab bar only (the sidebar has its own): your avatar opens Settings, where
                     your account and goals are. Not on Settings itself. */}
                 {me?.uid ? (
