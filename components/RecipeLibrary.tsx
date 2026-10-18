@@ -14,7 +14,7 @@ import { AddToPlanSheet } from './AddToPlanSheet';
 import { CookingMode } from './CookingMode';
 import { parseRecipeText, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
 import { RecipeCard, RecipeRow, RecipeShelfCard } from './RecipeCard';
-import { favouritesShelf, notHadInAWhile } from '../utils/recipeShelves';
+import { favouritesShelf, mostProteinShelf, notHadInAWhile, proteinDensity, proteinPerCalorieShelf } from '../utils/recipeShelves';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { importRecipeImageFromUrl, checkRecipePage } from '../utils/storageUtils';
@@ -420,6 +420,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           return b.calories - a.calories;
         case 'protein':
           return (b.protein || 0) - (a.protein || 0);
+        case 'proteinDensity':
+          return proteinDensity(b) - proteinDensity(a) || a.name.localeCompare(b.name);
         case 'lastHad':
           // Never had first, then longest ago
           return lastHad(a).localeCompare(lastHad(b)) || a.name.localeCompare(b.name);
@@ -450,7 +452,10 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   // Shelves above the grid, for choosing what to cook; only when browsing, not searching or filtering
   const notHadShelf = useMemo(() => notHadInAWhile(allRecipes, history?.lastHad ?? {}, history?.next ?? {}, today), [allRecipes, history, today]);
   const favouriteShelf = useMemo(() => favouritesShelf(allRecipes, history?.lastHad ?? {}), [allRecipes, history]);
-  const showShelves = !onSelect && !filtersActive && !(isLoading && recipes.length === 0) && (notHadShelf.length > 0 || favouriteShelf.length > 0);
+  const proteinShelf = useMemo(() => mostProteinShelf(allRecipes), [allRecipes]);
+  const leanProteinShelf = useMemo(() => proteinPerCalorieShelf(allRecipes), [allRecipes]);
+  const showShelves = !onSelect && !filtersActive && !(isLoading && recipes.length === 0)
+    && (notHadShelf.length > 0 || favouriteShelf.length > 0 || proteinShelf.length > 0 || leanProteinShelf.length > 0);
   const favouriteCount = allRecipes.filter(r => r.isFavorite).length;
   const toAllRecipes = () => window.setTimeout(() => document.getElementById('all-recipes')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 
@@ -630,6 +635,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
               <option value="caloriesLow">Fewest calories</option>
               <option value="caloriesHigh">Most calories</option>
               <option value="protein">Most protein</option>
+              <option value="proteinDensity">Protein per calorie</option>
               <option value="lastHad">Not had in a while</option>
             </select>
           </label>
@@ -690,6 +696,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           {favouriteShelf.length > 0 && shelf('shelf-favourites', 'Favourites', `${favouriteCount} ${favouriteCount === 1 ? 'recipe' : 'recipes'}`, favouriteShelf,
             r => `${r.calories} kcal`,
             () => { setShowFavoritesOnly(true); toAllRecipes(); })}
+          {proteinShelf.length > 0 && shelf('shelf-protein', 'Most protein', 'Grams of protein in a portion', proteinShelf,
+            r => `${r.protein} g · ${r.calories} kcal`,
+            () => { setSortOption('protein'); toAllRecipes(); })}
+          {leanProteinShelf.length > 0 && shelf('shelf-protein-lean', 'Protein for the calories', 'Protein for few calories, good on fast days', leanProteinShelf,
+            r => `${r.protein} g · ${r.calories} kcal`,
+            () => { setSortOption('proteinDensity'); toAllRecipes(); })}
           <h2 id="all-recipes" className="heading-3 scroll-mt-6 pt-2">All recipes</h2>
         </div>
       )}

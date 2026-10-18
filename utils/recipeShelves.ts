@@ -36,3 +36,27 @@ export const favouritesShelf = (recipes: Recipe[], lastHad: Record<string, strin
     .slice(0, SHELF_SIZE);
   return picked.length >= MIN_SHELF ? picked : [];
 };
+
+/** Meals, not sides or drinks: under this many kcal a recipe isn't ranked by protein */
+export const MIN_MEAL_KCAL = 150;
+
+/** Grams of protein per 100 kcal, the measure behind "protein for the calories" */
+export const proteinDensity = (r: Recipe) => (r.calories > 0 ? ((r.protein || 0) / r.calories) * 100 : 0);
+
+const proteinMeals = (recipes: Recipe[]) => recipes.filter(r => (r.protein || 0) > 0 && r.calories >= MIN_MEAL_KCAL);
+
+/** The most protein in a portion, highest first */
+export const mostProteinShelf = (recipes: Recipe[]): Recipe[] => {
+  const picked = proteinMeals(recipes)
+    .sort((a, b) => (b.protein || 0) - (a.protein || 0) || a.name.localeCompare(b.name))
+    .slice(0, SHELF_SIZE);
+  return picked.length >= MIN_SHELF ? picked : [];
+};
+
+/** The most protein for the calories (good on fast days), densest first */
+export const proteinPerCalorieShelf = (recipes: Recipe[]): Recipe[] => {
+  const picked = proteinMeals(recipes)
+    .sort((a, b) => proteinDensity(b) - proteinDensity(a) || a.name.localeCompare(b.name))
+    .slice(0, SHELF_SIZE);
+  return picked.length >= MIN_SHELF ? picked : [];
+};
