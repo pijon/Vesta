@@ -1,90 +1,55 @@
-import { AggregatedIngredient, DayPlan, ParsedIngredient, ParsedIngredientLine, PurchasableItem } from '../types';
-import { ingredientKey } from './ingredientParse';
-import { formatAmount } from './scaleIngredient';
+import { DayPlan, ParsedIngredientLine, Recipe } from '../types';
 
-/** A planned meal on the shopping list's "Choose meals" step */
-export interface PlanMeal {
-  /** This planned meal (the same recipe can be planned on several days) */
-  key: string;
-  /** Its recipe */
+/** A recipe in a planned meal (its main dish or a side), or a quick meal's shopping items */
+export interface PlanMealPart {
+  /** The recipe (or quick meal) id */
   id: string;
   name: string;
-  date: string;
   ingredients: string[];
   /** Its recipe's ingredient lines read before (see Recipe.parsedIngredients) */
   parsedIngredients?: ParsedIngredientLine[];
-  /** The recipe's servings: the portions bought unless the user picks others */
-  servings?: number;
-
-  isLeftover?: boolean;
-  /** A quick meal: no library recipe to add ingredients to */
+  /** A quick meal: no library recipe to keep read lines on */
   isQuick?: boolean;
-  isShared?: boolean;
-  ownerName?: string;
 }
 
-/** Planned meals from today on, by date. */
-export const extractMealsFromPlan = (plans: Record<string, DayPlan>, today: string): PlanMeal[] =>
-  Object.keys(plans).sort().filter(date => date >= today).flatMap(date => {
+/** A planned meal that can go on the shopping list */
+export interface PlanMeal {
+  /** This planned meal's instanceId (the same recipe can be planned on several days) */
+  key: string;
+  name: string;
+  date: string;
+  /** The meal and its sides */
+  parts: PlanMealPart[];
+  isLeftover?: boolean;
+}
+
+const part = (meal: Recipe): PlanMealPart => ({
+  id: meal.id,
+  name: meal.name,
+  ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
+  parsedIngredients: meal.parsedIngredients,
+  isQuick: !!meal.quick || undefined,
+});
+
+/** Planned meals from today on, by date; the same family meal in several members' plans once. */
+export const extractMealsFromPlan = (plans: Record<string, DayPlan>, today: string): PlanMeal[] => {
+  const seen = new Set<string>();
+  return Object.keys(plans).sort().filter(date => date >= today).flatMap(date => {
     const day = plans[date];
-    return (day.meals || []).map((meal, index) => ({
-      key: meal.instanceId || `${day.date}/${meal.id}/${index}`,
-      id: meal.id,
-      name: meal.name,
-      date: day.date,
-      ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
-      parsedIngredients: meal.parsedIngredients,
-      servings: meal.servings,
-
-      isLeftover: meal.isLeftover,
-      isQuick: !!meal.quick,
-      isShared: meal.isShared,
-      ownerName: meal.ownerName,
-    }));
+    return (day.meals || []).flatMap((meal, index) => {
+      const key = meal.instanceId || `${day.date}/${meal.id}/${index}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{
+        key,
+        name: meal.name,
+        date: day.date,
+        parts: [part(meal), ...(meal.sides || []).map(part)],
+        isLeftover: meal.isLeftover,
+      }];
+    });
   });
-
-/** Whether a meal adds anything to the list: leftovers and meals with no ingredients don't */
-export const hasThingsToBuy = (meal: PlanMeal) => !meal.isLeftover && meal.ingredients.length > 0;
-
-/**
- * Adds up parsed ingredients by name, singular and plural together ("egg" and "eggs"); the same
- * name in another unit stays its own row ("olive oil (ml)").
- */
-export const aggregateIngredients = (parsed: ParsedIngredient[]): AggregatedIngredient[] => {
-  const map = new Map<string, AggregatedIngredient>();
-
-  parsed.forEach(ing => {
-    const key = ingredientKey(ing.name);
-    const first = map.get(key);
-    const [mapKey, name] = !first || first.unit === ing.unit
-      ? [key, first?.name ?? ing.name]
-      : [`${key} (${ing.unit})`, `${first.name} (${ing.unit})`];
-    const existing = map.get(mapKey);
-    if (!existing) {
-      map.set(mapKey, {
-        name,
-        totalQuantity: ing.quantity,
-        unit: ing.unit,
-        recipes: [{ id: ing.recipeId, name: ing.recipeName, quantity: ing.quantity }],
-        originalIngredients: [ing],
-      });
-      return;
-    }
-    existing.totalQuantity += ing.quantity;
-    const recipeRef = existing.recipes.find(r => r.id === ing.recipeId);
-    if (recipeRef) recipeRef.quantity += ing.quantity;
-    else existing.recipes.push({ id: ing.recipeId, name: ing.recipeName, quantity: ing.quantity });
-    existing.originalIngredients.push(ing);
-  });
-
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
-/** The list's items: what the recipes need, as amounts to buy */
-export const toShoppingItems = (
-  ingredients: Array<{ name: string; quantity: number; unit: string }>,
-): PurchasableItem[] =>
-  ingredients.map(ing => {
-    const amount = formatAmount(ing.quantity, ing.unit);
-    return { ingredientName: ing.name, requiredQuantity: amount, purchasableQuantity: amount, purchasableSize: '' };
-  });
+/** Whether a meal adds anything to the list: leftovers and meals with no ingredients don't */
+export const hasThingsToBuy = (meal: PlanMeal) => !meal.isLeftover && meal.parts.some(p => p.ingredients.length > 0);

@@ -92,6 +92,10 @@ after `markedAt`; marking it again renews it. Older entries are ignored, and cle
 
 ## Phases
 
+Status (2026-10-18): phases 1 and 2 are built. Phase 2 differs from the shape above in a few places:
+each meal's share is a field of the item (`sources.{instanceId}`), not an array, so adding needs no
+transaction; items are sorted by name (no drag order); the pantry step is gone until phase 3.
+
 1. **Parsing on the recipe.** Add the parser with thorough tests, `parsedIngredients`, filling it in
    `saveRecipe`, and backfilling it on first use. The current wizard reads from it right away, which
    alone makes "Build list" near-instant. This ships on its own.
