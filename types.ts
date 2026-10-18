@@ -7,6 +7,8 @@ export interface Recipe {
   fat?: number;
   carbs?: number;
   ingredients: string[];
+  /** Ingredient lines read for the shopping list (by text; lines not read yet are missing) */
+  parsedIngredients?: ParsedIngredientLine[];
   instructions?: string[];
   tags: string[];
   servings: number;
@@ -195,6 +197,63 @@ export interface UserStats {
 }
 
 // Enhanced shopping list types
+/** An ingredient line read into what to buy, kept on its recipe so it's read once for the family */
+export interface ParsedIngredientLine {
+  /** The line as written in the recipe; a line edited since needs reading again */
+  text: string;
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
+/** What one planned meal needs of a shopping list item */
+export interface ShoppingListSource {
+  date: string;
+  /** The meal's name */
+  meal: string;
+  quantity: number;
+  unit: string;
+}
+
+/** One thing to buy on the family's shopping list (groups/{groupId}/shoppingItems/{id}) */
+export interface ShoppingListItem {
+  id: string;
+  /** Items with the same key add up (see itemKey in utils/shoppingList.ts) */
+  key: string;
+  name: string;
+  /** What each planned meal on the list needs, by the meal's instanceId */
+  sources: Record<string, ShoppingListSource>;
+  /** An amount typed in: an own item's, or one changed by hand. Shown instead of the meals' total */
+  amount?: string;
+  addedBy: string;
+  addedAt: number;
+  checked?: boolean;
+  checkedBy?: string;
+}
+
+/** A planned meal on the family's shopping list */
+export interface ShoppingListMeal {
+  date: string;
+  name: string;
+}
+
+/** A food the family has at home (groups/{groupId}/pantry/{id}); it counts for PANTRY_DAYS after markedAt */
+export interface PantryMark {
+  /** pantryKey of the food's name */
+  key: string;
+  name: string;
+  markedAt: number;
+  by: string;
+}
+
+/** The family's shopping list: its items, the planned meals added to it (by instanceId), and the pantry (by key) */
+export interface ShoppingList {
+  items: ShoppingListItem[];
+  meals: Record<string, ShoppingListMeal>;
+  pantry: Record<string, PantryMark>;
+}
+
+/** Legacy: the per-user shopping list's ingredients (moved to the family's list) */
 export interface ParsedIngredient {
   id: string;
   originalText: string;  // e.g., "2 tbsp olive oil"

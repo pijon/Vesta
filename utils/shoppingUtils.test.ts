@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DayPlan, ParsedIngredient, Recipe } from '../types';
-import { aggregateIngredients, extractMealsFromPlan, hasThingsToBuy, reconcilePurchasable } from './shoppingUtils';
+import { DayPlan, Recipe } from '../types';
+import { extractMealsFromPlan, hasThingsToBuy } from './shoppingUtils';
 import { formatAmount } from './scaleIngredient';
 
 const recipe = (fields: Partial<Recipe> = {}): Recipe => ({
   id: 'r1', name: 'Chili', calories: 500, ingredients: ['1 onion'], tags: [], servings: 4, ...fields,
 });
 const day = (date: string, meals: Recipe[]): DayPlan => ({ date, meals, completedMealIds: [] });
-const parsed = (fields: Partial<ParsedIngredient>): ParsedIngredient => ({
-  id: crypto.randomUUID(), originalText: '', name: 'onions', quantity: 1, unit: 'item', recipeId: 'r1', recipeName: 'Chili', ...fields,
-});
 
 describe('extractMealsFromPlan', () => {
   it('lists meals from today on, by date, keyed by instance', () => {
@@ -25,7 +22,16 @@ describe('extractMealsFromPlan', () => {
     const [meal] = extractMealsFromPlan({
       '2026-10-17': day('2026-10-17', [recipe({ quick: {} })]),
     }, '2026-10-17');
-    expect(meal).toMatchObject({ key: '2026-10-17/r1/0', isQuick: true, servings: 4 });
+    expect(meal).toMatchObject({ key: '2026-10-17/r1/0', parts: [{ id: 'r1', isQuick: true }] });
+  });
+
+  it('brings a meal\'s sides along, and a family meal in several plans once', () => {
+    const side = recipe({ id: 'rice', name: 'Rice', ingredients: ['2 dl rice'] });
+    const meals = extractMealsFromPlan({
+      '2026-10-17': day('2026-10-17', [recipe({ instanceId: 'i1', sides: [side] }), recipe({ instanceId: 'i1' })]),
+    }, '2026-10-17');
+    expect(meals).toHaveLength(1);
+    expect(meals[0].parts.map(p => [p.id, p.ingredients])).toEqual([['r1', ['1 onion']], ['rice', ['2 dl rice']]]);
   });
 });
 
@@ -36,44 +42,12 @@ describe('hasThingsToBuy', () => {
     }, '2026-10-17');
     expect([cook, leftover, empty].map(hasThingsToBuy)).toEqual([true, false, false]);
   });
-});
 
-describe('aggregateIngredients', () => {
-  it('adds up the same ingredient across recipes and keeps other units apart', () => {
-    const result = aggregateIngredients([
-      parsed({ name: 'olive oil', quantity: 2, unit: 'tbsp' }),
-      parsed({ name: 'olive oil', quantity: 1, unit: 'tbsp', recipeId: 'r2', recipeName: 'Salad' }),
-      parsed({ name: 'olive oil', quantity: 100, unit: 'ml', recipeId: 'r2', recipeName: 'Salad' }),
-      parsed({ name: 'olive oil', quantity: 50, unit: 'ml' }),
-      parsed({ name: 'garlic', quantity: 2 }),
-    ]);
-    expect(result.map(r => [r.name, r.totalQuantity, r.unit])).toEqual([
-      ['garlic', 2, 'item'],
-      ['olive oil', 3, 'tbsp'],
-      ['olive oil (ml)', 150, 'ml'],
-    ]);
-    expect(result[1].recipes).toEqual([
-      { id: 'r1', name: 'Chili', quantity: 2 },
-      { id: 'r2', name: 'Salad', quantity: 1 },
-    ]);
-  });
-});
-
-describe('reconcilePurchasable', () => {
-  const asked = [
-    { name: 'olive oil', quantity: 3, unit: 'tbsp' },
-    { name: 'chicken breast', quantity: 333.33, unit: 'g' },
-  ];
-
-  it('keeps our names and adds anything the AI left out at the amount needed', () => {
-    const result = reconcilePurchasable(asked, [
-      { ingredientName: 'Olive Oil ', requiredQuantity: '3 tbsp', purchasableQuantity: '250ml bottle', purchasableSize: '250ml' },
-      { ingredientName: 'bananas', requiredQuantity: '1', purchasableQuantity: '1 bunch', purchasableSize: '1' },
-    ]);
-    expect(result).toEqual([
-      { ingredientName: 'olive oil', requiredQuantity: '3 tbsp', purchasableQuantity: '250ml bottle', purchasableSize: '250ml' },
-      { ingredientName: 'chicken breast', requiredQuantity: '335 g', purchasableQuantity: '335 g', purchasableSize: '' },
-    ]);
+  it('counts a side with ingredients', () => {
+    const [meal] = extractMealsFromPlan({
+      '2026-10-17': day('2026-10-17', [recipe({ ingredients: [], sides: [recipe({ id: 'rice', ingredients: ['2 dl rice'] })] })]),
+    }, '2026-10-17');
+    expect(hasThingsToBuy(meal)).toBe(true);
   });
 });
 

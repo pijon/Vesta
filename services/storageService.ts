@@ -1,4 +1,4 @@
-import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot } from "../types";
+import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine } from "../types";
 import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, toStoredRecipe } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
@@ -67,7 +67,13 @@ export const saveRecipe = async (recipe: Recipe) => {
   if (recipe.image?.startsWith('data:')) {
     throw new Error('Base64 images are not allowed. Please upload to Firebase Storage first.');
   }
-  await setDoc(await familyRecipeRef(recipe.id), toStoredRecipe(recipe, getUserId()));
+  const parsedIngredients = readRecipeLines(recipe.ingredients || [], recipe.parsedIngredients);
+  await setDoc(await familyRecipeRef(recipe.id), toStoredRecipe({ ...recipe, parsedIngredients }, getUserId()));
+};
+
+/** Keeps ingredient lines read for the shopping list on their recipe, for the whole family */
+export const saveParsedIngredients = async (recipeId: string, parsedIngredients: ParsedIngredientLine[]) => {
+  await updateDoc(await familyRecipeRef(recipeId), { parsedIngredients });
 };
 
 /** Favourites are per member, so this only adds or removes the current user. */
@@ -88,6 +94,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { QUICK_MEAL_DESCRIPTION, isQuickMeal } from '../utils/planUtils';
 import { rememberDish } from '../utils/eatingOutHistory';
+import { readRecipeLines } from '../utils/ingredientParse';
 
 /**
  * Migrates all Base64 images in recipes to Firebase Storage.
@@ -909,7 +916,7 @@ export const recordEatingOutDish = async (
 };
 
 
-// --- Pantry Inventory ---
+// --- Pantry Inventory (the user's own, from before family shopping lists) ---
 const PANTRY_DOC = 'pantry';
 
 export const getPantryInventory = async (): Promise<PantryInventory> => {
@@ -921,66 +928,11 @@ export const savePantryInventory = async (inventory: PantryInventory) => {
   await setDoc(getDocRef('data', PANTRY_DOC), inventory);
 };
 
-export const addToPantry = async (ingredientName: string, persistent: boolean = true) => {
-  const inventory = await getPantryInventory();
-
-  const existingIndex = inventory.items.findIndex(item => item.name === ingredientName);
-  if (existingIndex >= 0) {
-    inventory.items[existingIndex] = {
-      name: ingredientName,
-      markedAt: Date.now(),
-      persistent
-    };
-  } else {
-    inventory.items.push({
-      name: ingredientName,
-      markedAt: Date.now(),
-      persistent
-    });
-  }
-
-  inventory.lastUpdated = Date.now();
-  await savePantryInventory(inventory);
-};
-
-export const removeFromPantry = async (ingredientName: string) => {
-  const inventory = await getPantryInventory();
-  inventory.items = inventory.items.filter(item => item.name !== ingredientName);
-  inventory.lastUpdated = Date.now();
-  await savePantryInventory(inventory);
-};
-
-// Note: This was sync, now async. Usage sites must await.
-export const isInPantry = async (ingredientName: string): Promise<boolean> => {
-  const inventory = await getPantryInventory();
-  return inventory.items.some(item => item.name === ingredientName);
-};
-
-// --- Enhanced Shopping State ---
+// --- Shopping list from before family lists (kept for backups; shoppingService moves it to the family's) ---
 const SHOPPING_DOC = 'shopping';
-
-export const getEnhancedShoppingState = async (): Promise<EnhancedShoppingState> => {
-  const d = await getDoc(getDocRef('data', SHOPPING_DOC));
-  return d.exists() ? d.data() as EnhancedShoppingState : {
-    pantryChecks: {},
-    purchased: [],
-    removed: [],
-    lastGeneratedDate: '',
-    cachedPurchasableItems: [],
-    cachedParsedIngredients: [],
-    cachedAggregatedIngredients: [],
-    ingredientsHash: '',
-    selectedMealIds: []
-  };
-};
 
 export const saveEnhancedShoppingState = async (state: EnhancedShoppingState) => {
   await setDoc(getDocRef('data', SHOPPING_DOC), state);
-};
-
-export const migrateShoppingState = async () => {
-  // Can't easily migrate old sync local storage here efficiently without reading it.
-  // We assume migration happens via 'sync data' feature.
 };
 
 // --- Daily Logs ---

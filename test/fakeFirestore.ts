@@ -22,7 +22,8 @@ const merge = (target: Data, patch: Data) => {
     if (value === DELETE) delete target[key];
     else if (isUnion(value)) target[key] = [...current, ...value.arrayUnion.filter(v => !current.some(c => same(c, v)))];
     else if (isRemove(value)) target[key] = current.filter(c => !value.arrayRemove.some(v => same(c, v)));
-    else if (isObject(value) && isObject(target[key])) merge(target[key] as Data, value);
+    // Like Firestore, an empty map is a value, not a merge: it replaces the field
+    else if (isObject(value) && isObject(target[key]) && Object.keys(value).length > 0) merge(target[key] as Data, value);
     else if (isObject(value)) { target[key] = {}; merge(target[key] as Data, value); }
     else if (value !== undefined) target[key] = clone(value);
   });

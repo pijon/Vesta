@@ -1,5 +1,5 @@
 import { Avatar, DayPlan, EatingOutDish, KnownFood, Recipe } from '../types';
-import { getDailySummaries, getDayPlansInRange, getEnhancedShoppingState, getFamilyPlansInRange, getPantryInventory, getRecipePlanDates, getFoodItemsSince, getRecipes, getEatingOutDishes } from './storageService';
+import { getDailySummaries, getDayPlansInRange, getFamilyPlansInRange, getRecipePlanDates, getFoodItemsSince, getRecipes, getEatingOutDishes } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
@@ -25,14 +25,10 @@ export const analyticsDayTypesData = defineWarm('analytics:dayTypes', async () =
 }, 5 * 60_000);
 
 /** The family's plan for the next two weeks plus the saved list and pantry. */
-export const shoppingData = defineWarm('shopping:init', async () => {
-  const [plans, shoppingState, pantry] = await Promise.all([
-    getFamilyPlansInRange(daysFromToday(0), daysFromToday(14)),
-    getEnhancedShoppingState(),
-    getPantryInventory(),
-  ]);
-  return { plans: plans as Record<string, DayPlan>, shoppingState, pantry };
-}, 30_000);
+/** The family's planned meals for the next two weeks, to add to the shopping list */
+export const shoppingData = defineWarm('shopping:init', async () => ({
+  plans: await getFamilyPlansInRange(daysFromToday(0), daysFromToday(14)) as Record<string, DayPlan>,
+}), 30_000);
 
 export interface FamilyInfo {
   memberCount: number;
