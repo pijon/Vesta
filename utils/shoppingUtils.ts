@@ -1,4 +1,5 @@
-import { AggregatedIngredient, DayPlan, ParsedIngredient, PurchasableItem } from '../types';
+import { AggregatedIngredient, DayPlan, ParsedIngredient, ParsedIngredientLine, PurchasableItem } from '../types';
+import { ingredientKey } from './ingredientParse';
 import { formatAmount } from './scaleIngredient';
 
 /** A planned meal on the shopping list's "Choose meals" step */
@@ -10,6 +11,8 @@ export interface PlanMeal {
   name: string;
   date: string;
   ingredients: string[];
+  /** Its recipe's ingredient lines read before (see Recipe.parsedIngredients) */
+  parsedIngredients?: ParsedIngredientLine[];
   /** The recipe's servings: the portions bought unless the user picks others */
   servings?: number;
 
@@ -30,6 +33,7 @@ export const extractMealsFromPlan = (plans: Record<string, DayPlan>, today: stri
       name: meal.name,
       date: day.date,
       ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
+      parsedIngredients: meal.parsedIngredients,
       servings: meal.servings,
 
       isLeftover: meal.isLeftover,
@@ -42,16 +46,22 @@ export const extractMealsFromPlan = (plans: Record<string, DayPlan>, today: stri
 /** Whether a meal adds anything to the list: leftovers and meals with no ingredients don't */
 export const hasThingsToBuy = (meal: PlanMeal) => !meal.isLeftover && meal.ingredients.length > 0;
 
-/** Adds up parsed ingredients by name; the same name in another unit stays its own row ("olive oil (ml)"). */
+/**
+ * Adds up parsed ingredients by name, singular and plural together ("egg" and "eggs"); the same
+ * name in another unit stays its own row ("olive oil (ml)").
+ */
 export const aggregateIngredients = (parsed: ParsedIngredient[]): AggregatedIngredient[] => {
   const map = new Map<string, AggregatedIngredient>();
 
   parsed.forEach(ing => {
-    const first = map.get(ing.name);
-    const name = !first || first.unit === ing.unit ? ing.name : `${ing.name} (${ing.unit})`;
-    const existing = map.get(name);
+    const key = ingredientKey(ing.name);
+    const first = map.get(key);
+    const [mapKey, name] = !first || first.unit === ing.unit
+      ? [key, first?.name ?? ing.name]
+      : [`${key} (${ing.unit})`, `${first.name} (${ing.unit})`];
+    const existing = map.get(mapKey);
     if (!existing) {
-      map.set(name, {
+      map.set(mapKey, {
         name,
         totalQuantity: ing.quantity,
         unit: ing.unit,

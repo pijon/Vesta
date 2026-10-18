@@ -7,6 +7,8 @@ export interface Recipe {
   fat?: number;
   carbs?: number;
   ingredients: string[];
+  /** Ingredient lines read for the shopping list (by text; lines not read yet are missing) */
+  parsedIngredients?: ParsedIngredientLine[];
   instructions?: string[];
   tags: string[];
   servings: number;
@@ -195,6 +197,15 @@ export interface UserStats {
 }
 
 // Enhanced shopping list types
+/** An ingredient line read into what to buy, kept on its recipe so it's read once for the family */
+export interface ParsedIngredientLine {
+  /** The line as written in the recipe; a line edited since needs reading again */
+  text: string;
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface ParsedIngredient {
   id: string;
   originalText: string;  // e.g., "2 tbsp olive oil"

@@ -180,7 +180,7 @@ describe('family recipes', () => {
   it("lets any member edit a recipe, keeping who added it and without storing per-viewer fields", async () => {
     const [loaded] = await getRecipes();
     await saveRecipe({ ...loaded, name: 'Renamed', ownerName: 'Partner' });
-    expect(store.docs.get('groups/fam/recipes/r1')).toEqual(recipe('r1', { name: 'Renamed', createdBy: 'partner', favoritedBy: ['partner'] }));
+    expect(store.docs.get('groups/fam/recipes/r1')).toEqual(recipe('r1', { name: 'Renamed', createdBy: 'partner', favoritedBy: ['partner'], parsedIngredients: [] }));
   });
 });
 

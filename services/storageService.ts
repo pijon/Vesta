@@ -1,4 +1,4 @@
-import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot } from "../types";
+import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine } from "../types";
 import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, toStoredRecipe } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
@@ -67,7 +67,13 @@ export const saveRecipe = async (recipe: Recipe) => {
   if (recipe.image?.startsWith('data:')) {
     throw new Error('Base64 images are not allowed. Please upload to Firebase Storage first.');
   }
-  await setDoc(await familyRecipeRef(recipe.id), toStoredRecipe(recipe, getUserId()));
+  const parsedIngredients = readRecipeLines(recipe.ingredients || [], recipe.parsedIngredients);
+  await setDoc(await familyRecipeRef(recipe.id), toStoredRecipe({ ...recipe, parsedIngredients }, getUserId()));
+};
+
+/** Keeps ingredient lines read for the shopping list on their recipe, for the whole family */
+export const saveParsedIngredients = async (recipeId: string, parsedIngredients: ParsedIngredientLine[]) => {
+  await updateDoc(await familyRecipeRef(recipeId), { parsedIngredients });
 };
 
 /** Favourites are per member, so this only adds or removes the current user. */
@@ -88,6 +94,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { QUICK_MEAL_DESCRIPTION, isQuickMeal } from '../utils/planUtils';
 import { rememberDish } from '../utils/eatingOutHistory';
+import { readRecipeLines } from '../utils/ingredientParse';
 
 /**
  * Migrates all Base64 images in recipes to Firebase Storage.

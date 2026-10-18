@@ -4,11 +4,12 @@
  * returned unchanged.
  */
 const UNICODE_FRACTIONS: Record<string, number> = { '½': 1 / 2, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 1 / 4, '¾': 3 / 4, '⅛': 1 / 8 };
-const NUMBER = String.raw`(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?(?:\s*[½⅓⅔¼¾⅛])?|[½⅓⅔¼¾⅛])`;
+export const NUMBER = String.raw`(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?(?:\s*[½⅓⅔¼¾⅛])?|[½⅓⅔¼¾⅛])`;
 const AMOUNT = new RegExp(String.raw`^(\s*)(${NUMBER})(?:\s*[-–]\s*(${NUMBER}))?`);
 const METRIC = /^\s*(g|kg|mg|ml|cl|dl|l|gram|grams|gr)\b/i;
 
-const parse = (text: string): number => {
+/** The value of an amount NUMBER matched ("1 1/2", "½", "1,5") */
+export const parseAmount = (text: string): number => {
   const t = text.trim();
   const glyph = t.match(/[½⅓⅔¼¾⅛]$/);
   const base = glyph ? t.slice(0, -1).trim() : t;
@@ -53,7 +54,7 @@ export const scaleIngredient = (line: string, factor: number): string => {
   // Metric amounts become decimals, unless the recipe wrote them as fractions ("4 ½ dl")
   const metric = METRIC.test(rest) && !/[½⅓⅔¼¾⅛/]/.test(whole);
   const comma = /,\d/.test(whole);
-  const scaled = format(parse(from) * factor, metric, comma);
-  const scaledTo = to ? `–${format(parse(to) * factor, metric, comma)}` : '';
+  const scaled = format(parseAmount(from) * factor, metric, comma);
+  const scaledTo = to ? `–${format(parseAmount(to) * factor, metric, comma)}` : '';
   return `${lead}${scaled}${scaledTo}${rest}`;
 };

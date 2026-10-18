@@ -9,7 +9,7 @@ vi.mock('./firebase', () => ({ db: {}, auth: { currentUser: null }, currentUid: 
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId } = await import('./groupService');
-const { getDayPlan, saveDayPlan, saveFamilyMealOut, subscribeFamilyMeals } = await import('./storageService');
+const { getDayPlan, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, subscribeFamilyMeals } = await import('./storageService');
 const { getCachedDayPlan } = await import('../utils/cacheService');
 const { groupFamilyUpdates, recordFamilyUpdate } = await import('./activityService');
 
@@ -429,5 +429,24 @@ describe('family updates', () => {
       u('d', 'partner', 'recipe', 90), u('e', 'me', 'recipe', 95), u('f', 'partner', 'planned', 300),
     ]);
     expect(groups.map(g => g.updates.map(x => x.id))).toEqual([['a', 'b', 'c'], ['d'], ['e'], ['f']]);
+  });
+});
+
+describe('read ingredient lines', () => {
+  it('keeps them on the recipe: earlier readings stay, new plain lines are read on save', async () => {
+    const salt = { text: 'Salt to taste', name: 'salt', quantity: 1, unit: 'pinch' };
+    await saveRecipe({ ...chili, ingredients: ['500 g beef', 'Salt to taste'], parsedIngredients: [salt] });
+    expect((store.docs.get('groups/g/recipes/r1') as unknown as Recipe).parsedIngredients).toEqual([
+      { text: '500 g beef', name: 'beef', quantity: 500, unit: 'g' },
+      salt,
+    ]);
+  });
+
+  it('reach planned meals, and lines read later are kept for the family', async () => {
+    const beans = { text: '2 cans beans', name: 'beans', quantity: 2, unit: 'can' };
+    await saveParsedIngredients('r1', [beans]);
+    await saveDayPlan(plan('2026-10-03', [planMeal(chili, 'dinner')]));
+    const loaded = await getDayPlan('2026-10-03');
+    expect(loaded.meals[0].parsedIngredients).toEqual([beans]);
   });
 });

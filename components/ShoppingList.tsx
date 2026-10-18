@@ -5,16 +5,18 @@ import { Reorder } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   savePantryInventory,
+  saveParsedIngredients,
   saveEnhancedShoppingState,
   migrateShoppingState
 } from '../services/storageService';
 import { parseIngredients } from '../services/geminiService';
-import { ParsedIngredient, AggregatedIngredient, PurchasableItem, EnhancedShoppingState, PantryInventory } from '../types';
+import { ParsedIngredient, ParsedIngredientLine, AggregatedIngredient, PurchasableItem, EnhancedShoppingState, PantryInventory } from '../types';
 import { PlanMeal, extractMealsFromPlan, hasThingsToBuy, aggregateIngredients, toShoppingItems } from '../utils/shoppingUtils';
 import { IngredientReviewCard } from './IngredientReviewCard';
 import ShoppingItem from './ShoppingItem';
 import { ConfirmSheet } from './ConfirmSheet';
 import { localDateString } from '../utils/dateUtils';
+import { parseIngredientLine, readRecipeLines } from '../utils/ingredientParse';
 import { CircleAlert, ArrowLeft, CalendarHeart, Check, CookingPot, Copy, CopyCheck, ListChecks, Minus, PartyPopper, Plus, RotateCcw, ShoppingBasket } from 'lucide-react';
 
 type Phase = 'selection' | 'requirements' | 'shopping';
@@ -212,7 +214,7 @@ export const ShoppingList: React.FC = () => {
         });
       });
 
-      await processIngredients(ingredientsToProcess);
+      await processIngredients(ingredientsToProcess, selectedMeals);
 
       setPhase('requirements');
       setIsProcessing(false);
@@ -223,11 +225,33 @@ export const ShoppingList: React.FC = () => {
     }
   };
 
-  const processIngredients = async (ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string, scale: number }>) => {
-    // Parse ingredients
+  const processIngredients = async (
+    ingredientsToProcess: Array<{ text: string, recipeId: string, recipeName: string, scale: number }>,
+    meals: PlanMeal[],
+  ) => {
+    // Lines read before are kept on their recipe and plain ones are read here; the AI reads the rest
+    const read = new Map<string, ParsedIngredientLine>();
+    meals.forEach(meal => meal.parsedIngredients?.forEach(line => read.set(line.text, line)));
     const texts = ingredientsToProcess.map(r => r.text);
-    // One result per text, or it throws
-    const parsed = await parseIngredients(texts);
+    texts.forEach(text => {
+      const line = read.has(text) ? undefined : parseIngredientLine(text);
+      if (line) read.set(text, line);
+    });
+    const forAi = [...new Set(texts.filter(text => !read.has(text)))];
+    if (forAi.length > 0) {
+      // One result per text, or it throws
+      const fromAi = await parseIngredients(forAi);
+      forAi.forEach((text, i) => read.set(text, { text, ...fromAi[i] }));
+
+      // Keep what the AI read on the recipes, for next time and for the rest of the family
+      const recipes = new Map(meals.filter(meal => !meal.isQuick).map(meal => [meal.id, meal]));
+      recipes.forEach(meal => {
+        if (!meal.ingredients.some(text => forAi.includes(text))) return;
+        const lines = readRecipeLines(meal.ingredients, meal.ingredients.flatMap(text => read.get(text) ?? []));
+        saveParsedIngredients(meal.id, lines).catch(e => console.warn(`Couldn't keep the read ingredients of ${meal.name}`, e));
+      });
+    }
+    const parsed = texts.map(text => read.get(text)!);
 
     // Map parsed results back to include recipe info
     const parsedWithRecipeInfo: ParsedIngredient[] = parsed.map((p, index) => ({

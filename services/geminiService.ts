@@ -531,6 +531,7 @@ EXAMPLES:
 
         CRITICAL NORMALIZATION RULES:
 - Return EXACTLY one result per input ingredient (maintain 1:1 correspondence)
+  - NEVER translate: keep the name and unit in the language of the line ("svartpeppar" stays "svartpeppar", "½ förp" stays "förp", "1 nypa salt" stays "nypa")
   - Use PLURAL form for countable items: "egg" → "eggs", "tomato" → "tomatoes", "onion" → "onions"
     - Use SINGULAR form for uncountable items: "rice", "flour", "water", "salt"
       - Remove ALL modifiers: "fresh", "extra virgin", "organic", "free-range", "large", "small"

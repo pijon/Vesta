@@ -57,6 +57,18 @@ describe('aggregateIngredients', () => {
       { id: 'r2', name: 'Salad', quantity: 1 },
     ]);
   });
+
+  it('adds up singular and plural under the first name seen', () => {
+    const result = aggregateIngredients([
+      parsed({ name: 'eggs', quantity: 2 }),
+      parsed({ name: 'egg', quantity: 1, recipeId: 'r2', recipeName: 'Salad' }),
+      parsed({ name: 'Eggs', quantity: 30, unit: 'g' }),
+    ]);
+    expect(result.map(r => [r.name, r.totalQuantity, r.unit])).toEqual([
+      ['eggs', 3, 'item'],
+      ['eggs (g)', 30, 'g'],
+    ]);
+  });
 });
 
 describe('toShoppingItems', () => {
