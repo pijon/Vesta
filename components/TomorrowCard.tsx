@@ -54,7 +54,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
         <button onClick={onPlan} className="btn-ghost btn-sm"><CalendarHeart size={16} aria-hidden="true" /> Open planner</button>
       </div>
       {/* Two columns only when the card itself is wide (it sits in a half-width column on desktop) */}
-      <ul className="grid @lg:grid-cols-2 gap-x-6">
+      <ul className="grid grid-cols-[minmax(0,1fr)] @lg:grid-cols-2 gap-x-6">
         {MEAL_SLOTS.flatMap(({ slot, label }) =>
           meals.filter(m => slotFor(m) === slot).map((meal, i) => {
             const visual = mealVisualFor(meal);
