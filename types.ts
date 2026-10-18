@@ -384,7 +384,6 @@ export interface Group {
 
 // --- Developer Mode ---
 export interface FeatureFlags {
-  forceSundayReset: boolean;
   useGeminiExperimental: boolean;
   /** Plan meals without a recipe from the planner search */
   quickMeals: boolean;

@@ -28,7 +28,7 @@ export const EatingOutCard: React.FC<EatingOutCardProps> = ({ plan, onLog, onCon
           <ul className="mt-2 space-y-2">
             {due.map(({ meal, index }) => (
               <li key={meal.instanceId || `${meal.id}-${index}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-                <span className="min-w-0 text-sm">
+                <span className="min-w-0 max-w-full text-sm break-words">
                   <span className="font-semibold">{slotLabel(slotFor(meal))} · {meal.name}</span>
                   <span className="block text-muted">
                     {mealKcalLabel(meal)}

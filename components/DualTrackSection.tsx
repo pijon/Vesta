@@ -297,7 +297,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
         aria-current={isNext ? 'step' : undefined}
         className={isNext
           ? 'group flex items-center gap-2 rounded-[24px] bg-surface-sunken pl-3 pr-2 my-1 [&+li]:border-t-0'
-          : 'group flex items-center gap-2 border-t border-border first:border-t-0'}
+          : 'group flex items-center gap-2 pl-3 pr-2 border-t border-border first:border-t-0'}
       >
         <button
           onClick={() => onViewRecipe(meal)}
@@ -317,7 +317,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             )}
             {!isNext && <span className="block text-sm text-muted">{details}</span>}
             {/* The next meal gets a third line: the header no longer names it */}
-            <span className={`text-[17px] font-semibold leading-snug ${isNext ? 'line-clamp-3' : 'line-clamp-2'} ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
+            <span className={`break-words text-[17px] font-semibold leading-snug ${isNext ? 'line-clamp-3' : 'line-clamp-2'} ${isEaten ? 'text-muted' : ''}`}>{meal.name}</span>
             {isNext && details && <span className="block text-sm text-muted">{details}</span>}
           </span>
         </button>
@@ -430,7 +430,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
             <ul className="border-t border-border">
               {mealsOut.map(meal => (
                 <li key={meal.instanceId} className="flex items-center gap-3 py-2.5">
-                  <span className="flex-1 min-w-0 text-sm text-muted">
+                  <span className="flex-1 min-w-0 text-sm text-muted break-words">
                     {slotLabel(slotFor(meal))} · <span className="font-semibold">{meal.name}</span> · family meal, you're out
                   </span>
                   <button

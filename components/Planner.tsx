@@ -107,12 +107,10 @@ export const Planner: React.FC<{
   const isPhone = () => window.matchMedia('(max-width: 767px)').matches;
 
   // Opened with a date (e.g. "Plan tomorrow" on Today): show that week, scrolled to the day.
-  // Opened to plan the week (the Sunday reset): the next seven days, with the week planner open
   const [scrollToDate, setScrollToDate] = useState<string | null>(null);
   useEffect(() => {
-    const state = location.state as { date?: string; planWeek?: boolean } | null;
+    const state = location.state as { date?: string } | null;
     if (state?.date) { setStart(rangeStart(state.date, today)); setScrollToDate(state.date); setSelectedDate(state.date); }
-    if (state?.planWeek) { setStart(today); setShowWeekPlanner(true); }
   }, [location.key]);
 
   // Also re-runs each time the page is shown again (App keeps it in an Activity), so meals
