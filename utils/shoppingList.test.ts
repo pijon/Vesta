@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ShoppingListItem, ShoppingListSource } from '../types';
-import { itemAmount, itemKey, itemMeals, listText, mealsTotal, MealToAdd, planAdditions, planMealRemoval } from './shoppingList';
+import { PANTRY_DAYS, isProbablyAtHome, itemAmount, itemKey, itemMeals, listText, mealsTotal, MealToAdd, pantryKey, planAdditions, planMealRemoval } from './shoppingList';
 
 const source = (quantity: number, unit: string, meal = 'Chili', date = '2026-10-20'): ShoppingListSource => ({ date, meal, quantity, unit });
 const item = (fields: Partial<ShoppingListItem>): ShoppingListItem => ({
@@ -47,6 +47,15 @@ describe('planAdditions', () => {
     expect(create[1].sources.m2).toEqual({ date: '2026-10-20', meal: 'Salad', quantity: 3, unit: 'tsp' });
   });
 
+  it('adds lines of one meal in different units in the smaller one', () => {
+    const { create } = planAdditions([], [
+      meal('m1', [{ name: 'olja', quantity: 1, unit: 'msk' }, { name: 'olja', quantity: 1, unit: 'tsk' }]),
+      meal('m2', [{ name: 'olja', quantity: 2, unit: 'msk' }]),
+    ], 'me', 5, newId);
+    expect(create[0].sources.m1).toMatchObject({ quantity: 4, unit: 'tsk' });
+    expect(itemAmount(create[0])).toBe('3⅓ msk');
+  });
+
   it('joins an unticked item already on the list, but not a ticked one or one with a typed amount', () => {
     const open = item({ id: 'open', name: 'onions', sources: { m0: source(1, 'item') } });
     const ticked = item({ id: 'ticked', name: 'garlic', checked: true, sources: { m0: source(1, 'item') } });
@@ -78,5 +87,22 @@ describe('listText', () => {
       item({ name: 'toilet paper', amount: '' }),
       item({ name: 'milk', amount: '1 l', checked: true }),
     ])).toBe('1.2 kg potatis\ntoilet paper');
+  });
+});
+
+describe('isProbablyAtHome', () => {
+  const now = Date.UTC(2026, 9, 18);
+  const day = 86_400_000;
+  const pantry = (name: string, daysAgo: number) => ({ [pantryKey(name)]: { key: pantryKey(name), name, markedAt: now - daysAgo * day, by: 'me' } });
+
+  it('is a meal ingredient marked at home lately, whatever its unit or plural', () => {
+    expect(isProbablyAtHome(item({ name: 'eggs', sources: { a: source(2, 'item') } }), pantry('egg', 3), now)).toBe(true);
+    expect(isProbablyAtHome(item({ name: 'salt', sources: { a: source(1, 'tsk') } }), pantry('salt', 0), now)).toBe(true);
+  });
+
+  it('expires, and never hides an item typed in or one in the basket', () => {
+    expect(isProbablyAtHome(item({ name: 'salt', sources: { a: source(1, 'tsk') } }), pantry('salt', PANTRY_DAYS), now)).toBe(false);
+    expect(isProbablyAtHome(item({ name: 'salt', amount: '' }), pantry('salt', 0), now)).toBe(false);
+    expect(isProbablyAtHome(item({ name: 'salt', checked: true, sources: { a: source(1, 'tsk') } }), pantry('salt', 0), now)).toBe(false);
   });
 });

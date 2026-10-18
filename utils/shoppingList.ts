@@ -1,4 +1,4 @@
-import { ShoppingList, ShoppingListItem, ShoppingListMeal, ShoppingListSource } from '../types';
+import { PantryMark, ShoppingList, ShoppingListItem, ShoppingListMeal, ShoppingListSource } from '../types';
 import { ingredientKey } from './ingredientParse';
 import { formatAmount } from './scaleIngredient';
 
@@ -19,12 +19,13 @@ export const itemKey = (name: string, unit: string): string => `${ingredientKey(
 
 type Amount = { quantity: number; unit: string };
 
-/** Two amounts of one item as one, in the base unit when their units differ */
+/** Two amounts of one item as one, in the smaller unit when their units differ (1 msk + 1 tsk = 4 tsk) */
 const addAmounts = (a: Amount, b: Amount): Amount => {
   if (a.unit === b.unit) return { quantity: a.quantity + b.quantity, unit: a.unit };
   const ua = UNITS[a.unit], ub = UNITS[b.unit];
   if (!ua || !ub || ua.dimension !== ub.dimension) return a;
-  return { quantity: a.quantity * ua.base + b.quantity * ub.base, unit: ua.dimension === 'mass' ? 'g' : 'ml' };
+  const [unit, base] = ua.base <= ub.base ? [a.unit, ua.base] : [b.unit, ub.base];
+  return { quantity: (a.quantity * ua.base + b.quantity * ub.base) / base, unit };
 };
 
 /** A total in a unit worth reading: 1200 g as 1.2 kg, 2 tsp + 1 tbsp as 1⅔ tbsp, 350 ml as 3.5 dl */
@@ -32,7 +33,8 @@ const readable = ({ quantity, unit }: Amount, units: string[]): Amount => {
   const info = UNITS[unit];
   // Grams and millilitres read better in bigger units; other units stay as the recipes wrote them
   if (!info || (units.every(u => u === unit) && unit !== 'g' && unit !== 'ml')) return { quantity, unit };
-  const base = quantity * info.base;
+  // Rounded: 245 ml kept as 16.333… msk would come back as 244.999…
+  const base = Math.round(quantity * info.base * 1000) / 1000;
   if (info.dimension === 'mass') return base >= 1000 ? { quantity: base / 1000, unit: 'kg' } : { quantity: base, unit: 'g' };
   if (units.every(u => SPOONS.has(u))) {
     const swedish = units.some(u => SWEDISH_SPOONS.has(u));
@@ -133,10 +135,28 @@ export const listText = (items: ShoppingListItem[]): string =>
   items.filter(item => !item.checked).map(item => [itemAmount(item), item.name].filter(Boolean).join(' ')).join('\n');
 
 /** The planned meals on the list: recorded there, or with a share in an item (the record can be behind) */
-export const mealsOnList = (list: ShoppingList): Map<string, ShoppingListMeal> => {
+export const mealsOnList = (list: Pick<ShoppingList, 'items' | 'meals'>): Map<string, ShoppingListMeal> => {
   const meals = new Map(Object.entries(list.meals || {}));
   list.items.forEach(item => Object.entries(item.sources || {}).forEach(([id, source]) => {
     if (!meals.has(id)) meals.set(id, { date: source.date, name: source.meal });
   }));
   return meals;
+};
+
+/** How long "have it at home" counts for */
+export const PANTRY_DAYS = 30;
+const PANTRY_MS = PANTRY_DAYS * 86_400_000;
+
+/** A food at home is the same whatever the unit ("salt" in pinches or teaspoons) */
+export const pantryKey = (name: string): string => ingredientKey(name);
+
+export const isPantryMarkCurrent = (mark: PantryMark, now: number): boolean => now - mark.markedAt < PANTRY_MS;
+
+/** An item from planned meals: it can be at home. Items typed in are always needed. */
+export const isFromMeals = (item: ShoppingListItem): boolean => Object.keys(item.sources || {}).length > 0 && item.amount === undefined;
+
+/** Whether an unticked item is probably at home already: a meal's ingredient marked at home lately */
+export const isProbablyAtHome = (item: ShoppingListItem, pantry: Record<string, PantryMark>, now: number): boolean => {
+  const mark = pantry[pantryKey(item.name)];
+  return !item.checked && isFromMeals(item) && !!mark && isPantryMarkCurrent(mark, now);
 };

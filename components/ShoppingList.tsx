@@ -5,8 +5,12 @@ import {
   addMealsToList,
   addOwnItem,
   clearBasket,
+  forgetOldPantryMarks,
   getCachedShoppingList,
+  markAtHome,
+  markNeeded,
   moveOldListToFamily,
+  moveOldPantryToFamily,
   removeItem,
   removeMealFromList,
   restoreItem,
@@ -16,11 +20,11 @@ import {
 } from '../services/shoppingService';
 import { DayPlan, ShoppingList as List, ShoppingListItem, ShoppingListMeal } from '../types';
 import { PlanMeal, extractMealsFromPlan, hasThingsToBuy } from '../utils/shoppingUtils';
-import { itemAmount, itemMeals, listText, mealsOnList } from '../utils/shoppingList';
+import { PANTRY_DAYS, isFromMeals, isProbablyAtHome, itemAmount, itemMeals, listText, mealsOnList } from '../utils/shoppingList';
 import { localDateString } from '../utils/dateUtils';
 import ShoppingItem from './ShoppingItem';
 import { AddMealsSheet } from './AddMealsSheet';
-import { CalendarPlus, CircleAlert, Copy, CopyCheck, PartyPopper, Plus, ShoppingBasket, X } from 'lucide-react';
+import { CalendarOff, CalendarPlus, CircleAlert, Copy, CopyCheck, House, PartyPopper, Plus, ShoppingBasket, X } from 'lucide-react';
 
 const byName = (a: ShoppingListItem, b: ShoppingListItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 
@@ -42,6 +46,9 @@ export const ShoppingList: React.FC = () => {
 
   useEffect(() => {
     moveOldListToFamily().catch(e => console.warn("Couldn't move the old shopping list to the family's", e));
+    moveOldPantryToFamily()
+      .then(forgetOldPantryMarks)
+      .catch(e => console.warn("Couldn't tidy the family's pantry", e));
     return subscribeShoppingList(setList, e => {
       console.error('Shopping list stopped updating:', e);
       setError("We couldn't load the shopping list. Check your connection and try again.");
@@ -101,9 +108,13 @@ export const ShoppingList: React.FC = () => {
     );
   }
 
-  const toBuy = list.items.filter(item => !item.checked).sort(byName);
+  const now = Date.now();
+  const atHome = list.items.filter(item => isProbablyAtHome(item, list.pantry, now)).sort(byName);
+  const toBuy = list.items.filter(item => !item.checked && !isProbablyAtHome(item, list.pantry, now)).sort(byName);
   const inBasket = list.items.filter(item => item.checked).sort(byName);
-  const total = list.items.length;
+  // What's shopped for: things at home aren't
+  const total = toBuy.length + inBasket.length;
+  const notPlanned = plans ? upcomingOnList.filter(([key]) => !planned.has(key)) : [];
 
   const handleCopyList = () => {
     navigator.clipboard?.writeText(listText(toBuy)).then(() => {
@@ -125,6 +136,9 @@ export const ShoppingList: React.FC = () => {
         void run(() => removeItem(item.id), `We couldn't remove ${item.name}. Try again.`);
       }}
       onUpdateAmount={amount => run(() => setItemAmount(item.id, amount), `We couldn't change ${item.name}. Try again.`)}
+      onHaveIt={!item.checked && isFromMeals(item)
+        ? () => run(() => markAtHome(item.name), `We couldn't mark ${item.name} as at home. Try again.`)
+        : undefined}
     />
   );
 
@@ -183,7 +197,22 @@ export const ShoppingList: React.FC = () => {
 
       {error && errorNotice(error)}
 
-      {total === 0 ? (
+      {notPlanned.length > 0 && (
+        <div className="tile tile-neutral flex-row items-center gap-3" role="status">
+          <CalendarOff size={22} className="text-muted shrink-0" aria-hidden="true" />
+          <p className="text-sm flex-1 min-w-0">
+            {notPlanned.length === 1 ? `${notPlanned[0][1].name} isn't planned anymore.` : `${notPlanned.length} meals on the list aren't planned anymore.`}
+          </p>
+          <button
+            onClick={() => run(async () => { for (const [key] of notPlanned) await removeMealFromList(key); }, "We couldn't take them off the list. Try again.")}
+            className="btn-secondary btn-sm shrink-0"
+          >
+            Take off
+          </button>
+        </div>
+      )}
+
+      {list.items.length === 0 ? (
         <div className="tile tile-neutral items-center text-center py-10 gap-1">
           <ShoppingBasket size={28} className="text-muted mb-2" aria-hidden="true" />
           <p className="font-semibold">The list is empty</p>
@@ -200,8 +229,37 @@ export const ShoppingList: React.FC = () => {
         <div className="tile tile-neutral items-center text-center py-8">
           <PartyPopper size={28} className="mb-2" aria-hidden="true" />
           <p className="font-semibold">All done</p>
-          <p className="text-sm text-muted mt-1">Everything's in the basket. Time to head home.</p>
+          <p className="text-sm text-muted mt-1">
+            {inBasket.length > 0 ? "Everything's in the basket. Time to head home." : 'Everything you need is at home.'}
+          </p>
         </div>
+      )}
+
+      {atHome.length > 0 && (
+        <details className="card px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold min-h-9 flex items-center gap-2">
+            <House size={16} className="text-muted" aria-hidden="true" />
+            Probably at home · {atHome.length}
+          </summary>
+          <p className="text-xs text-muted mt-1">Marked as at home in the last {PANTRY_DAYS} days. Cleared with the basket.</p>
+          <ul className="mt-1">
+            {atHome.map(item => (
+              <li key={item.id} className="flex items-center gap-2 py-1.5">
+                <span className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold first-letter:uppercase line-clamp-1">{item.name}</span>
+                  <span className="text-xs text-muted line-clamp-1">{[itemAmount(item), ...itemMeals(item)].filter(Boolean).join(' · ')}</span>
+                </span>
+                <button
+                  onClick={() => run(() => markNeeded(item.name), `We couldn't move ${item.name} to the list. Try again.`)}
+                  className="chip hit-target shrink-0"
+                  aria-label={`Need ${item.name}: put it on the list`}
+                >
+                  <ShoppingBasket size={16} aria-hidden="true" /> Need it
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {inBasket.length > 0 && (
@@ -225,7 +283,7 @@ export const ShoppingList: React.FC = () => {
             {upcomingOnList.map(([key, meal]) => (
               <li key={key} className="flex items-center gap-2 py-1.5">
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-semibold line-clamp-1">{meal.name}</span>
+                  <span className="text-sm font-semibold line-clamp-1">{meal.name}</span>
                   <span className="block text-xs text-muted">
                     {new Date(`${meal.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}
                     {plans && !planned.has(key) && ' · No longer planned'}

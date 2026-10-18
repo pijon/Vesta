@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Recipe, ShoppingList, ShoppingListItem } from '../types';
+import { PantryMark, Recipe, ShoppingList, ShoppingListItem } from '../types';
 import { PlanMeal } from '../utils/shoppingUtils';
 
 const fake = vi.hoisted(() => ({ uid: 'me', aiCalls: [] as string[][] }));
@@ -16,12 +16,15 @@ vi.mock('./geminiService', () => ({
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId } = await import('./groupService');
 const {
-  addMealsToList, addOwnItem, clearBasket, moveOldListToFamily, removeMealFromList, setItemChecked, subscribeShoppingList,
+  addMealsToList, addOwnItem, clearBasket, forgetOldPantryMarks, markAtHome, markNeeded, moveOldListToFamily,
+  moveOldPantryToFamily, removeMealFromList, setItemChecked, subscribeShoppingList,
 } = await import('./shoppingService');
 const { itemAmount } = await import('../utils/shoppingList');
 
 const items = () => [...store.docs].filter(([path]) => path.startsWith('groups/g/shoppingItems/')).map(([, d]) => d as unknown as ShoppingListItem);
 const named = (name: string) => items().find(i => i.name === name)!;
+const pantry = () => [...store.docs].filter(([path]) => path.startsWith('groups/g/pantry/')).map(([, d]) => d as unknown as PantryMark);
+const DAY = 86_400_000;
 const listMeals = () => (store.docs.get('groups/g/shopping/list') as { meals: Record<string, unknown> } | undefined)?.meals ?? {};
 const planMeal = (key: string, ingredients: string[], fields: Partial<PlanMeal> = {}): PlanMeal => ({
   key, name: 'Chili', date: '2099-01-01', parts: [{ id: 'r1', name: 'Chili', ingredients }], ...fields,
@@ -134,5 +137,50 @@ describe('the list from before family lists', () => {
     store.docs.set('users/me/data/shopping', old);
     await moveOldListToFamily();
     expect(items().map(i => i.name)).toEqual(['coffee']);
+  });
+});
+
+describe('the family\'s pantry', () => {
+  it('moves what\'s at home out of the shopping, live, and back when needed', async () => {
+    const seen: ShoppingList[] = [];
+    const stop = subscribeShoppingList(list => seen.push(list), e => { throw e; });
+    await addMealsToList([planMeal('m1', ['1 tsk salt', '2 eggs'])]);
+    await markAtHome('salt');
+    await vi.waitFor(() => expect(Object.keys(seen.at(-1)!.pantry)).toEqual(['salt']));
+    expect(pantry()).toEqual([expect.objectContaining({ key: 'salt', name: 'salt', by: 'me' })]);
+    await markNeeded('salt');
+    await vi.waitFor(() => expect(seen.at(-1)!.pantry).toEqual({}));
+    stop();
+  });
+
+  it('clears what was at home with the basket, but keeps it marked', async () => {
+    await addMealsToList([planMeal('m1', ['1 tsk salt', '2 eggs', '1 onion'])]);
+    await markAtHome('salt');
+    await setItemChecked(named('eggs').id, true);
+    await clearBasket();
+    expect(items().map(i => i.name)).toEqual(['onion']);
+    expect(pantry().map(m => m.key)).toEqual(['salt']);
+  });
+
+  it('forgets marks too old to count', async () => {
+    await markAtHome('salt');
+    store.docs.set('groups/g/pantry/pepper', { key: 'pepper', name: 'pepper', markedAt: Date.now() - 40 * DAY, by: 'me' });
+    await forgetOldPantryMarks();
+    expect(pantry().map(m => m.key)).toEqual(['salt']);
+  });
+
+  it('moves each member\'s old pantry in once, keeping recent marks and newer family ones', async () => {
+    const now = Date.now();
+    store.docs.set('groups/g/pantry/olja', { key: 'olja', name: 'olja', markedAt: now - DAY, by: 'partner' });
+    store.docs.set('users/me/data/pantry', { lastUpdated: 0, items: [
+      { name: 'eggs', markedAt: now - 2 * DAY, persistent: true },
+      { name: 'salt (tsk)', markedAt: now - 3 * DAY, persistent: true },
+      { name: 'olja', markedAt: now - 5 * DAY, persistent: true },
+      { name: 'salt', markedAt: now - 90 * DAY, persistent: true },
+    ] });
+    await moveOldPantryToFamily();
+    await moveOldPantryToFamily();
+    expect(pantry().map(m => [m.key, m.by]).sort()).toEqual([['egg', 'me'], ['olja', 'partner'], ['salt', 'me']]);
+    expect(store.docs.get('users/me/data/pantry')).toMatchObject({ movedToFamily: true });
   });
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { Check, House, Trash2 } from 'lucide-react';
 
 interface ShoppingItemProps {
     name: string;
@@ -11,10 +11,12 @@ interface ShoppingItemProps {
     onToggleCheck: () => void;
     onRemove: () => void;
     onUpdateAmount: (amount: string) => void;
+    /** Marks the food as at home (meal ingredients still to buy) */
+    onHaveIt?: () => void;
 }
 
-/** One thing to buy: tick it into the basket, tap the amount to change it, or remove it. */
-const ShoppingItem: React.FC<ShoppingItemProps> = ({ name, amount, meals, isChecked, onToggleCheck, onRemove, onUpdateAmount }) => {
+/** One thing to buy: tick it into the basket, tap the amount to change it, mark it as at home, or remove it. */
+const ShoppingItem: React.FC<ShoppingItemProps> = ({ name, amount, meals, isChecked, onToggleCheck, onRemove, onUpdateAmount, onHaveIt }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState('');
 
@@ -75,6 +77,16 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ name, amount, meals, isChec
                 )}
             </div>
 
+            {onHaveIt && (
+                <button
+                    onClick={onHaveIt}
+                    aria-label={`Have ${name} at home`}
+                    title="Have it at home"
+                    className="hit-target size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:bg-surface-sunken hover:text-main transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                >
+                    <House size={16} />
+                </button>
+            )}
             <button
                 onClick={onRemove}
                 aria-label={`Remove ${name}`}

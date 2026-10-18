@@ -1,12 +1,12 @@
 import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, onSnapshot, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
-import { EnhancedShoppingState, ParsedIngredientLine, ShoppingList, ShoppingListItem, ShoppingListMeal } from '../types';
+import { EnhancedShoppingState, PantryInventory, PantryMark, ParsedIngredientLine, ShoppingList, ShoppingListItem, ShoppingListMeal } from '../types';
 import { currentUid, db } from './firebase';
 import { getMyGroupId } from './groupService';
 import { saveParsedIngredients } from './storageService';
 import { parseIngredients } from './geminiService';
 import { getCacheKey, getFromCache, saveToCache } from '../utils/cacheService';
 import { parseIngredientLine, readRecipeLines } from '../utils/ingredientParse';
-import { itemKey, mealsOnList, planAdditions, planMealRemoval } from '../utils/shoppingList';
+import { isPantryMarkCurrent, isProbablyAtHome, itemKey, mealsOnList, pantryKey, planAdditions, planMealRemoval } from '../utils/shoppingList';
 import { formatAmount } from '../utils/scaleIngredient';
 import { localDateString } from '../utils/dateUtils';
 import { PlanMeal } from '../utils/shoppingUtils';
@@ -14,10 +14,14 @@ import { PlanMeal } from '../utils/shoppingUtils';
 // The family's shopping list: groups/{groupId}/shoppingItems/{id}, one doc per item so members
 // ticking at the same time never overwrite each other, and groups/{groupId}/shopping/list with the
 // planned meals on it. Each meal's share of an item is its own field (sources.{instanceId}).
+// What's at home is groups/{groupId}/pantry/{id}, one doc per food.
 
 const itemsRef = (groupId: string) => collection(db, 'groups', groupId, 'shoppingItems');
 const itemRef = (groupId: string, id: string) => doc(db, 'groups', groupId, 'shoppingItems', id);
 const listRef = (groupId: string) => doc(db, 'groups', groupId, 'shopping', 'list');
+const pantryRef = (groupId: string) => collection(db, 'groups', groupId, 'pantry');
+// Keys hold characters a doc id can't ("/")
+const pantryMarkRef = (groupId: string, key: string) => doc(db, 'groups', groupId, 'pantry', encodeURIComponent(key));
 const CACHE_KEY = getCacheKey('shoppingList');
 // Firestore batches hold at most 500 writes
 const BATCH_SIZE = 400;
@@ -43,11 +47,21 @@ const me = () => {
   return uid;
 };
 
+const readPantry = async (groupId: string): Promise<Record<string, PantryMark>> =>
+  Object.fromEntries((await getDocs(pantryRef(groupId))).docs.map(d => {
+    const mark = d.data() as PantryMark;
+    return [mark.key, mark];
+  }));
+
 const readItems = async (groupId: string): Promise<ShoppingListItem[]> =>
   (await getDocs(itemsRef(groupId))).docs.map(d => ({ ...d.data() as ShoppingListItem, id: d.id }));
 
 /** The list as last seen on this device, to show before the live one arrives */
-export const getCachedShoppingList = (): ShoppingList | null => getFromCache<ShoppingList>(CACHE_KEY);
+export const getCachedShoppingList = (): ShoppingList | null => {
+  const cached = getFromCache<ShoppingList>(CACHE_KEY);
+  // Cached before the pantry was part of the list
+  return cached && { ...cached, pantry: cached.pantry || {} };
+};
 
 /** Keeps the family's list live. Returns the unsubscribe function. */
 export const subscribeShoppingList = (onUpdate: (list: ShoppingList) => void, onError: (e: unknown) => void): (() => void) => {
@@ -55,10 +69,11 @@ export const subscribeShoppingList = (onUpdate: (list: ShoppingList) => void, on
   const unsubscribes: (() => void)[] = [];
   const items = new Map<string, ShoppingListItem>();
   let meals: Record<string, ShoppingListMeal> = {};
-  let itemsLoaded = false, mealsLoaded = false;
+  const pantry = new Map<string, PantryMark>();
+  const loaded = { items: false, meals: false, pantry: false };
   const emit = () => {
-    if (stopped || !itemsLoaded || !mealsLoaded) return;
-    const list = { items: [...items.values()], meals };
+    if (stopped || !loaded.items || !loaded.meals || !loaded.pantry) return;
+    const list: ShoppingList = { items: [...items.values()], meals, pantry: Object.fromEntries(pantry) };
     saveToCache(CACHE_KEY, list);
     onUpdate(list);
   };
@@ -70,7 +85,7 @@ export const subscribeShoppingList = (onUpdate: (list: ShoppingList) => void, on
         if (change.type === 'removed') items.delete(change.doc.id);
         else items.set(change.doc.id, { ...change.doc.data() as ShoppingListItem, id: change.doc.id });
       });
-      itemsLoaded = true;
+      loaded.items = true;
       emit();
     }, onError));
     unsubscribes.push(onSnapshot(collection(db, 'groups', groupId, 'shopping'), snapshot => {
@@ -78,7 +93,15 @@ export const subscribeShoppingList = (onUpdate: (list: ShoppingList) => void, on
         if (change.doc.id !== 'list') return;
         meals = change.type === 'removed' ? {} : (change.doc.data() as { meals?: Record<string, ShoppingListMeal> }).meals || {};
       });
-      mealsLoaded = true;
+      loaded.meals = true;
+      emit();
+    }, onError));
+    unsubscribes.push(onSnapshot(pantryRef(groupId), snapshot => {
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'removed') pantry.delete(decodeURIComponent(change.doc.id));
+        else pantry.set(decodeURIComponent(change.doc.id), change.doc.data() as PantryMark);
+      });
+      loaded.pantry = true;
       emit();
     }, onError));
   }).catch(onError);
@@ -194,14 +217,36 @@ export const restoreItem = async (item: ShoppingListItem) => {
   await setDoc(itemRef(await familyId(), item.id), item);
 };
 
-/** Removes ticked items, and forgets meals already past */
+/** Removes ticked items and those probably at home, and forgets meals already past */
 export const clearBasket = async () => {
   const groupId = await familyId();
-  const [items, onList] = await Promise.all([readItems(groupId), listMeals(groupId)]);
+  const [items, onList, pantry] = await Promise.all([readItems(groupId), listMeals(groupId), readPantry(groupId)]);
+  const now = Date.now();
   await commit([
-    ...items.filter(item => item.checked).map((item): Write => batch => batch.delete(itemRef(groupId, item.id))),
+    ...items.filter(item => item.checked || isProbablyAtHome(item, pantry, now))
+      .map((item): Write => batch => batch.delete(itemRef(groupId, item.id))),
     ...mealsChange(groupId, pastMeals(onList)),
   ]);
+};
+
+/** The family has this food at home: it moves to "Probably at home" for PANTRY_DAYS */
+export const markAtHome = async (name: string) => {
+  const key = pantryKey(name);
+  const mark: PantryMark = { key, name, markedAt: Date.now(), by: me() };
+  await setDoc(pantryMarkRef(await familyId(), key), mark);
+};
+
+/** The family needs this food after all */
+export const markNeeded = async (name: string) => {
+  await deleteDoc(pantryMarkRef(await familyId(), pantryKey(name)));
+};
+
+/** Removes pantry marks too old to count */
+export const forgetOldPantryMarks = async () => {
+  const groupId = await familyId();
+  const now = Date.now();
+  const old = Object.values(await readPantry(groupId)).filter(mark => !isPantryMarkCurrent(mark, now));
+  await commit(old.map((mark): Write => batch => batch.delete(pantryMarkRef(groupId, mark.key))));
 };
 
 type OldShoppingState = Partial<EnhancedShoppingState> & { movedToFamily?: boolean };
@@ -234,5 +279,30 @@ export const moveOldListToFamily = async () => {
       }));
     await commit(items.map((item): Write => batch => batch.set(itemRef(groupId, item.id), item)));
   }
+  await updateDoc(oldRef, { movedToFamily: true });
+};
+
+/**
+ * Moves the user's own pantry from before family lists (users/{uid}/data/pantry) into the family's,
+ * once, keeping when each food was marked (marks too old to count are left out), without
+ * replacing a newer family mark.
+ */
+export const moveOldPantryToFamily = async () => {
+  const oldRef = doc(db, 'users', me(), 'data', 'pantry');
+  const old = (await getDoc(oldRef)).data() as (PantryInventory & { movedToFamily?: boolean }) | undefined;
+  if (!old || old.movedToFamily) return;
+
+  const groupId = await familyId();
+  const family = await readPantry(groupId);
+  const now = Date.now();
+  const marks = new Map<string, PantryMark>();
+  (old.items || []).forEach(item => {
+    // The old list kept the same food in another unit apart as "olja (tsk)"
+    const name = item.name.replace(/\s*\([^)]*\)$/, '');
+    const mark: PantryMark = { key: pantryKey(name), name, markedAt: item.markedAt, by: me() };
+    const newer = [family[mark.key], marks.get(mark.key)].some(other => other && other.markedAt >= mark.markedAt);
+    if (isPantryMarkCurrent(mark, now) && !newer) marks.set(mark.key, mark);
+  });
+  await commit([...marks.values()].map((mark): Write => batch => batch.set(pantryMarkRef(groupId, mark.key), mark)));
   await updateDoc(oldRef, { movedToFamily: true });
 };

@@ -237,10 +237,20 @@ export interface ShoppingListMeal {
   name: string;
 }
 
-/** The family's shopping list: its items, and the planned meals added to it (by instanceId) */
+/** A food the family has at home (groups/{groupId}/pantry/{id}); it counts for PANTRY_DAYS after markedAt */
+export interface PantryMark {
+  /** pantryKey of the food's name */
+  key: string;
+  name: string;
+  markedAt: number;
+  by: string;
+}
+
+/** The family's shopping list: its items, the planned meals added to it (by instanceId), and the pantry (by key) */
 export interface ShoppingList {
   items: ShoppingListItem[];
   meals: Record<string, ShoppingListMeal>;
+  pantry: Record<string, PantryMark>;
 }
 
 /** Legacy: the per-user shopping list's ingredients (moved to the family's list) */
