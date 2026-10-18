@@ -57,15 +57,22 @@ const TrackerApp: React.FC = () => {
         return localDateString(d);
     });
 
-    // After start-up: download the other pages' code and load their data in the background,
-    // so opening them shows content straight away
+    // After start-up: download the other pages' code, pre-render them and load their data in the
+    // background, so opening them shows content straight away. It waits for the first paint
+    // (Chrome can find idle time before it) and then for idle time (Safari has no idle callback).
     useEffect(() => {
         const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
-        idle(() => {
+        let cancelled = false;
+        requestAnimationFrame(() => setTimeout(() => idle(() => {
+            if (cancelled) return;
+            setPrerenderPages(true);
             prefetchViews();
             import('./services/pageData').then(m => m.prewarmPages());
-        });
-        return () => { import('./utils/prewarm').then(m => m.clearWarm()); };
+        })));
+        return () => {
+            cancelled = true;
+            import('./utils/prewarm').then(m => m.clearWarm());
+        };
     }, []);
 
     // Check for date change on focus/visibility change
@@ -106,6 +113,14 @@ const TrackerApp: React.FC = () => {
     };
 
     const view = getCurrentView();
+
+    // At launch only the page on screen renders; the hidden pages (and their code) wait until the
+    // app is idle, so a cold start doesn't load and draw every page before the first paint
+    const [prerenderPages, setPrerenderPages] = useState(false);
+    const [visitedViews, setVisitedViews] = useState<ReadonlySet<AppView>>(() => new Set([view]));
+    useEffect(() => {
+        setVisitedViews(prev => prev.has(view) ? prev : new Set(prev).add(view));
+    }, [view]);
 
     // Each page gets back the scroll position it was left at
     const scrollPositions = useRef(new Map<AppView, number>());
@@ -702,14 +717,15 @@ const TrackerApp: React.FC = () => {
 
     const headerInfo = getHeaderInfo();
 
-    // Every page lives in an Activity: hidden pages are pre-rendered in the background and keep
-    // their state, but their effects pause and they don't re-render, so switching is instant.
-    // Effects re-run when a page is shown again, which quietly refreshes its data.
+    // Every page lives in an Activity: hidden pages are pre-rendered in the background (once the app
+    // is idle after launch) and keep their state, but their effects pause and they don't re-render,
+    // so switching is instant. Effects re-run when a page is shown again, which quietly refreshes its data.
     // The planner's week of seven columns gets more room on big screens than the other pages. Shopping
     // shares its tabs, so it gets the same page (its list keeps the usual width) and the tabs stay put
     const pageWidth = (target: AppView) =>
         (target === AppView.PLANNER || target === AppView.SHOPPING ? 'max-w-[100rem]' : 'max-w-6xl');
     const renderView = (target: AppView, content: React.ReactNode) => (
+        (prerenderPages || target === view || visitedViews.has(target)) &&
         <Activity key={target} mode={view === target ? 'visible' : 'hidden'}>
             <div className={`${pageWidth(target)} mx-auto px-4 pb-4 pt-0 md:px-8 md:pb-8 md:pt-0 motion-safe:animate-page-fade`}>
                 <React.Suspense fallback={<ViewSkeleton />}>{content}</React.Suspense>
