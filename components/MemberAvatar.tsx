@@ -30,21 +30,48 @@ export const randomSeed = () => crypto.randomUUID().slice(0, 8);
 type Draw = (avatar: Avatar) => string;
 
 // The figures' artwork is large (about 110 kB gzipped), so it loads in its own chunk after the
-// page; until then an avatar is its plain tint. Each figure is drawn once per seed and tint.
+// page; until then an avatar is its plain tint. Each figure is drawn once per seed and tint, and
+// the last few are kept in localStorage so a launch shows them without loading the artwork.
 let draw: Draw | null = null;
 let loading: Promise<Draw> | null = null;
 const drawn = new Map<string, string>();
 
+const SAVED_KEY = 'vesta_avatars';
+const MAX_SAVED = 12;
+const avatarKey = ({ seed, tint }: Avatar) => `${seed}|${tint}`;
+
+const readSaved = (): Record<string, string> => {
+    try {
+        const saved: unknown = JSON.parse(localStorage.getItem(SAVED_KEY) || '{}');
+        return saved && typeof saved === 'object' ? saved as Record<string, string> : {};
+    } catch { return {}; }
+};
+
+const savedAvatar = (avatar: Avatar): string | null => {
+    const uri = readSaved()[avatarKey(avatar)];
+    return typeof uri === 'string' && uri.startsWith('data:') ? uri : null;
+};
+
+const saveAvatar = (key: string, uri: string) => {
+    try {
+        const saved = readSaved();
+        delete saved[key];
+        saved[key] = uri; // newest last; drop the oldest beyond the limit
+        const entries = Object.entries(saved).slice(-MAX_SAVED);
+        localStorage.setItem(SAVED_KEY, JSON.stringify(Object.fromEntries(entries)));
+    } catch { /* storage full or blocked: it is drawn again next time */ }
+};
+
 const loadDraw = (): Promise<Draw> => loading ??= Promise.all([import('@dicebear/core'), import('@dicebear/open-peeps')])
     .then(([{ createAvatar }, openPeeps]) => {
-        draw = ({ seed, tint }) => {
-            const key = `${seed}|${tint}`;
+        draw = avatar => {
+            const key = avatarKey(avatar);
             let uri = drawn.get(key);
             if (!uri) {
                 uri = createAvatar(openPeeps, {
-                    seed,
+                    seed: avatar.seed,
                     radius: 50,
-                    backgroundColor: [tintHex(tint).slice(1)],
+                    backgroundColor: [tintHex(avatar.tint).slice(1)],
                     maskProbability: 0,
                 }).toDataUri();
                 drawn.set(key, uri);
@@ -70,12 +97,20 @@ interface MemberAvatarProps {
 /** A member's avatar: a hand-drawn figure on a round tint. Decorative: the name goes next to it. */
 export const MemberAvatar: React.FC<MemberAvatarProps> = ({ avatar, uid, size = 44, className = '' }) => {
     const resolved = resolveAvatar(avatar, uid);
-    const [uri, setUri] = useState<string | null>(() => draw?.(resolved) ?? null);
+    const [uri, setUri] = useState<string | null>(() => draw?.(resolved) ?? savedAvatar(resolved));
 
     useEffect(() => {
+        const saved = savedAvatar(resolved);
+        if (saved) {
+            setUri(saved);
+            return;
+        }
         let cancelled = false;
         drawAvatar(resolved)
-            .then(next => { if (!cancelled) setUri(next); })
+            .then(next => {
+                saveAvatar(avatarKey(resolved), next);
+                if (!cancelled) setUri(next);
+            })
             .catch(e => console.warn('Could not draw the avatar', e));
         return () => { cancelled = true; };
     }, [resolved.seed, resolved.tint]);
