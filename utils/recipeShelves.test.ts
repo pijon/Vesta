@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Recipe } from '../types';
-import { favouritesShelf, notHadInAWhile } from './recipeShelves';
+import { favouritesShelf, mostProteinShelf, notHadInAWhile, proteinPerCalorieShelf } from './recipeShelves';
 
 const TODAY = '2026-10-17';
 const recipe = (id: string, extra: Partial<Recipe> = {}) => ({ id, name: id, calories: 400, ...extra }) as Recipe;
@@ -35,5 +35,28 @@ describe('favouritesShelf', () => {
 
   it('is empty with fewer than three favourites', () => {
     expect(favouritesShelf([recipe('x', { isFavorite: true }), recipe('y', { isFavorite: true })], {})).toEqual([]);
+  });
+});
+
+describe('protein shelves', () => {
+  const recipes = [
+    recipe('big', { protein: 60, calories: 650 }),
+    recipe('lean', { protein: 38, calories: 190 }),
+    recipe('mid', { protein: 40, calories: 400 }),
+    recipe('none', { protein: 0, calories: 300 }),
+    recipe('shake', { protein: 25, calories: 100 }),
+  ];
+
+  it('ranks by protein in a portion, leaving out missing protein and tiny items', () => {
+    expect(ids(mostProteinShelf(recipes))).toEqual(['big', 'mid', 'lean']);
+  });
+
+  it('ranks by protein per calorie', () => {
+    expect(ids(proteinPerCalorieShelf(recipes))).toEqual(['lean', 'mid', 'big']);
+  });
+
+  it('is empty with fewer than three', () => {
+    expect(mostProteinShelf(recipes.slice(0, 2))).toEqual([]);
+    expect(proteinPerCalorieShelf(recipes.slice(0, 2))).toEqual([]);
   });
 });
