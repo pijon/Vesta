@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Droplets, Flame, Scale, Target, CookingPot, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Droplets, Flame, Scale, Target, CookingPot, X } from 'lucide-react';
 import type { UserExperience, UserSetupSubmission, UserStats } from '../types';
 import { DEFAULT_USER_STATS } from '../constants';
 import { VestaMark } from './VestaMark';
@@ -16,6 +16,8 @@ interface OnboardingWizardProps {
     onComplete: (data: OnboardingResult) => Promise<void>;
     /** Shown as a close button; leave out when the profile is required */
     onCancel?: () => void;
+    /** Joins a family by invite code and returns its name. Offered only when given (a new account) */
+    onJoinFamily?: (code: string) => Promise<string>;
 }
 
 /** Accepts "82,4" as well as "82.4". */
@@ -58,7 +60,7 @@ const NumberField: React.FC<{
 );
 
 /** Planning setup needs only a name. Tracking adds explicit personal health answers. */
-export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, initialExperience, allowExperienceChoice, intent, onComplete, onCancel }) => {
+export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, initialExperience, allowExperienceChoice, intent, onComplete, onCancel, onJoinFamily }) => {
     const [step, setStep] = useState(0);
     const [experience, setExperience] = useState<UserExperience | null>(initialExperience ?? (allowExperienceChoice ? null : 'tracking'));
     const steps = experience === 'tracking' ? ['About you', 'Your weight', 'Daily targets'] : ['About you'];
@@ -77,6 +79,29 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, initi
     const [nourish, setNourish] = useState(str(stats?.nonFastDayCalories ?? DEFAULT_USER_STATS.nonFastDayCalories));
     const [fast, setFast] = useState(str(stats?.dailyCalorieGoal ?? DEFAULT_USER_STATS.dailyCalorieGoal));
     const [water, setWater] = useState(str(stats?.dailyWaterGoal ?? DEFAULT_USER_STATS.dailyWaterGoal));
+
+    // Joining a family happens straight away, apart from saving the setup
+    const [joinOpen, setJoinOpen] = useState(false);
+    const [code, setCode] = useState('');
+    const [joining, setJoining] = useState(false);
+    const [joinError, setJoinError] = useState<string | null>(null);
+    const [joinedFamily, setJoinedFamily] = useState<string | null>(null);
+    const codeRef = useRef<HTMLInputElement>(null);
+    useEffect(() => { if (joinOpen) codeRef.current?.focus(); }, [joinOpen]);
+
+    const join = async () => {
+        if (!onJoinFamily || joining || !code.trim()) return;
+        setJoining(true);
+        setJoinError(null);
+        try {
+            const family = await onJoinFamily(code.trim());
+            if (mounted.current) { setJoinedFamily(family); setCode(''); }
+        } catch (failure) {
+            if (mounted.current) setJoinError(failure instanceof Error ? failure.message : "That code didn't work. Check it and try again.");
+        } finally {
+            if (mounted.current) setJoining(false);
+        }
+    };
 
     const nameRef = useRef<HTMLInputElement>(null);
     const weightRef = useRef<HTMLInputElement>(null);
@@ -99,7 +124,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, initi
     const diff = w !== null && g !== null ? Math.round((w - g) * 10) / 10 : null;
 
     const next = async () => {
-        if (submitting.current || !valid[step] || !experience) return;
+        if (submitting.current || joining || !valid[step] || !experience) return;
         if (step < steps.length - 1) { setStep(step + 1); return; }
         submitting.current = true;
         setBusy(true);
@@ -160,6 +185,44 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, initi
                                         className="input w-full text-lg"
                                     />
                                 </label>
+                                {onJoinFamily && (
+                                    <div className="mt-6" aria-live="polite">
+                                        {joinedFamily ? (
+                                            <p className="flex items-center gap-3 rounded-3xl bg-surface-sunken p-4">
+                                                <span className="icon-tile tile-water size-10 shrink-0 flex items-center justify-center" aria-hidden="true"><Check size={18} strokeWidth={2.5} /></span>
+                                                <span className="font-semibold">You've joined {joinedFamily}</span>
+                                            </p>
+                                        ) : joinOpen ? (
+                                            <div className="space-y-2">
+                                                <label htmlFor="onboarding-invite-code" className="block text-sm font-semibold">Family code</label>
+                                                <p className="text-sm text-muted -mt-1">The code someone in your family shared from their Family page.</p>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        ref={codeRef}
+                                                        id="onboarding-invite-code"
+                                                        value={code}
+                                                        onChange={e => setCode(e.target.value)}
+                                                        // Enter joins here instead of submitting the setup
+                                                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void join(); } }}
+                                                        disabled={joining}
+                                                        autoCapitalize="characters"
+                                                        autoComplete="off"
+                                                        placeholder="Invite code"
+                                                        className="input w-full font-mono"
+                                                    />
+                                                    <button type="button" onClick={() => void join()} disabled={joining || !code.trim()} className="btn-secondary btn-sm shrink-0 self-center">
+                                                        {joining ? 'Joining…' : 'Join'}
+                                                    </button>
+                                                </div>
+                                                {joinError && <p role="alert" className="text-sm text-error">{joinError}</p>}
+                                            </div>
+                                        ) : (
+                                            <button type="button" onClick={() => setJoinOpen(true)} className="text-sm font-semibold text-muted hover:text-main underline-offset-2 hover:underline rounded focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
+                                                Joining your family? Enter their code
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </>
                         )}
 
@@ -194,7 +257,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, initi
                     {busy && <p role="status" className="text-sm text-muted mt-4">Saving your setup…</p>}
                     {error && <p ref={errorRef} tabIndex={-1} role="alert" className="text-sm text-error mt-4">{error}</p>}
 
-                    <button type="submit" disabled={busy || !valid[step]} className="btn-primary btn-lg btn-block mt-8">
+                    <button type="submit" disabled={busy || joining || !valid[step]} className="btn-primary btn-lg btn-block mt-8">
                         {step < steps.length - 1 ? <>Continue <ArrowRight size={18} aria-hidden="true" /></> : 'Start using Vesta'}
                     </button>
                 </form>

@@ -33,7 +33,8 @@ import { TrackToday } from './components/TrackToday';
 import { PlanToday } from './components/PlanToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { FamilyNotice } from './components/FamilyNotice';
-import { subscribeFamilyUpdates } from './services/activityService';
+import { recordFamilyUpdate, subscribeFamilyUpdates } from './services/activityService';
+import { joinGroup } from './services/groupService';
 import { Sidebar } from './components/Sidebar';
 import { FamilyTabs } from './components/FamilyTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
@@ -1197,6 +1198,18 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
         },
     } : undefined;
     const rerun = () => openWizard('rerun', preferences?.experience ?? 'tracking');
+    // A new account can join a family from setup; anyone else joins from the Family page
+    const joinFamily = async (code: string) => {
+        ensureSession();
+        try {
+            const group = await joinGroup(code);
+            void recordFamilyUpdate({ type: 'joined' });
+            return group.name;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '';
+            throw new Error(message === 'Invalid invite code' || !message ? "That code didn't work. Check it and try again." : message);
+        }
+    };
     const activeWizard = wizard ?? (required ? { intent: 'required' as const, experience: preferences?.experience, id: 0 } : null);
 
     return <>
@@ -1213,6 +1226,7 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
         {activeWizard && <OnboardingWizard key={`${uid}:${activeWizard.intent}:${activeWizard.id}`}
             stats={setup.stats ?? undefined} initialExperience={activeWizard.experience} allowExperienceChoice={allowChoice}
             intent={activeWizard.intent} onComplete={onComplete}
+            onJoinFamily={activeWizard.intent === 'required' && !preferences?.profileSetupComplete ? joinFamily : undefined}
             onCancel={activeWizard.intent === 'required' ? undefined : () => setWizard(null)} />}
     </>;
 };
