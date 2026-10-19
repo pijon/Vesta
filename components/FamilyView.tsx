@@ -319,7 +319,7 @@ export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }
             <section className="card p-5 md:p-6" aria-labelledby="invite-heading">
                 <h2 id="invite-heading" className="heading-3">Invite someone</h2>
                 <p className="text-sm text-muted mt-0.5">
-                    They enter this code on their Family page. Everyone shares the family's recipes and family meals.
+                    They enter this code when they set up Vesta, or on their Family page. Everyone shares the family's recipes and family meals.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                     <button
