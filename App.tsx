@@ -1065,15 +1065,31 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
     const epoch = useRef(0);
     const alive = useRef(true);
     const ownsSession = useCallback(() => alive.current && currentUid() === uid, [uid]);
+    // The experience the server last confirmed: where a failed switch goes back to
+    const confirmedPreferences = useRef<UserSetupSnapshot['preferences']>(null);
+    /** A setup from the server (or just saved to it) */
     const applySetup = useCallback((snapshot: UserSetupSnapshot) => {
         if (!ownsSession() || snapshot.uid !== uid) return;
+        confirmedPreferences.current = snapshot.preferences;
         cache.saveCachedUserSetup(snapshot);
         setState({ status: 'ready', uid, snapshot });
     }, [uid, ownsSession]);
+    /** Shows preferences not saved yet (a switch on its way), keeping the rest of the current setup */
+    const showPreferences = useCallback((preferences: NonNullable<UserSetupSnapshot['preferences']>) => {
+        if (!ownsSession()) return;
+        setState(current => {
+            if (current.status !== 'ready') return current;
+            const snapshot = { ...current.snapshot, preferences };
+            cache.saveCachedUserSetup(snapshot);
+            return { ...current, snapshot };
+        });
+    }, [ownsSession]);
     // A refresh that read the setup before a change here (a switch, a name) would put the old one
     // back, even if it lands after the change has saved: only a read started since then applies.
     // `epoch` counts those changes; a switch also counts when its save ends.
     const switching = useRef(0);
+    const latestSwitch = useRef(0);
+    const switchSaves = useRef<Promise<unknown>>(Promise.resolve());
     const setupVersion = useCallback(() => epoch.current, []);
     const applyRefreshedSetup = useCallback((snapshot: UserSetupSnapshot, readFrom: number) => {
         if (switching.current === 0 && readFrom === epoch.current) applySetup(snapshot);
@@ -1143,20 +1159,27 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
                 openWizard('switch', experience);
                 return { status: 'setup-required' };
             }
-            const request = ++epoch.current;
-            const before = setup;
+            // Another switch can follow before this one has saved: only the latest one's outcome is
+            // shown, and the saves run one after another so the server ends on the latest choice
+            const change = ++latestSwitch.current;
+            const fallback = confirmedPreferences.current ?? preferences;
+            epoch.current++; // a setup read already on its way is older than this
             switching.current++;
-            applySetup({ ...setup, preferences: { ...preferences, experience } });
+            showPreferences({ ...preferences, experience });
+            const save = switchSaves.current.catch(() => {}).then(() => saveUserExperience(uid, experience));
+            switchSaves.current = save;
             try {
-                const next = await saveUserExperience(uid, experience);
+                const next = await save;
                 ensureSession();
-                if (request === epoch.current) applySetup(next);
+                if (change === latestSwitch.current) applySetup(next);
+                else confirmedPreferences.current = next.preferences;
                 return { status: 'saved' };
             } catch (error) {
-                if (request === epoch.current) applySetup(before);
+                const latest = change === latestSwitch.current;
+                if (latest) showPreferences(confirmedPreferences.current ?? fallback);
                 if (error instanceof UserSetupRequiredError) {
                     ensureSession();
-                    if (request === epoch.current) openWizard('switch', experience);
+                    if (latest) openWizard('switch', experience);
                     return { status: 'setup-required' };
                 }
                 throw error;

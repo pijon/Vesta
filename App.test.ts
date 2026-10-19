@@ -357,6 +357,42 @@ describe('account-owned setup boundary', () => {
     expect(container.querySelector('[aria-label="Experience"]')?.textContent).toContain('Saved');
   });
 
+  it('keeps the choice usable while it saves, and saves a quick second switch after the first', async () => {
+    const saves: { experience: string; finish: (value: UserSetupSnapshot) => void }[] = [];
+    remote.change.mockImplementation((_uid: string, experience: 'planning' | 'tracking') =>
+      new Promise<UserSetupSnapshot>(finish => saves.push({ experience, finish })));
+    await render('/settings');
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="planning"]')!.click());
+    const tracking = container.querySelector<HTMLInputElement>('input[value="tracking"]')!;
+    expect(tracking.disabled).toBe(false);
+    expect(container.querySelector('[aria-label="Experience"]')?.textContent).toContain('Saving');
+    await act(async () => tracking.click());
+    expect(container.querySelector<HTMLInputElement>('input[value="tracking"]')?.checked).toBe(true);
+    // One save at a time: the second waits for the first
+    expect(saves.map(save => save.experience)).toEqual(['planning']);
+    await act(async () => saves[0].finish(setup('a', 'planning')));
+    expect(container.querySelector<HTMLInputElement>('input[value="tracking"]')?.checked).toBe(true);
+    expect(saves.map(save => save.experience)).toEqual(['planning', 'tracking']);
+    await act(async () => saves[1].finish(setup('a', 'tracking')));
+    expect(container.querySelector<HTMLInputElement>('input[value="tracking"]')?.checked).toBe(true);
+    expect(container.querySelector('[aria-label="Experience"]')?.textContent).toContain('Saved');
+  });
+
+  it('goes back to the saved choice when the latest switch fails after an earlier one saved', async () => {
+    // Saved as planning by someone who has set up tracking before, so switching back needs no setup
+    const planningWithTracking = { ...setup('a', 'planning'), preferences: { ...setup('a', 'planning').preferences!, trackingSetupComplete: true } };
+    let stored = setup('a');
+    remote.load.mockImplementation(async () => stored);
+    remote.change
+      .mockImplementationOnce(async () => (stored = planningWithTracking))
+      .mockImplementationOnce(async () => { throw new Error('Offline'); });
+    await render('/settings');
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="planning"]')!.click());
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="tracking"]')!.click());
+    expect(container.querySelector<HTMLInputElement>('input[value="planning"]')?.checked).toBe(true);
+    expect(container.querySelector('[aria-label="Experience"] [role="alert"]')?.textContent).toContain('Offline');
+  });
+
   it('switches back and says so when the choice cannot be saved', async () => {
     remote.change.mockRejectedValue(new Error('Offline'));
     await render('/settings');
