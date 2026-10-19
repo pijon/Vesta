@@ -145,7 +145,7 @@ export const FamilyView: React.FC<FamilyViewProps> = ({ myAvatar, onSaveAvatar }
         if (!group) return;
         navigator.share({
             title: `Join ${group.name} on Vesta`,
-            text: `Join ${group.name} on Vesta: open Family and enter the code ${group.inviteCode}`,
+            text: `Join ${group.name} on Vesta with the code ${group.inviteCode}. New to Vesta? Enter it when you set up. Already have an account? Open Family and enter it there.`,
         }).catch(() => { /* dismissed */ });
     };
 

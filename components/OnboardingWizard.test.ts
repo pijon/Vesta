@@ -69,4 +69,33 @@ describe('purpose-specific onboarding', () => {
     expect(cancel).toHaveBeenCalledOnce();
     expect(complete).not.toHaveBeenCalled();
   });
+
+  it('offers joining a family only when asked to, and joins without submitting the setup', async () => {
+    const complete = vi.fn().mockResolvedValue(undefined);
+    const joinFamily = vi.fn().mockRejectedValueOnce(new Error("That code didn't work. Check it and try again.")).mockResolvedValue('The Lindqvists');
+    await act(async () => root.render(React.createElement(OnboardingWizard, {
+      stats: { name: 'Sam' }, initialExperience: 'planning', allowExperienceChoice: true, intent: 'required', onComplete: complete, onJoinFamily: joinFamily,
+    })));
+    await click('Joining your family? Enter their code');
+    const input = container.querySelector<HTMLInputElement>('#onboarding-invite-code')!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => { setValue.call(input, 'wrong1'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })));
+    expect(joinFamily).toHaveBeenCalledWith('wrong1');
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain("didn't work");
+    await act(async () => { setValue.call(input, ' ABC123 '); input.dispatchEvent(new Event('input', { bubbles: true })); });
+    await click('Join');
+    expect(joinFamily).toHaveBeenLastCalledWith('ABC123');
+    expect(container.textContent).toContain("You've joined The Lindqvists");
+    expect(complete).not.toHaveBeenCalled();
+    await click('Start using Vesta');
+    expect(complete).toHaveBeenCalledWith({ experience: 'planning', name: 'Sam' });
+  });
+
+  it('leaves joining out when no join is offered', async () => {
+    await act(async () => root.render(React.createElement(OnboardingWizard, {
+      stats: { name: 'Sam' }, initialExperience: 'planning', allowExperienceChoice: true, intent: 'switch', onComplete: vi.fn(),
+    })));
+    expect(container.textContent).not.toContain('Enter their code');
+  });
 });
