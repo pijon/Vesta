@@ -94,7 +94,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [protocol, setProtocol] = useState<FastingProtocol>(fastingConfig.protocol);
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [saveError, setSaveError] = useState<string | null>(null);
-    const [experienceBusy, setExperienceBusy] = useState(false);
+    const [nameSaving, setNameSaving] = useState(false);
     const [experienceMessage, setExperienceMessage] = useState<string | null>(null);
     const [experienceError, setExperienceError] = useState<string | null>(null);
     const modeOperation = useRef(false);
@@ -204,28 +204,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         };
     }, [ownerUid]);
 
+    // The switch shows at once and saves behind it (App applies it before saving), so nothing here is
+    // locked meanwhile: another switch can follow, and only the latest one's outcome is shown
+    const [experienceSaving, setExperienceSaving] = useState(0);
+    const latestChange = useRef(0);
     const changeExperience = async (experience: UserExperience) => {
-        if (!experienceSettings || modeOperation.current) return;
-        modeOperation.current = true;
-        setExperienceBusy(true); setExperienceError(null); setExperienceMessage(null);
+        if (!experienceSettings) return;
+        const change = ++latestChange.current;
+        const isLatest = () => change === latestChange.current && mounted.current && ownsSession();
+        setExperienceSaving(n => n + 1); setExperienceError(null); setExperienceMessage(null);
         try {
             if (!ownsSession()) throw new Error('Your account changed. Reload and try again.');
+            // Goal edits still waiting are saved first, so switching doesn't drop them
             if (saveInFlight.current || (!isPlanning && pendingSave.current && !hasErrors)) await saveRef.current();
             if (!ownsSession()) throw new Error('Your account changed. Reload and try again.');
             const result = await experienceSettings.onChange(experience);
-            if (mounted.current && ownsSession()) setExperienceMessage(result.status === 'saved' ? 'Saved' : null);
+            if (isLatest()) setExperienceMessage(result.status === 'saved' ? 'Saved' : null);
         } catch (error) {
-            if (mounted.current && ownsSession()) setExperienceError(error instanceof Error ? error.message : 'Your choice could not be saved. Try again.');
+            if (isLatest()) setExperienceError(error instanceof Error ? error.message : 'Your choice could not be saved. Try again.');
         } finally {
-            modeOperation.current = false;
-            if (mounted.current) setExperienceBusy(false);
+            if (mounted.current) setExperienceSaving(n => n - 1);
         }
     };
 
     const savePlanningName = async () => {
         if (!experienceSettings || modeOperation.current || !ownsSession()) return;
         modeOperation.current = true;
-        setExperienceBusy(true); setExperienceError(null); setExperienceMessage(null);
+        setNameSaving(true); setExperienceError(null); setExperienceMessage(null);
         try {
             await experienceSettings.onSaveName(form.name);
             if (mounted.current && ownsSession()) setExperienceMessage('Saved');
@@ -233,7 +238,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             if (mounted.current && ownsSession()) setExperienceError(error instanceof Error ? error.message : 'Your name could not be saved. Try again.');
         } finally {
             modeOperation.current = false;
-            if (mounted.current) setExperienceBusy(false);
+            if (mounted.current) setNameSaving(false);
         }
     };
 
@@ -367,7 +372,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 autoComplete="given-name"
                                 value={form.name}
                                 maxLength={100}
-                                disabled={experienceBusy || saveState === 'saving'}
+                                disabled={nameSaving || saveState === 'saving'}
                                 onChange={update('name')}
                                 onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                 placeholder="Your name"
@@ -376,7 +381,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </span>
                         <Pencil size={18} strokeWidth={2.25} className="shrink-0" aria-hidden="true" />
                     </div>
-                    {isPlanning && <button className="btn-secondary btn-sm mt-3" disabled={experienceBusy || !form.name.trim() || form.name.trim().length > 100} onClick={() => void savePlanningName()}>Save name</button>}
+                    {isPlanning && <button className="btn-secondary btn-sm mt-3" disabled={nameSaving || !form.name.trim() || form.name.trim().length > 100} onClick={() => void savePlanningName()}>Save name</button>}
                     {!isPlanning && <ul className="flex flex-wrap gap-1.5 mt-2" aria-label="Your targets">
                         {stats.goalWeight ? <li className="badge badge-ink">{stats.goalWeight} kg goal</li> : null}
                         <li className="badge badge-ink">{(stats.nonFastDayCalories || 2000).toLocaleString()} kcal</li>
@@ -389,20 +394,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <SectionTitle id="experience-heading" icon={Compass} tile="tile-water" title="How you use Vesta">
                     Switch anytime. Your tracking history is kept.
                 </SectionTitle>
-                <ExperienceChoice value={experienceSettings.preferences.experience} onChange={value => void changeExperience(value)} disabled={experienceBusy || saveState === 'saving'} hideLegend />
+                <ExperienceChoice value={experienceSettings.preferences.experience} onChange={value => void changeExperience(value)} disabled={saveState === 'saving'} hideLegend />
                 <p className="text-xs text-muted">Plan meals is a preview: the Planner, Recipes and Family, without calories. Tracking reminders pause meanwhile and pick up again when you switch back, without the ones you missed.</p>
-                {(experienceBusy || experienceMessage || experienceError) && (
+                {(experienceSaving > 0 || nameSaving || experienceMessage || experienceError) && (
                     experienceError
                         ? <p role="alert" className="inline-flex items-start gap-1.5 text-sm font-medium text-error"><CircleAlert size={16} className="shrink-0 mt-0.5" aria-hidden="true" />{experienceError}</p>
                         : <p role="status" className="inline-flex items-center gap-1.5 text-sm text-muted">
-                            {!experienceBusy && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}
-                            {experienceBusy ? 'Saving…' : experienceMessage}
+                            {experienceSaving === 0 && !nameSaving && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}
+                            {experienceSaving > 0 || nameSaving ? 'Saving…' : experienceMessage}
                         </p>
                 )}
             </section>}
 
             {/* Goals */}
-            {!isPlanning && <fieldset disabled={experienceBusy || saveState === 'saving'} className="min-w-0">
+            {!isPlanning && <fieldset disabled={nameSaving || saveState === 'saving'} className="min-w-0">
             <section className="card" aria-labelledby="goals-heading">
                 <div className="p-5 md:p-6 space-y-6">
                     <SectionTitle id="goals-heading" icon={Target} tile="tile-calories" title="Your goals">
