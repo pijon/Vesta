@@ -1,4 +1,5 @@
 import { DayPlan, EatingOutDish, MealSlot, Recipe, UserStats } from '../types';
+import { mealNutrition, dayNutrition, nutritionLabel, isNutritionNumber } from './recipeNutrition';
 import { dishLabel } from './eatingOutHistory';
 import { localDateString, parseLocalDate } from './dateUtils';
 
@@ -55,7 +56,7 @@ export const nextMealIndex = (plan: Pick<DayPlan, 'meals' | 'completedMealIds'>)
 
 /** Meal plus its sides. */
 export const mealCalories = (meal: Recipe) =>
-  (meal.calories || 0) + (meal.sides || []).reduce((sum, side) => sum + (side.calories || 0), 0);
+  mealNutrition(meal).knownCalories;
 
 /** Description kept on quick meals so older checks still work; test with isQuickMeal instead. */
 export const QUICK_MEAL_DESCRIPTION = 'Eat Out / Custom Meal';
@@ -67,10 +68,10 @@ export const isQuickMeal = (meal: Pick<Recipe, 'quick' | 'description'>) =>
 const withSides = (meal: Recipe) => [meal, ...(meal.sides || [])];
 
 /** No calories given for the meal or any of its sides. */
-export const mealKcalUnset = (meal: Recipe) => withSides(meal).every(m => !!m.quick?.noCalories);
+export const mealKcalUnset = (meal: Recipe) => !mealNutrition(meal).complete && mealNutrition(meal).knownCalories === 0;
 
 /** Some of the meal's calories are estimated or missing, so its total is approximate. */
-export const mealKcalApprox = (meal: Recipe) => withSides(meal).some(m => !!(m.quick?.estimated || m.quick?.noCalories));
+export const mealKcalApprox = (meal: Recipe) => !mealNutrition(meal).complete || mealNutrition(meal).estimated;
 
 /** Eating out with the place undecided: the meal's calories are a budget to stay within. */
 export const isBudgetMeal = (meal: Pick<Recipe, 'quick'>) => !!meal.quick?.budget;
@@ -101,6 +102,8 @@ export const eatingOutBudgetMeal = (slot: MealSlot, budget: number, auto = true)
 export const withLiveBudgets = (plan: DayPlan, { loggedKcal }: { loggedKcal: number }): DayPlan => {
   const live = plan.meals.filter(meal => isBudgetMeal(meal) && meal.quick?.autoBudget && !isMealEaten(plan, meal));
   if (live.length === 0) return plan;
+
+  if (plan.meals.some(meal => isMealEaten(plan, meal) && !mealNutrition(meal).complete)) return plan;
 
   const plannedEaten = plan.meals
     .filter(meal => isMealEaten(plan, meal))
@@ -145,7 +148,8 @@ export const decideEatingOut = (
   ...meal,
   name: name.trim() || EATING_OUT_NAME,
   calories: Math.max(0, Math.round(calories)),
-  protein: protein ?? 0,
+  protein,
+  calorieStatus: 'known',
   quick: { kind: 'out', estimated: estimated || undefined, budgeted, place: place?.trim() || undefined, dish: dish?.trim() || undefined },
 });
 
@@ -170,19 +174,21 @@ export const grams = (n: number) => {
 };
 
 /** "650 kcal", "≈ 650 kcal", "700 kcal budget" or "kcal not set". */
-export const mealKcalLabel = (meal: Recipe) =>
-  isBudgetMeal(meal) ? `${mealCalories(meal)} kcal budget`
-    : mealKcalUnset(meal) ? 'kcal not set' : `${mealKcalApprox(meal) ? '≈ ' : ''}${mealCalories(meal)} kcal`;
+export const mealKcalLabel = (meal: Recipe) => nutritionLabel(mealNutrition(meal));
 
-/** mealKcalLabel for screen readers, which read "≈" badly. */
 export const mealKcalSpoken = (meal: Recipe) =>
-  isBudgetMeal(meal) ? `a budget of ${mealCalories(meal)} kcal`
-    : mealKcalUnset(meal) ? 'calories not set' : `${mealKcalApprox(meal) ? 'about ' : ''}${mealCalories(meal)} kcal`;
+  isBudgetMeal(meal) && mealNutrition(meal).complete ? `a budget of ${mealCalories(meal)} kcal` : mealKcalLabel(meal).replace('≈ ', 'about ');
 
-/** Protein in a meal plus its sides, when the recipes say (undefined when none of them do). */
+/** A protein total is meaningful only if every part provides it. */
 export const mealProtein = (meal: Recipe): number | undefined => {
-  const parts = [meal, ...(meal.sides || [])].map(m => m.protein).filter((p): p is number => typeof p === 'number');
-  return parts.length ? parts.reduce((a, b) => a + b, 0) : undefined;
+  if (!isNutritionNumber(meal.protein)) return undefined;
+  let total = meal.protein;
+  for (const side of meal.sides || []) {
+    const value = mealProtein(side);
+    if (value === undefined) return undefined;
+    total += value;
+  }
+  return total;
 };
 
 /**
@@ -196,13 +202,13 @@ export const proteinTarget = (stats: Pick<UserStats, 'dailyProteinGoal' | 'goalW
 };
 
 export const dayCalories = (plan?: DayPlan) =>
-  plan ? plan.meals.reduce((sum, meal) => sum + mealCalories(meal), 0) : 0;
+  dayNutrition(plan).knownCalories;
 
 /** The day's total includes estimated or missing calories. */
-export const dayKcalApprox = (plan?: DayPlan) => !!plan?.meals.some(mealKcalApprox);
+export const dayKcalApprox = (plan?: DayPlan) => !dayNutrition(plan).complete || dayNutrition(plan).estimated;
 
 /** Planned meals on the day with no calories at all. */
-export const dayMealsWithoutKcal = (plan?: DayPlan) => (plan ? plan.meals.filter(mealKcalUnset).length : 0);
+export const dayMealsWithoutKcal = (plan?: DayPlan) => (plan ? plan.meals.filter(m => !mealNutrition(m).complete).length : 0);
 
 /** Days are nourish days unless marked as a fast day. */
 export const isFastDay = (plan?: Pick<DayPlan, 'type'>) => plan?.type === 'fast';

@@ -3,6 +3,10 @@ export interface Recipe {
   name: string;
   description?: string;
   calories: number;
+  calorieStatus?: 'known' | 'unknown';
+  caloriesEstimated?: boolean;
+  /** Transient reference overrides, never stored in the recipe library. */
+  planOverrides?: RecipeReference['overrides'];
   protein?: number;
   fat?: number;
   carbs?: number;
@@ -122,6 +126,7 @@ export interface CustomMealInstance extends PlannedMealMeta {
   name: string;
   /** Undefined when not given */
   calories?: number;
+  calorieStatus?: 'known' | 'unknown';
   caloriesEstimated?: boolean;
   /** Eating out, place undecided: `calories` is a budget */
   budget?: boolean;
@@ -150,6 +155,7 @@ export interface DayPlan {
   completedMealIds: string[]; // IDs of meals marked as eaten
   tips?: string;
   totalCalories?: number;
+  totalCaloriesComplete?: boolean;
   type?: 'fast' | 'non-fast'; // For 5:2 diet
   /**
    * Family meals the user said they're not eating: shown muted and left out of the day's meals and
@@ -165,6 +171,34 @@ export interface WeightEntry {
 
 /** How much of a workout's calories is added back to the day's budget: all, half or none */
 export type WorkoutCalorieCredit = 1 | 0.5 | 0;
+
+export type UserExperience = 'planning' | 'tracking';
+
+/** Owner-only setup state; health history is not a setup flag. */
+export interface UserPreferences {
+  version: 1;
+  experience: UserExperience;
+  profileSetupComplete: boolean;
+  trackingSetupComplete: boolean;
+}
+
+export interface UserSetupSnapshot {
+  uid: string;
+  preferences: UserPreferences | null;
+  stats: Partial<UserStats> | null;
+}
+
+export type UserSetupSubmission = { experience: 'planning'; name: string } | {
+  experience: 'tracking';
+  name: string;
+  currentWeight: number;
+  goalWeight: number;
+  nonFastDayCalories: number;
+  dailyCalorieGoal: number;
+  dailyWaterGoal: number;
+};
+
+export type UserExperienceChangeResult = { status: 'saved' } | { status: 'setup-required' };
 
 export interface UserStats {
   startWeight: number; // @deprecated - derived from weightHistory[0]
@@ -327,6 +361,7 @@ export interface FoodLogItem {
   isPacked?: boolean;
   /** The planned meal (its mealKey) this entry was logged from, so Today shows it once and unticking removes it */
   planInstanceId?: string;
+  caloriesEstimated?: boolean;
 }
 
 export interface WorkoutItem {
@@ -443,6 +478,8 @@ export interface Group {
 
 // --- Developer Mode ---
 export interface FeatureFlags {
+  /** Developer preview until the full planning experience is ready. */
+  enableMealPlanningSetup: boolean;
   useGeminiExperimental: boolean;
   /** Plan meals without a recipe from the planner search */
   quickMeals: boolean;
@@ -456,4 +493,33 @@ export interface ReminderSettings {
   weighIn: { enabled: boolean; time: string; days: number[] };
   /** A nudge to log what you ate, this long after an eating-out meal's usual time, unless it's logged */
   eatingOut: { enabled: boolean; delayMinutes: number };
+}
+
+/** Availability is derived; unmarked historical library zero requires confirmation. */
+export type CalorieAvailability = 'known' | 'unknown' | 'unconfirmed';
+export interface RecipeSaveOptions { nutrition?: 'preserve' | 'replace' }
+export interface PlannedMealIntakeEntry {
+  meal: Recipe; at: number;
+  /** Explicit personal answer from the eating-out form; never part of the shared meal. */
+  personal?: { calories:number; estimated:boolean; protein?:number; name?:string; place?:string; dish?:string };
+}
+export interface ResolvedPlannedMealIntake extends PlannedMealIntakeEntry {
+  key: string;
+  calories: number;
+  source: 'recipe' | 'manual' | 'estimate';
+  caloriesEstimated: boolean;
+  name?: string;
+  place?: string;
+  dish?: string;
+}
+/** Told when meals show as ticked (before saving) and when a failed save takes the ticks back */
+export type PlannedIntakeTicks = (keys: string[], ticked: boolean) => void;
+export type PlannedMealIntakeResult = {
+  status: 'saved'; loggedKeys: string[]; skippedKeys: string[]; items: FoodLogItem[];
+} | { status: 'cancelled' };
+export interface CommittedMealIntake {
+  log: DailyLog;
+  completedMealIds: string[];
+  fasting: FastingState;
+  items: FoodLogItem[];
 }

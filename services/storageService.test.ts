@@ -4,8 +4,8 @@ import { decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, planMeal, setF
 
 const fake = vi.hoisted(() => ({ uid: 'me' }));
 
-vi.mock('firebase/firestore', async () => (await import('../test/fakeFirestore')).fakeFirestore.api);
-vi.mock('./firebase', () => ({ db: {}, auth: { currentUser: null }, currentUid: () => fake.uid }));
+vi.mock('firebase/firestore', async () => ({...(await import('../test/fakeFirestore')).fakeFirestore.api, runTransaction:(await import('../test/transactionFirestore')).runTestTransaction}));
+vi.mock('./firebase', () => ({ db: {}, auth: { get currentUser() {return {uid:fake.uid};} }, currentUid: () => fake.uid }));
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId } = await import('./groupService');
@@ -137,7 +137,7 @@ describe('day plans', () => {
   });
 
   it('gives an empty plan for a day with nothing saved', async () => {
-    expect(await getDayPlan('2026-10-10')).toEqual({ date: '2026-10-10', meals: [], completedMealIds: [] });
+    expect(await getDayPlan('2026-10-10')).toMatchObject({ date: '2026-10-10', meals: [], completedMealIds: [] });
   });
 });
 
@@ -448,5 +448,31 @@ describe('read ingredient lines', () => {
     await saveDayPlan(plan('2026-10-03', [planMeal(chili, 'dinner')]));
     const loaded = await getDayPlan('2026-10-03');
     expect(loaded.meals[0].parsedIngredients).toEqual([beans]);
+  });
+});
+
+describe('nutrition compatibility', () => {
+  it('retains explicit reference overrides through read and save', async () => {
+    store.docs.set('users/me/days/2026-10-25', {date:'2026-10-25',completedMealIds:[],meals:[{type:'reference',recipeId:'r1',servings:1,instanceId:'x',overrides:{calories:0,name:'Tea'}}]});
+    const day = await getDayPlan('2026-10-25');
+    expect(day.meals[0]).toMatchObject({calories:0,calorieStatus:'known',planOverrides:{calories:0,name:'Tea'}});
+    await saveDayPlan(day);
+    expect(storedDay(day.date).meals[0]).toMatchObject({overrides:{calories:0,name:'Tea'}});
+  });
+  it('round trips missing and confirmed-zero custom nutrition without fabricated macros', async () => {
+    await saveDayPlan(plan('2026-10-26', [quickMeal({id:'unknown',calories:400,calorieStatus:'unknown'}),quickMeal({id:'zero',calories:0,calorieStatus:'known'})]));
+    const raw = storedDay('2026-10-26');
+    expect(raw.meals[0]).not.toHaveProperty('calories');
+    expect(raw.meals[1]).toMatchObject({calories:0,calorieStatus:'known'});
+    const loaded = await getDayPlan('2026-10-26');
+    expect(loaded).toMatchObject({totalCalories:0,totalCaloriesComplete:false});
+    expect(loaded.meals[0].protein).toBeUndefined();
+  });
+  it('normalizes nested legacy full recipes without rewriting them', async () => {
+    store.docs.set('users/me/days/2026-10-27', {date:'2026-10-27',completedMealIds:[],totalCalories:999,meals:[{...chili,sides:[{...chili,id:'bad',calories:null}]}]});
+    const loaded = await getDayPlan('2026-10-27');
+    expect(loaded).toMatchObject({totalCalories:520,totalCaloriesComplete:false});
+    expect(loaded.meals[0].sides[0].calorieStatus).toBe('unknown');
+    expect(store.writes).toEqual([]);
   });
 });

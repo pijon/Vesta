@@ -1,3 +1,4 @@
+import { dayNutrition, nutritionLabel } from '../utils/recipeNutrition';
 import React, { useState, useEffect, useRef } from 'react';
 import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
@@ -207,6 +208,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const plannedMeals = todayPlan.meals || [];
   const mealsOut = todayPlan.familyMealsOut || [];
   const eatenCount = plannedMeals.filter(m => isMealEaten(todayPlan, m)).length;
+  const remainingNutrition = dayNutrition({meals:plannedMeals.filter(m => !isMealEaten(todayPlan,m))});
   const remainingPlannedCalories = plannedMeals
     .filter(m => !isMealEaten(todayPlan, m))
     .reduce((sum, m) => sum + mealCalories(m), 0);
@@ -223,7 +225,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   const mealsBySlot = MEAL_SLOTS
     .map(({ label }) => ({ label, entries: inSlotOrder.filter(e => e.label === label && !(foldEaten && isMealEaten(foldPlan, e.meal))) }))
     .filter(group => group.entries.length > 0);
-  const eatenCalories = eatenMeals.reduce((sum, { meal }) => sum + mealCalories(meal), 0);
+  const eatenCalories = eatenMeals.reduce((sum, { meal }) => sum + (dailyLog.items.find(item => item.planInstanceId === mealKey(meal))?.calories ?? 0), 0);
   const fits = remainingPlannedCalories <= caloriesLeft;
   // The planned meal an entry was logged from, if it's still in today's plan
   const editingPlanned = editingFoodItem?.planInstanceId
@@ -266,7 +268,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                     </span>
                   </span>
                   {isFood && (
-                    <span className="shrink-0 font-display font-extrabold text-xl tabular-nums">{entry.item.calories.toLocaleString()}</span>
+                    <span className="shrink-0 font-display font-extrabold text-xl tabular-nums">{entry.item.caloriesEstimated ? '≈ ' : ''}{entry.item.calories.toLocaleString()}</span>
                   )}
                 </button>
               </li>
@@ -374,10 +376,10 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 <p className="text-sm text-muted mt-0.5">
                   {plannedMeals.length === 0
                     ? 'Nothing planned yet'
-                    : `${eatenCount} of ${plannedMeals.length} eaten · ${remainingPlannedCalories.toLocaleString()} kcal to go`}
+                    : `${eatenCount} of ${plannedMeals.length} eaten · ${remainingNutrition.complete ? `${remainingPlannedCalories.toLocaleString()} kcal to go` : nutritionLabel(remainingNutrition)}`}
                 </p>
               )}
-              {remainingPlannedCalories > 0 && (
+              {remainingNutrition.complete && remainingPlannedCalories > 0 && (
                 <p className={`text-sm mt-0.5 font-semibold ${fits ? 'text-weight-text' : 'text-warning'}`}>
                   {fits
                     ? `Fits your ${Math.max(caloriesLeft, 0).toLocaleString()} kcal left`

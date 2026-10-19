@@ -26,6 +26,26 @@
 
 ## Component Architecture
 - **Views:** Managed by `AppView` enum (TODAY, ANALYTICS, PLANNER, etc.).
+- **Family navigation:** Family has tabs for its members/updates and its shared shopping list.
+  Shopping keeps the `/shopping` route and selects Family in the mobile bar and desktop sidebar.
+  Planner focuses on the meal plan and has no secondary tabs.
+- **Experiences:** one app shell (`TrackerApp` in `App.tsx`) serves both "Plan meals" and "Plan meals
+  and track nutrition", from `setup.preferences.experience`. Plan meals' nav is Today, Planner, Recipes,
+  Shopping and Family (`navItemsFor` in `MobileBottomNav`): no Analytics (its route opens Today), and
+  Shopping is its own item, so Family has no Family/Shopping tabs there (`isNavCurrent` takes the
+  experience). It gets its own meal-focused Today (`PlanToday`: the next meal
+  in the hero, today's meals with "not eating" for family meals, shortcuts and tomorrow; no calories or
+  ticks), passes `experience` to Planner (no calories, fast
+  days or calorie-driven planning) and RecipeLibrary (recipes keep their calories; the editor has no
+  nutrition fields), and has no eaten action. Switching
+  only changes what's shown, so nothing remounts: `AccountApp` applies the choice at once and saves it
+  behind, switching back if the save fails. Setup reads from a refresh are dropped if the setup changed
+  here after they started (`setupVersion`), and saved stats merge into the current setup (`onStatsChange`).
+- **Reminders and experience:** the scheduled `sendReminders` function (`functions/src/reminders.ts`)
+  reads `users/{uid}/data/preferences` via `reminderMode` (`functions/src/reminderMode.ts`). Plan meals (or
+  unfinished tracking setup) is quiet: due reminders are marked sent without sending, so switching back
+  doesn't deliver a backlog. No saved choice means tracking (older accounts); an unreadable one sends
+  nothing and is logged. Reminder settings in `reminders/{uid}` are kept as they are.
 - **Modals:** Rendered via `Portal` component.
 - **Widgets:** Self-contained UI blocks (e.g., `CaloriesHero`, `TodayStrip`, `CoachCard`) getting props from `App.tsx`.
 

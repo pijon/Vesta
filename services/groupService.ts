@@ -50,7 +50,7 @@ const getCurrentUser = () => {
 
 /** A recipe as stored in the family: no per-viewer or plan-owner fields. */
 export const toStoredRecipe = (recipe: Recipe, uid: string): Recipe => {
-    const { isFavorite, ownerId: _ownerId, ownerName: _ownerName, isShared: _isShared, sharedBy: _sharedBy, sharedAt: _sharedAt, ...rest } = recipe;
+    const { planOverrides: _planOverrides, isFavorite, ownerId: _ownerId, ownerName: _ownerName, isShared: _isShared, sharedBy: _sharedBy, sharedAt: _sharedAt, ...rest } = recipe;
     const favoritedBy = recipe.favoritedBy ?? (isFavorite ? [uid] : []);
     return { ...rest, createdBy: recipe.createdBy ?? uid, favoritedBy };
 };

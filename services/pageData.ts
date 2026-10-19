@@ -1,3 +1,4 @@
+import { calorieAvailability, isNutritionNumber } from '../utils/recipeNutrition';
 import { Avatar, DayPlan, EatingOutDish, KnownFood, Recipe } from '../types';
 import { getDailySummaries, getDayPlansInRange, getFamilyPlansInRange, getRecipePlanDates, getFoodItemsSince, getRecipes, getEatingOutDishes } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
@@ -89,7 +90,7 @@ export const frequentFoodsData = defineWarm<FrequentFood[]>('today:frequentFoods
   const byName = new Map<string, FrequentFood & { last: number }>();
   items.forEach(item => {
     const key = item.name.trim().toLowerCase();
-    if (!key || !(item.calories >= 0)) return;
+    if (!key || !isNutritionNumber(item.calories)) return;
     const entry = byName.get(key);
     if (!entry) byName.set(key, { name: item.name.trim(), calories: item.calories, protein: item.protein, count: 1, last: item.timestamp });
     else {
@@ -118,7 +119,7 @@ export const knownFoodsData = defineWarm<KnownFood[]>('food:known', async () => 
   const byName = new Map<string, KnownFood & { last: number }>();
   items.forEach(item => {
     const key = normalizeFoodName(item.name);
-    if (!key || !(item.calories >= 0)) return;
+    if (!key || !isNutritionNumber(item.calories)) return;
     const entry = byName.get(key);
     if (!entry || item.timestamp > entry.last) {
       byName.set(key, { name: item.name.trim(), calories: item.calories, protein: item.protein, source: 'log', last: item.timestamp });
@@ -126,19 +127,21 @@ export const knownFoodsData = defineWarm<KnownFood[]>('food:known', async () => 
   });
   recipes.forEach(r => {
     const key = normalizeFoodName(r.name);
-    if (key && r.calories > 0) byName.set(key, { name: r.name.trim(), calories: Math.round(r.calories), protein: typeof r.protein === 'number' ? Math.round(r.protein) : undefined, source: 'recipe', last: 0 });
+    if (key && calorieAvailability(r) === 'known') byName.set(key, { name: r.name.trim(), calories: Math.round(r.calories), protein: typeof r.protein === 'number' ? Math.round(r.protein) : undefined, source: 'recipe', last: 0 });
   });
   return [...byName.values()].map(({ last: _last, ...food }) => food);
 }, 10 * 60_000);
 
 /** Starts every page's background load, one after another so start-up stays light. */
-export const prewarmPages = async () => {
+export const prewarmPages = async (shouldContinue: () => boolean = () => true): Promise<void> => {
   for (const warm of [frequentFoodsData, knownFoodsData, familyData, recipeHistoryData, analyticsSummariesData, shoppingData, analyticsDayTypesData]) {
+    if (!shouldContinue()) return;
     try {
       await ensureWarm(warm as Parameters<typeof ensureWarm>[0]);
     } catch (e) {
       console.warn(`Background load failed: ${warm.key}`, e);
     }
+    if (!shouldContinue()) return;
   }
 };
 

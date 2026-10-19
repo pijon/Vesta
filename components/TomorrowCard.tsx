@@ -1,3 +1,4 @@
+import { dayNutrition, nutritionLabel } from '../utils/recipeNutrition';
 import React from 'react';
 import { CalendarHeart, Flame, UsersRound } from 'lucide-react';
 import { DayPlan, UserStats } from '../types';
@@ -16,6 +17,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
   const fast = isFastDay(plan);
   const target = dayTarget(plan, stats);
   const planned = dayCalories(plan);
+  const nutrition = dayNutrition(plan);
   const meals = plan.meals || [];
 
   const dayTag = (
@@ -47,8 +49,8 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
             <h2 className="heading-3">Tomorrow</h2>
             {dayTag}
           </div>
-          <p className={`text-sm mt-0.5 ${planned > target ? 'text-warning font-semibold' : 'text-muted'}`}>
-            {planned.toLocaleString()} of {target.toLocaleString()} kcal planned
+          <p className={`text-sm mt-0.5 ${nutrition.complete && planned > target ? 'text-warning font-semibold' : 'text-muted'}`}>
+            {nutrition.complete ? `${nutrition.estimated?'≈ ':''}${planned.toLocaleString()} of ${target.toLocaleString()} kcal planned` : nutritionLabel(nutrition)}
           </p>
         </div>
         <button onClick={onPlan} className="btn-ghost btn-sm"><CalendarHeart size={16} aria-hidden="true" /> Open planner</button>
@@ -68,7 +70,7 @@ export const TomorrowCard: React.FC<TomorrowCardProps> = ({ plan, stats, onPlan 
                   <span className="block font-semibold leading-snug truncate">{meal.name}</span>
                 </span>
                 {meal.familyMeal && <UsersRound size={14} className="text-workout-text shrink-0" aria-label="Family meal" />}
-                <span className="text-sm text-muted whitespace-nowrap">{mealKcalLabel(meal)}</span>
+                <span className="text-sm text-muted text-right max-w-[45%]">{mealKcalLabel(meal)}</span>
               </li>
             );
           })

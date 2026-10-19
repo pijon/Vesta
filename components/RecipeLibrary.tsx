@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useId } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowUpDown, ChefHat, ChevronRight, Copy, Download, Flame, Heart, LayoutGrid, Link2, List, Plus, Search, Sparkles, X } from 'lucide-react';
 import { getCachedRecipes } from '../utils/cacheService';
-import { addDays } from '../utils/planUtils';
-import { Recipe } from '../types';
+import { calorieAvailability } from '../utils/recipeNutrition';
+import { addDays, mealKcalLabel } from '../utils/planUtils';
+import { Recipe, RecipeSaveOptions, UserExperience } from '../types';
 import { getRecipes, saveRecipe, deleteRecipe, setRecipeFavorite } from '../services/storageService';
 import { recordFamilyUpdate } from '../services/activityService';
 import { currentUid } from '../services/firebase';
@@ -14,7 +15,7 @@ import { AddToPlanSheet } from './AddToPlanSheet';
 import { CookingMode } from './CookingMode';
 import { parseRecipeText, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
 import { RecipeCard, RecipeRow, RecipeShelfCard } from './RecipeCard';
-import { favouritesShelf, mostProteinShelf, notHadInAWhile, proteinDensity, proteinPerCalorieShelf } from '../utils/recipeShelves';
+import { byKnownCalories, favouritesShelf, mostProteinShelf, notHadInAWhile, proteinDensity, proteinPerCalorieShelf } from '../utils/recipeShelves';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { importRecipeImageFromUrl, checkRecipePage } from '../utils/storageUtils';
@@ -57,9 +58,10 @@ const historyLabelFor = (date: string | undefined, today: string) => {
 
 interface RecipeLibraryProps {
   onSelect?: (recipe: Recipe) => void;
+  experience?: UserExperience;
 }
 
-export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
+export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experience = 'tracking' }) => {
   // The whole library, starting from the local cache so the page renders immediately
   const [recipes, setRecipes] = useState<Recipe[]>(() => getCachedRecipes() ?? []);
   const [isLoading, setIsLoading] = useState(() => !getCachedRecipes()?.length);
@@ -181,17 +183,18 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     setEditForm(null);
   };
 
-  const handleSaveEdit = async (updatedRecipe: Recipe) => {
+  const handleSaveEdit = async (updatedRecipe: Recipe, options?: RecipeSaveOptions) => {
     setIsSaving(true);
     try {
-      await saveRecipe(updatedRecipe);
+      const committed = await saveRecipe(updatedRecipe, options);
       await loadData();
-      setSelectedRecipe(updatedRecipe);
+      setSelectedRecipe(committed);
       setIsEditing(false);
       setEditForm(null); // Cleanup
     } catch (e) {
       console.error("Failed to save recipe", e);
       showToast("That recipe couldn't be saved. Try again.");
+      throw e;
     } finally {
       setIsSaving(false);
     }
@@ -217,9 +220,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       name: '',
       description: '',
       calories: 0,
-      protein: 0,
-      fat: 0,
-      carbs: 0,
+      calorieStatus: 'unknown',
       ingredients: [],
       instructions: [],
       tags: [],
@@ -259,10 +260,11 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           id: newRecipeId, // Use pre-generated ID
           name: partialRecipe.name || 'Untitled Recipe',
           description: sourceUrl ? `Imported from ${sourceUrl}` : 'Imported from text',
-          calories: partialRecipe.calories || 0,
-          protein: partialRecipe.protein || 0,
-          fat: partialRecipe.fat || 0,
-          carbs: partialRecipe.carbs || 0,
+          calories: partialRecipe.calories ?? 0,
+          calorieStatus: partialRecipe.calorieStatus ?? 'unknown',
+          protein: partialRecipe.protein,
+          fat: partialRecipe.fat,
+          carbs: partialRecipe.carbs,
           ingredients: partialRecipe.ingredients || [],
           instructions: partialRecipe.instructions || [],
           tags: partialRecipe.tags || ['main meal'],
@@ -303,7 +305,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
 
   /** Saves a recipe the user just added, and tells the family */
   const saveNewRecipe = async (recipe: Recipe) => {
-    await saveRecipe(recipe);
+    await saveRecipe(recipe, {nutrition:'replace'});
     void recordFamilyUpdate({ type: 'recipe', name: recipe.name, recipeId: recipe.id }, recipe.id);
   };
 
@@ -381,7 +383,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
     }));
     return [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12);
   }, [allRecipes]);
-  const fastDayCount = useMemo(() => allRecipes.filter(r => r.calories > 0 && r.calories <= FAST_DAY_KCAL).length, [allRecipes]);
+  const fastDayCount = useMemo(() => allRecipes.filter(r => calorieAvailability(r) === 'known' && r.calories <= FAST_DAY_KCAL).length, [allRecipes]);
 
   // Recipes that share a name with another, usually the same recipe imported twice
   const duplicateIds = useMemo(() => duplicateRecipeIds(allRecipes), [allRecipes]);
@@ -406,7 +408,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
         tags.includes(activeFilter);
 
       const matchesTag = !activeTag || tags.includes(activeTag);
-      const matchesFastDay = !fastDayFriendly || (recipe.calories > 0 && recipe.calories <= FAST_DAY_KCAL);
+      const matchesFastDay = !fastDayFriendly || (calorieAvailability(recipe) === 'known' && recipe.calories <= FAST_DAY_KCAL);
       const matchesFavorite = !showFavoritesOnly || recipe.isFavorite;
 
       return matchesSearch && matchesFilter && matchesTag && matchesFastDay && matchesFavorite;
@@ -415,9 +417,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
       // Copies side by side, whatever the sort
       switch (activeFilter === 'duplicates' ? 'name' : sortOption) {
         case 'caloriesLow':
-          return a.calories - b.calories;
+          return byKnownCalories(a, b, 1);
         case 'caloriesHigh':
-          return b.calories - a.calories;
+          return byKnownCalories(a, b, -1);
         case 'protein':
           return (b.protein || 0) - (a.protein || 0);
         case 'proteinDensity':
@@ -486,8 +488,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
   );
 
   const handleSetImage = async (recipe: Recipe, image: string) => {
-    const updated = { ...recipe, image };
-    await saveRecipe(updated);
+    const updated = await saveRecipe({ ...recipe, image });
     setRecipes(prev => prev.map(r => r.id === recipe.id ? updated : r));
     setSelectedRecipe(updated);
     showToast('Photo added');
@@ -694,13 +695,13 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
             r => (historyLabelFor(history?.lastHad[r.id], today) ?? '').replace(/^Had/, 'Last had'),
             () => { setSortOption('lastHad'); toAllRecipes(); })}
           {favouriteShelf.length > 0 && shelf('shelf-favourites', 'Favourites', `${favouriteCount} ${favouriteCount === 1 ? 'recipe' : 'recipes'}`, favouriteShelf,
-            r => `${r.calories} kcal`,
+            r => mealKcalLabel(r),
             () => { setShowFavoritesOnly(true); toAllRecipes(); })}
           {proteinShelf.length > 0 && shelf('shelf-protein', 'Most protein', 'Grams of protein in a portion', proteinShelf,
-            r => `${r.protein} g · ${r.calories} kcal`,
+            r => `${r.protein} g · ${mealKcalLabel(r)}`,
             () => { setSortOption('protein'); toAllRecipes(); })}
           {leanProteinShelf.length > 0 && shelf('shelf-protein-lean', 'Protein for the calories', 'Protein for few calories, good on fast days', leanProteinShelf,
-            r => `${r.protein} g · ${r.calories} kcal`,
+            r => `${r.protein} g · ${mealKcalLabel(r)}`,
             () => { setSortOption('proteinDensity'); toAllRecipes(); })}
           <h2 id="all-recipes" className="heading-3 scroll-mt-6 pt-2">All recipes</h2>
         </div>
@@ -807,6 +808,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect }) => {
           isEditing && editForm ? (
             <RecipeEditModal
               recipe={editForm || selectedRecipe}
+              experience={experience}
               onSave={handleSaveEdit}
               onCancel={cancelEditing}
               isSaving={isSaving}

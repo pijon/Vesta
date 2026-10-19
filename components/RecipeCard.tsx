@@ -1,3 +1,4 @@
+import { mealKcalLabel } from '../utils/planUtils';
 import React, { useState } from 'react';
 import { Meal } from '../types';
 import { mealVisualFor } from '../utils/mealVisual';
@@ -132,8 +133,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
 
         <div className="flex items-end justify-between gap-2 mt-auto pt-2">
           <p className="min-w-0 leading-none">
-            <span className="font-display font-extrabold text-lg">{meal.calories}</span>
-            <span className="text-xs font-semibold text-muted"> kcal</span>
+            <span className="font-display font-extrabold text-lg">{mealKcalLabel(meal)}</span>
+            <span className="text-xs font-semibold text-muted"></span>
             {showMacros ? (
               <span className="block text-xs text-muted mt-1">P {meal.protein != null ? grams(meal.protein) : '–'} · F {meal.fat != null ? grams(meal.fat) : '–'} · C {meal.carbs != null ? grams(meal.carbs) : '–'}</span>
             ) : (
@@ -198,7 +199,7 @@ export const RecipeRow: React.FC<RecipeRowProps> = ({
         <span className="flex-1 min-w-0">
           <span className="font-semibold leading-snug line-clamp-2">{meal.name}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-xs text-muted">
-            <span><span className="font-semibold text-main">{meal.calories}</span> kcal</span>
+            <span><span className="font-semibold text-main">{mealKcalLabel(meal)}</span></span>
             {!!meal.protein && <span>· {grams(meal.protein)} g protein</span>}
             <span>· {visual.label}</span>
             {tags.slice(0, 2).map(t => <span key={t} className="hidden sm:inline">· {t}</span>)}

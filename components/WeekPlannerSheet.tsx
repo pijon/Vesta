@@ -222,7 +222,7 @@ export const WeekPlannerSheet: React.FC<WeekPlannerSheetProps> = ({ dates, plans
         </section>
       );
     }
-    const over = result.calories > day.target;
+    const over = !result.incomplete && result.calories > day.target;
     return (
       <section key={day.date} aria-label={longDay(day.date)} className="py-4">
         <header className="flex items-center justify-between gap-2">
@@ -245,13 +245,13 @@ export const WeekPlannerSheet: React.FC<WeekPlannerSheetProps> = ({ dates, plans
         </header>
         <div className="mt-2">
           <div className="flex justify-between text-xs mb-1">
-            <span className={over ? 'text-warning font-semibold' : 'text-muted'}>{result.calories} / {day.target} kcal</span>
+            <span className={over ? 'text-warning font-semibold' : 'text-muted'}>{result.incomplete ? result.reason : `${result.calories} / ${day.target} kcal`}</span>
             {over && <span className="text-warning font-semibold">{result.calories - day.target} over</span>}
           </div>
           <div className="h-1.5 rounded-full bg-surface-sunken overflow-hidden">
             <div
               className={`h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none ${over ? 'bg-warning' : day.fast ? 'bg-fasting' : 'bg-calories'}`}
-              style={{ width: `${Math.min(100, (result.calories / Math.max(day.target, 1)) * 100)}%` }}
+              style={{ width: `${(result.incomplete ? 0 : Math.min(100, (result.calories / Math.max(day.target, 1)) * 100))}%` }}
             />
           </div>
         </div>

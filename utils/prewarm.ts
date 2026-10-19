@@ -15,6 +15,7 @@ export interface Prewarm<T> {
 interface Entry { value?: unknown; at: number; inFlight?: Promise<unknown> }
 
 const entries = new Map<string, Entry>();
+let epoch = 0;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach(listener => listener());
 const subscribe = (listener: () => void) => {
@@ -33,15 +34,19 @@ export const ensureWarm = <T,>(warm: Prewarm<T>, force = false): Promise<T> => {
   if (entry?.inFlight) return entry.inFlight as Promise<T>;
   if (!force && entry && 'value' in entry && Date.now() - entry.at < warm.maxAgeMs) return Promise.resolve(entry.value as T);
 
+  const requestEpoch = epoch;
   const inFlight = warm.load().then(
     value => {
+      if (requestEpoch !== epoch) return value;
       entries.set(warm.key, { value, at: Date.now() });
       notify();
       return value;
     },
     error => {
-      const previous = entries.get(warm.key);
-      entries.set(warm.key, { value: previous?.value, at: previous?.at ?? 0 });
+      if (requestEpoch === epoch) {
+        const previous = entries.get(warm.key);
+        entries.set(warm.key, { value: previous?.value, at: previous?.at ?? 0 });
+      }
       throw error;
     },
   );
@@ -50,7 +55,7 @@ export const ensureWarm = <T,>(warm: Prewarm<T>, force = false): Promise<T> => {
 };
 
 /** Forget everything (sign-out). */
-export const clearWarm = () => { entries.clear(); notify(); };
+export const clearWarm = () => { epoch++; entries.clear(); notify(); };
 
 /**
  * The warm value for a page (undefined until first loaded). Each time the page is shown the

@@ -1,9 +1,10 @@
+import { mealNutrition } from '../utils/recipeNutrition';
 import React, { useId, useMemo, useState } from 'react';
 import { ArrowLeft, Heart, Plus, Search, Sparkles, Store, UsersRound } from 'lucide-react';
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
-import { QUICK_MEAL_DESCRIPTION, eatingOutDishMeal, slotFor } from '../utils/planUtils';
+import { QUICK_MEAL_DESCRIPTION, eatingOutDishMeal, slotFor, mealKcalLabel } from '../utils/planUtils';
 import { useDevMode } from '../contexts/DevModeContext';
 import { QuickMealForm } from './QuickMealForm';
 import { EatingOutBudgetForm } from './EatingOutBudgetForm';
@@ -26,7 +27,7 @@ interface PlannerAddSheetProps {
   slot: MealSlot;
   title: string;
   /** Calories left in the day (before this meal), shown as a filter */
-  caloriesLeft: number;
+  caloriesLeft: number | undefined;
   isFastDay: boolean;
   recipes: Recipe[];
   familyRecipes: Recipe[];
@@ -75,7 +76,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
       : slotFor(r) === slot;
     return pool
       .filter(r => !term || r.name.toLowerCase().includes(term))
-      .filter(r => !fitsOnly || r.calories <= caloriesLeft)
+      .filter(r => !fitsOnly || caloriesLeft === undefined || (mealNutrition(r).complete && !mealNutrition(r).budget && mealNutrition(r).knownCalories <= caloriesLeft))
       .filter(r => !favouritesOnly || r.isFavorite)
       .sort((a, b) =>
         Number(wantsTag(b)) - Number(wantsTag(a)) ||
@@ -149,8 +150,8 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             <span className="block text-xs text-muted mt-0.5">{meta}</span>
           </span>
           <span className="shrink-0 text-right">
-            <span className="block font-display font-extrabold leading-5">{recipe.calories}</span>
-            <span className="block text-[11px] font-semibold text-muted leading-3">kcal</span>
+            <span className="block font-display font-extrabold leading-5">{mealKcalLabel(recipe)}</span>
+
           </span>
           <span className="size-9 shrink-0 flex items-center justify-center rounded-full bg-surface-sunken text-main" aria-hidden="true">
             <Plus size={18} />
@@ -162,7 +163,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
 
   const subtitle = mode === 'side'
     ? `With ${mainMealName}`
-    : `${isFastDay ? 'Fast day · ' : ''}${caloriesLeft >= 0 ? `${caloriesLeft} kcal left` : `${-caloriesLeft} kcal over`}`;
+    : caloriesLeft === undefined ? 'Calorie fit unavailable until all planned nutrition is known' : `${isFastDay ? 'Fast day · ' : ''}${caloriesLeft >= 0 ? `${caloriesLeft} kcal left` : `${-caloriesLeft} kcal over`}`;
 
   if (budgeting) {
     return (
@@ -232,7 +233,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
             />
           </label>
           <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 no-scrollbar">
-            {caloriesLeft > 0 && mode !== 'side' && chip(`Fits ${caloriesLeft} kcal`, fitsOnly, () => setFitsOnly(v => !v))}
+            {caloriesLeft !== undefined && caloriesLeft > 0 && mode !== 'side' && chip(`Fits ${caloriesLeft} kcal`, fitsOnly, () => setFitsOnly(v => !v))}
             {chip(<><Heart size={14} className="inline -mt-0.5 mr-1" aria-hidden="true" />Favourites</>, favouritesOnly, () => setFavouritesOnly(v => !v))}
             {familyRecipes.length > 0 && chip('Mine', source === 'mine', () => setSource(s => s === 'mine' ? 'all' : 'mine'))}
             {familyRecipes.length > 0 && chip(<><UsersRound size={14} className="inline -mt-0.5 mr-1" aria-hidden="true" />Family</>, source === 'family', () => setSource(s => s === 'family' ? 'all' : 'family'))}

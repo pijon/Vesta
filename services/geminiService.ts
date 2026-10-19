@@ -1,3 +1,4 @@
+import { isNutritionNumber } from '../utils/recipeNutrition';
 import type { Type as SchemaType, Schema, GenerateContentParameters } from "@google/genai";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
@@ -71,10 +72,10 @@ const recipeSchema: Schema = {
   type: Type.OBJECT,
   properties: {
     name: { type: Type.STRING },
-    calories: { type: Type.NUMBER },
-    protein: { type: Type.NUMBER },
-    fat: { type: Type.NUMBER },
-    carbs: { type: Type.NUMBER },
+    calories: { type: Type.NUMBER, nullable: true },
+    protein: { type: Type.NUMBER, nullable: true },
+    fat: { type: Type.NUMBER, nullable: true },
+    carbs: { type: Type.NUMBER, nullable: true },
     servings: { type: Type.NUMBER },
     ingredients: {
       type: Type.ARRAY,
@@ -90,7 +91,7 @@ const recipeSchema: Schema = {
       description: "Tags like 'breakfast', 'main meal', 'snack', 'vegetarian', 'quick', etc."
     }
   },
-  required: ['name', 'calories', 'ingredients']
+  required: ['name', 'ingredients']
 };
 
 /** Returns the URL when the import input is a link rather than pasted recipe text. */
@@ -132,12 +133,8 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
 
     2. NUTRITION:
        - If the text states calories or macros per serving/portion, use those values exactly. Do not adjust them.
-       - Only estimate values that are missing:
-         - Calories: Estimate based on ingredients and portion size
-         - Protein: Calculate from protein sources (meat, fish, eggs, dairy, legumes)
-         - Fat: Calculate from oils, butter, cheese, nuts, fatty meats
-         - Carbs: Calculate from grains, fruits, starchy vegetables, sugars
-       - Estimated macros should satisfy (protein × 4) + (carbs × 4) + (fat × 9) ≈ total calories
+       - If a value is missing, return null or omit it. Never estimate or invent nutrition.
+       - Keep explicit zero values as zero.
 
     3. LANGUAGE AND FIDELITY:
        - Keep the recipe in its original language. Do not translate the name, ingredients or instructions.
@@ -181,11 +178,13 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
     // Debug logging
     console.log(`[Recipe Parse] Attempt ${attempt} success. Output length: ${output.length}`);
 
-    const data = JSON.parse(output);
-    return {
-      ...data,
-      id: crypto.randomUUID()
-    };
+    const data = JSON.parse(output) as Partial<Recipe>;
+    const result: Partial<Recipe> = {...data, id:crypto.randomUUID()};
+    for (const key of ['calories','protein','fat','carbs'] as const) {
+      if (!isNutritionNumber(result[key])) delete result[key];
+    }
+    result.calorieStatus = isNutritionNumber(result.calories) ? 'known' : 'unknown';
+    return result;
 
   } catch (error: any) {
     console.warn(`[Recipe Parse] Attempt ${attempt} failed:`, error);

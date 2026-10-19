@@ -229,6 +229,16 @@ export const clearBasket = async () => {
   ]);
 };
 
+/** Starts the family's list afresh, keeping its meal plan and pantry. */
+export const resetShoppingList = async () => {
+  const groupId = await familyId();
+  const items = await readItems(groupId);
+  await commit([
+    ...items.map((item): Write => batch => batch.delete(itemRef(groupId, item.id))),
+    batch => batch.delete(listRef(groupId)),
+  ]);
+};
+
 /** The family has this food at home: it moves to "Probably at home" for PANTRY_DAYS */
 export const markAtHome = async (name: string) => {
   const key = pantryKey(name);

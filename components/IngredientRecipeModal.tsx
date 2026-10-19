@@ -1,3 +1,4 @@
+import { isNutritionNumber } from '../utils/recipeNutrition';
 import React, { useState } from 'react';
 import { RotateCcw, Sparkles } from 'lucide-react';
 import { Recipe } from '../types';
@@ -47,10 +48,12 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
           id: crypto.randomUUID(),
           name: partialRecipe.name || 'Generated recipe',
           description: `Created from ingredients: ${ingredients.join(', ')}`,
-          calories: partialRecipe.calories || targetCalories,
-          protein: partialRecipe.protein || 0,
-          fat: partialRecipe.fat || 0,
-          carbs: partialRecipe.carbs || 0,
+          calories: isNutritionNumber(partialRecipe.calories) ? partialRecipe.calories : 0,
+          calorieStatus: isNutritionNumber(partialRecipe.calories) ? 'known' : 'unknown',
+          caloriesEstimated: isNutritionNumber(partialRecipe.calories),
+          protein: isNutritionNumber(partialRecipe.protein) ? partialRecipe.protein : undefined,
+          fat: isNutritionNumber(partialRecipe.fat) ? partialRecipe.fat : undefined,
+          carbs: isNutritionNumber(partialRecipe.carbs) ? partialRecipe.carbs : undefined,
           ingredients: partialRecipe.ingredients || [],
           instructions: partialRecipe.instructions || [],
           tags: partialRecipe.tags || [mealType],
@@ -97,7 +100,7 @@ export const IngredientRecipeModal: React.FC<IngredientRecipeModalProps> = ({
         <div className="space-y-6 pt-1">
           <dl className="grid grid-cols-4 gap-2">
             {[
-              { label: 'Calories', value: generatedRecipe.calories, unit: 'kcal' },
+              { label: 'Calories', value: generatedRecipe.calorieStatus === 'unknown' ? 'Unavailable' : `≈ ${generatedRecipe.calories}`, unit: 'kcal' },
               { label: 'Protein', value: generatedRecipe.protein, unit: 'g' },
               { label: 'Fat', value: generatedRecipe.fat, unit: 'g' },
               { label: 'Carbs', value: generatedRecipe.carbs, unit: 'g' },
