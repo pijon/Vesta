@@ -1,10 +1,11 @@
-import { CoachReadState, EatingOutDish, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine } from "../types";
-import { getCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
+import { calorieAvailability, normalizeRecipeNutrition, dayNutrition } from '../utils/recipeNutrition';
+import { CoachReadState, EatingOutDish, RecipeSaveOptions, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine } from "../types";
+import { getCacheKey, getUserCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, toStoredRecipe } from "./groupService";
 import { DEFAULT_USER_STATS } from "../constants";
 import { forgetFamilyUpdate, recordFamilyUpdate } from "./activityService";
-import { currentUid, db } from "./firebase";
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, deleteField, arrayUnion, arrayRemove, query, where, orderBy, limit, onSnapshot, DocumentData, QuerySnapshot } from "firebase/firestore";
+import { auth, currentUid, db } from "./firebase";
+import { runTransaction, doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, deleteField, arrayUnion, arrayRemove, query, where, orderBy, limit, onSnapshot, DocumentData, QuerySnapshot } from "firebase/firestore";
 
 // Helper to get current user ID or throw
 const getUserId = () => {
@@ -34,7 +35,7 @@ const fromStoredRecipe = (data: DocumentData, id: string): Recipe => {
     if (tag === 'lunch' || tag === 'dinner') tag = 'main meal';
     recipe.tags = [tag];
   }
-  return { ...recipe, isFavorite: !!currentUid() && (recipe.favoritedBy || []).includes(currentUid()!) };
+  return normalizeRecipeNutrition({ ...recipe, isFavorite: !!currentUid() && (recipe.favoritedBy || []).includes(currentUid()!) });
 };
 
 const familyRecipeRef = async (id: string) => {
@@ -62,13 +63,38 @@ export const getRecipes = async (limitCount?: number): Promise<Recipe[]> => {
   }
 };
 
-export const saveRecipe = async (recipe: Recipe) => {
-  // Reject Base64 images (after migration)
-  if (recipe.image?.startsWith('data:')) {
-    throw new Error('Base64 images are not allowed. Please upload to Firebase Storage first.');
-  }
-  const parsedIngredients = readRecipeLines(recipe.ingredients || [], recipe.parsedIngredients);
-  await setDoc(await familyRecipeRef(recipe.id), toStoredRecipe({ ...recipe, parsedIngredients }, getUserId()));
+export const saveRecipe = async (recipe: Recipe, options: RecipeSaveOptions = {}): Promise<Recipe> => {
+  const uid = auth.currentUser?.uid;
+  const assertOwner = () => { if (!uid || auth.currentUser?.uid !== uid) throw new Error('Your account changed. Try again.'); };
+  assertOwner();
+  if (recipe.image?.startsWith('data:')) throw new Error('Base64 images are not allowed. Please upload to Firebase Storage first.');
+  const groupId = await getMyGroupId();
+  assertOwner();
+  if (!groupId) throw new Error("Couldn't load your family");
+  const target = doc(db, 'groups', groupId, 'recipes', recipe.id);
+  const saved = await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(target);
+    assertOwner();
+    let next: Recipe = { ...recipe, parsedIngredients: readRecipeLines(recipe.ingredients || [], recipe.parsedIngredients) };
+    if (snapshot.exists() && options.nutrition !== 'replace') {
+      const latest = snapshot.data();
+      for (const field of ['calories','calorieStatus','caloriesEstimated','protein','fat','carbs'] as const) {
+        delete next[field];
+        if (Object.prototype.hasOwnProperty.call(latest,field)) Object.assign(next,{[field]:latest[field]});
+      }
+      // A stale edit must not erase the family's author or favourites either.
+      next.createdBy = latest.createdBy;
+      next.favoritedBy = latest.favoritedBy;
+    } else if (next.calorieStatus === 'known' && !(typeof next.calories === 'number' && Number.isFinite(next.calories) && next.calories >= 0)) {
+      throw new Error('Enter valid nutrition before saving.');
+    }
+    next = normalizeRecipeNutrition(next);
+    const stored = toStoredRecipe(next, uid);
+    transaction.set(target, stored);
+    return {...stored,isFavorite:!!stored.favoritedBy?.includes(uid)};
+  });
+  assertOwner();
+  return saved;
 };
 
 /** Keeps ingredient lines read for the shopping list on their recipe, for the whole family */
@@ -129,8 +155,8 @@ export const migrateBase64ImagesToStorage = async (): Promise<{ success: boolean
           const downloadURL = await getDownloadURL(storageRef);
 
           // 5. Update recipe (bypass validation for migration)
-          const updatedRecipe = { ...recipe, image: downloadURL };
-          await setDoc(await familyRecipeRef(recipe.id), toStoredRecipe(updatedRecipe, uid));
+          if (auth.currentUser?.uid !== uid) throw new Error('Your account changed.');
+          await updateDoc(await familyRecipeRef(recipe.id), { image: downloadURL });
 
           migratedCount++;
           console.log(`✅ Migrated ${recipe.name}: ${(blob.size / 1024).toFixed(1)}KB`);
@@ -184,6 +210,7 @@ const dehydrateMeal = (meal: Recipe): PlannedMeal => {
     return {
       type: 'reference',
       recipeId: meal.originalRecipeId || meal.id!,
+      overrides: meal.planOverrides,
       servings: meal.servings || 1,
       ...meta,
     };
@@ -194,8 +221,9 @@ const dehydrateMeal = (meal: Recipe): PlannedMeal => {
     id: meal.id || crypto.randomUUID(),
     name: meal.name,
     // A live budget is saved as planned; it's recomputed from the day each time it's shown
-    calories: meal.quick?.noCalories ? undefined : (meal.quick?.budget && meal.quick.plannedBudget !== undefined ? meal.quick.plannedBudget : meal.calories),
-    caloriesEstimated: meal.quick?.estimated || undefined,
+    calories: calorieAvailability(meal) !== 'known' ? undefined : (meal.quick?.budget && meal.quick.plannedBudget !== undefined ? meal.quick.plannedBudget : meal.calories),
+    calorieStatus: calorieAvailability(meal) === 'known' ? 'known' : 'unknown',
+    caloriesEstimated: meal.caloriesEstimated || meal.quick?.estimated || undefined,
     budget: meal.quick?.budget || undefined,
     autoBudget: (meal.quick?.budget && meal.quick.autoBudget) || undefined,
     budgeted: meal.quick?.budgeted,
@@ -243,7 +271,7 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[
 
   const hydrateOne = (meal: PlannedMeal): Recipe => {
     // Legacy day docs may still hold full recipes
-    if (!meal.type) return meal as unknown as Recipe;
+    if (!meal.type) return normalizeRecipeNutrition(meal as unknown as Recipe);
 
     const meta: Partial<Recipe> = {
       slot: meal.slot,
@@ -265,24 +293,28 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[
           name: 'Recipe deleted',
           description: 'This recipe may have been deleted',
           isMissing: true,
-          calories: 0, protein: 0, fat: 0, carbs: 0,
+          calories: 0, calorieStatus: 'unknown',
           ingredients: [], instructions: [], tags: [],
           servings: meal.servings || 1,
           ...meta,
         };
       }
-      return {
+      return normalizeRecipeNutrition({
         ...original,
         servings: meal.servings || original.servings,
         ...(meal.overrides || {}),
+        ...(meal.overrides?.calories !== undefined ? { calorieStatus: 'known' as const } : {}),
+        planOverrides: meal.overrides,
         ...meta,
-      };
+      });
     }
 
-    return {
+    return normalizeRecipeNutrition({
       id: meal.id,
       name: meal.name,
       description: QUICK_MEAL_DESCRIPTION,
+      calorieStatus: meal.calorieStatus ?? (typeof meal.calories === 'number' ? 'known' : 'unknown'),
+      caloriesEstimated: meal.caloriesEstimated,
       calories: meal.calories ?? 0,
       quick: {
         kind: meal.kind,
@@ -294,15 +326,15 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[
         dish: meal.dish,
         noCalories: meal.calories === undefined || undefined,
       },
-      protein: meal.protein || 0,
-      fat: meal.fat || 0,
-      carbs: meal.carbs || 0,
+      protein: meal.protein,
+      fat: meal.fat,
+      carbs: meal.carbs,
       ingredients: meal.shopping || [],
       instructions: [],
       tags: meal.tags || [],
       servings: meal.servings || 1,
       ...meta,
-    };
+    });
   };
 
   return plannedMeals.filter(Boolean).map(hydrateOne);
@@ -383,9 +415,13 @@ export const withFamilyMeals = (plan: DayPlan, familyMeals: Recipe[]): DayPlan =
   const me = currentUid();
   const isOut = (meal: Recipe) => !!me && !!meal.notEating?.includes(me);
   const out = familyMeals.filter(isOut);
+  const meals = [...plan.meals.filter(meal => !meal.familyMeal), ...familyMeals.filter(meal => !isOut(meal))].map(normalizeRecipeNutrition);
+  const nutrition = dayNutrition({ meals });
   return {
     ...plan,
-    meals: [...plan.meals.filter(meal => !meal.familyMeal), ...familyMeals.filter(meal => !isOut(meal))],
+    totalCalories: nutrition.knownCalories,
+    totalCaloriesComplete: nutrition.complete,
+    meals,
     familyMealsOut: out.length ? out : undefined,
   };
 };
@@ -555,11 +591,11 @@ export const saveDayPlan = async (dayPlan: DayPlan) => {
   const { familyMealsOut: _out, ...day } = plan;
   const ownMeals = plan.meals.filter(meal => !meal.familyMeal);
   const familyMeals = plan.meals.filter(meal => meal.familyMeal);
-  const totalCalories = plan.meals.reduce((sum, meal) =>
-    sum + (meal.calories || 0) + (meal.sides || []).reduce((s, side) => s + (side.calories || 0), 0), 0);
+  const nutrition = dayNutrition(plan);
+  const totalCalories = nutrition.knownCalories;
 
   await Promise.all([
-    setDoc(doc(db, 'users', getUserId(), 'days', plan.date), { ...day, meals: ownMeals.map(meal => dehydrateMeal(meal)), totalCalories }),
+    setDoc(doc(db, 'users', getUserId(), 'days', plan.date), { ...day, meals: ownMeals.map(meal => dehydrateMeal(meal)), totalCalories, totalCaloriesComplete: nutrition.complete }),
     saveFamilyMeals(plan.date, familyMeals),
   ]);
 };
@@ -839,32 +875,32 @@ const STATS_DOC = 'stats';
 // Family members see each other's name and avatar through users/{uid}/profile/public. Stats
 // (weight history and goals) stay owner-only, so these are copied out whenever they might have changed.
 let syncedProfile: { uid: string; json: string } | null = null;
-const syncPublicProfile = (stats: Pick<UserStats, 'name' | 'avatar'>) => {
-  const uid = getUserId();
+const syncPublicProfile = (stats: Pick<UserStats, 'name' | 'avatar'>, uid: string) => {
+  if (currentUid() !== uid) return;
   const profile = { name: stats.name?.trim() ?? '', ...(stats.avatar ? { avatar: stats.avatar } : {}) };
   const json = JSON.stringify(profile);
   if (syncedProfile?.uid === uid && syncedProfile.json === json) return;
   syncedProfile = { uid, json };
-  setDoc(getDocRef('profile', 'public'), profile).catch(e => {
+  setDoc(doc(db, 'users', uid, 'profile', 'public'), profile).catch(e => {
     syncedProfile = null; // retry on the next load or save
     console.warn('Could not update public profile', e);
   });
 };
 
-export const getUserStats = async (): Promise<UserStats> => {
+export const getUserStats = async (expectedUid?: string): Promise<UserStats> => {
+  const uid = getUserId();
+  if (expectedUid && expectedUid !== uid) throw new Error('Your account changed. Reload and try again.');
   try {
-    const d = await getDoc(getDocRef('data', STATS_DOC));
+    const d = await getDoc(doc(db, 'users', uid, 'data', STATS_DOC));
     if (d.exists()) {
-      const stats = d.data() as UserStats;
+      const stored = d.data() as Partial<UserStats>;
+      const stats: UserStats = { ...DEFAULT_USER_STATS, ...stored, weightHistory: Array.isArray(stored.weightHistory) ? stored.weightHistory : [] };
       // Update Cache
-      saveToCache(getCacheKey('stats'), stats);
-      syncPublicProfile(stats);
+      saveToCache(getUserCacheKey(uid, 'stats'), stats);
+      syncPublicProfile(stats, uid);
       return stats;
     }
-    // Try legacy
-    const legacy = localStorage.getItem("fast800_stats");
-    if (legacy) return JSON.parse(legacy);
-
+    // Old local data has no account provenance. Only explicit Force sync may restore it.
     return DEFAULT_USER_STATS;
   } catch (e) {
     console.error("Error getting user stats", e);
@@ -872,11 +908,12 @@ export const getUserStats = async (): Promise<UserStats> => {
   }
 };
 
-export const saveUserStats = async (stats: UserStats) => {
-  // Optimistic Cache
-  saveToCache(getCacheKey('stats'), stats);
-  await setDoc(getDocRef('data', STATS_DOC), stats);
-  syncPublicProfile(stats);
+export const saveUserStats = async (stats: UserStats, expectedUid?: string): Promise<void> => {
+  const uid = getUserId();
+  if (expectedUid && expectedUid !== uid) throw new Error('Your account changed. Reload and try again.');
+  await setDoc(doc(db, 'users', uid, 'data', STATS_DOC), stats);
+  saveToCache(getUserCacheKey(uid, 'stats'), stats);
+  syncPublicProfile(stats, uid);
 };
 
 
@@ -1153,7 +1190,7 @@ export const migrateFromLocalStorage = async (force: boolean = false): Promise<{
     if (!force) {
       // OPTIMIZATION: Check local cache first to avoid hanging on network requests during startup
       // This is critical for users on restricted networks (e.g. Work Wi-Fi) where Firestore might time out
-      const cachedStats = getCachedUserStats();
+      const cachedStats = getCachedUserStats(getUserId());
       if (cachedStats && cachedStats.currentWeight !== 0 && cachedStats.currentWeight !== DEFAULT_USER_STATS.currentWeight) {
         console.log("Data exists in Local Cache, skipping migration.");
         return { success: true };
@@ -1177,7 +1214,7 @@ export const migrateFromLocalStorage = async (force: boolean = false): Promise<{
         const recipes = JSON.parse(storedRecipes);
         console.log(`Migrating ${recipes.length} recipes...`);
         for (const r of recipes) {
-          await saveRecipe(r);
+          await saveRecipe(normalizeRecipeNutrition(r), { nutrition: 'replace' });
         }
       }
     } catch (e) { console.error("Error migrating recipes:", e); }
@@ -1473,7 +1510,7 @@ export const importAllData = async (jsonString: string): Promise<{ success: bool
 
     if (data.recipes && Array.isArray(data.recipes)) {
       for (const r of data.recipes) {
-        await saveRecipe(r);
+        await saveRecipe(normalizeRecipeNutrition(r), { nutrition: 'replace' });
       }
     }
 

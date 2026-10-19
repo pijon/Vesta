@@ -15,12 +15,13 @@ export const DEFAULT_USER_STATS = {
   dailyCalorieGoal: 800,
   dailyWorkoutCalorieGoal: 400, // Default burn target
   dailyWaterGoal: 2000,
-  weightHistory: [], // Empty history triggers onboarding
+  weightHistory: [], // Setup completion is stored separately from health history
   dietMode: 'daily' as const,
   nonFastDayCalories: 2000
 };
 
 export const DEFAULT_FEATURE_FLAGS: import('./types').FeatureFlags = {
+  enableMealPlanningSetup: false,
   useGeminiExperimental: true, // Default to Gemini 3.8 Flash
   quickMeals: true,
 };

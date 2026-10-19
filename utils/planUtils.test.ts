@@ -47,13 +47,13 @@ describe('meal calories and protein', () => {
   it('labels exact, approximate and missing calories', () => {
     expect(mealKcalLabel(recipe())).toBe('500 kcal');
     expect(mealKcalLabel(recipe({ sides: [{ ...side, quick: { estimated: true } }] }))).toBe('≈ 620 kcal');
-    expect(mealKcalLabel(recipe({ calories: 0, quick: { noCalories: true } }))).toBe('kcal not set');
+    expect(mealKcalLabel(recipe({ calories: 0, quick: { noCalories: true } }))).toBe('Calories unavailable');
     expect(mealKcalSpoken(recipe({ quick: { estimated: true } }))).toBe('about 500 kcal');
   });
 
-  it('sums protein only from recipes that state it', () => {
+  it('requires protein on every part', () => {
     expect(mealProtein(recipe())).toBeUndefined();
-    expect(mealProtein(recipe({ protein: 30, sides: [side, recipe({ id: 's2' })] }))).toBe(33);
+    expect(mealProtein(recipe({ protein: 30, sides: [side, recipe({ id: 's2' })] }))).toBeUndefined();
     expect(mealProtein(recipe({ protein: 0 }))).toBe(0);
   });
 

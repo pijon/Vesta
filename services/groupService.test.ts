@@ -3,8 +3,8 @@ import { Group, Recipe } from '../types';
 
 const fake = vi.hoisted(() => ({ uid: 'me' }));
 
-vi.mock('firebase/firestore', async () => (await import('../test/fakeFirestore')).fakeFirestore.api);
-vi.mock('./firebase', () => ({ db: {}, auth: { currentUser: { displayName: 'Jon Lilja' } }, currentUid: () => fake.uid }));
+vi.mock('firebase/firestore', async () => ({...(await import('../test/fakeFirestore')).fakeFirestore.api,runTransaction:(await import('../test/transactionFirestore')).runTestTransaction}));
+vi.mock('./firebase', () => ({ db: {}, auth: { get currentUser() {return {uid:fake.uid,displayName:'Jon Lilja'};} }, currentUid: () => fake.uid }));
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { familyAdmin, forgetMyGroupId, getGroupMembersDetails, getMyGroupId, joinGroup, leaveGroup, newInviteCode, removeMember, renameGroup } = await import('./groupService');

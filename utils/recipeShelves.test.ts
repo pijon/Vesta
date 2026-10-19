@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Recipe } from '../types';
-import { favouritesShelf, mostProteinShelf, notHadInAWhile, proteinPerCalorieShelf } from './recipeShelves';
+import { byKnownCalories, favouritesShelf, mostProteinShelf, notHadInAWhile, proteinPerCalorieShelf } from './recipeShelves';
 
 const TODAY = '2026-10-17';
 const recipe = (id: string, extra: Partial<Recipe> = {}) => ({ id, name: id, calories: 400, ...extra }) as Recipe;
@@ -58,5 +58,17 @@ describe('protein shelves', () => {
   it('is empty with fewer than three', () => {
     expect(mostProteinShelf(recipes.slice(0, 2))).toEqual([]);
     expect(proteinPerCalorieShelf(recipes.slice(0, 2))).toEqual([]);
+  });
+});
+
+describe('calorie sort', () => {
+  const r = (name: string, calories: number, calorieStatus?: 'known' | 'unknown'): Recipe =>
+    ({ id: name, name, calories, calorieStatus, ingredients: [], tags: [], servings: 1 });
+  const recipes = [r('Stew', 700, 'known'), r('Soup', 0, 'unknown'), r('Broth', 0, 'known'), r('Bake', 500, 'unknown'), r('Salad', 300, 'known')];
+  const names = (direction: 1 | -1) => [...recipes].sort((a, b) => byKnownCalories(a, b, direction)).map(x => x.name);
+
+  it('puts unknown calories last whichever way, keeping a known zero with the known', () => {
+    expect(names(1)).toEqual(['Broth', 'Salad', 'Stew', 'Bake', 'Soup']);
+    expect(names(-1)).toEqual(['Stew', 'Salad', 'Broth', 'Bake', 'Soup']);
   });
 });

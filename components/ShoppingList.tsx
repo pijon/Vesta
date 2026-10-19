@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useEffect, useMemo, useOptimistic, useRef, useState } from 'react';
 import { shoppingData } from '../services/pageData';
 import { ensureWarm, peekWarm } from '../utils/prewarm';
 import {
@@ -13,6 +13,7 @@ import {
   moveOldPantryToFamily,
   removeItem,
   removeMealFromList,
+  resetShoppingList,
   restoreItem,
   setItemAmount,
   setItemChecked,
@@ -20,20 +21,49 @@ import {
 } from '../services/shoppingService';
 import { DayPlan, ShoppingList as List, ShoppingListItem, ShoppingListMeal } from '../types';
 import { PlanMeal, extractMealsFromPlan, hasThingsToBuy } from '../utils/shoppingUtils';
-import { PANTRY_DAYS, isFromMeals, isProbablyAtHome, itemAmount, itemMeals, listText, mealsOnList } from '../utils/shoppingList';
+import { PANTRY_DAYS, isFromMeals, isProbablyAtHome, itemAmount, itemMeals, listText, mealsOnList, pantryKey, planMealRemoval } from '../utils/shoppingList';
 import { localDateString } from '../utils/dateUtils';
+import { currentUid } from '../services/firebase';
 import ShoppingItem from './ShoppingItem';
 import { AddMealsSheet } from './AddMealsSheet';
-import { CalendarOff, CalendarPlus, CircleAlert, Copy, CopyCheck, House, PartyPopper, Plus, ShoppingBasket, X } from 'lucide-react';
+import { ConfirmSheet } from './ConfirmSheet';
+import { CalendarOff, CalendarPlus, CircleAlert, Copy, CopyCheck, House, PartyPopper, Plus, RotateCcw, ShoppingBasket, X } from 'lucide-react';
 
 const byName = (a: ShoppingListItem, b: ShoppingListItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+type ListChange = (list: List) => List;
+
+const withoutMeal = (key: string): ListChange => list => {
+  const { remove } = planMealRemoval(list.items, key);
+  const meals = { ...list.meals };
+  delete meals[key];
+  return {
+    ...list,
+    meals,
+    items: list.items.filter(item => !remove.includes(item.id)).map(item => {
+      if (!item.sources[key]) return item;
+      const sources = { ...item.sources };
+      delete sources[key];
+      return { ...item, sources };
+    }),
+  };
+};
+
+const withoutBasket = (now: number, today: string): ListChange => list => ({
+  ...list,
+  items: list.items.filter(item => !item.checked && !isProbablyAtHome(item, list.pantry, now)),
+  meals: Object.fromEntries(Object.entries(list.meals).filter(([, meal]) => meal.date >= today)),
+});
 
 /** The family's shopping list: one list everyone sees live, with planned meals added into it. */
 export const ShoppingList: React.FC = () => {
-  const [list, setList] = useState<List | null>(() => getCachedShoppingList());
+  const [savedList, setList] = useState<List | null>(() => getCachedShoppingList());
+  // Pending changes stay applied over incoming family snapshots. React rolls them back on
+  // failure, without replacing newer changes made by another family member.
+  const [list, changeList] = useOptimistic(savedList, (current, change: ListChange) => current && change(current));
   const [plans, setPlans] = useState<Record<string, DayPlan> | null>(() => peekWarm(shoppingData)?.plans ?? null);
   const [error, setError] = useState<string | null>(null);
   const [addingMeals, setAddingMeals] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [newItem, setNewItem] = useState('');
   const [listCopied, setListCopied] = useState(false);
   // Delay the loading screen so quick loads don't flash a spinner
@@ -60,14 +90,23 @@ export const ShoppingList: React.FC = () => {
     ensureWarm(shoppingData, true).then(data => setPlans(data.plans)).catch(e => console.error('Failed to load planned meals', e));
   }, []);
 
-  const run = async (action: () => Promise<unknown>, message: string) => {
+  const run = (action: () => Promise<unknown>, message: string, change?: ListChange): Promise<void> => {
     setError(null);
-    try {
-      await action();
-    } catch (e) {
-      console.error(message, e);
-      setError(message);
-    }
+    return new Promise(resolve => {
+      startTransition(async () => {
+        if (change) changeList(change);
+        try {
+          await action();
+          // Keep a successful change visible even if its live snapshot is delayed.
+          if (change) setList(current => current && change(current));
+        } catch (e) {
+          console.error(message, e);
+          setError(message);
+        } finally {
+          resolve();
+        }
+      });
+    });
   };
 
   /** The last item removed, offered back for a few seconds */
@@ -130,14 +169,27 @@ export const ShoppingList: React.FC = () => {
       amount={itemAmount(item)}
       meals={itemMeals(item)}
       isChecked={!!item.checked}
-      onToggleCheck={() => run(() => setItemChecked(item.id, !item.checked), `We couldn't update ${item.name}. Try again.`)}
+      onToggleCheck={() => run(() => setItemChecked(item.id, !item.checked), `We couldn't update ${item.name}. Try again.`, current => ({
+        ...current, items: current.items.map(entry => entry.id === item.id ? { ...entry, checked: !item.checked } : entry),
+      }))}
       onRemove={() => {
         setLastRemoved(item);
-        void run(() => removeItem(item.id), `We couldn't remove ${item.name}. Try again.`);
+        void run(() => removeItem(item.id), `We couldn't remove ${item.name}. Try again.`, current => ({
+          ...current, items: current.items.filter(entry => entry.id !== item.id),
+        }));
       }}
-      onUpdateAmount={amount => run(() => setItemAmount(item.id, amount), `We couldn't change ${item.name}. Try again.`)}
+      onUpdateAmount={amount => run(() => setItemAmount(item.id, amount), `We couldn't change ${item.name}. Try again.`, current => ({
+        ...current, items: current.items.map(entry => entry.id === item.id ? { ...entry, amount } : entry),
+      }))}
       onHaveIt={!item.checked && isFromMeals(item)
-        ? () => run(() => markAtHome(item.name), `We couldn't mark ${item.name} as at home. Try again.`)
+        ? () => {
+          const key = pantryKey(item.name);
+          const markedAt = Date.now();
+          const by = currentUid() ?? item.addedBy;
+          return run(() => markAtHome(item.name), `We couldn't mark ${item.name} as at home. Try again.`, current => ({
+            ...current, pantry: { ...current.pantry, [key]: { key, name: item.name, markedAt, by } },
+          }));
+        }
         : undefined}
     />
   );
@@ -192,7 +244,14 @@ export const ShoppingList: React.FC = () => {
             <Plus size={20} aria-hidden="true" />
           </button>
         </form>
-        {total > 0 && addMealsButton(false)}
+        <div className="flex flex-wrap items-center gap-2">
+          {total > 0 && addMealsButton(false)}
+          {(list.items.length > 0 || onList.size > 0) && (
+            <button onClick={() => setConfirmReset(true)} className="btn-secondary btn-sm">
+              <RotateCcw size={16} aria-hidden="true" /> Reset list
+            </button>
+          )}
+        </div>
       </div>
 
       {error && errorNotice(error)}
@@ -204,7 +263,7 @@ export const ShoppingList: React.FC = () => {
             {notPlanned.length === 1 ? `${notPlanned[0][1].name} isn't planned anymore.` : `${notPlanned.length} meals on the list aren't planned anymore.`}
           </p>
           <button
-            onClick={() => run(async () => { for (const [key] of notPlanned) await removeMealFromList(key); }, "We couldn't take them off the list. Try again.")}
+            onClick={() => run(async () => { for (const [key] of notPlanned) await removeMealFromList(key); }, "We couldn't take them off the list. Try again.", current => notPlanned.reduce((next, [key]) => withoutMeal(key)(next), current))}
             className="btn-secondary btn-sm shrink-0"
           >
             Take off
@@ -250,7 +309,11 @@ export const ShoppingList: React.FC = () => {
                   <span className="text-xs text-muted line-clamp-1">{[itemAmount(item), ...itemMeals(item)].filter(Boolean).join(' · ')}</span>
                 </span>
                 <button
-                  onClick={() => run(() => markNeeded(item.name), `We couldn't move ${item.name} to the list. Try again.`)}
+                  onClick={() => run(() => markNeeded(item.name), `We couldn't move ${item.name} to the list. Try again.`, current => {
+                    const pantry = { ...current.pantry };
+                    delete pantry[pantryKey(item.name)];
+                    return { ...current, pantry };
+                  })}
                   className="chip hit-target shrink-0"
                   aria-label={`Need ${item.name}: put it on the list`}
                 >
@@ -266,7 +329,7 @@ export const ShoppingList: React.FC = () => {
         <section>
           <div className="flex items-center justify-between gap-3 px-2 pb-1.5">
             <h3 className="font-sans text-xs font-semibold text-muted">In the basket · {inBasket.length}</h3>
-            <button onClick={() => run(clearBasket, "We couldn't clear the basket. Try again.")} className="btn-ghost btn-sm">
+            <button onClick={() => run(clearBasket, "We couldn't clear the basket. Try again.", withoutBasket(Date.now(), today))} className="btn-ghost btn-sm">
               Clear basket
             </button>
           </div>
@@ -275,7 +338,7 @@ export const ShoppingList: React.FC = () => {
       )}
 
       {upcomingOnList.length > 0 && (
-        <details className="card px-4 py-3 group/meals">
+        <details open className="card px-4 py-3 group/meals">
           <summary className="cursor-pointer text-sm font-semibold min-h-9 flex items-center">
             For {upcomingOnList.length} planned {upcomingOnList.length === 1 ? 'meal' : 'meals'}
           </summary>
@@ -290,7 +353,7 @@ export const ShoppingList: React.FC = () => {
                   </span>
                 </span>
                 <button
-                  onClick={() => run(() => removeMealFromList(key), `We couldn't take ${meal.name} off the list. Try again.`)}
+                  onClick={() => run(() => removeMealFromList(key), `We couldn't take ${meal.name} off the list. Try again.`, withoutMeal(key))}
                   className="icon-btn hit-target size-9 shrink-0"
                   aria-label={`Take ${meal.name} and its ingredients off the list`}
                 >
@@ -304,6 +367,21 @@ export const ShoppingList: React.FC = () => {
 
       {addingMeals && <AddMealsSheet meals={mealsToAdd} onAdd={addMealsToList} onClose={() => setAddingMeals(false)} />}
 
+      {confirmReset && (
+        <ConfirmSheet
+          title="Reset the shopping list?"
+          message="This clears all items and meals from your family's shopping list, including the basket. Your meal plan and foods marked at home stay saved. You can add planned meals again afterwards."
+          confirmLabel="Reset shopping list"
+          tone="danger"
+          onConfirm={() => {
+            setLastRemoved(null);
+            setConfirmReset(false);
+            return run(resetShoppingList, "We couldn't reset the list. Try again.", current => ({ ...current, items: [], meals: {} }));
+          }}
+          onClose={() => setConfirmReset(false)}
+        />
+      )}
+
       {lastRemoved && (
         <div className="sticky bottom-[calc(var(--tab-bar-bottom)+78px)] nav:bottom-8 z-20 flex justify-center pt-4 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-ink text-on-ink pl-5 pr-1.5 py-1.5 shadow-[var(--elev-md)]" role="status">
@@ -312,7 +390,9 @@ export const ShoppingList: React.FC = () => {
               onClick={() => {
                 const item = lastRemoved;
                 setLastRemoved(null);
-                void run(() => restoreItem(item), `We couldn't put ${item.name} back. Try again.`);
+                void run(() => restoreItem(item), `We couldn't put ${item.name} back. Try again.`, current => ({
+                  ...current, items: [...current.items.filter(entry => entry.id !== item.id), item],
+                }));
               }}
               className="btn-base min-h-10 px-4 rounded-full text-sm font-bold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--on-ink)]"
             >

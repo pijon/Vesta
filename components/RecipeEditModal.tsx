@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Minus, Plus, Save, X } from 'lucide-react';
-import { Recipe } from '../types';
+import { Recipe, RecipeSaveOptions, UserExperience } from '../types';
 import { ImageInput } from './ImageInput';
+import { calorieAvailability } from '../utils/recipeNutrition';
 import { Sheet } from './Sheet';
 
 interface RecipeEditModalProps {
     recipe: Recipe;
-    onSave: (updatedRecipe: Recipe) => void;
+    onSave: (updatedRecipe: Recipe, options?: RecipeSaveOptions) => void | Promise<void>;
+    experience?: UserExperience;
     onCancel: () => void;
     isSaving?: boolean;
 }
@@ -16,30 +18,53 @@ const MEAL_TAGS = ['breakfast', 'main meal', 'snack', 'light meal'];
 const label = 'block text-sm font-semibold mb-1.5';
 
 /** Edit a recipe's photo, name, servings, tags, nutrition, ingredients and steps. */
-export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave, onCancel, isSaving = false }) => {
+export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave, onCancel, isSaving = false, experience = 'tracking' }) => {
     const [editForm, setEditForm] = useState<Recipe>({ ...recipe });
     const [uploadedImage, setUploadedImage] = useState<string | null>(recipe.image || null);
     const [imageError, setImageError] = useState<string | null>(null);
 
+    const fieldsFor = (r: Recipe) => ({calories:calorieAvailability(r)==='unknown'?'':String(r.calories),protein:r.protein===undefined?'':String(r.protein),fat:r.fat===undefined?'':String(r.fat),carbs:r.carbs===undefined?'':String(r.carbs)});
+    const [nutrition, setNutrition] = useState(() => fieldsFor(recipe));
+    const [nutritionTouched, setNutritionTouched] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const savingRef = useRef(false);
+    const busy = saving || isSaving;
+
     // Sync state if recipe prop changes (though usually unmounted/remounted)
     useEffect(() => {
         setEditForm({ ...recipe });
+        setNutrition(fieldsFor(recipe));
+        setNutritionTouched(false);
         setUploadedImage(recipe.image || null);
     }, [recipe]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (savingRef.current || isSaving) return;
+        if (!editForm.name.trim()) { setError('Enter a recipe name.'); return; }
+        if (!Number.isFinite(editForm.servings) || editForm.servings < 1) {setError('Choose at least one serving.');return;}
+        const replace = experience === 'tracking' && nutritionTouched;
+        const values: Partial<Recipe> = {};
+        if (replace) {
+            for (const key of ['calories','protein','fat','carbs'] as const) {
+                const text = nutrition[key].trim();
+                if (text && (!Number.isFinite(Number(text)) || Number(text)<0)) {setError('Enter valid nonnegative nutrition values.');return;}
+                values[key] = text ? Number(text) : undefined;
+            }
+            values.calorieStatus = nutrition.calories.trim() ? 'known' : 'unknown';
+            values.calories = values.calories ?? 0;
+            values.caloriesEstimated = false;
+        }
         const updatedRecipe: Recipe = {
-            ...editForm,
-            calories: Number(editForm.calories) || 0,
-            protein: Number(editForm.protein) || 0,
-            fat: Number(editForm.fat) || 0,
-            carbs: Number(editForm.carbs) || 0,
-            servings: Number(editForm.servings) || 1,
+            ...editForm, ...values, name:editForm.name.trim(),
             ingredients: (editForm.ingredients || []).filter(i => i.trim()),
             instructions: (editForm.instructions || []).filter(i => i.trim()),
-            image: uploadedImage || undefined // Explicitly handle undefined if null
+            image: uploadedImage || undefined,
         };
-        onSave(updatedRecipe);
+        savingRef.current=true;setSaving(true);setError('');
+        try { await onSave(updatedRecipe, {nutrition:replace?'replace':'preserve'}); }
+        catch {setError("That recipe couldn't be saved. Your changes are still here. Try again.");}
+        finally {savingRef.current=false;setSaving(false);}
     };
 
     const handleImageSelect = (downloadURL: string) => {
@@ -76,10 +101,10 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
             onClose={onCancel}
             footer={
                 <div className="flex gap-2">
-                    <button onClick={onCancel} disabled={isSaving} className="btn-ghost">Cancel</button>
-                    <button onClick={handleSave} disabled={isSaving} className="btn-primary flex-1">
-                        {isSaving ? <span className="spinner spinner-sm" aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
-                        {isSaving ? 'Saving…' : 'Save changes'}
+                    <button onClick={onCancel} disabled={busy} className="btn-ghost">Cancel</button>
+                    <button onClick={handleSave} disabled={busy} className="btn-primary flex-1">
+                        {busy ? <span className="spinner spinner-sm" aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
+                        {busy ? 'Saving…' : 'Save changes'}
                     </button>
                 </div>
             }
@@ -169,15 +194,16 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                     )}
                 </div>
 
+                {error && <p role="alert" className="text-error">{error}</p>}
                 {/* Nutrition */}
-                <div>
+                {experience === 'tracking' && <div>
                     <p className={label}>Nutrition <span className="font-normal text-muted">per serving</span></p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {[
-                            { label: 'Calories', val: editForm.calories, key: 'calories', unit: 'kcal' },
-                            { label: 'Protein', val: editForm.protein, key: 'protein', unit: 'g' },
-                            { label: 'Fat', val: editForm.fat, key: 'fat', unit: 'g' },
-                            { label: 'Carbs', val: editForm.carbs, key: 'carbs', unit: 'g' }
+                            { label: 'Calories', val: nutrition.calories, key: 'calories', unit: 'kcal' },
+                            { label: 'Protein', val: nutrition.protein, key: 'protein', unit: 'g' },
+                            { label: 'Fat', val: nutrition.fat, key: 'fat', unit: 'g' },
+                            { label: 'Carbs', val: nutrition.carbs, key: 'carbs', unit: 'g' }
                         ].map((item) => (
                             <label key={item.key} className="block">
                                 <span className="block text-xs font-semibold text-muted mb-1">{item.label}</span>
@@ -185,8 +211,8 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                                     <input
                                         type="number"
                                         min="0"
-                                        value={item.val || 0}
-                                        onChange={e => setEditForm({ ...editForm, [item.key]: parseInt(e.target.value) || 0 })}
+                                        value={item.val}
+                                        onChange={e => {setNutrition({...nutrition,[item.key]:e.target.value});setNutritionTouched(true);}}
                                         onFocus={e => e.target.select()}
                                         className={`input w-full font-bold ${item.unit === 'kcal' ? '!pr-12' : '!pr-8'}`}
                                     />
@@ -195,7 +221,9 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                             </label>
                         ))}
                     </div>
-                </div>
+                    {calorieAvailability(recipe)==='unconfirmed' && !nutritionTouched && <div className="mt-3 space-y-2"><p className="text-sm text-muted">This older recipe has 0 calories, which may mean no amount was entered.</p><button className="btn-secondary" onClick={()=>{setNutrition({...nutrition,calories:'0'});setNutritionTouched(true);}}>Confirm 0 kcal</button></div>}
+                    <p className="text-sm text-muted mt-3">Leave values blank when unavailable. Zero means a confirmed zero.</p>
+                </div>}
 
                 {/* Ingredients and steps */}
                 <div className="grid md:grid-cols-2 gap-4">

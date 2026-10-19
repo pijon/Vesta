@@ -17,7 +17,7 @@ const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId } = await import('./groupService');
 const {
   addMealsToList, addOwnItem, clearBasket, forgetOldPantryMarks, markAtHome, markNeeded, moveOldListToFamily,
-  moveOldPantryToFamily, removeMealFromList, setItemChecked, subscribeShoppingList,
+  moveOldPantryToFamily, removeMealFromList, resetShoppingList, setItemChecked, subscribeShoppingList,
 } = await import('./shoppingService');
 const { itemAmount } = await import('../utils/shoppingList');
 
@@ -115,6 +115,31 @@ describe('the family\'s list', () => {
     // With nothing past, the meals on the list stay
     await clearBasket();
     expect(Object.keys(listMeals())).toEqual(['m1']);
+  });
+
+  it('resets every item and meal live, preserves the pantry and allows meals to be added again', async () => {
+    await addMealsToList([planMeal('m1', ['2 eggs', '1 tsk salt'])]);
+    await markAtHome('salt');
+    await addOwnItem('coffee');
+    await setItemChecked(named('eggs').id, true);
+    const seen: ShoppingList[] = [];
+    const stop = subscribeShoppingList(list => seen.push(list), e => { throw e; });
+    await vi.waitFor(() => expect(seen.at(-1)?.items).toHaveLength(3));
+    await resetShoppingList();
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ items: [], meals: {} }));
+    expect(pantry().map(mark => mark.key)).toEqual(['salt']);
+    await addMealsToList([planMeal('m1', ['2 eggs'])]);
+    expect(items().map(item => item.name)).toEqual(['eggs']);
+    expect(Object.keys(listMeals())).toEqual(['m1']);
+    stop();
+  });
+
+  it('resets lists larger than one Firestore batch', async () => {
+    for (let i = 0; i < 405; i++) {
+      store.docs.set(`groups/g/shoppingItems/i${i}`, { id: `i${i}`, name: 'coffee', sources: {} });
+    }
+    await resetShoppingList();
+    expect(items()).toEqual([]);
   });
 });
 

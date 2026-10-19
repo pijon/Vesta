@@ -1,22 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Droplets, Flame, Scale, Target, CookingPot, X } from 'lucide-react';
-import { UserStats } from '../types';
+import type { UserExperience, UserSetupSubmission, UserStats } from '../types';
 import { DEFAULT_USER_STATS } from '../constants';
 import { VestaMark } from './VestaMark';
+import { ExperienceChoice } from './ExperienceChoice';
 
-export interface OnboardingResult {
-    name: string;
-    currentWeight: number;
-    goalWeight: number;
-    nonFastDayCalories: number;
-    dailyCalorieGoal: number;
-    dailyWaterGoal: number;
-}
+export type OnboardingResult = UserSetupSubmission;
 
 interface OnboardingWizardProps {
     /** Existing values to start from (e.g. when re-run from Settings) */
     stats?: Partial<UserStats>;
-    onComplete: (data: OnboardingResult) => void;
+    initialExperience?: UserExperience;
+    allowExperienceChoice: boolean;
+    intent: 'required' | 'switch' | 'rerun';
+    onComplete: (data: OnboardingResult) => Promise<void>;
     /** Shown as a close button; leave out when the profile is required */
     onCancel?: () => void;
 }
@@ -28,8 +25,6 @@ const num = (s: string) => {
 };
 
 const str = (n: number | undefined) => (n && n > 0 ? String(n) : '');
-
-const STEPS = ['About you', 'Your weight', 'Daily targets'];
 
 const NumberField: React.FC<{
     label: string;
@@ -62,9 +57,18 @@ const NumberField: React.FC<{
     </label>
 );
 
-/** First-run setup: name, weight and goal, then daily targets. Everything can be changed later in Settings. */
-export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onComplete, onCancel }) => {
+/** Planning setup needs only a name. Tracking adds explicit personal health answers. */
+export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, initialExperience, allowExperienceChoice, intent, onComplete, onCancel }) => {
     const [step, setStep] = useState(0);
+    const [experience, setExperience] = useState<UserExperience | null>(initialExperience ?? (allowExperienceChoice ? null : 'tracking'));
+    const steps = experience === 'tracking' ? ['About you', 'Your weight', 'Daily targets'] : ['About you'];
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const submitting = useRef(false);
+    const mounted = useRef(true);
+    const errorRef = useRef<HTMLParagraphElement>(null);
+    useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+    useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
     // Titles at the greeting's size
     const title = 'font-display font-extrabold text-[40px] leading-[1.02] tracking-[-0.04em]';
     const [name, setName] = useState(stats?.name ?? '');
@@ -81,56 +85,68 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
     useEffect(() => {
         const target = [nameRef, weightRef, nourishRef][step].current;
         // Wait for the step to render before focusing
-        requestAnimationFrame(() => target?.focus());
+        const frame = requestAnimationFrame(() => target?.focus());
+        return () => cancelAnimationFrame(frame);
     }, [step]);
 
     const w = num(weight);
     const g = num(goal);
     const valid = [
-        !!name.trim(),
+        !!experience && !!name.trim() && name.trim().length <= 100,
         w !== null && g !== null && w < 500 && g < 500,
         !!num(nourish) && !!num(fast) && !!num(water),
     ];
     const diff = w !== null && g !== null ? Math.round((w - g) * 10) / 10 : null;
 
-    const next = () => {
-        if (!valid[step]) return;
-        if (step < STEPS.length - 1) { setStep(step + 1); return; }
-        onComplete({
-            name: name.trim(),
-            currentWeight: Math.round(w! * 10) / 10,
-            goalWeight: Math.round(g! * 10) / 10,
-            nonFastDayCalories: Math.round(num(nourish)!),
-            dailyCalorieGoal: Math.round(num(fast)!),
-            dailyWaterGoal: Math.round(num(water)!),
-        });
+    const next = async () => {
+        if (submitting.current || !valid[step] || !experience) return;
+        if (step < steps.length - 1) { setStep(step + 1); return; }
+        submitting.current = true;
+        setBusy(true);
+        setError(null);
+        try {
+            await onComplete(experience === 'planning' ? { experience, name: name.trim() } : {
+                experience, name: name.trim(),
+                currentWeight: Math.round(w! * 10) / 10,
+                goalWeight: Math.round(g! * 10) / 10,
+                nonFastDayCalories: Math.round(num(nourish)!),
+                dailyCalorieGoal: Math.round(num(fast)!),
+                dailyWaterGoal: Math.round(num(water)!),
+            });
+        } catch (failure) {
+            if (mounted.current) setError(failure instanceof Error ? failure.message : 'Your setup could not be saved. Try again.');
+        } finally {
+            submitting.current = false;
+            if (mounted.current) setBusy(false);
+        }
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-background overflow-y-auto animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+        <div className="fixed inset-0 z-[100] bg-background overflow-y-auto motion-safe:animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
             <div className="min-h-dvh max-w-md mx-auto px-4 py-6 md:py-12 flex flex-col">
                 {/* Progress */}
                 <div className="flex items-center gap-3 mb-8">
                     {step > 0 ? (
-                        <button onClick={() => setStep(step - 1)} className="icon-btn shrink-0" aria-label="Back"><ArrowLeft size={20} /></button>
+                        <button disabled={busy} onClick={() => setStep(step - 1)} className="icon-btn shrink-0" aria-label="Back"><ArrowLeft size={20} /></button>
                     ) : <span className="size-11 shrink-0" aria-hidden="true" />}
-                    <div className="flex-1 flex gap-1.5" aria-label={`Step ${step + 1} of ${STEPS.length}`} role="img">
-                        {STEPS.map((_, i) => (
+                    <div className="flex-1 flex gap-1.5" aria-label={`Step ${step + 1} of ${steps.length}`} role="img">
+                        {steps.map((_, i) => (
                             <span key={i} className={`flex-1 rounded-full transition-colors h-2.5 ${i <= step ? 'bg-[var(--hero)]' : 'bg-border'}`} />
                         ))}
                     </div>
                     {onCancel ? (
-                        <button onClick={onCancel} className="icon-btn shrink-0" aria-label="Close"><X size={20} /></button>
+                        <button disabled={busy} onClick={onCancel} className="icon-btn shrink-0" aria-label="Close"><X size={20} /></button>
                     ) : <span className="size-11 shrink-0" aria-hidden="true" />}
                 </div>
 
-                <form className="flex-1 flex flex-col" onSubmit={e => { e.preventDefault(); next(); }}>
-                    <div key={step} className="flex-1 motion-safe:animate-page-in">
+                <form className="flex-1 flex flex-col" onSubmit={e => { e.preventDefault(); void next(); }}>
+                    <fieldset disabled={busy} key={step} className="flex-1 motion-safe:animate-page-in min-w-0">
                         {step === 0 && (
                             <>
                                 <VestaMark className="size-16 mb-5" />
-                                <h1 id="onboarding-title" className={title}>Welcome to Vesta</h1>
-                                <p className="text-muted mt-2 mb-8">Plan meals, cook together and keep track, without the fuss. Three quick questions to get you set up.</p>
+                                <h1 id="onboarding-title" className={title}>{intent === 'switch' ? 'Make Vesta yours' : 'Welcome to Vesta'}</h1>
+                                <p className="text-muted mt-2 mb-6">Plan meals and cook together. Choose what works for you.</p>
+                                {allowExperienceChoice && <div className="mb-6"><ExperienceChoice value={experience} onChange={setExperience} disabled={busy} /></div>}
                                 <label className="block">
                                     <span className="block text-sm font-semibold mb-1.5">What should we call you?</span>
                                     <input
@@ -140,6 +156,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
                                         autoComplete="given-name"
                                         autoCapitalize="words"
                                         placeholder="Your first name"
+                                        maxLength={100}
                                         className="input w-full text-lg"
                                     />
                                 </label>
@@ -172,10 +189,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ stats, onCom
                                 <p className="text-sm text-muted mt-3">You can change all of this later in Settings.</p>
                             </>
                         )}
-                    </div>
+                    </fieldset>
 
-                    <button type="submit" disabled={!valid[step]} className="btn-primary btn-lg btn-block mt-8">
-                        {step < STEPS.length - 1 ? <>Continue <ArrowRight size={18} aria-hidden="true" /></> : 'Start using Vesta'}
+                    {busy && <p role="status" className="text-sm text-muted mt-4">Saving your setup…</p>}
+                    {error && <p ref={errorRef} tabIndex={-1} role="alert" className="text-sm text-error mt-4">{error}</p>}
+
+                    <button type="submit" disabled={busy || !valid[step]} className="btn-primary btn-lg btn-block mt-8">
+                        {step < steps.length - 1 ? <>Continue <ArrowRight size={18} aria-hidden="true" /></> : 'Start using Vesta'}
                     </button>
                 </form>
             </div>

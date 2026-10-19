@@ -1,9 +1,14 @@
+import type { PlannedMealIntakeEntry, PlannedMealIntakeResult, PlannedIntakeTicks, ResolvedPlannedMealIntake, CommittedMealIntake } from './types';
+import { commitPlannedMealIntake, removePlannedMealIntake, deletePlannedMealIntake, restorePlannedMealIntake, updatePlannedMealIntake } from './services/mealLogService';
+import { mealNutrition } from './utils/recipeNutrition';
+import { assertUniqueMealKeys } from './utils/mealIntake';
+import { MealCaloriesSheet } from './components/MealCaloriesSheet';
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus } from './types';
-import { addDays, isFastDay, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
-import { getDayPlan, getUserStats, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, migrateFromLocalStorage, subscribeFamilyMeals, withFamilyMeals, FamilyMealChange } from './services/storageService';
-import * as cache from './utils/cacheService';
+import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus, UserSetupSnapshot, UserExperience, Avatar } from './types';
+import { addDays, isFastDay, isRememberableDish, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
+import { getDayPlan, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, subscribeFamilyMeals, withFamilyMeals, FamilyMealChange } from './services/storageService';
+import { clearWarm } from './utils/prewarm';
 import { useTheme } from './hooks/useTheme';
 // Lazy load non-critical components for performance
 const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
@@ -25,15 +30,18 @@ const prefetchViews = () => {
 };
 import { Header } from './components/Header';
 import { TrackToday } from './components/TrackToday';
+import { PlanToday } from './components/PlanToday';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { FamilyNotice } from './components/FamilyNotice';
 import { subscribeFamilyUpdates } from './services/activityService';
 import { Sidebar } from './components/Sidebar';
-import { PlannerTabs } from './components/PlannerTabs';
+import { FamilyTabs } from './components/FamilyTabs';
 import { DEFAULT_USER_STATS, MAX_PLAUSIBLE_FAST_HOURS, DEFAULT_FAST_BREAK_CALORIES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { currentUid } from './services/firebase';
-import { DevModeProvider } from './contexts/DevModeContext';
+import { auth, currentUid } from './services/firebase';
+import * as cache from './utils/cacheService';
+import { completeUserSetup, getUserSetup, saveUserExperience, saveUserProfileName, saveUserProfileAvatar, UserSetupRequiredError } from './services/userPreferencesService';
+import { DevModeProvider, useDevMode } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
 import { OnboardingWizard, OnboardingResult } from './components/OnboardingWizard';
 import { FoodEntryModal } from './components/FoodEntryModal';
@@ -46,7 +54,37 @@ import { ViewSkeleton } from './components/ViewSkeleton';
 
 
 
-const TrackerApp: React.FC = () => {
+type ExperienceSettings = NonNullable<React.ComponentProps<typeof SettingsView>['experienceSettings']>;
+const normalizeStats = (stats: UserSetupSnapshot['stats']): UserStats => ({ ...DEFAULT_USER_STATS, ...stats, weightHistory: Array.isArray(stats?.weightHistory) ? stats.weightHistory : [] });
+
+interface TrackerAppProps {
+    uid: string;
+    setup: UserSetupSnapshot;
+    /** A setup read from the server, with the `setupVersion()` from when the read started: it's
+     *  dropped if the setup changed here since (a switch saved meanwhile would otherwise flip back) */
+    onSetupChange: (setup: UserSetupSnapshot, readFrom: number) => void;
+    setupVersion: () => number;
+    /** Saved stats, merged into the current setup (never a whole setup from an older render) */
+    onStatsChange: (stats: UserStats) => void;
+    experienceSettings: ExperienceSettings;
+    onTestOnboarding: () => void;
+    /** Plan meals saves the avatar without creating a health profile */
+    onSavePlanningAvatar: (avatar: Avatar) => Promise<void>;
+}
+
+const rejectTrackingChange = async () => { throw new Error('Tracking is not enabled for this experience.'); };
+
+/** The app for both experiences. Plan meals leaves out Today, Analytics and everything that tracks
+ *  intake; switching only changes what's shown, so nothing is rebuilt. */
+const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setupVersion, onStatsChange, experienceSettings, onTestOnboarding, onSavePlanningAvatar }) => {
+    const experience: UserExperience = setup.preferences?.experience === 'planning' ? 'planning' : 'tracking';
+    const tracking = experience === 'tracking';
+    const alive = useRef(true);
+    const ownsSession = useCallback(() => alive.current && currentUid() === uid, [uid]);
+    const requireSession = useCallback(() => {
+        if (!ownsSession()) throw new Error('Your account changed. Reload and try again.');
+    }, [ownsSession]);
+    useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, [uid]);
     const navigate = useNavigate();
     const location = useLocation();
     // const [isSettingsOpen, setIsSettingsOpen] = useState(false); // Removed modal state
@@ -64,16 +102,18 @@ const TrackerApp: React.FC = () => {
         const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
         let cancelled = false;
         requestAnimationFrame(() => setTimeout(() => idle(() => {
-            if (cancelled) return;
+            if (cancelled || !ownsSession()) return;
             setPrerenderPages(true);
             prefetchViews();
-            import('./services/pageData').then(m => m.prewarmPages());
+            import('./services/pageData').then(m => {
+                if (!cancelled && ownsSession()) return m.prewarmPages(() => !cancelled && ownsSession());
+            });
         })));
         return () => {
             cancelled = true;
-            import('./utils/prewarm').then(m => m.clearWarm());
+            clearWarm();
         };
-    }, []);
+    }, [ownsSession]);
 
     // Check for date change on focus/visibility change
     useEffect(() => {
@@ -112,7 +152,12 @@ const TrackerApp: React.FC = () => {
         return AppView.TODAY;
     };
 
-    const view = getCurrentView();
+    // Plan meals has no Analytics: its links open Today, the meal-focused one
+    const requestedView = getCurrentView();
+    const view = !tracking && requestedView === AppView.ANALYTICS ? AppView.TODAY : requestedView;
+    useEffect(() => {
+        if (view !== requestedView) navigate('/today', { replace: true });
+    }, [view, requestedView, navigate]);
 
     // At launch only the page on screen renders; the hidden pages (and their code) wait until the
     // app is idle, so a cold start doesn't load and draw every page before the first paint
@@ -148,13 +193,13 @@ const TrackerApp: React.FC = () => {
 
     const [todayPlan, setTodayPlan] = useState<DayPlan>(() => {
         const date = localDateString();
-        return cache.getCachedDayPlan(date) || { date, meals: [], completedMealIds: [] };
+        return { date, meals: [], completedMealIds: [] };
     });
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
         const date = localDateString(d);
-        return cache.getCachedDayPlan(date) || { date, meals: [], completedMealIds: [] };
+        return { date, meals: [], completedMealIds: [] };
     });
 
     // Global Modal State
@@ -172,35 +217,47 @@ const TrackerApp: React.FC = () => {
     const [deleteEditingWorkout, setDeleteEditingWorkout] = useState<(() => void) | undefined>();
     const [recentWorkouts, setRecentWorkouts] = useState<WorkoutItem[]>([]);
 
-    const [userStats, setUserStatsState] = useState<UserStats>(() => cache.getCachedUserStats() || DEFAULT_USER_STATS);
-    const [showOnboarding, setShowOnboarding] = useState(false);
-    // Removed isInitializing to allow instant rendering from cache
+    const [userStats, setUserStatsState] = useState<UserStats>(() => normalizeStats(setup.stats));
+    useEffect(() => { setUserStatsState(normalizeStats(setup.stats)); }, [setup.stats]);
 
     const theme = useTheme();
 
-    const [fastingState, setFastingState] = useState<FastingState>(() => cache.getCachedFastingState() || {
+    const [fastingState, setFastingState] = useState<FastingState>(() => ({
         lastAteTime: null,
         config: { protocol: '16:8', targetFastHours: 16 }
-    });
+    }));
 
 
-    const [coachRead, setCoachRead] = useState<CoachReadState>(() => cache.getCachedCoachRead() || {});
+    const [coachRead, setCoachRead] = useState<CoachReadState>({});
 
     const [dailyLog, setDailyLog] = useState<DailyLog>(() => {
         const date = localDateString();
-        const cached = cache.getCachedDailyLog(date);
         const merged: DailyLog = {
             date,
             items: [],
             workouts: [],
             waterIntake: 0,
-            ...(cached || {}),
         };
         merged.workouts = merged.workouts || [];
         merged.waterIntake = typeof merged.waterIntake === 'number' ? merged.waterIntake : 0;
         return merged;
     });
     const dailyLogRef = useRef<DailyLog>(dailyLog);
+    const fastingStateRef = useRef(fastingState);
+    fastingStateRef.current = fastingState;
+    const publishFasting = (next:FastingState) => {fastingStateRef.current=next;setFastingState(next);};
+    const healthQueue = useRef<Promise<unknown>>(Promise.resolve());
+    const runHealthMutation = <T,>(operation:()=>Promise<T>):Promise<T> => {
+        const date=todayDate;
+        const next=healthQueue.current.catch(()=>{}).then(async()=>{
+            requireSession();
+            if(auth.currentUser?.uid!==uid || localDateString()!==date) throw new Error('Your account or date changed. Reload and try again.');
+            refreshSeq.current++;logEdits.current++;
+            return operation();
+        });
+        healthQueue.current=next.catch(()=>{});
+        return next;
+    };
 
     const setDailyLogState = useCallback((nextLog: DailyLog) => {
         dailyLogRef.current = nextLog;
@@ -212,80 +269,96 @@ const TrackerApp: React.FC = () => {
 
     // Counts local edits to today's log, so a refresh that started before one doesn't put back the older log
     const logEdits = useRef(0);
-    const updateDailyLog = useCallback(async (updater: (current: DailyLog) => DailyLog) => {
+    const writeDailyLog = useCallback(async (updater: (current: DailyLog) => DailyLog) => {
+        requireSession();
         logEdits.current++;
         const nextLog = updater(dailyLogRef.current);
-        setDailyLogState(nextLog);
         await saveDailyLog(nextLog);
+        requireSession();
+        setDailyLogState(nextLog);
         return nextLog;
-    }, [setDailyLogState]);
+    }, [setDailyLogState, requireSession]);
+
+    const updateDailyLog = (updater:(current:DailyLog)=>DailyLog) => runHealthMutation(()=>writeDailyLog(updater));
 
     const loadRecentWorkouts = useCallback(async () => {
+        if (!ownsSession()) return;
         const { getRecentWorkouts } = await import('./services/storageService');
+        if (!ownsSession()) return;
         const recents = await getRecentWorkouts(5);
-        setRecentWorkouts(recents);
-    }, []);
+        if (ownsSession()) setRecentWorkouts(recents);
+    }, [ownsSession]);
 
     useEffect(() => {
-        // Load recent workouts for suggestion once on mount
-        loadRecentWorkouts();
-    }, [loadRecentWorkouts]);
+        // Recent workouts for suggestions, once tracking
+        if (tracking) loadRecentWorkouts();
+    }, [loadRecentWorkouts, tracking]);
 
     // Refreshes overlap (every planner edit starts one, so does focus); only the newest may set state,
     // or a slow earlier one lands last and puts back the plan from before the latest change
     const refreshSeq = useRef(0);
-    /** Shows a change to today's plan at once (a meal ticked off), before it's saved. A refresh
-     *  already on its way read the plan before the change, so it's dropped rather than undoing it. */
-    const showTodayPlan = useCallback((plan: DayPlan) => {
-        refreshSeq.current++;
-        setTodayPlan(plan);
-    }, []);
 
     const refreshData = useCallback(async () => {
         const seq = ++refreshSeq.current;
         const editsAtStart = logEdits.current;
+        const readFrom = setupVersion();
         try {
-            const [today, tomorrow, stats, log, fasting] = await Promise.all([
+            // The app may have opened from the cache while Firebase restores the session
+            await auth.authStateReady();
+            if (auth.currentUser?.uid !== uid || !ownsSession() || seq !== refreshSeq.current) return;
+            const nextSetup = await getUserSetup(uid);
+            if (!ownsSession() || seq !== refreshSeq.current) return;
+            // Health data loads for the tracking experience on screen. A current read that says
+            // otherwise switches the screen instead; an older one (a switch saved meanwhile) doesn't count
+            const current = readFrom === setupVersion();
+            const serverTracking = nextSetup.preferences?.experience === 'tracking' && nextSetup.preferences.trackingSetupComplete;
+            if (experience !== 'tracking' || (current && !serverTracking)) {
+                onSetupChange(nextSetup, readFrom);
+                // Plan meals' Today still needs today's and tomorrow's meals (plans, not health data)
+                if (experience !== 'tracking') {
+                    const [today, tomorrow] = await Promise.all([getDayPlan(todayDate), getDayPlan(tomorrowDate)]);
+                    if (!ownsSession() || seq !== refreshSeq.current) return;
+                    setTodayPlan(today);
+                    setTomorrowPlan(tomorrow);
+                }
+                return;
+            }
+            const [today, tomorrow, log, fasting] = await Promise.all([
                 getDayPlan(todayDate),
                 getDayPlan(tomorrowDate),
-                getUserStats(),
                 getDailyLog(todayDate),
                 getFastingState()
             ]);
-            if (seq !== refreshSeq.current) return;
+            if (!ownsSession() || seq !== refreshSeq.current) return;
             // Guidance read state is secondary: don't hold up the rest of the refresh for it
-            getCoachRead().then(setCoachRead);
+            getCoachRead().then(read => { if (ownsSession()) setCoachRead(read); });
 
             setTodayPlan(today);
             setTomorrowPlan(tomorrow);
 
-            // Check for onboarding: if weight history is empty, show wizard
-            // (Assuming DEFAULT_USER_STATS has empty history, and existing users have history)
-            const history = stats.weightHistory || [];
-            setUserStatsState({ ...DEFAULT_USER_STATS, ...stats, weightHistory: history });
+            if (readFrom === setupVersion()) setUserStatsState(normalizeStats(nextSetup.stats));
+            onSetupChange(nextSetup, readFrom);
             // Edited while loading: the local log is newer (and being saved), keep it
-            if (logEdits.current === editsAtStart) setDailyLogState(log);
+            if (logEdits.current === editsAtStart) {setDailyLogState(log);publishFasting(fasting);}
             setLogFresh(true);
-            setFastingState(fasting);
 
-            if (history.length === 0) {
-                setShowOnboarding(true);
-            }
         } catch (error) {
             console.error("Failed to refresh data", error);
         }
-    }, [todayDate, tomorrowDate, setDailyLogState]);
+        // A switch to tracking loads today's log and fasting
+    }, [todayDate, tomorrowDate, setDailyLogState, uid, ownsSession, onSetupChange, setupVersion, experience]);
 
     // Family meals are live: one another member plans or changes shows up on Today straight away,
     // and a new one is pointed out wherever the user is
     const [familyNotice, setFamilyNotice] = useState<FamilyMealChange[] | null>(null);
     const dismissFamilyNotice = useCallback(() => setFamilyNotice(null), []);
     useEffect(() => subscribeFamilyMeals(todayDate, addDays(todayDate, 6), (dinners, added) => {
+        if (!ownsSession()) return;
         const apply = (date: string) => (plan: DayPlan) => (plan.date === date ? withFamilyMeals(plan, dinners[date]) : plan);
         if (dinners[todayDate]) setTodayPlan(apply(todayDate));
         if (dinners[tomorrowDate]) setTomorrowPlan(apply(tomorrowDate));
         if (added.length) setFamilyNotice(added);
-    }), [todayDate, tomorrowDate]);
+    }), [todayDate, tomorrowDate, ownsSession]);
 
     // Family updates from others not seen yet: a dot on the Family tab
     const [familyUnseen, setFamilyUnseen] = useState(0);
@@ -317,23 +390,22 @@ const TrackerApp: React.FC = () => {
     }, [refreshData]); // Re-attach if refreshData changes (it changes when date changes)
 
 
-    // Background SWR Refresh
+    // Health loading only runs inside the resolved tracking branch.
     useEffect(() => {
         const init = async () => {
-            // Only run migration and refresh, no blocking UI
             try {
-                await migrateFromLocalStorage();
                 await refreshData();
             } catch (e) {
                 console.error("Background refresh failed", e);
             }
         };
         init();
-    }, [todayDate, tomorrowDate]);
+    }, [refreshData]);
 
     // Saves stats without touching weight history: Settings, streaks and other
     // non-weigh-in updates must not create a weight entry for today.
     const handleSetCoachRead = (id: string, read: boolean) => {
+        requireSession();
         const next = { ...coachRead };
         if (read) next[id] = localDateString(); else delete next[id];
         setCoachRead(next);
@@ -341,15 +413,20 @@ const TrackerApp: React.FC = () => {
     };
 
     const handleSaveStats = async (newStats: UserStats) => {
+        requireSession();
+        refreshSeq.current++;
+        await saveUserStats(newStats, uid);
+        requireSession();
         setUserStatsState(newStats);
-        await saveUserStats(newStats);
+        onStatsChange(newStats);
     };
 
     // The signed-in user as their family sees them, for the header and the sidebar
-    const me = { uid: currentUid() ?? '', name: userStats.name, avatar: userStats.avatar };
+    const me = { uid, name: userStats.name, avatar: userStats.avatar };
 
     // A real weigh-in: records newStats.currentWeight as today's weight history entry.
     const handleLogWeight = async (newStats: UserStats) => {
+        requireSession();
         const today = localDateString();
         let history = [...(newStats.weightHistory || [])];
         const existingIndex = history.findIndex(h => h.date === today);
@@ -362,17 +439,22 @@ const TrackerApp: React.FC = () => {
         history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         const finalStats = { ...newStats, weightHistory: history };
+        refreshSeq.current++;
+        await saveUserStats(finalStats, uid);
+        requireSession();
         setUserStatsState(finalStats);
-        await saveUserStats(finalStats);
+        onStatsChange(finalStats);
     };
 
     // Small amounts (a coffee, tea with milk) are logged but don't end the fast
     const fastBreakCalories = fastingState.config.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES;
 
-    const handleAddFoodLogItems = async (items: FoodLogItem[]) => {
+    const handleAddFoodLogItems = (items: FoodLogItem[]) => runHealthMutation(async () => {
+        const fastingState=fastingStateRef.current;
+        const fastBreakCalories=fastingState.config.fastBreakCalories??DEFAULT_FAST_BREAK_CALORIES;
         // Items logged together count as one sitting
         if (items.reduce((sum, item) => sum + (item.calories || 0), 0) <= fastBreakCalories) {
-            await updateDailyLog((current) => ({ ...current, items: [...current.items, ...items] }));
+            await writeDailyLog((current) => ({ ...current, items: [...current.items, ...items] }));
             return;
         }
         const now = Date.now();
@@ -386,7 +468,7 @@ const TrackerApp: React.FC = () => {
             }
         }
 
-        await updateDailyLog((current) => ({
+        await writeDailyLog((current) => ({
             ...current,
             items: [...current.items, ...items],
             maxFastingHours: currentFastingMax
@@ -394,7 +476,7 @@ const TrackerApp: React.FC = () => {
 
         // Update TRE tracking - food was just logged (this saves history)
         await updateLastAteTime(now);
-    };
+    });
 
     // Food logged without protein (before protein tracking, or a recipe without it) gets an AI
     // estimate from its name and calories. Each item is tried once per session.
@@ -449,70 +531,6 @@ const TrackerApp: React.FC = () => {
         loadRecentWorkouts();
     };
 
-    /**
-     * Logs planned meals as eaten, each at its own time. The fast ends at the earliest of them and
-     * the last meal becomes the last time eaten, so logging the day in the evening keeps fasts right.
-     */
-    const handleLogMeals = async (entries: { meal: Recipe; at: number }[]) => {
-        if (!entries.length) return;
-        const sorted = [...entries].sort((a, b) => a.at - b.at);
-        // Only meals over the limit end the fast
-        const breaking = sorted.filter(({ meal }) => mealCalories(meal) > fastBreakCalories);
-        const first = breaking[0]?.at;
-        const last = breaking[breaking.length - 1]?.at;
-        let currentFastingMax = dailyLogRef.current.maxFastingHours || 0;
-
-        // Check active fast duration before breaking it
-        if (fastingState.lastAteTime && first !== undefined && first > fastingState.lastAteTime) {
-            const diffHours = (first - fastingState.lastAteTime) / (1000 * 60 * 60);
-            if (diffHours > currentFastingMax && diffHours <= MAX_PLAUSIBLE_FAST_HOURS) {
-                currentFastingMax = diffHours;
-            }
-        }
-
-        const items: FoodLogItem[] = sorted.map(({ meal, at }) => ({
-            id: crypto.randomUUID(),
-            name: meal.name,
-            calories: mealCalories(meal),
-            ...(mealProtein(meal) !== undefined ? { protein: mealProtein(meal) } : {}),
-            timestamp: at,
-            // Persist metadata
-            tags: meal.tags,
-            isLeftover: meal.isLeftover,
-            isPacked: meal.isPacked,
-            type: slotLabel(slotFor(meal)),
-            planInstanceId: mealKey(meal),
-        }));
-        await updateDailyLog((current) => ({ ...current, items: [...(current.items || []), ...items], maxFastingHours: currentFastingMax }));
-
-        // Update TRE tracking: meals logged after the fact may be older than the last time eaten
-        if (first !== undefined && last !== undefined) {
-            await updateLastAteTime(first, Math.max(last, fastingState.lastAteTime || 0));
-        }
-    };
-
-    const handleLogMeal = async (meal: Recipe, isAdding: boolean) => {
-        if (isAdding) {
-            await handleLogMeals([{ meal, at: Date.now() }]);
-            return;
-        }
-        // Use current state instead of fetching fresh to avoid extra DB read
-        const newItems = [...(dailyLogRef.current.items || [])];
-        const key = mealKey(meal);
-        // Entries logged before planInstanceId existed are matched by name and calories
-        const linked = newItems.some(item => item.planInstanceId === key);
-        for (let i = newItems.length - 1; i >= 0; i--) {
-            if (linked ? newItems[i].planInstanceId === key : (newItems[i].name === meal.name && newItems[i].calories === mealCalories(meal))) {
-                newItems.splice(i, 1);
-                // When removing, we don't recalculate maxFastingHours or revert persistence
-                // as the fast WAS broken/achieved at that time.
-                break;
-            }
-        }
-
-        await updateDailyLog((current) => ({ ...current, items: newItems }));
-    };
-
     const handleUpdateWeight = (weight: number) => {
         handleLogWeight({ ...userStats, currentWeight: weight });
     };
@@ -536,6 +554,8 @@ const TrackerApp: React.FC = () => {
 
     /** `timestamp` ends the current fast; `lastAte` (default the same) is the new last time eaten. */
     const updateLastAteTime = async (timestamp: number, lastAte = timestamp) => {
+        requireSession();
+        const fastingState=fastingStateRef.current;
         // Check if we completed a successful fast before eating
         if (fastingState.lastAteTime) {
             const fastDuration = timestamp - fastingState.lastAteTime;
@@ -558,34 +578,246 @@ const TrackerApp: React.FC = () => {
             ...fastingState,
             lastAteTime: lastAte
         };
-        setFastingState(newState);
+        requireSession();
         await saveFastingState(newState);
+        requireSession();
+        publishFasting(newState);
     };
 
-    const handleUpdateFastingConfig = async (config: FastingConfig) => {
+    const handleUpdateFastingConfig = (config: FastingConfig) => runHealthMutation(async () => {
+        requireSession();
         const newState: FastingState = {
-            ...fastingState,
+            ...fastingStateRef.current,
             config
         };
-        setFastingState(newState);
         await saveFastingState(newState);
+        requireSession();
+        publishFasting(newState);
+    });
+
+
+
+    /** Shows a saved change to today's plan at once; a refresh already on its way read the plan before it */
+    const showTodayPlan = (plan: DayPlan) => {
+        refreshSeq.current++;
+        setTodayPlan(plan);
     };
 
-    const handleOnboardingComplete = async (data: OnboardingResult) => {
-        // Safe update: name, weights and targets; current weight is merged into history
-        const updatedStats = {
-            ...userStats,
-            ...data,
-            // Deprecated startWeight: only set if starting fresh
-            startWeight: userStats.weightHistory.length === 0 ? data.currentWeight : userStats.startWeight
+    const publishIntake = (result:CommittedMealIntake) => {
+        requireSession();refreshSeq.current++;logEdits.current++;
+        setDailyLogState(result.log);publishFasting(result.fasting);
+        setTodayPlan(plan=>({...plan,completedMealIds:result.completedMealIds}));
+    };
+
+    // --- Planned meals eaten: the one path for Today (single and batch), eating out, the Planner
+    // and cooking. A meal whose calories aren't fully known (or only budgeted) asks this person for
+    // their amount first; nothing is written until every answer is in, and the personal amounts
+    // stay in their own diary, never on the shared meal or recipe.
+    const todayPlanRef = useRef(todayPlan);
+    todayPlanRef.current = todayPlan;
+    const intakeKeys = useRef(new Set<string>()); // meals with a request in flight
+    const intakeRequest = useRef<{
+        id: string;
+        date: string;
+        entries: PlannedMealIntakeEntry[];
+        answers: Map<string, ResolvedPlannedMealIntake>;
+        queue: string[]; // keys still waiting for an answer, current first
+        total: number;
+        skipped: string[];
+        finish: (result: PlannedMealIntakeResult) => void;
+        onTick?: PlannedIntakeTicks;
+        fail: (error: unknown) => void;
+    } | null>(null);
+    const [intakeAsk, setIntakeAsk] = useState<{ id: string; meal: Recipe; progress?: string; error?: string } | null>(null);
+
+    /** The amount to log without asking: a personal answer given with the request, or a fully known meal */
+    const resolveWithoutAsking = (entry: PlannedMealIntakeEntry): ResolvedPlannedMealIntake | null => {
+        const key = mealKey(entry.meal);
+        if (entry.personal) {
+            return {
+                ...entry, key, calories: Math.round(entry.personal.calories),
+                source: entry.personal.estimated ? 'estimate' : 'manual', caloriesEstimated: entry.personal.estimated,
+                name: entry.personal.name, place: entry.personal.place, dish: entry.personal.dish,
+            };
+        }
+        const nutrition = mealNutrition(entry.meal);
+        if (!nutrition.complete || nutrition.budget) return null;
+        return { ...entry, key, calories: nutrition.knownCalories, source: 'recipe', caloriesEstimated: nutrition.estimated };
+    };
+
+    /** Dishes eaten out join the owner's history once logged, so they can be picked next time */
+    const rememberEatenOut = (entries: ResolvedPlannedMealIntake[], date: string) => {
+        const dishes = entries
+            .map(entry => ({
+                place: entry.place ?? entry.meal.quick?.place ?? '',
+                dish: entry.dish ?? entry.meal.quick?.dish ?? '',
+                calories: entry.calories,
+                protein: entry.personal?.protein ?? entry.meal.protein,
+                remember: !!entry.personal?.place || !!entry.personal?.dish || isRememberableDish(entry.meal),
+            }))
+            .filter(d => d.remember && (d.place || d.dish));
+        if (!dishes.length) return;
+        // One at a time: each write reads the history the last one saved. A failure here can't undo the log
+        (async () => {
+            const { recordEatingOutDish } = await import('./services/storageService');
+            for (const { remember: _remember, ...dish } of dishes) await recordEatingOutDish(dish, date);
+            const [{ ensureWarm }, { eatingOutDishesData }] = await Promise.all([import('./utils/prewarm'), import('./services/pageData')]);
+            await ensureWarm(eatingOutDishesData, true);
+        })().catch(e => console.error('Could not remember the dish', e));
+    };
+
+    /** Writes the answered meals in one owner transaction, then shows them. Throws (keeping the request) on failure */
+    /** Shows ticks at once, before they're saved; `undo` takes back only the ones this added */
+    const showTicks = (keys: string[], ticked: boolean) => {
+        const done = new Set(todayPlanRef.current.completedMealIds);
+        const changed = keys.filter(key => done.has(key) !== ticked);
+        if (!changed.length) return () => {};
+        const apply = (tick: boolean) => {
+            refreshSeq.current++; // a refresh already on its way read the plan before this
+            setTodayPlan(plan => ({
+                ...plan,
+                completedMealIds: tick ? [...new Set([...plan.completedMealIds, ...changed])] : plan.completedMealIds.filter(id => !changed.includes(id)),
+            }));
         };
-
-        // The welcome flow asks for current weight, so record it as a weigh-in
-        await handleLogWeight(updatedStats);
-        setShowOnboarding(false);
+        apply(ticked);
+        return () => apply(!ticked);
     };
 
+    /** Writes the answered meals in one owner transaction. Their ticks show at once and are taken back
+     *  if the save fails (which throws, keeping the request so it can be retried) */
+    const commitIntake = async (request: NonNullable<typeof intakeRequest.current>): Promise<PlannedMealIntakeResult> => {
+        const keys = request.entries.map(entry => mealKey(entry.meal)).filter(key => request.answers.has(key));
+        const undo = showTicks(keys, true);
+        request.onTick?.(keys, true);
+        try {
+            return await saveIntake(request);
+        } catch (error) {
+            undo();
+            request.onTick?.(keys, false);
+            throw error;
+        }
+    };
 
+    const saveIntake = (request: NonNullable<typeof intakeRequest.current>): Promise<PlannedMealIntakeResult> => runHealthMutation(async () => {
+        if (request.date !== todayDate) throw new Error('The day changed. Try again.');
+        const resolved = request.entries
+            .map(entry => request.answers.get(mealKey(entry.meal)))
+            .filter((entry): entry is ResolvedPlannedMealIntake => !!entry);
+        // A meal removed from today's plan meanwhile isn't logged against it
+        const planned = new Set(todayPlanRef.current.meals.map(mealKey));
+        if (resolved.some(entry => !planned.has(entry.key))) throw new Error('Today\'s plan changed. Try again.');
+        if (!resolved.length) return { status: 'saved', loggedKeys: [], skippedKeys: request.skipped, items: [] };
+        const committed = await commitPlannedMealIntake(uid, request.date, resolved);
+        publishIntake(committed);
+        rememberEatenOut(resolved, request.date);
+        return { status: 'saved', loggedKeys: resolved.map(entry => entry.key), skippedKeys: request.skipped, items: committed.items };
+    });
+
+    const endIntakeRequest = (request: NonNullable<typeof intakeRequest.current>) => {
+        request.entries.forEach(entry => intakeKeys.current.delete(mealKey(entry.meal)));
+        if (intakeRequest.current === request) intakeRequest.current = null;
+        setIntakeAsk(current => (current?.id === request.id ? null : current));
+    };
+
+    /** Shows the next meal to answer, or commits once none are left */
+    const advanceIntake = async (request: NonNullable<typeof intakeRequest.current>) => {
+        const key = request.queue[0];
+        if (key) {
+            const entry = request.entries.find(e => mealKey(e.meal) === key)!;
+            const progress = request.total > 1 ? `${request.total - request.queue.length + 1} of ${request.total}` : undefined;
+            setIntakeAsk({ id: request.id, meal: entry.meal, progress });
+            return;
+        }
+        const result = await commitIntake(request);
+        endIntakeRequest(request);
+        request.finish(result);
+    };
+
+    const handleRequestPlannedIntake = (entries: PlannedMealIntakeEntry[], onTick?: PlannedIntakeTicks): Promise<PlannedMealIntakeResult> => {
+        requireSession();
+        if (!entries.length) return Promise.resolve({ status: 'saved', loggedKeys: [], skippedKeys: [], items: [] });
+        assertUniqueMealKeys(entries.map(entry => entry.meal));
+        const keys = entries.map(entry => mealKey(entry.meal));
+        // A second tap while the first is still asking or saving does nothing
+        if (intakeRequest.current || keys.some(key => intakeKeys.current.has(key))) return Promise.resolve({ status: 'cancelled' });
+        keys.forEach(key => intakeKeys.current.add(key));
+        return new Promise<PlannedMealIntakeResult>((finish, fail) => {
+            const answers = new Map<string, ResolvedPlannedMealIntake>();
+            const queue: string[] = [];
+            for (const entry of entries) {
+                const resolved = resolveWithoutAsking(entry);
+                if (resolved) answers.set(resolved.key, resolved);
+                else queue.push(mealKey(entry.meal));
+            }
+            const request = { id: crypto.randomUUID(), date: todayDate, entries, answers, queue, total: queue.length, skipped: [] as string[], finish, fail, onTick };
+            intakeRequest.current = request;
+            advanceIntake(request).catch(error => {
+                // Nothing to ask and the save failed: hand the error to the caller
+                endIntakeRequest(request);
+                fail(error);
+            });
+        });
+    };
+
+    /** The answer for the meal being asked about. The last one commits; its failure keeps the sheet open to retry */
+    const answerIntake = async (calories: number, estimated: boolean) => {
+        const request = intakeRequest.current;
+        const key = request?.queue[0];
+        if (!request || !key) return;
+        const entry = request.entries.find(e => mealKey(e.meal) === key)!;
+        request.answers.set(key, { ...entry, key, calories, source: estimated ? 'estimate' : 'manual', caloriesEstimated: estimated });
+        if (request.queue.length > 1) {
+            request.queue = request.queue.slice(1);
+            await advanceIntake(request);
+            return;
+        }
+        try {
+            request.queue = [];
+            await advanceIntake(request);
+        } catch (error) {
+            request.queue = [key]; // ask again on retry; the answer is kept in the sheet
+            throw error;
+        }
+    };
+
+    const skipIntake = () => {
+        const request = intakeRequest.current;
+        const key = request?.queue[0];
+        if (!request || !key) return;
+        request.skipped.push(key);
+        request.answers.delete(key);
+        request.queue = request.queue.slice(1);
+        advanceIntake(request).catch(error => {
+            // Saving the other meals failed: stay on this one so it can be answered or skipped again
+            request.skipped = request.skipped.filter(k => k !== key);
+            request.queue = [key];
+            const entry = request.entries.find(e => mealKey(e.meal) === key)!;
+            setIntakeAsk({ id: request.id, meal: entry.meal, error: error instanceof Error ? error.message : "Couldn't save. Try again." });
+        });
+    };
+
+    const cancelIntake = useCallback(() => {
+        const request = intakeRequest.current;
+        if (!request) return;
+        endIntakeRequest(request);
+        request.finish({ status: 'cancelled' });
+    }, []);
+
+    // A new day, another page or leaving the app drops an unanswered request without writing anything
+    useEffect(() => cancelIntake, [todayDate, view, cancelIntake]);
+
+    /** Unticks at once; the tick comes back if removing the entry fails */
+    const handleRemovePlannedIntake = async (meal: Recipe) => {
+        const undo = showTicks([mealKey(meal)], false);
+        try {
+            await runHealthMutation(async () => {
+                publishIntake(await removePlannedMealIntake(uid, todayDate, meal));
+            });
+        } catch (error) {
+            undo();
+            throw error;
+        }
+    };
 
     // SettingsModal moved to separate component SettingsView.tsx
 
@@ -599,63 +831,25 @@ const TrackerApp: React.FC = () => {
         onUpdateStats: handleSaveStats,
         coachRead,
         onSetCoachRead: handleSetCoachRead,
-        onLogMeal: handleLogMeal,
-        onLogMeals: handleLogMeals,
-        onPlanChange: showTodayPlan,
+        onRequestPlannedIntake: handleRequestPlannedIntake,
+        onRemovePlannedIntake: handleRemovePlannedIntake,
         onSetDayStatus: (status: DayLogStatus | undefined) => updateDailyLog(current => ({ ...current, status })),
         onAddFoodLogItems: handleAddFoodLogItems,
-        onUpdateFoodItem: async (item: FoodLogItem) => {
-            const updatedLog = await updateDailyLog((current) => ({
-                ...current,
-                items: current.items.map(i => i.id === item.id ? item : i)
-            }));
-
-            // Update lastAteTime to the latest food item time
-            if (updatedLog.items.length > 0) {
-                const latestItem = updatedLog.items.reduce((prev, current) =>
-                    (prev.timestamp > current.timestamp) ? prev : current
-                );
-
-                const newState: FastingState = {
-                    ...fastingState,
-                    lastAteTime: latestItem.timestamp
-                };
-                setFastingState(newState);
-                await saveFastingState(newState);
+        onUpdateFoodItem: (item:FoodLogItem) => runHealthMutation(async()=>{
+            if(item.planInstanceId) {publishIntake(await updatePlannedMealIntake(uid,todayDate,item));return;}
+            await writeDailyLog(current=>({...current,items:current.items.map(i=>i.id===item.id?item:i)}));
+            if(item.calories>(fastingStateRef.current.config.fastBreakCalories??DEFAULT_FAST_BREAK_CALORIES) && item.timestamp>(fastingStateRef.current.lastAteTime??0)) {
+                const next={...fastingStateRef.current,lastAteTime:item.timestamp};await saveFastingState(next);requireSession();publishFasting(next);
             }
-        },
-        /** Undo of a delete: puts the entry back as it was, without counting it as eating now */
-        onRestoreFoodItem: async (item: FoodLogItem) => {
-            await updateDailyLog((current) => ({ ...current, items: [...current.items, item] }));
-            if (item.timestamp > (fastingState.lastAteTime || 0)) {
-                const newState: FastingState = { ...fastingState, lastAteTime: item.timestamp };
-                setFastingState(newState);
-                await saveFastingState(newState);
-            }
-        },
-        onDeleteFoodItem: async (itemId: string) => {
-            const updatedLog = await updateDailyLog((current) => ({
-                ...current,
-                items: current.items.filter(i => i.id !== itemId)
-            }));
-
-            // Update lastAteTime to the latest food item time (if any remain)
-            // If no items remain today, we technically don't know the *previous* lastAteTime (yesterday),
-            // so we leave it as is, or we could fetch yesterday's log. 
-            // For now, updating to latest of today if exists is a partial fix.
-            if (updatedLog.items.length > 0) {
-                const latestItem = updatedLog.items.reduce((prev, current) =>
-                    (prev.timestamp > current.timestamp) ? prev : current
-                );
-
-                const newState: FastingState = {
-                    ...fastingState,
-                    lastAteTime: latestItem.timestamp
-                };
-                setFastingState(newState);
-                await saveFastingState(newState);
-            }
-        },
+        }),
+        onRestoreFoodItem: (item:FoodLogItem) => runHealthMutation(async()=>{
+            if(item.planInstanceId) {publishIntake(await restorePlannedMealIntake(uid,todayDate,item));return;}
+            await writeDailyLog(current=>({...current,items:current.items.some(i=>i.id===item.id)?current.items:[...current.items,item]}));
+        }),
+        onDeleteFoodItem: (itemId:string) => runHealthMutation(async()=>{
+            if(dailyLogRef.current.items.find(i=>i.id===itemId)?.planInstanceId) {publishIntake(await deletePlannedMealIntake(uid,todayDate,itemId));return;}
+            await writeDailyLog(current=>({...current,items:current.items.filter(i=>i.id!==itemId)}));
+        }),
         onAddWorkout: handleAddWorkout,
         onUpdateWorkout: handleUpdateWorkout,
         onDeleteWorkout: handleDeleteWorkout,
@@ -683,6 +877,11 @@ const TrackerApp: React.FC = () => {
 
     /** Today's subtitle: the greeting plus where the day stands. The next meal is the highlighted row on Today's plate */
     const getTodayLine = (greeting: string) => {
+        // Plan meals has no ticks or fast days: just whether anything is planned
+        if (!tracking) {
+            const count = todayPlan.meals.length;
+            return [greeting, count ? `${count} meal${count === 1 ? '' : 's'} planned` : 'nothing planned yet'].join(' · ');
+        }
         const status = todayPlan.meals.length === 0
             ? 'nothing planned yet'
             : nextMealIndex(todayPlan) === undefined
@@ -702,12 +901,14 @@ const TrackerApp: React.FC = () => {
             case AppView.ANALYTICS:
                 return { title: 'Analytics' };
             case AppView.PLANNER:
-            case AppView.SHOPPING:
                 return { title: 'Planner' };
             case AppView.RECIPES:
                 return { title: 'Recipes' };
             case AppView.FAMILY:
                 return { title: 'Family' };
+            case AppView.SHOPPING:
+                // Tracking keeps the list under Family's tabs; Plan meals has it as its own page
+                return { title: tracking ? 'Family' : 'Shopping' };
             case AppView.SETTINGS:
                 return { title: 'Settings' };
             default:
@@ -720,10 +921,10 @@ const TrackerApp: React.FC = () => {
     // Every page lives in an Activity: hidden pages are pre-rendered in the background (once the app
     // is idle after launch) and keep their state, but their effects pause and they don't re-render,
     // so switching is instant. Effects re-run when a page is shown again, which quietly refreshes its data.
-    // The planner's week of seven columns gets more room on big screens than the other pages. Shopping
-    // shares its tabs, so it gets the same page (its list keeps the usual width) and the tabs stay put
+    // The planner's seven day columns get more room on big screens. The family's pages share
+    // the usual width, so their tabs and content stay aligned when switching to the shopping list.
     const pageWidth = (target: AppView) =>
-        (target === AppView.PLANNER || target === AppView.SHOPPING ? 'max-w-[100rem]' : 'max-w-6xl');
+        (target === AppView.PLANNER ? 'max-w-[100rem]' : 'max-w-6xl');
     const renderView = (target: AppView, content: React.ReactNode) => (
         (prerenderPages || target === view || visitedViews.has(target)) &&
         <Activity key={target} mode={view === target ? 'visible' : 'hidden'}>
@@ -737,18 +938,9 @@ const TrackerApp: React.FC = () => {
 
     return (
         <div className="min-h-screen md:flex font-sans">
-            {showOnboarding && (
-                <OnboardingWizard
-                    stats={userStats}
-                    onComplete={handleOnboardingComplete}
-                    // Only optional once there's a first weigh-in
-                    onCancel={userStats.weightHistory.length > 0 ? () => setShowOnboarding(false) : undefined}
-                />
-            )}
-
 
             {/* Sidebar and header: who's signed in, as their family sees them */}
-            <Sidebar currentView={view} onNavigate={handleNavigate} me={me} familyUnseen={familyUnseen} />
+            <Sidebar currentView={view} onNavigate={handleNavigate} me={me} familyUnseen={familyUnseen} experience={experience} />
 
             {/* Main Content Wrapper */}
             <div className="w-full nav:pl-[calc(var(--nav-inset-left)+76px)] nav:lg:pl-[calc(var(--nav-inset-left)+228px)] nav:pr-[env(safe-area-inset-right)]">
@@ -763,25 +955,28 @@ const TrackerApp: React.FC = () => {
                             me={me}
                             isSettings={view === AppView.SETTINGS}
                         />
-                        {(view === AppView.PLANNER || view === AppView.SHOPPING) && (
-                            <PlannerTabs currentView={view} onNavigate={handleNavigate} />
+                        {tracking && (view === AppView.FAMILY || view === AppView.SHOPPING) && (
+                            <FamilyTabs currentView={view} onNavigate={handleNavigate} />
                         )}
                     </div>
                     {/* Views switch instantly (no cross-fade). Each has its own Suspense so a
                         loading view never blanks the page; lazy chunks are prefetched at start-up. */}
-                    {renderView(AppView.TODAY, <TrackToday {...trackProps} />)}
-                    {renderView(AppView.ANALYTICS, <TrackAnalytics {...trackProps} />)}
-                    {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} onLogMeal={meal => handleLogMeal(meal, true)} />)}
-                    {renderView(AppView.RECIPES, <RecipeLibrary />)}
-                    {renderView(AppView.SHOPPING, <div className="max-w-6xl"><ShoppingList /></div>)}
-                    {renderView(AppView.FAMILY, <FamilyView myAvatar={userStats.avatar} onSaveAvatar={avatar => handleSaveStats({ ...userStats, avatar })} />)}
+                    {renderView(AppView.TODAY, tracking
+                        ? <TrackToday {...trackProps} />
+                        : <PlanToday uid={uid} todayPlan={todayPlan} tomorrowPlan={tomorrowPlan} onPlanChange={showTodayPlan} refreshData={refreshData} onNavigate={handleNavigate} />)}
+                    {tracking && renderView(AppView.ANALYTICS, <TrackAnalytics {...trackProps} />)}
+                    {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} experience={experience} onRequestPlannedIntake={tracking ? handleRequestPlannedIntake : undefined} />)}
+                    {renderView(AppView.RECIPES, <RecipeLibrary experience={experience} />)}
+                    {renderView(AppView.SHOPPING, <ShoppingList />)}
+                    {renderView(AppView.FAMILY, <FamilyView myAvatar={userStats.avatar} onSaveAvatar={avatar => tracking ? handleSaveStats({ ...userStats, avatar }) : onSavePlanningAvatar(avatar)} />)}
                     {renderView(AppView.SETTINGS, (
                         <SettingsView
                             stats={userStats}
-                            onUpdateStats={handleSaveStats}
+                            onUpdateStats={tracking ? handleSaveStats : rejectTrackingChange}
                             fastingConfig={fastingState.config}
-                            onUpdateFastingConfig={handleUpdateFastingConfig}
-                            onTestOnboarding={() => setShowOnboarding(true)}
+                            onUpdateFastingConfig={tracking ? handleUpdateFastingConfig : rejectTrackingChange}
+                            onTestOnboarding={onTestOnboarding}
+                            experienceSettings={experienceSettings}
                             onRefreshData={refreshData}
                             themePreference={theme.preference}
                             onChangeTheme={theme.setPreference}
@@ -795,6 +990,7 @@ const TrackerApp: React.FC = () => {
                     currentView={view}
                     onNavigate={handleNavigate}
                     familyUnseen={familyUnseen}
+                    experience={experience}
                 />
 
                 {/* Global Modals */}
@@ -816,6 +1012,20 @@ const TrackerApp: React.FC = () => {
                     recentWorkouts={recentWorkouts}
                 />
 
+                {/* Calories for planned meals eaten without known nutrition, from any page */}
+                {intakeAsk && (
+                    <MealCaloriesSheet
+                        key={`${intakeAsk.id}:${mealKey(intakeAsk.meal)}`}
+                        meal={intakeAsk.meal}
+                        requestId={intakeAsk.id}
+                        progress={intakeAsk.progress}
+                        error={intakeAsk.error}
+                        onSave={answerIntake}
+                        onSkip={skipIntake}
+                        onClose={cancelIntake}
+                    />
+                )}
+
                 <WeightEntryModal
                     isOpen={isWeightModalOpen}
                     onClose={() => setIsWeightModalOpen(false)}
@@ -836,12 +1046,160 @@ const TrackerApp: React.FC = () => {
     );
 };
 
+type SetupState = { status: 'loading'; uid: string } | { status: 'error'; uid: string; message: string }
+    | { status: 'ready'; uid: string; snapshot: UserSetupSnapshot };
+
+/** This boundary owns setup state; unresolved accounts never mount tracker effects. */
+const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
+    const { logout } = useAuth();
+    const { isFeatureEnabled } = useDevMode();
+    const allowChoice = isFeatureEnabled('enableMealPlanningSetup');
+    // A returning user opens straight from the last confirmed setup; the server confirms it after
+    const [state, setState] = useState<SetupState>(() => {
+        const cached = cache.getCachedUserSetup(uid);
+        return cached ? { status: 'ready', uid, snapshot: cached } : { status: 'loading', uid };
+    });
+    const [retry, setRetry] = useState(0);
+    const [wizard, setWizard] = useState<{ intent: 'switch' | 'rerun'; experience: UserExperience; id: number } | null>(null);
+    const wizardId = useRef(0);
+    const epoch = useRef(0);
+    const alive = useRef(true);
+    const ownsSession = useCallback(() => alive.current && currentUid() === uid, [uid]);
+    const applySetup = useCallback((snapshot: UserSetupSnapshot) => {
+        if (!ownsSession() || snapshot.uid !== uid) return;
+        cache.saveCachedUserSetup(snapshot);
+        setState({ status: 'ready', uid, snapshot });
+    }, [uid, ownsSession]);
+    // A refresh that read the setup before a change here (a switch, a name) would put the old one
+    // back, even if it lands after the change has saved: only a read started since then applies.
+    // `epoch` counts those changes; a switch also counts when its save ends.
+    const switching = useRef(0);
+    const setupVersion = useCallback(() => epoch.current, []);
+    const applyRefreshedSetup = useCallback((snapshot: UserSetupSnapshot, readFrom: number) => {
+        if (switching.current === 0 && readFrom === epoch.current) applySetup(snapshot);
+    }, [applySetup]);
+    const applyStats = useCallback((stats: UserStats) => {
+        if (!ownsSession()) return;
+        setState(current => {
+            if (current.status !== 'ready') return current;
+            const snapshot = { ...current.snapshot, stats };
+            cache.saveCachedUserSetup(snapshot);
+            return { ...current, snapshot };
+        });
+    }, [ownsSession]);
+
+    useEffect(() => {
+        alive.current = true;
+        const request = ++epoch.current;
+        setState(current => current.status === 'error' ? { status: 'loading', uid } : current); // Retry
+        // Firebase may still be restoring the session (AuthGuard opens from the cache meanwhile);
+        // the setup is read as the confirmed user. A different user remounts this with their uid.
+        auth.authStateReady()
+            .then(() => {
+                if (request !== epoch.current || auth.currentUser?.uid !== uid) return;
+                return getUserSetup(uid).then(snapshot => {
+                    if (request === epoch.current) applySetup(snapshot);
+                });
+            })
+            .catch(error => {
+                if (request !== epoch.current || !ownsSession()) return;
+                // Offline or slow: keep using the cached setup if there is one
+                setState(current => current.status === 'ready'
+                    ? current
+                    : { status: 'error', uid, message: error instanceof Error ? error.message : 'Your setup could not be loaded. Try again.' });
+                console.warn('Could not confirm the setup', error);
+            });
+        return () => { alive.current = false; epoch.current++; clearWarm(); };
+    }, [uid, retry, applySetup, ownsSession]);
+
+    if (state.status === 'loading') return <main className="min-h-screen bg-background p-6"><p role="status" className="text-muted">Loading your setup…</p></main>;
+    if (state.status === 'error') return <main className="min-h-screen bg-background p-6"><div className="card p-6 max-w-md mx-auto space-y-4">
+        <h1 className="heading-2">Let’s reconnect</h1><p role="alert" className="text-error">{state.message}</p>
+        <div className="flex flex-wrap gap-3"><button className="btn-primary" onClick={() => setRetry(value => value + 1)}>Retry</button>
+            <button className="btn-secondary" onClick={() => void logout()}>Sign out</button></div>
+    </div></main>;
+
+    const setup = state.snapshot;
+    const preferences = setup.preferences;
+    const required = !preferences?.profileSetupComplete || (preferences.experience === 'tracking' && !preferences.trackingSetupComplete);
+    const openWizard = (intent: 'switch' | 'rerun', experience: UserExperience) => {
+        setWizard({ intent, experience, id: ++wizardId.current });
+    };
+    const ensureSession = () => { if (!ownsSession()) throw new Error('Your account changed. Reload and try again.'); };
+    const onComplete = async (data: OnboardingResult) => {
+        ensureSession();
+        const request = ++epoch.current;
+        const next = await completeUserSetup(uid, data, localDateString());
+        ensureSession();
+        if (request === epoch.current) { applySetup(next); setWizard(null); }
+    };
+    const experienceSettings: ExperienceSettings | undefined = preferences ? {
+        preferences,
+        // The switch shows at once and saves behind it; a failed save switches back and says so.
+        // An experience that still needs setting up opens its setup instead.
+        onChange: async experience => {
+            ensureSession();
+            if (!preferences.profileSetupComplete || (experience === 'tracking' && !preferences.trackingSetupComplete)) {
+                openWizard('switch', experience);
+                return { status: 'setup-required' };
+            }
+            const request = ++epoch.current;
+            const before = setup;
+            switching.current++;
+            applySetup({ ...setup, preferences: { ...preferences, experience } });
+            try {
+                const next = await saveUserExperience(uid, experience);
+                ensureSession();
+                if (request === epoch.current) applySetup(next);
+                return { status: 'saved' };
+            } catch (error) {
+                if (request === epoch.current) applySetup(before);
+                if (error instanceof UserSetupRequiredError) {
+                    ensureSession();
+                    if (request === epoch.current) openWizard('switch', experience);
+                    return { status: 'setup-required' };
+                }
+                throw error;
+            } finally {
+                switching.current--;
+                epoch.current++;
+            }
+        },
+        onSaveName: async name => {
+            ensureSession();
+            const request = ++epoch.current;
+            const next = await saveUserProfileName(uid, name);
+            ensureSession();
+            if (request === epoch.current) applySetup(next);
+        },
+    } : undefined;
+    const rerun = () => openWizard('rerun', preferences?.experience ?? 'tracking');
+    const activeWizard = wizard ?? (required ? { intent: 'required' as const, experience: preferences?.experience, id: 0 } : null);
+
+    return <>
+        {!required && experienceSettings && (
+            <TrackerApp uid={uid} setup={setup} onSetupChange={applyRefreshedSetup} setupVersion={setupVersion} onStatsChange={applyStats} experienceSettings={experienceSettings} onTestOnboarding={rerun}
+                onSavePlanningAvatar={async avatar => {
+                    ensureSession();
+                    const request = ++epoch.current;
+                    const next = await saveUserProfileAvatar(uid, avatar);
+                    ensureSession();
+                    if (request === epoch.current) applySetup(next);
+                }} />
+        )}
+        {activeWizard && <OnboardingWizard key={`${uid}:${activeWizard.intent}:${activeWizard.id}`}
+            stats={setup.stats ?? undefined} initialExperience={activeWizard.experience} allowExperienceChoice={allowChoice}
+            intent={activeWizard.intent} onComplete={onComplete}
+            onCancel={activeWizard.intent === 'required' ? undefined : () => setWizard(null)} />}
+    </>;
+};
+
 const AuthGuard: React.FC = () => {
+    // While Firebase restores the session (over the network, which can take seconds) uid is the
+    // previous session's. A returning user with a cached setup gets the app straight away; data
+    // calls wait for auth inside Firestore. Anyone else keeps the splash until auth is known.
     const { uid, loading } = useAuth();
-    // Firebase restores the session over the network, which can take seconds on a slow
-    // connection. A returning user gets the app straight away, drawn from the local cache
-    // (data calls wait for auth inside Firestore); anyone else sees the splash until then.
-    const ready = !loading || !!uid;
+    const ready = !loading || (!!uid && cache.getCachedUserSetup(uid) !== null);
 
     useEffect(() => {
         if (!ready) return;
@@ -860,7 +1218,7 @@ const AuthGuard: React.FC = () => {
         return <LoginScreen />;
     }
 
-    return <TrackerApp />;
+    return <AccountApp key={uid} uid={uid} />;
 };
 
 import { ReloadPrompt } from './components/ReloadPrompt';

@@ -4,6 +4,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import { dueEatingOutNudges, StoredDay } from './eatingOut.js';
+import { reminderMode } from './reminderMode.js';
 import webpush, { PushSubscription, WebPushError } from 'web-push';
 
 const VAPID_PUBLIC_KEY = defineString('VAPID_PUBLIC_KEY');
@@ -74,7 +75,8 @@ const sendToAll = async (uid: string, subscriptions: PushSubscription[], payload
 /**
  * Every 15 minutes: evening log reminders (only when nothing is logged that day), weigh-in
  * reminders on the chosen days (only when there's no weigh-in yet that day) and a check-in after
- * each eating-out meal that isn't logged.
+ * each eating-out meal that isn't logged. All three are about tracking: for someone on Plan meals
+ * (see reminderMode) they're marked as handled when due but not sent.
  */
 export const sendReminders = onSchedule(
   { schedule: 'every 15 minutes', region: REGION, secrets: [VAPID_PRIVATE_KEY], timeoutSeconds: 120, maxInstances: 1 },
@@ -95,10 +97,18 @@ export const sendReminders = onSchedule(
       }
 
       try {
+        const preferences = await db.doc(`users/${uid}/data/preferences`).get();
+        const mode = reminderMode(preferences.data());
+        if (mode === 'skip') {
+          logger.warn('Reminders skipped: unreadable experience preference', { uid });
+          continue;
+        }
+        const sending = mode === 'send';
+
         if (r.log?.enabled && isDue(r.log.time, now.minutes, r.lastSent?.log, now.date)) {
-          const log = await db.doc(`users/${uid}/logs/${now.date}`).get();
-          const items = (log.data()?.items as unknown[] | undefined) ?? [];
-          if (items.length === 0) {
+          const log = sending ? await db.doc(`users/${uid}/logs/${now.date}`).get() : undefined;
+          const items = (log?.data()?.items as unknown[] | undefined) ?? [];
+          if (sending && items.length === 0) {
             await sendToAll(uid, r.subscriptions, {
               title: 'Nothing logged today',
               body: 'Add what you ate so today counts towards your personal target.',
@@ -111,9 +121,9 @@ export const sendReminders = onSchedule(
         }
 
         if (r.weighIn?.enabled && r.weighIn.days?.includes(now.weekday) && isDue(r.weighIn.time, now.minutes, r.lastSent?.weighIn, now.date)) {
-          const stats = await db.doc(`users/${uid}/data/stats`).get();
-          const history = (stats.data()?.weightHistory as { date: string }[] | undefined) ?? [];
-          if (!history.some(e => e.date === now.date)) {
+          const stats = sending ? await db.doc(`users/${uid}/data/stats`).get() : undefined;
+          const history = (stats?.data()?.weightHistory as { date: string }[] | undefined) ?? [];
+          if (sending && !history.some(e => e.date === now.date)) {
             await sendToAll(uid, r.subscriptions, {
               title: 'Time to weigh in',
               body: 'Before breakfast is best. Regular weigh-ins keep your trend accurate.',
@@ -129,7 +139,7 @@ export const sendReminders = onSchedule(
           const delay = Math.min(Math.max(r.eatingOut.delayMinutes || 90, 30), 240);
           const dayDoc = await db.doc(`users/${uid}/days/${now.date}`).get();
           const due = dueEatingOutNudges(dayDoc.data() as StoredDay | undefined, now.minutes, delay, sent, GRACE_MINUTES);
-          for (const nudge of due) {
+          for (const nudge of sending ? due : []) {
             await sendToAll(uid, r.subscriptions, {
               title: nudge.title,
               body: nudge.body,
@@ -137,7 +147,8 @@ export const sendReminders = onSchedule(
               tag: `eating-out-${nudge.instanceId}`,
             });
           }
-          // Recorded even if the push didn't arrive, so a dead subscription isn't retried every 15 minutes
+          // Recorded even if the push didn't arrive (or, on Plan meals, wasn't sent), so a dead
+          // subscription isn't retried every 15 minutes and a switch back doesn't send a backlog
           if (due.length) await doc.ref.update({ 'lastSent.eatingOut': { date: now.date, ids: [...sent, ...due.map(n => n.instanceId)] } });
         }
       } catch (e) {

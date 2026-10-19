@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ThemePreference } from '../hooks/useTheme';
-import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit } from '../types';
+import { UserStats, FastingConfig, FastingProtocol, WorkoutCalorieCredit, UserPreferences, UserExperience, UserExperienceChangeResult } from '../types';
 import { proteinTarget } from '../utils/planUtils';
-import { BellRing, Check, CircleAlert, Code, Copy, CloudUpload, Database, Download, Droplet, Egg, Gauge, LogOut, Pencil, PlayCircle, RefreshCw, Scale, Store, SunMoon, Target, Timer, Upload, UserRound } from 'lucide-react';
+import { BellRing, Check, CircleAlert, Code, Compass, Copy, CloudUpload, Database, Download, Droplet, Egg, Gauge, LogOut, Pencil, PlayCircle, RefreshCw, Scale, Store, SunMoon, Target, Timer, Upload, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ReminderSettings } from './ReminderSettings';
 import { EatingOutHistorySettings } from './EatingOutHistorySettings';
@@ -15,6 +15,8 @@ import { SelectionPill } from './SelectionPill';
 import { MemberAvatar } from './MemberAvatar';
 import { ConfirmSheet } from './ConfirmSheet';
 import { Switch } from './Switch';
+import { ExperienceChoice } from './ExperienceChoice';
+import { currentUid } from '../services/firebase';
 
 const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label: string }[] = [
     { id: '12:12', hours: 12, label: 'Gentle' },
@@ -26,13 +28,18 @@ const PROTOCOLS: { id: Exclude<FastingProtocol, 'custom'>; hours: number; label:
 
 interface SettingsViewProps {
     stats: UserStats;
-    onUpdateStats: (stats: UserStats) => void;
+    onUpdateStats: (stats: UserStats) => Promise<void>;
     fastingConfig: FastingConfig;
     onUpdateFastingConfig: (config: FastingConfig) => Promise<void>;
     onTestOnboarding: () => void;
     onRefreshData?: () => Promise<void>;
     themePreference: ThemePreference;
     onChangeTheme: (theme: ThemePreference) => void;
+    experienceSettings?: {
+        preferences: UserPreferences;
+        onChange: (experience: UserExperience) => Promise<UserExperienceChangeResult>;
+        onSaveName: (name: string) => Promise<void>;
+    };
 }
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -68,7 +75,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onRefreshData,
     themePreference,
     onChangeTheme,
+    experienceSettings,
 }) => {
+    const isPlanning = experienceSettings?.preferences.experience === 'planning';
 
     // Form fields are kept as strings so a field can be cleared while typing
     const toForm = (st: UserStats, fc: FastingConfig) => ({
@@ -83,12 +92,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     });
     const [form, setForm] = useState(() => toForm(stats, fastingConfig));
     const [protocol, setProtocol] = useState<FastingProtocol>(fastingConfig.protocol);
-    const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [experienceBusy, setExperienceBusy] = useState(false);
+    const [experienceMessage, setExperienceMessage] = useState<string | null>(null);
+    const [experienceError, setExperienceError] = useState<string | null>(null);
+    const modeOperation = useRef(false);
+    const mounted = useRef(true);
     const [dataStatus, setDataStatus] = useState<string | null>(null);
     const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
     const [showDebug, setShowDebug] = useState(false);
     const { isDevMode, featureFlags, toggleFeatureFlag, resetFlags } = useDevMode();
-    const { user, logout } = useAuth();
+    const { user, uid: sessionUid, logout } = useAuth();
+    // Settings can render before Firebase has restored the session (the app opens from the cache), so
+    // the owner is the expected uid, as App's own checks use; a different account remounts the app
+    const ownerUid = useRef(sessionUid).current;
+    const ownsSession = () => !!ownerUid && currentUid() === ownerUid;
     const [hasCopiedId, setHasCopiedId] = useState(false);
     // The action waiting on its confirmation sheet (a backup to restore carries its file)
     const [confirming, setConfirming] = useState<'logout' | 'sync' | { restore: File } | null>(null);
@@ -135,27 +154,88 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     // Goals save themselves, like Appearance: shortly after the last change, or straight away when
     // the page is left (hidden pages pause, and coming back reloads the saved values)
     const pendingSave = useRef(false);
+    const saveInFlight = useRef<Promise<void> | null>(null);
     const save = async () => {
-        pendingSave.current = false;
-        setSaveState('saving');
-        onUpdateStats(toStats(form));
-        const fasting = toFasting(form, protocol);
-        if (fasting.protocol !== fastingConfig.protocol || fasting.fastBreakCalories !== (fastingConfig.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES)) {
-            await onUpdateFastingConfig(fasting);
+        if (saveInFlight.current) return saveInFlight.current;
+        if (isPlanning || hasErrors || !pendingSave.current) return;
+        if (!ownsSession()) throw new Error('Your account changed. Reload and try again.');
+        if (mounted.current) { setSaveState('saving'); setSaveError(null); }
+        const operation = (async () => {
+            await onUpdateStats(toStats(form));
+            if (!ownsSession()) throw new Error('Your account changed. Reload and try again.');
+            const fasting = toFasting(form, protocol);
+            if (fasting.protocol !== fastingConfig.protocol || fasting.fastBreakCalories !== (fastingConfig.fastBreakCalories ?? DEFAULT_FAST_BREAK_CALORIES)) {
+                await onUpdateFastingConfig(fasting);
+            }
+            pendingSave.current = false;
+        })();
+        saveInFlight.current = operation;
+        try {
+            await operation;
+            if (mounted.current && ownsSession()) {
+                setSaveState('saved');
+                setTimeout(() => { if (mounted.current && ownsSession()) setSaveState(s => s === 'saved' ? 'idle' : s); }, 2500);
+            }
+        } catch (error) {
+            if (mounted.current && ownsSession()) {
+                setSaveState('error');
+                setSaveError(error instanceof Error ? error.message : 'Your changes could not be saved. Try again.');
+            }
+            throw error;
+        } finally {
+            if (saveInFlight.current === operation) saveInFlight.current = null;
         }
-        setSaveState('saved');
-        setTimeout(() => setSaveState(s => (s === 'saved' ? 'idle' : s)), 2500);
     };
     const saveRef = useRef(save);
     saveRef.current = save;
 
     useEffect(() => {
-        pendingSave.current = isDirty && !hasErrors;
+        pendingSave.current = !isPlanning && isDirty && !hasErrors;
         if (!pendingSave.current) return;
-        const timer = setTimeout(() => saveRef.current(), 800);
+        const timer = setTimeout(() => { if (ownsSession()) void saveRef.current().catch(() => {}); }, 800);
         return () => clearTimeout(timer);
-    }, [form, protocol]);
-    useEffect(() => () => { if (pendingSave.current) saveRef.current(); }, []);
+    }, [form, protocol, isPlanning]);
+    useEffect(() => {
+        mounted.current = true;
+        if (!saveInFlight.current) setSaveState('idle');
+        return () => {
+            mounted.current = false;
+            if (pendingSave.current && ownsSession()) void saveRef.current().catch(() => {});
+        };
+    }, [ownerUid]);
+
+    const changeExperience = async (experience: UserExperience) => {
+        if (!experienceSettings || modeOperation.current) return;
+        modeOperation.current = true;
+        setExperienceBusy(true); setExperienceError(null); setExperienceMessage(null);
+        try {
+            if (!ownsSession()) throw new Error('Your account changed. Reload and try again.');
+            if (saveInFlight.current || (!isPlanning && pendingSave.current && !hasErrors)) await saveRef.current();
+            if (!ownsSession()) throw new Error('Your account changed. Reload and try again.');
+            const result = await experienceSettings.onChange(experience);
+            if (mounted.current && ownsSession()) setExperienceMessage(result.status === 'saved' ? 'Saved' : null);
+        } catch (error) {
+            if (mounted.current && ownsSession()) setExperienceError(error instanceof Error ? error.message : 'Your choice could not be saved. Try again.');
+        } finally {
+            modeOperation.current = false;
+            if (mounted.current) setExperienceBusy(false);
+        }
+    };
+
+    const savePlanningName = async () => {
+        if (!experienceSettings || modeOperation.current || !ownsSession()) return;
+        modeOperation.current = true;
+        setExperienceBusy(true); setExperienceError(null); setExperienceMessage(null);
+        try {
+            await experienceSettings.onSaveName(form.name);
+            if (mounted.current && ownsSession()) setExperienceMessage('Saved');
+        } catch (error) {
+            if (mounted.current && ownsSession()) setExperienceError(error instanceof Error ? error.message : 'Your name could not be saved. Try again.');
+        } finally {
+            modeOperation.current = false;
+            if (mounted.current) setExperienceBusy(false);
+        }
+    };
 
     // Pick up saved values that changed elsewhere, unless an edit is still on its way
     useEffect(() => {
@@ -286,6 +366,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 type="text"
                                 autoComplete="given-name"
                                 value={form.name}
+                                maxLength={100}
+                                disabled={experienceBusy || saveState === 'saving'}
                                 onChange={update('name')}
                                 onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                 placeholder="Your name"
@@ -294,15 +376,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </span>
                         <Pencil size={18} strokeWidth={2.25} className="shrink-0" aria-hidden="true" />
                     </div>
-                    <ul className="flex flex-wrap gap-1.5 mt-2" aria-label="Your targets">
+                    {isPlanning && <button className="btn-secondary btn-sm mt-3" disabled={experienceBusy || !form.name.trim() || form.name.trim().length > 100} onClick={() => void savePlanningName()}>Save name</button>}
+                    {!isPlanning && <ul className="flex flex-wrap gap-1.5 mt-2" aria-label="Your targets">
                         {stats.goalWeight ? <li className="badge badge-ink">{stats.goalWeight} kg goal</li> : null}
                         <li className="badge badge-ink">{(stats.nonFastDayCalories || 2000).toLocaleString()} kcal</li>
                         <li className="badge badge-ink">{protocolLabel}</li>
-                    </ul>
+                    </ul>}
                 </div>
             </section>
 
+            {experienceSettings && <section className="card p-5 md:p-6 space-y-5" aria-label="Experience">
+                <SectionTitle id="experience-heading" icon={Compass} tile="tile-water" title="How you use Vesta">
+                    Switch anytime. Your tracking history is kept.
+                </SectionTitle>
+                <ExperienceChoice value={experienceSettings.preferences.experience} onChange={value => void changeExperience(value)} disabled={experienceBusy || saveState === 'saving'} hideLegend />
+                <p className="text-xs text-muted">Plan meals is a preview: the Planner, Recipes and Family, without calories. Tracking reminders pause meanwhile and pick up again when you switch back, without the ones you missed.</p>
+                {(experienceBusy || experienceMessage || experienceError) && (
+                    experienceError
+                        ? <p role="alert" className="inline-flex items-start gap-1.5 text-sm font-medium text-error"><CircleAlert size={16} className="shrink-0 mt-0.5" aria-hidden="true" />{experienceError}</p>
+                        : <p role="status" className="inline-flex items-center gap-1.5 text-sm text-muted">
+                            {!experienceBusy && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}
+                            {experienceBusy ? 'Saving…' : experienceMessage}
+                        </p>
+                )}
+            </section>}
+
             {/* Goals */}
+            {!isPlanning && <fieldset disabled={experienceBusy || saveState === 'saving'} className="min-w-0">
             <section className="card" aria-labelledby="goals-heading">
                 <div className="p-5 md:p-6 space-y-6">
                     <SectionTitle id="goals-heading" icon={Target} tile="tile-calories" title="Your goals">
@@ -406,13 +506,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 px-5 md:px-6 py-4 border-t border-border text-sm text-muted min-h-14" role="status" aria-live="polite">
-                    {hasErrors
+                    {saveError ? <><span role="alert">{saveError}</span><button className="btn-ghost btn-sm" onClick={() => void saveRef.current().catch(() => {})}>Retry</button></> : hasErrors
                         ? 'Fix the highlighted fields and they\'ll save'
                         : saveState === 'saved' || (!isDirty && saveState !== 'saving')
                             ? <><Check size={16} aria-hidden="true" /> {saveState === 'saved' ? 'Saved' : 'Changes save as you go'}</>
                             : 'Saving…'}
                 </div>
             </section>
+            </fieldset>}
 
             {/* Appearance: applies at once, outside the goals form */}
             <section className="card p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4" aria-labelledby="appearance-heading">
@@ -436,6 +537,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </section>
 
             {/* Reminders */}
+            {!isPlanning && <>
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="reminders-heading">
                 <SectionTitle id="reminders-heading" icon={BellRing} tile="tile-water" title="Reminders">
                     Gentle nudges to log and weigh in, so your personal target has the data it needs.
@@ -450,6 +552,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </SectionTitle>
                 <EatingOutHistorySettings />
             </section>
+            </>}
 
             {/* Data */}
             <section className="card p-5 md:p-6 space-y-4" aria-labelledby="data-heading">
@@ -508,6 +611,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                        <label className="flex items-center justify-between gap-4 w-full" htmlFor="flag-mealPlanningSetup">
+                            <span><span className="block font-semibold">Experience choice during setup</span><span className="block text-sm text-muted">Show the experience choice when previewing onboarding.</span></span>
+                            <Switch id="flag-mealPlanningSetup" checked={featureFlags.enableMealPlanningSetup ?? false} onChange={() => toggleFeatureFlag('enableMealPlanningSetup')} />
+                        </label>
                         <button onClick={() => setConfirming('sync')} className="btn-secondary btn-sm"><CloudUpload size={16} aria-hidden="true" /> Force sync</button>
                         <button onClick={handleTestOnboarding} className="btn-secondary btn-sm"><PlayCircle size={16} aria-hidden="true" /> Preview welcome</button>
                         <button onClick={() => setShowDebug(!showDebug)} className="btn-ghost btn-sm" aria-expanded={showDebug}>

@@ -1,3 +1,5 @@
+import type { PlannedIntakeTicks, PlannedMealIntakeEntry, PlannedMealIntakeResult, UserExperience } from '../types';
+import { dayNutrition, nutritionLabel } from '../utils/recipeNutrition';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CalendarPlus, Check, ChevronLeft, CircleAlert, ChevronRight, CopyPlus, Flame, Package, Plus, Repeat, ShoppingBasket, UsersRound } from 'lucide-react';
@@ -38,9 +40,12 @@ const startsWeek = (date: string, index: number) => index > 0 && parseLocalDate(
 export const Planner: React.FC<{
   stats: UserStats;
   onPlanChanged?: () => void;
-  /** Logs a meal of today's as eaten (the food log and the fast); the Planner ticks it off */
-  onLogMeal?: (meal: Recipe) => Promise<void>;
-}> = ({ stats, onPlanChanged, onLogMeal }) => {
+  /** Logs a meal of today's as eaten (asking for unknown calories first). Without it there's no eaten action */
+  onRequestPlannedIntake?: (entries: PlannedMealIntakeEntry[], onTick?: PlannedIntakeTicks) => Promise<PlannedMealIntakeResult>;
+  /** Plan meals shows the meals without calories, targets, fast days or calorie-driven planning */
+  experience?: UserExperience;
+}> = ({ stats, onPlanChanged, onRequestPlannedIntake, experience = 'tracking' }) => {
+  const planning = experience === 'planning';
   const location = useLocation();
   const today = localDateString();
   // The first of the seven days shown: today, or today plus or minus a multiple of seven
@@ -288,24 +293,26 @@ export const Planner: React.FC<{
     showToast(`Removed ${meal.name}`);
   };
 
-  /** Ticks off one of today's meals after cooking it and logs it, as ticking it on Today does. */
+  /** Logs one of today's meals as eaten after cooking it, the same way ticking it on Today does. The
+   *  tick shows as soon as it's saving and goes again if the save fails; skipping or closing the
+   *  calorie question changes nothing. */
   const markEaten = async (meal: Recipe) => {
-    if (!onLogMeal) return;
-    const key = mealKey(meal);
-    const plan = planFor(today);
-    const updated = { ...plan, completedMealIds: [...new Set([...plan.completedMealIds, key])] };
-    plansRef.current = { ...plansRef.current, [today]: updated };
-    setPlans(plansRef.current);
-    showToast(`Marked ${meal.name} as eaten`);
+    if (!onRequestPlannedIntake) return;
+    const showTicks = (keys: string[], ticked: boolean) => {
+      const plan = planFor(today);
+      const completedMealIds = ticked ? [...new Set([...plan.completedMealIds, ...keys])] : plan.completedMealIds.filter(id => !keys.includes(id));
+      plansRef.current = { ...plansRef.current, [today]: { ...plan, completedMealIds } };
+      setPlans(plansRef.current);
+    };
     try {
-      await saveDayPlan(updated);
-      await onLogMeal(meal);
+      const result = await onRequestPlannedIntake([{ meal, at: Date.now() }], showTicks);
+      if (result.status !== 'saved' || !result.loggedKeys.length) return;
+      showToast(`Marked ${meal.name} as eaten`);
+      onPlanChanged?.();
     } catch (e) {
       console.error('Failed to mark the meal as eaten', e);
-      showToast("Couldn't save that. Check your connection.");
-      loadWeek(start);
+      showToast(e instanceof Error ? e.message : "Couldn't save that. Check your connection.");
     }
-    onPlanChanged?.();
   };
 
   const editMeal = (target: MealTarget, change: (meal: Recipe) => Recipe) =>
@@ -409,9 +416,9 @@ export const Planner: React.FC<{
   const mealSheetMeal = mealTarget ? planFor(mealTarget.date).meals[mealTarget.index] : undefined;
   const addTargetPlan = addTarget ? planFor(addTarget.date) : undefined;
   const addParent = addTarget?.index !== undefined ? addTargetPlan?.meals[addTarget.index] : undefined;
-  const addCaloriesLeft = addTargetPlan
+  const addCaloriesLeft = !planning && addTargetPlan && dayNutrition(addTargetPlan).complete
     ? dayTarget(addTargetPlan, stats) - dayCalories(addTargetPlan) + (addTarget?.mode === 'swap' && addParent ? mealCalories(addParent) : 0)
-    : 0;
+    : undefined;
 
   // --- Render ---
 
@@ -453,7 +460,7 @@ export const Planner: React.FC<{
                 automatic hyphens: the page is English, and its rules mangle Swedish names */}
             <span className={`text-[15px] @min-[66rem]/week:text-xs font-semibold leading-snug line-clamp-3 [overflow-wrap:anywhere] ${eaten || meal.isMissing ? 'text-muted' : ''}`}>{meal.name}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted mt-0.5">
-              {meal.isMissing ? <span>Swap or remove</span> : <span className="whitespace-nowrap">{mealKcalLabel(meal)}</span>}
+              {meal.isMissing ? <span>Swap or remove</span> : !planning && <span className="whitespace-nowrap">{mealKcalLabel(meal)}</span>}
               {toBuy > 0 && <span className="inline-flex items-center gap-0.5" title={`${toBuy} to buy`}><ShoppingBasket size={12} aria-hidden="true" />{toBuy}</span>}
               {meal.sides && meal.sides.length > 0 && <span>· +{meal.sides.length} side{meal.sides.length > 1 ? 's' : ''}</span>}
               {meal.familyMeal && <UsersRound size={12} aria-hidden="true" />}
@@ -559,12 +566,12 @@ export const Planner: React.FC<{
           )}
           <div className="hidden md:flex flex-1 justify-end gap-2">
             <button onClick={copyLastWeek} className="btn-secondary btn-sm"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
-            <button onClick={() => setShowWeekPlanner(true)} disabled={upcoming.length === 0} className="btn-secondary btn-sm"><CalendarPlus size={16} aria-hidden="true" /> Plan the week</button>
+            {!planning && <button onClick={() => setShowWeekPlanner(true)} disabled={upcoming.length === 0} className="btn-secondary btn-sm"><CalendarPlus size={16} aria-hidden="true" /> Plan the week</button>}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`badge ${fastDays > 0 ? 'badge-fasting' : 'badge-neutral'}`}><Flame size={12} aria-hidden="true" /> {fastDays} fast day{fastDays === 1 ? '' : 's'}</span>
+          {!planning && <span className={`badge ${fastDays > 0 ? 'badge-fasting' : 'badge-neutral'}`}><Flame size={12} aria-hidden="true" /> {fastDays} fast day{fastDays === 1 ? '' : 's'}</span>}
           {upcoming.length > 0 && (
             <span className="badge badge-neutral">{openSlots === 0 ? 'Every meal planned' : `${openSlots} meal${openSlots === 1 ? '' : 's'} to plan`}</span>
           )}
@@ -616,6 +623,7 @@ export const Planner: React.FC<{
           {dates.map((date, i) => {
             const plan = plans[date] || emptyDayPlan(date);
             const kcal = dayCalories(plan);
+            const nutrition = dayNutrition(plan);
             const approx = dayKcalApprox(plan);
             const withoutKcal = dayMealsWithoutKcal(plan);
             const target = dayTarget(plan, stats);
@@ -643,7 +651,7 @@ export const Planner: React.FC<{
                     <h3 className={`font-display font-extrabold text-lg leading-6 ${isPast ? 'text-muted' : ''} ${isToday ? 'bg-ink text-on-ink rounded-full px-2.5 -ml-1 whitespace-nowrap' : ''}`}>
                       {shortDay(date)} {parseLocalDate(date).getDate()}
                     </h3>
-                    <button
+                    {!planning && <button
                       onClick={() => toggleFastDay(date)}
                       aria-pressed={fast}
                       aria-label={`Fast day on ${longDay(date)}`}
@@ -653,25 +661,24 @@ export const Planner: React.FC<{
                       <Flame size={14} aria-hidden="true" />
                       {/* Off, it says what tapping does; on, what the day is */}
                       <span className="@min-[66rem]/week:sr-only">{fast ? 'Fast day' : 'Make fast day'}</span>
-                    </button>
+                    </button>}
                   </div>
-                  <div>
+                  {!planning && <div>
                     <div className="flex justify-between text-xs mb-1" title={withoutKcal ? `${withoutKcal} meal${withoutKcal > 1 ? 's' : ''} without kcal` : undefined}>
-                      <span className={kcal > target ? 'text-warning font-semibold' : 'text-muted'}>
+                      <span className={nutrition.complete && kcal > target ? 'text-warning font-semibold' : 'text-muted'}>
                         {isToday && <span className="text-main font-semibold @min-[66rem]/week:sr-only">Today · </span>}
                         {fast && <span className="text-fasting-text font-semibold @min-[66rem]/week:sr-only">Fast · </span>}
-                        {approx && <><span aria-hidden="true">≈ </span><span className="sr-only">About </span></>}{kcal} / {target} kcal
-                        {withoutKcal > 0 && <span className="@min-[66rem]/week:sr-only"> · {withoutKcal} without kcal</span>}
+                        {nutrition.complete ? `${approx?'≈ ':''}${kcal} / ${target} kcal` : nutritionLabel(nutrition)}
                       </span>
-                      {kcal > target && <span className="text-warning font-semibold @min-[66rem]/week:hidden">{kcal - target} over</span>}
+                      {nutrition.complete && kcal > target && <span className="text-warning font-semibold @min-[66rem]/week:hidden">{kcal - target} over</span>}
                     </div>
                     <div className="h-1.5 rounded-full bg-surface-sunken overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${kcal > target ? 'bg-warning' : fast ? 'bg-fasting' : 'bg-calories'}`}
-                        style={{ width: `${target > 0 ? Math.min(kcal / target, 1) * 100 : 0}%` }}
+                        className={`h-full rounded-full ${nutrition.complete && kcal > target ? 'bg-warning' : fast ? 'bg-fasting' : 'bg-calories'}`}
+                        style={{ width: `${nutrition.complete && target > 0 ? Math.min(kcal / target, 1) * 100 : 0}%` }}
                       />
                     </div>
-                  </div>
+                  </div>}
                 </header>
                 {MEAL_SLOTS
                   .filter(({ slot }) => slot !== 'snack' || plan.meals.some(m => slotFor(m) === 'snack'))
@@ -685,7 +692,7 @@ export const Planner: React.FC<{
       {/* Phones: the week's actions under the day, so the day strip stays near the top */}
     <div className="flex gap-2 md:hidden">
       <button onClick={copyLastWeek} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CopyPlus size={16} aria-hidden="true" /> Copy last week</button>
-      <button onClick={() => setShowWeekPlanner(true)} disabled={upcoming.length === 0} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CalendarPlus size={16} aria-hidden="true" /> Plan the week</button>
+      {!planning && <button onClick={() => setShowWeekPlanner(true)} disabled={upcoming.length === 0} className="btn-secondary btn-sm flex-1 px-3 gap-1.5 whitespace-nowrap"><CalendarPlus size={16} aria-hidden="true" /> Plan the week</button>}
     </div>
 
       <p className="hidden lg:block text-xs text-muted">Drag a meal to move it. Hold Alt (Option) while dropping to copy it instead.</p>
@@ -702,7 +709,7 @@ export const Planner: React.FC<{
               : `Add to ${longDay(addTarget.date)} ${slotLabel(addTarget.slot).toLowerCase()}`
           }
           caloriesLeft={addCaloriesLeft}
-          isFastDay={isFastDay(addTargetPlan)}
+          isFastDay={!planning && isFastDay(addTargetPlan)}
           recipes={myRecipes}
           familyRecipes={familyRecipes}
           leftovers={addTarget.mode === 'add' && addTarget.slot !== 'breakfast' ? leftoverOptions(addTarget.date) : []}
@@ -756,7 +763,7 @@ export const Planner: React.FC<{
       {cookRecipe && (
         <CookingMode
           recipe={cookRecipe}
-          onEaten={cookTarget?.date === today && onLogMeal && !isMealEaten(planFor(today), cookRecipe) ? () => markEaten(cookRecipe) : undefined}
+          onEaten={cookTarget?.date === today && onRequestPlannedIntake && !isMealEaten(planFor(today), cookRecipe) ? () => markEaten(cookRecipe) : undefined}
           onClose={() => { setCookRecipe(null); setCookTarget(null); }}
         />
       )}

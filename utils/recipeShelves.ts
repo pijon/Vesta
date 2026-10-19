@@ -1,3 +1,4 @@
+import { calorieAvailability } from './recipeNutrition';
 import { Recipe } from '../types';
 import { parseLocalDate } from './dateUtils';
 
@@ -41,9 +42,9 @@ export const favouritesShelf = (recipes: Recipe[], lastHad: Record<string, strin
 export const MIN_MEAL_KCAL = 150;
 
 /** Grams of protein per 100 kcal, the measure behind "protein for the calories" */
-export const proteinDensity = (r: Recipe) => (r.calories > 0 ? ((r.protein || 0) / r.calories) * 100 : 0);
+export const proteinDensity = (r: Recipe) => (calorieAvailability(r) === 'known' && r.calories > 0 ? ((r.protein || 0) / r.calories) * 100 : 0);
 
-const proteinMeals = (recipes: Recipe[]) => recipes.filter(r => (r.protein || 0) > 0 && r.calories >= MIN_MEAL_KCAL);
+const proteinMeals = (recipes: Recipe[]) => recipes.filter(r => calorieAvailability(r) === 'known' && (r.protein || 0) > 0 && r.calories >= MIN_MEAL_KCAL);
 
 /** The most protein in a portion, highest first */
 export const mostProteinShelf = (recipes: Recipe[]): Recipe[] => {
@@ -59,4 +60,12 @@ export const proteinPerCalorieShelf = (recipes: Recipe[]): Recipe[] => {
     .sort((a, b) => proteinDensity(b) - proteinDensity(a) || a.name.localeCompare(b.name))
     .slice(0, SHELF_SIZE);
   return picked.length >= MIN_SHELF ? picked : [];
+};
+
+/** Calorie order (1 low first, -1 high first). Recipes without known calories go last either way, by name */
+export const byKnownCalories = (a: Recipe, b: Recipe, direction: 1 | -1) => {
+  const knownA = calorieAvailability(a) === 'known';
+  const knownB = calorieAvailability(b) === 'known';
+  if (knownA !== knownB) return knownA ? -1 : 1;
+  return (knownA ? (a.calories - b.calories) * direction : 0) || a.name.localeCompare(b.name);
 };

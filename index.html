@@ -254,7 +254,10 @@
     // until AuthGuard removes the splash.
     (function () {
       try {
-        var stats = JSON.parse(localStorage.getItem('fast800_cache_stats') || 'null');
+        // The setup is cached per user (utils/cacheService.ts saveCachedUserSetup) under the last signed-in uid
+        var uid = localStorage.getItem('vesta_last_uid');
+        var setup = uid ? JSON.parse(localStorage.getItem('fast800_cache_user_' + encodeURIComponent(uid) + '_setup') || 'null') : null;
+        var stats = setup && setup.stats;
         var name = stats && typeof stats.name === 'string' ? stats.name.trim() : '';
         if (name) {
           var hour = new Date().getHours();

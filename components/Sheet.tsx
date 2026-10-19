@@ -5,6 +5,7 @@ import { useAnimatedClose } from '../hooks/useAnimatedClose';
 
 interface SheetProps {
   title: string;
+  dismissible?: boolean;
   subtitle?: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
@@ -21,10 +22,13 @@ interface SheetProps {
  * Bottom sheet on mobile, centred dialog from md up. Escape closes it, focus starts on the
  * close button (or `initialFocus`) and returns to the opener, and the page behind stops scrolling.
  */
-export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children, footer, size = 'md', initialFocus, fixedHeight }) => {
+export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children, footer, size = 'md', initialFocus, fixedHeight, dismissible = true }) => {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const { closing, close } = useAnimatedClose(onClose);
+  const { closing, close: animateClose } = useAnimatedClose(onClose);
+  const dismissibleRef = useRef(dismissible);
+  dismissibleRef.current = dismissible;
+  const close = () => { if (dismissibleRef.current) animateClose(); };
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -58,7 +62,7 @@ export const Sheet: React.FC<SheetProps> = ({ title, subtitle, onClose, children
               <h2 id={titleId} className="heading-2">{title}</h2>
               {subtitle && <p className="text-sm text-muted mt-0.5">{subtitle}</p>}
             </div>
-            <button ref={closeRef} onClick={close} className="icon-btn -mr-1 -mt-1" aria-label="Close">
+            <button ref={closeRef} disabled={!dismissible} onClick={close} className="icon-btn -mr-1 -mt-1" aria-label="Close">
               <X size={20} />
             </button>
           </div>

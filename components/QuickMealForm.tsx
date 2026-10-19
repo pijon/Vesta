@@ -79,6 +79,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
       id: crypto.randomUUID(),
       name: name.trim(),
       calories: calories ?? 0,
+      calorieStatus: calories === null ? 'unknown' : 'known',
       ingredients: kind === 'home' ? shopping.split('\n').map(line => line.trim()).filter(Boolean) : [],
       instructions: [],
       tags: isSide ? ['side dish'] : [slot],

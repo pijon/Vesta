@@ -1,3 +1,4 @@
+import { mealKcalLabel } from '../utils/planUtils';
 import React, { useEffect, useRef, useState } from 'react';
 import { Recipe } from '../types';
 import { Portal } from './Portal';
@@ -103,7 +104,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     };
 
     const stats = [
-        { label: 'Calories', value: recipe.calories, unit: 'kcal' },
+        { label: 'Calories', value: mealKcalLabel(recipe), unit: '' },
         { label: 'Protein', value: recipe.protein != null ? grams(recipe.protein) : undefined, unit: 'g' },
         { label: 'Carbs', value: recipe.carbs != null ? grams(recipe.carbs) : undefined, unit: 'g' },
         { label: 'Fat', value: recipe.fat != null ? grams(recipe.fat) : undefined, unit: 'g' },

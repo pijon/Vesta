@@ -1,3 +1,4 @@
+import { dayNutrition, mealNutrition } from './recipeNutrition';
 import { DayPlan, MealSlot, Recipe } from '../types';
 import { dayCalories, isQuickMeal, mealCalories, slotFor } from './planUtils';
 
@@ -38,11 +39,13 @@ export interface WeekPlanOptions {
 export type SlotResult =
   | { kind: 'proposed'; recipe: Recipe; leftover: boolean; calories: number; sides?: Recipe[] }
   /** Left open by hand, or no recipe for the slot */
-  | { kind: 'open'; reason: 'removed' | 'none' }
+  | { kind: 'open'; reason: 'removed' | 'none' | 'nutrition' }
   /** A fast day's slot that stays empty */
   | { kind: 'rest' };
 
 export interface DayResult {
+  incomplete?: boolean;
+  reason?: string;
   date: string;
   /** Only the slots the planner looked at: slots with meals already planned have no entry */
   slots: Partial<Record<MealSlot, SlotResult>>;
@@ -100,7 +103,7 @@ const candidatesFor = (recipes: Recipe[], slot: MealSlot) => {
 interface Picked { id: string; protein?: string }
 
 export const planWeek = (days: WeekDay[], recipes: Recipe[], options: WeekPlanOptions): DayResult[] => {
-  const library = recipes.filter(r => !isQuickMeal(r) && !r.isMissing && !isSideDish(r));
+  const library = recipes.filter(r => mealNutrition(r).complete && !mealNutrition(r).budget && !isQuickMeal(r) && !r.isMissing && !isSideDish(r));
   const byId = new Map(library.map(r => [r.id, r]));
   const pins = options.pins || {};
 
@@ -111,7 +114,7 @@ export const planWeek = (days: WeekDay[], recipes: Recipe[], options: WeekPlanOp
     picked.set(day.date, day.plan.meals.map(m => ({ id: libraryId(m), protein: proteinOf(m) })));
     const dinner = day.plan.meals.find(m => slotFor(m) === 'dinner' && !isQuickMeal(m) && !m.isLeftover);
     const recipe = dinner && byId.get(libraryId(dinner));
-    if (dinner && recipe) dinners.set(day.date, { recipe, sides: dinner.sides, calories: mealCalories(dinner) });
+    if (dinner && recipe && mealNutrition(dinner).complete) dinners.set(day.date, { recipe, sides: dinner.sides, calories: mealCalories(dinner) });
   }
   const weekUses = (id: string) => [...picked.values()].reduce((n, list) => n + list.filter(p => p.id === id).length, 0);
 
@@ -141,6 +144,14 @@ export const planWeek = (days: WeekDay[], recipes: Recipe[], options: WeekPlanOp
     const yesterday = previous;
     previous = day.date;
     const slots: DayResult['slots'] = {};
+    const unavailablePin = ALL_SLOTS.some(slot => {
+      const pin = pins[slotKey(day.date,slot)];
+      return pin && recipes.some(r => r.id===pin) && !byId.has(pin);
+    });
+    if (!dayNutrition(day.plan).complete || unavailablePin) {
+      results.push({date:day.date,slots,calories:dayCalories(day.plan),incomplete:true,reason:'Cannot calculate a budget until planned and pinned nutrition is known.'});
+      continue;
+    }
     if (day.skip) {
       results.push({ date: day.date, slots, calories: dayCalories(day.plan) });
       continue;
@@ -183,7 +194,7 @@ export const planWeek = (days: WeekDay[], recipes: Recipe[], options: WeekPlanOp
 
     // Then the rest, each aiming for its share of what's left, and keeping room for the lightest
     // recipe of each slot still to fill
-    const lightest = (slot: MealSlot) => Math.min(Infinity, ...candidatesFor(library, slot).map(r => r.calories || 0).filter(c => c > 0));
+    const lightest = (slot: MealSlot) => Math.min(Infinity, ...candidatesFor(library, slot).map(r => r.calories || 0).filter(c => c >= 0));
     toFill.forEach((slot, i) => {
       const shares = toFill.slice(i).reduce((sum, s) => sum + SHARE[s], 0);
       const aim = Math.max(0, budget) * (SHARE[slot] / shares);

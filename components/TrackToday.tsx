@@ -1,21 +1,21 @@
+import type { PlannedMealIntakeEntry, PlannedMealIntakeResult } from '../types';
 import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
 import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
-import { saveDayPlan, saveFamilyMealOut, getDayPlan, getDailySummaries, recordEatingOutDish } from '../services/storageService';
+import { saveDayPlan, saveFamilyMealOut, getDailySummaries } from '../services/storageService';
 import { currentUid } from '../services/firebase';
 import { RecipeDetailModal } from './RecipeDetailModal';
-import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, isRememberableDish, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, mealCalories, nextMealIndex, mealKey, planMeal, setFamilyMealOut, slotFor, slotTime } from '../utils/planUtils';
+import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, nextMealIndex, mealKey, planMeal, setFamilyMealOut, slotFor, slotTime } from '../utils/planUtils';
 import { AtePlannedCard } from './AtePlannedCard';
-import { MealCaloriesSheet } from './MealCaloriesSheet';
 import { EatingOutCard } from './EatingOutCard';
 import { EatingOutDecideSheet } from './EatingOutDecideSheet';
 import { DualTrackSection } from './DualTrackSection';
 import { TomorrowCard } from './TomorrowCard';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { analyticsDayTypesData, frequentFoodsData, eatingOutDishesData, FrequentFood } from '../services/pageData';
+import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
 import { CoachCard } from './CoachPanel';
-import { ensureWarm, usePrewarmed } from '../utils/prewarm';
+import { usePrewarmed } from '../utils/prewarm';
 import { buildDays, weekendGap, weightSummary } from '../utils/analyticsModel';
 import { WeekendPlanCard } from './WeekendPlanCard';
 import { weightTrend } from '../utils/energyModel';
@@ -35,9 +35,6 @@ const EMPTY_DAY_TYPES: Record<string, string> = {};
 /** When a meal logged after the fact is assumed to have been eaten (never later than now) */
 const plannedTime = (slot: MealSlot, now: number) => Math.min(slotTime(slot, now), now);
 
-/** Meals being logged, and the quick meals among them still to be asked for calories */
-interface CaloriesAsk { indices: number[]; plan: DayPlan; timed: boolean; queue: number[]; total: number }
-
 interface TrackTodayProps {
   todayPlan: DayPlan;
   tomorrowPlan: DayPlan;
@@ -45,10 +42,10 @@ interface TrackTodayProps {
   dailyLog: DailyLog;
   fastingState: FastingState;
   onUpdateStats: (stats: UserStats) => void;
-  onLogMeal: (meal: Recipe, isAdding: boolean) => Promise<void>;
-  onLogMeals: (entries: { meal: Recipe; at: number }[]) => Promise<void>;
-  /** Shows a change to today's plan at once, while it's saved */
-  onPlanChange: (plan: DayPlan) => void;
+  /** Logs planned meals as eaten: App asks for any unknown calories, then saves the diary and ticks together */
+  onRequestPlannedIntake: (entries: PlannedMealIntakeEntry[]) => Promise<PlannedMealIntakeResult>;
+  /** Unticks a planned meal and removes its diary entry */
+  onRemovePlannedIntake: (meal: Recipe) => Promise<void>;
   onSetDayStatus: (status: DayLogStatus | undefined) => Promise<DailyLog>;
   onAddFoodLogItems: (items: FoodLogItem[]) => Promise<void>;
   onUpdateFoodItem: (item: FoodLogItem) => Promise<void>;
@@ -76,9 +73,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   dailyLog,
   fastingState,
   onUpdateStats,
-  onLogMeal,
-  onLogMeals,
-  onPlanChange,
+  onRequestPlannedIntake,
+  onRemovePlannedIntake,
   onSetDayStatus,
   onAddFoodLogItems,
   onUpdateFoodItem,
@@ -199,65 +195,23 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     onOpenWorkoutModal(workout, () => handleDeleteWorkout(workout.id));
   };
 
-  const [caloriesAsk, setCaloriesAsk] = useState<CaloriesAsk | null>(null);
-
-  /** Dishes eaten out join the history, so they can be picked next time. */
-  const rememberEaten = (meals: Recipe[], date: string) => {
-    const dishes = meals.filter(isRememberableDish);
-    if (!dishes.length) return;
-    // One at a time: each write reads the history the last one saved
-    (async () => {
-      for (const meal of dishes) {
-        await recordEatingOutDish({ place: meal.quick?.place ?? '', dish: meal.quick?.dish ?? '', calories: mealCalories(meal), protein: meal.protein }, date);
-      }
-      await ensureWarm(eatingOutDishesData, true);
-    })().catch(e => console.error('Could not remember the dish', e));
-  };
-
-  /** Ticks planned meals off and logs them: at their slot's usual time (`timed`), or now. */
-  const logPlannedMeals = async (indices: number[], plan: DayPlan, timed: boolean) => {
+  /** Logs planned meals as eaten, at their slot's usual time (`timed`) or now. Ticks show once saved */
+  const logPlanned = async (indices: number[], timed: boolean) => {
     const now = Date.now();
-    const meals = indices.map(i => plan.meals[i]).filter(Boolean);
+    const meals = indices.map(i => todayPlan.meals[i]).filter(Boolean);
     if (!meals.length) return;
-    const completedMealIds = [...new Set([...plan.completedMealIds, ...meals.map(mealKey)])];
-    onPlanChange({ ...storedPlan, completedMealIds });
-    await saveDayPlan({ ...plan, completedMealIds });
-    await onLogMeals(meals.map(meal => ({ meal, at: timed ? plannedTime(slotFor(meal), now) : now })));
-    rememberEaten(meals, plan.date);
-    refreshData();
-    if (timed) {
-      const kcal = meals.reduce((sum, meal) => sum + mealCalories(meal), 0);
-      setToast({ message: `Logged ${meals.length} meal${meals.length === 1 ? '' : 's'} · ${kcal.toLocaleString()} kcal` });
+    try {
+      const result = await onRequestPlannedIntake(meals.map(meal => ({ meal, at: timed ? plannedTime(slotFor(meal), now) : now })));
+      if (result.status !== 'saved' || !result.loggedKeys.length) return;
+      refreshData();
+      if (timed) {
+        const kcal = result.items.reduce((sum, item) => sum + item.calories, 0);
+        setToast({ message: `Logged ${result.items.length} meal${result.items.length === 1 ? '' : 's'} · ${kcal.toLocaleString()} kcal` });
+      }
+    } catch (e) {
+      console.error('Failed to log the meals', e);
+      setToast({ message: e instanceof Error ? e.message : "Couldn't save that. Check your connection." });
     }
-  };
-
-  /** Quick meals planned without calories are asked for them first, so nothing is logged as 0 kcal. */
-  const logPlanned = async (indices: number[], timed: boolean, plan: DayPlan = todayPlan) => {
-    const queue = indices.filter(i => plan.meals[i]?.quick?.noCalories);
-    if (queue.length) {
-      setCaloriesAsk({ indices, plan, timed, queue, total: queue.length });
-      return;
-    }
-    await logPlannedMeals(indices, plan, timed);
-  };
-
-  const answerCalories = (calories: number | null, estimated = false) => {
-    if (!caloriesAsk) return;
-    const [current, ...rest] = caloriesAsk.queue;
-    let { indices, plan } = caloriesAsk;
-    if (calories === null) {
-      indices = indices.filter(i => i !== current);
-    } else {
-      const meal = plan.meals[current];
-      const updated: Recipe = { ...meal, calories, quick: { ...meal.quick, noCalories: undefined, estimated: estimated || undefined } };
-      plan = { ...plan, meals: plan.meals.map((m, i) => (i === current ? updated : m)) };
-    }
-    if (rest.length) {
-      setCaloriesAsk({ ...caloriesAsk, indices, plan, queue: rest });
-      return;
-    }
-    setCaloriesAsk(null);
-    if (indices.length) logPlannedMeals(indices, plan, caloriesAsk.timed);
   };
 
   /** The eating-out meal being logged (index in today's plan), from its card or a reminder */
@@ -272,49 +226,49 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     setSearchParams(params => { params.delete('eatout'); return params; }, { replace: true });
   }, [eatOutParam, todayPlan, setSearchParams]);
 
-  /** The meal is now what was actually had: update it and log it as eaten. */
-  const logEatingOut = async (index: number, name: string, calories: number, options: { estimated: boolean; protein?: number }) => {
+  /** Logs what was actually had out. The amount goes to this person's diary; their own plan then
+   *  shows the dish, but a family meal is left as the family planned it. */
+  const logEatingOut = async (index: number, name: string, calories: number, options: { estimated: boolean; protein?: number; place: string; dish: string }) => {
     const meal = todayPlan.meals[index];
     setEatingOutIndex(null);
     if (!meal) return;
-    const budgeted = isBudgetMeal(meal) ? (meal.quick?.plannedBudget ?? meal.calories) : undefined;
-    const plan = { ...todayPlan, meals: todayPlan.meals.map((m, i) => (i === index ? decideEatingOut(m, name, calories, { ...options, budgeted }) : m)) };
-    await logPlannedMeals([index], plan, false);
-    setToast({ message: `Logged ${name} · ${calories.toLocaleString()} kcal` });
+    try {
+      const result = await onRequestPlannedIntake([{
+        meal, at: Date.now(),
+        personal: { calories, estimated: options.estimated, protein: options.protein, name, place: options.place, dish: options.dish },
+      }]);
+      if (result.status !== 'saved' || !result.loggedKeys.length) return;
+      if (!meal.familyMeal) {
+        const budgeted = isBudgetMeal(meal) ? (meal.quick?.plannedBudget ?? meal.calories) : undefined;
+        const key = mealKey(meal);
+        await saveDayPlan({
+          ...storedPlan,
+          meals: storedPlan.meals.map(m => (mealKey(m) === key ? decideEatingOut(m, name, calories, { ...options, budgeted }) : m)),
+          completedMealIds: [...new Set([...storedPlan.completedMealIds, key])],
+        });
+      }
+      refreshData();
+      setToast({ message: `Logged ${name} · ${calories.toLocaleString()} kcal` });
+    } catch (e) {
+      console.error('Failed to log the meal', e);
+      setToast({ message: e instanceof Error ? e.message : "Couldn't save that. Check your connection." });
+    }
   };
 
   const toggleMeal = async (mealIndex: number) => {
     const meal = todayPlan.meals[mealIndex];
     if (!meal) return;
-    if (!todayPlan.completedMealIds.includes(mealKey(meal)) && meal.quick?.noCalories) {
+    if (!isMealEaten(todayPlan, meal)) {
       await logPlanned([mealIndex], false);
       return;
     }
-
-    let newCompleted = [...todayPlan.completedMealIds];
-    const uniqueId = mealKey(meal);
-    let isAdding = false;
-
-    if (newCompleted.includes(uniqueId)) {
-      newCompleted = newCompleted.filter(id => id !== uniqueId);
-      isAdding = false;
-    } else {
-      newCompleted.push(uniqueId);
-      isAdding = true;
-    }
-
-    const updatedPlan = { ...todayPlan, completedMealIds: newCompleted };
-    // Ticked (or unticked) at once; saving, logging and the refresh follow
-    onPlanChange({ ...storedPlan, completedMealIds: newCompleted });
     try {
-      await saveDayPlan(updatedPlan);
-      await onLogMeal(meal, isAdding);
-      if (isAdding) rememberEaten([meal], todayPlan.date);
+      await onRemovePlannedIntake(meal);
+      refreshData();
     } catch (e) {
-      console.error('Failed to save the meal', e);
-      setToast({ message: "Couldn't save that. Check your connection." });
+      console.error('Failed to untick the meal', e);
+      setToast({ message: e instanceof Error ? e.message : "Couldn't save that. Check your connection." });
     }
-    refreshData();
   };
 
   // "Next up" on Today's plate
@@ -324,22 +278,24 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const handleDeleteFoodItem = async (itemId: string) => {
     const item = dailyLog.items?.find(i => i.id === itemId);
     if (!item) return;
-    const key = item.planInstanceId;
-    const untick = !!key && todayPlan.completedMealIds.includes(key);
-    if (untick) onPlanChange({ ...storedPlan, completedMealIds: storedPlan.completedMealIds.filter(id => id !== key) });
-    await onDeleteFoodItem(itemId);
-    if (untick) {
-      await saveDayPlan({ ...todayPlan, completedMealIds: todayPlan.completedMealIds.filter(id => id !== key) });
-      refreshData();
+    // A planned meal's entry is removed with its tick, and Undo puts back exactly that entry (App routes both)
+    try {
+      await onDeleteFoodItem(itemId);
+    } catch (e) {
+      console.error('Failed to delete the entry', e);
+      setToast({ message: e instanceof Error ? e.message : "Couldn't delete that. Check your connection." });
+      return;
     }
+    if (item.planInstanceId) refreshData();
     setToast({
       message: `Deleted ${item.name}`,
       undo: async () => {
-        await onRestoreFoodItem(item);
-        if (untick) {
-          const plan = await getDayPlan(todayPlan.date);
-          await saveDayPlan({ ...plan, completedMealIds: [...new Set([...plan.completedMealIds, key])] });
-          refreshData();
+        try {
+          await onRestoreFoodItem(item);
+          if (item.planInstanceId) refreshData();
+        } catch (e) {
+          console.error('Failed to restore the entry', e);
+          setToast({ message: e instanceof Error ? e.message : "Couldn't put that back. Check your connection." });
         }
       },
     });
@@ -529,17 +485,6 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
       {/* Coming up: here on phones, beside the plan from lg up */}
       <div className="lg:hidden">{comingUp}</div>
-
-      {caloriesAsk && (
-        <MealCaloriesSheet
-          key={caloriesAsk.queue[0]}
-          meal={caloriesAsk.plan.meals[caloriesAsk.queue[0]]}
-          progress={caloriesAsk.total > 1 ? `${caloriesAsk.total - caloriesAsk.queue.length + 1} of ${caloriesAsk.total}` : undefined}
-          onSave={(calories, estimated) => answerCalories(calories, estimated)}
-          onSkip={() => answerCalories(null)}
-          onClose={() => setCaloriesAsk(null)}
-        />
-      )}
 
       {eatingOutIndex !== null && todayPlan.meals[eatingOutIndex] && (
         <EatingOutDecideSheet

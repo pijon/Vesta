@@ -160,3 +160,16 @@ describe('proteinOf', () => {
 });
 
 const proposals = (result: DayResult) => proposalsOf([result]);
+
+it('leaves unknown existing days and unavailable pins unchanged',()=>{
+ const unknown={...library[0],calorieStatus:'unknown' as const};
+ const d=day(week[0],{plan:{...emptyDayPlan(week[0]),meals:[unknown]}});
+ expect(planWeek([d],library,options())[0]).toMatchObject({slots:{},incomplete:true});
+ const result=planWeek([day(week[0])],[unknown,...library.slice(1)],options({pins:{[slotKey(week[0],'breakfast')]:unknown.id}}))[0];
+ expect(result).toMatchObject({slots:{},incomplete:true});
+});
+it('supports confirmed-zero candidates without reserving infinity',()=>{
+ const zero={...recipe('tea','breakfast',0),calorieStatus:'known' as const};
+ const result=planWeek([day(week[0])],[zero,...library.filter(r=>r.slot!=='breakfast')],options())[0];
+ expect(proposed(result,'breakfast')?.recipe.id).toBe('tea');expect(Number.isFinite(result.calories)).toBe(true);
+});
