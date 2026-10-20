@@ -130,6 +130,21 @@ describe('account-owned setup boundary', () => {
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 
+  it('reads the setup from the server once at launch, with or without a cached setup', async () => {
+    saveCachedUserSetup(setup('a'));
+    await render();
+    expect(container.textContent).toContain('Nutrition dashboard: Alex');
+    expect(remote.load).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.unmount());
+    localStorage.clear();
+    remote.load.mockClear();
+    root = createRoot(container);
+    await render();
+    expect(container.textContent).toContain('Nutrition dashboard: Alex');
+    expect(remote.load).toHaveBeenCalledTimes(1);
+  });
+
   it('caches the confirmed setup for the next launch', async () => {
     await render();
     expect(getCachedUserSetup('a')).toEqual(setup('a'));
