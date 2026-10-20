@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarHeart, ChevronRight, CookingPot, Plus, UsersRound } from 'lucide-react';
 import { AppView, DayPlan, MealSlot, Recipe } from '../types';
-import { MEAL_SLOTS, PLANNABLE_SLOTS, SLOT_TIMES, setFamilyMealOut, slotFor, slotLabel } from '../utils/planUtils';
+import { MEAL_SLOTS, PLANNABLE_SLOTS, SLOT_TIMES, isQuickMeal, setFamilyMealOut, slotFor, slotLabel } from '../utils/planUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import { saveFamilyMealOut } from '../services/storageService';
 import { familyData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
 import { FamilyFaces } from './MemberAvatar';
 import { TodayShoppingWidget } from './TodayShoppingWidget';
+import { RecipeDetailModal } from './RecipeDetailModal';
 
 /** How long after a slot's usual time its meal still counts as "next" */
 const NEXT_WINDOW_MINUTES = 90;
@@ -47,6 +48,7 @@ export const PlanToday: React.FC<PlanTodayProps> = ({ uid, todayPlan, tomorrowPl
   const family = usePrewarmed(familyData) ?? null;
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [viewRecipe, setViewRecipe] = useState<Recipe | null>(null);
 
   const openPlanner = (date = todayPlan.date) => navigate('/mealplanner', { state: { date } });
   const nextIndex = upcomingMealIndex(todayPlan);
@@ -143,7 +145,7 @@ export const PlanToday: React.FC<PlanTodayProps> = ({ uid, todayPlan, tomorrowPl
               const isNext = meal === next;
               return (
                 <li key={meal.instanceId ?? meal.id} className="py-2 flex items-center gap-3">
-                  <button onClick={() => openPlanner()} className="flex-1 min-w-0 min-h-11 flex items-center gap-3 text-left rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
+                  <button onClick={() => isQuickMeal(meal) ? openPlanner() : setViewRecipe(meal)} className="flex-1 min-w-0 min-h-11 flex items-center gap-3 text-left rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
                     {meal.image ? (
                       <img src={meal.image} alt="" loading="lazy" className="size-12 shrink-0 rounded-full object-cover bg-surface-sunken" />
                     ) : (
@@ -223,6 +225,8 @@ export const PlanToday: React.FC<PlanTodayProps> = ({ uid, todayPlan, tomorrowPl
       </section>
       </div>
       </div>
+
+      {viewRecipe && <RecipeDetailModal recipe={viewRecipe} onClose={() => setViewRecipe(null)} />}
     </div>
   );
 };
