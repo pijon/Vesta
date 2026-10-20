@@ -39,10 +39,10 @@ onAuthStateChanged(auth, user => {
 export const currentUid = (): string | null =>
     authRestored ? auth.currentUser?.uid ?? null : lastUid;
 
-// Initialize Firestore with settings for specific network conditions
+// Firestore falls back to long polling by itself where a proxy breaks its streaming connection
+// (the default). Forcing it everywhere made every read on launch slower.
 export const db = initializeFirestore(app, {
     ignoreUndefinedProperties: true,
-    experimentalForceLongPolling: true, // Bypass firewalls that block WebSockets
 });
 
 import { enableMultiTabIndexedDbPersistence } from 'firebase/firestore';

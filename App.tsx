@@ -335,19 +335,22 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
                 return;
             }
             if (!health) return;
-            const [[today, tomorrow], [log, fasting]] = await Promise.all([plans, health]);
+            // The log is one read; the plans wait on the family and its recipes. Show the numbers first
+            const [log, fasting] = await health;
             if (!ownsSession() || seq !== refreshSeq.current) return;
             // Guidance read state is secondary: don't hold up the rest of the refresh for it
             getCoachRead().then(read => { if (ownsSession()) setCoachRead(read); });
-
-            setTodayPlan(today);
-            setTomorrowPlan(tomorrow);
 
             if (readFrom === setupVersion()) setUserStatsState(normalizeStats(nextSetup.stats));
             onSetupChange(nextSetup, readFrom);
             // Edited while loading: the local log is newer (and being saved), keep it
             if (logEdits.current === editsAtStart) {setDailyLogState(log);publishFasting(fasting);}
             setLogFresh(true);
+
+            const [today, tomorrow] = await plans;
+            if (!ownsSession() || seq !== refreshSeq.current) return;
+            setTodayPlan(today);
+            setTomorrowPlan(tomorrow);
             cache.claimCache(uid);
 
         } catch (error) {
