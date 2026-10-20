@@ -66,6 +66,11 @@ describe('adding meals', () => {
     expect(itemAmount(named('eggs'))).toBe('2');
   });
 
+  it('leaves water off the list', async () => {
+    await addMealsToList([planMeal('m1', ['1 l vatten', 'Water', '2 eggs'])]);
+    expect(items().map(i => i.name)).toEqual(['eggs']);
+  });
+
   it('brings sides along, and lines already read on the recipe skip the AI', async () => {
     await addMealsToList([planMeal('m1', ['500 g beef'], {
       parts: [

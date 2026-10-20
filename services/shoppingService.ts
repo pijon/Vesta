@@ -5,7 +5,7 @@ import { getMyGroupId } from './groupService';
 import { saveParsedIngredients } from './storageService';
 import { parseIngredients } from './geminiService';
 import { getCacheKey, getFromCache, saveToCache } from '../utils/cacheService';
-import { parseIngredientLine, readRecipeLines } from '../utils/ingredientParse';
+import { isWater, parseIngredientLine, readRecipeLines } from '../utils/ingredientParse';
 import { isPantryMarkCurrent, isProbablyAtHome, itemKey, mealsOnList, pantryKey, planAdditions, planMealRemoval } from '../utils/shoppingList';
 import { formatAmount } from '../utils/scaleIngredient';
 import { localDateString } from '../utils/dateUtils';
@@ -159,7 +159,7 @@ export const addMealsToList = async (meals: PlanMeal[]) => {
     instanceId: meal.key,
     date: meal.date,
     name: meal.name,
-    lines: meal.parts.flatMap(part => part.ingredients.flatMap(text => read.get(text) ?? [])),
+    lines: meal.parts.flatMap(part => part.ingredients.flatMap(text => read.get(text) ?? [])).filter(line => !isWater(line.name)),
   }));
   const { create, add } = planAdditions(items, toAdd, me(), Date.now(), () => crypto.randomUUID());
   const record = meals.filter(meal => !recorded[meal.key]).map(meal => [meal.key, { date: meal.date, name: meal.name }]);

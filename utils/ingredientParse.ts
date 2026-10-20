@@ -158,6 +158,9 @@ const readWithoutLeadingAmount = (text: string, line: string): ParsedIngredientL
   return name && name.split(' ').length <= 3 && !NOT_A_FOOD.has(name.split(' ')[0]) ? { text, name, quantity: 0, unit: 'item' } : null;
 };
 
+/** Always at hand, so never on the shopping list ("1 l vatten", "water") */
+export const isWater = (name: string): boolean => ['water', 'vatten'].includes(name.trim().toLowerCase());
+
 /** One name for singular and plural ("egg" / "eggs", "tomato" / "tomatoes"), for adding up */
 export const ingredientKey = (name: string): string => {
   const words = name.trim().toLowerCase().split(/\s+/);
