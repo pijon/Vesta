@@ -55,6 +55,8 @@ const unitFor = (quantity: number, unit: string) => (quantity > 1 && PLURALS[uni
 export const mealsTotal = (sources: ShoppingListSource[]): string => {
   if (sources.length === 0) return '';
   const total = sources.slice(1).reduce<Amount>((sum, s) => addAmounts(sum, s), sources[0]);
+  // Foods the recipes give no amount for (salt, pepper, oil) are listed without one
+  if (total.quantity === 0) return '';
   const shown = readable(total, sources.map(s => s.unit));
   return formatAmount(shown.quantity, unitFor(shown.quantity, shown.unit));
 };

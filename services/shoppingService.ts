@@ -192,7 +192,7 @@ export const addOwnItem = async (text: string) => {
     key: itemKey(name, line?.unit ?? 'item'),
     name,
     sources: {},
-    amount: line ? formatAmount(line.quantity, line.unit) : '',
+    amount: line && line.quantity > 0 ? formatAmount(line.quantity, line.unit) : '',
     addedBy: me(),
     addedAt: Date.now(),
   };

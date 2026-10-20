@@ -49,13 +49,21 @@ describe('adding meals', () => {
   });
 
   it('asks the AI only about lines it can\'t read, and keeps its answers on the recipe', async () => {
-    store.docs.set('groups/g/recipes/r1', { id: 'r1', name: 'Chili', ingredients: ['500 g beef', 'Salt'] });
-    await addMealsToList([planMeal('m1', ['500 g beef', 'Salt'])]);
-    expect(fake.aiCalls).toEqual([['Salt']]);
+    store.docs.set('groups/g/recipes/r1', { id: 'r1', name: 'Chili', ingredients: ['500 g beef', 'rice and beans'] });
+    await addMealsToList([planMeal('m1', ['500 g beef', 'rice and beans'])]);
+    expect(fake.aiCalls).toEqual([['rice and beans']]);
     await vi.waitFor(() => expect((store.docs.get('groups/g/recipes/r1') as unknown as Recipe).parsedIngredients).toEqual([
       { text: '500 g beef', name: 'beef', quantity: 500, unit: 'g' },
-      { text: 'Salt', name: 'salt', quantity: 1, unit: 'nypa' },
+      { text: 'rice and beans', name: 'salt', quantity: 1, unit: 'nypa' },
     ]));
+  });
+
+  it('lists salt and pepper without an amount and without asking the AI', async () => {
+    await addMealsToList([planMeal('m1', ['1 tsk salt', 'svartpeppar, nymalen', '2 eggs'])]);
+    expect(fake.aiCalls).toEqual([]);
+    expect(itemAmount(named('salt'))).toBe('');
+    expect(itemAmount(named('pepper'))).toBe('');
+    expect(itemAmount(named('eggs'))).toBe('2');
   });
 
   it('brings sides along, and lines already read on the recipe skip the AI', async () => {
