@@ -10,6 +10,10 @@ const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const STABLE_MODEL = 'gemini-3.5-flash-lite';
 const ALLOWED_MODELS = new Set(['gemini-3.8-flash', STABLE_MODEL]);
 
+/** Per-attempt limits: the primary leaves room for the Flash-Lite retry inside the function's 120 s. */
+const PRIMARY_MS = 45_000;
+const ATTEMPT_MS = 60_000;
+
 /** Requests per user per UTC day; heavy normal use (logging, planning, a shopping list) stays well under. */
 const DAILY_LIMIT = 300;
 /** Callable requests are capped at 10 MB; a downscaled food photo is a few hundred KB. */
@@ -78,8 +82,10 @@ export const generateAi = onCall<GenerateRequest>(
     };
 
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
-    const run = async (p: GenerateContentParameters): Promise<GenerateResult> => {
-      const response = await ai.models.generateContent(p);
+    // Gemini calls have no timeout of their own and can stall until the function is killed at 120 s,
+    // so each attempt gets its own limit and a stalled primary still leaves time for the fallback.
+    const run = async (p: GenerateContentParameters, ms: number): Promise<GenerateResult> => {
+      const response = await ai.models.generateContent({ ...p, config: { ...p.config, httpOptions: { timeout: ms } } });
       return {
         text: response.text ?? '',
         urlRetrieved: !!response.candidates?.[0]?.urlContextMetadata?.urlMetadata?.some(
@@ -90,13 +96,14 @@ export const generateAi = onCall<GenerateRequest>(
 
     try {
       try {
-        return await run(params);
+        return await run(params, model === STABLE_MODEL ? ATTEMPT_MS : PRIMARY_MS);
       } catch (error) {
-        // 3.8 Flash is often overloaded (503) or rate limited (429); retry once on Flash-Lite.
+        // 3.8 Flash is often overloaded (503), rate limited (429) or stalled; retry once on Flash-Lite.
         const overloaded = error instanceof ApiError && (error.status === 503 || error.status === 429);
-        if (!overloaded || model === STABLE_MODEL) throw error;
-        logger.warn(`${model} unavailable (${error.status}), retrying on ${STABLE_MODEL}`);
-        return await run({ ...params, model: STABLE_MODEL });
+        const stalled = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+        if (!(overloaded || stalled) || model === STABLE_MODEL) throw error;
+        logger.warn(`${model} ${stalled ? 'timed out' : `unavailable (${(error as ApiError).status})`}, retrying on ${STABLE_MODEL}`);
+        return await run({ ...params, model: STABLE_MODEL }, ATTEMPT_MS);
       }
     } catch (error) {
       logger.error('Gemini request failed', {
@@ -105,6 +112,9 @@ export const generateAi = onCall<GenerateRequest>(
         status: error instanceof ApiError ? error.status : undefined,
         reason: error instanceof Error ? error.message : String(error),
       });
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+        throw new HttpsError('deadline-exceeded', 'The AI service took too long. Try again.');
+      }
       if (error instanceof ApiError && (error.status === 503 || error.status === 429)) {
         throw new HttpsError('unavailable', 'The AI service is busy. Try again in a moment.');
       }
