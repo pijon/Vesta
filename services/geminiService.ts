@@ -495,8 +495,8 @@ export const parseIngredients = async (ingredientTexts: string[]): Promise<Array
   if (missingTexts.length > 0) {
     console.log(`[AI Parsing] Cache hit: ${uniqueTexts.length - missingTexts.length} items. Fetching ${missingTexts.length} new items.`);
 
-    // Batch in chunks of 150 (Flash model has large context) to reduce round-trips
-    const chunkSize = 150;
+    // Chunks run in parallel; smaller ones answer fast enough to stay well inside the request timeout
+    const chunkSize = 40;
     const chunkPromises = [];
     let failedChunks = 0;
 
