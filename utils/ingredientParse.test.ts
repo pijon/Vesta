@@ -1,13 +1,61 @@
 import { describe, expect, it } from 'vitest';
 import { ingredientKey, parseIngredientLine, readRecipeLines } from './ingredientParse';
 
+describe('salt and pepper', () => {
+  it.each([
+    ['salt', 'salt'], ['½ tsk salt', 'salt'], ['Salt 1 matsked', 'salt'], ['Sea salt', 'salt'], ['A pinch of salt', 'salt'],
+    ['svartpeppar, nymalen', 'pepper'], ['freshly ground black pepper', 'pepper'], ['Black pepper', 'pepper'], ['0 krm svartpeppar', 'pepper'],
+    ['salt och nymalen svartpeppar', 'salt and pepper'], ['Kosher salt and freshly ground black pepper to taste', 'salt and pepper'],
+  ])('%s is listed as %s with no amount', (text, name) => {
+    expect(parseIngredientLine(text)).toEqual({ text, name, quantity: 0, unit: 'item' });
+  });
+
+  it('leaves other spices to be read normally', () => {
+    expect(parseIngredientLine('2 paprikor')?.name).toBe('paprikor');
+    expect(parseIngredientLine('1 tsk chilipeppar')?.name).toBe('chilipeppar');
+  });
+});
+
+describe('lines the AI used to read', () => {
+  it.each([
+    ['1 tbsp olive or rapeseed oil', 'olive oil', 1, 'tbsp'],
+    ['2 msk oliv- eller rapsolja', 'rapsolja', 2, 'msk'],
+    ['600 g Kycklinglårfilé (utan skinn) eller kycklingbröstfilé', 'kycklinglårfilé', 600, 'g'],
+    ['2 tbsp pumpkin or sunflower seeds, toasted', 'pumpkin seeds', 2, 'tbsp'],
+    ['4 slices Parma ham or prosciutto', 'parma ham', 4, 'slice'],
+    ['juice of ½ small lemon', 'lemon', 0.5, 'item'],
+    ['Juice of 1 lemon', 'lemon', 1, 'item'],
+    ['finrivet skal och saft från 1 liten citron', 'citron', 1, 'item'],
+    ['saften från 1/2 citron eller 2-3 tsk balsamvinäger', 'citron', 0.5, 'item'],
+    ['1 x 400g can chopped tomatoes or 500g passata', 'tomatoes', 1, 'can'],
+    ['½ × 400ml can coconut milk', 'coconut milk', 0.5, 'can'],
+    ['2 thin slices of rye bread', 'rye bread', 2, 'slice'],
+    ['200 g kokta och skalade räkor, tinade', 'kokta räkor', 200, 'g'],
+    ['60g hjärtsallat eller isbergssallat', 'hjärtsallat', 60, 'g'],
+    ['Kanel 1/2 tesked', 'kanel', 0.5, 'tsk'],
+    ['Olivolja 4 matsked', 'olivolja', 4, 'msk'],
+    ['Vitlök 3 skivade', 'vitlök', 3, 'item'],
+    ['⅔ påse vitvinsvinäger 15ml', 'vitvinsvinäger', 2 / 3, 'påse'],
+    ['0 tsk olivolja', 'olivolja', 0, 'item'],
+    ['Olja', 'olja', 0, 'item'],
+    ['Fresh basil', 'basil', 0, 'item'],
+    ['limeklyftor, till servering', 'limeklyftor', 0, 'item'],
+    ['citron- eller limeklyftor, till servering (kan uteslutas)', 'limeklyftor', 0, 'item'],
+    ['en liten näve rucola', 'rucola', 0, 'item'],
+    ['small bunch fresh parsley, leaves finely chopped (around 2 tbsp)', 'parsley', 0, 'item'],
+    ['Splash of milk or cream', 'milk', 0, 'item'],
+    ['bit olivolja', 'olivolja', 0, 'item'],
+  ])('reads "%s"', (text, name, quantity, unit) => {
+    expect(parseIngredientLine(text)).toEqual({ text, name, quantity, unit });
+  });
+});
+
 describe('parseIngredientLine', () => {
   it.each([
     ['400 g broccoli', 'broccoli', 400, 'g'],
     ['500g chicken breast', 'chicken breast', 500, 'g'],
     ['1 ½ dl grädde', 'grädde', 1.5, 'dl'],
     ['1,5 dl mjölk', 'mjölk', 1.5, 'dl'],
-    ['½ tsk salt', 'salt', 0.5, 'tsk'],
     ['2 msk olivolja', 'olivolja', 2, 'msk'],
     ['2 tbsp olive oil', 'olive oil', 2, 'tbsp'],
     ['1 1/2 cups of rice', 'rice', 1.5, 'cup'],
@@ -33,11 +81,9 @@ describe('parseIngredientLine', () => {
   });
 
   it.each([
-    'Salt and pepper to taste',
-    'Fresh basil',
-    'Juice of 1 lemon',
-    '1 tsk salt och peppar',
     '2 x 400 g tomatoes',
+    'cut into bite - sized pieces',
+    'rice and beans',
     '1 handful of something rather long to be one food',
     '3 tbsp',
   ])('leaves "%s" to the AI', text => {
@@ -57,9 +103,9 @@ describe('ingredientKey', () => {
 
 describe('readRecipeLines', () => {
   it('keeps earlier readings, reads new lines and drops lines no longer in the recipe', () => {
-    const fromAi = { text: 'Salt to taste', name: 'salt', quantity: 1, unit: 'pinch' };
+    const fromAi = { text: 'rice and beans', name: 'rice and beans', quantity: 1, unit: 'item' };
     const gone = { text: '1 lemon', name: 'lemon', quantity: 1, unit: 'item' };
-    expect(readRecipeLines(['400 g broccoli', 'Salt to taste', 'Fresh basil'], [fromAi, gone])).toEqual([
+    expect(readRecipeLines(['400 g broccoli', 'rice and beans', '1 x 1 x 1 mystery'], [fromAi, gone])).toEqual([
       { text: '400 g broccoli', name: 'broccoli', quantity: 400, unit: 'g' },
       fromAi,
     ]);
