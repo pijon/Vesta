@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore";
 import { Avatar, Group, PlannedMeal, Recipe } from "../types";
 import { MAX_FAMILY_GROUP_SIZE } from "../constants";
+import { getFromCache, getUserCacheKey, saveToCache } from "../utils/cacheService";
+import { forgetRecipes } from "./recipeCache";
 
 // --- Collection Refs ---
 const getGroupRef = (groupId: string) => doc(db, "groups", groupId);
@@ -182,26 +184,60 @@ const loadOrCreateFamily = async (uid: string): Promise<Group> => {
 // The current user's groupId, read once per session (plans and recipes need it on every load).
 let myGroupId: { uid: string; promise: Promise<string | null> } | null = null;
 
+// The groupId last confirmed on this device, so a launch can start reading plans before the
+// profile and group reads behind getMyGroupId are back (see readInMyGroup). Never used for writes.
+const groupHintKey = (uid: string) => getUserCacheKey(uid, "groupId");
+const rememberedGroupId = (uid: string): string | null => {
+    const value = getFromCache<unknown>(groupHintKey(uid));
+    return typeof value === "string" && value ? value : null;
+};
+
 /** The user's family groupId, creating the family and moving old recipes into it on first use. */
 export const getMyGroupId = (): Promise<string | null> => {
     const uid = currentUid();
     if (!uid) return Promise.resolve(null);
     if (myGroupId?.uid !== uid) {
-        myGroupId = {
-            uid,
-            promise: loadOrCreateFamily(uid)
-                .then(async group => {
-                    await moveLegacyRecipes(group).catch(e => console.error("Error moving recipes into the family:", e));
-                    return group.id;
-                })
-                .catch(e => { console.error("Error loading the family:", e); myGroupId = null; return null; }), // retry next time
-        };
+        const entry: { uid: string; promise: Promise<string | null> } = { uid, promise: Promise.resolve(null) };
+        entry.promise = loadOrCreateFamily(uid)
+            .then(async group => {
+                await moveLegacyRecipes(group).catch(e => console.error("Error moving recipes into the family:", e));
+                // Not if the family changed meanwhile (forgetMyGroupId): this read may be older
+                if (myGroupId === entry) saveToCache(groupHintKey(uid), group.id);
+                return group.id;
+            })
+            .catch(e => { console.error("Error loading the family:", e); if (myGroupId === entry) myGroupId = null; return null; }); // retry next time
+        myGroupId = entry;
     }
     return myGroupId.promise;
 };
 
-/** Drops the cached groupId, so the next call reads the profile again. */
-export const forgetMyGroupId = () => { myGroupId = null; };
+/** Drops the cached groupId (and what was read in that family), so the next call reads the profile again. */
+export const forgetMyGroupId = () => {
+    const uid = myGroupId?.uid ?? currentUid();
+    myGroupId = null;
+    forgetRecipes();
+    if (uid) try { localStorage.removeItem(groupHintKey(uid)); } catch { /* storage blocked */ }
+};
+
+/**
+ * Runs a read in the user's family without waiting for getMyGroupId's profile and group reads: it
+ * starts at once with the groupId this device last confirmed, and its result only counts once
+ * getMyGroupId agrees. If the family changed meanwhile (left, removed, joined elsewhere), the read
+ * runs again with the confirmed groupId. Reads only: writes always wait for getMyGroupId.
+ */
+export const readInMyGroup = async <T,>(read: (groupId: string | null) => Promise<T>): Promise<T> => {
+    const uid = currentUid();
+    const remembered = uid ? rememberedGroupId(uid) : null;
+    const confirmed = getMyGroupId();
+    if (!remembered) return read(await confirmed);
+    // A family the user has left denies the read: that only matters if it's still theirs
+    const early = read(remembered).then(value => ({ value }), (error: unknown) => ({ error }));
+    const groupId = await confirmed;
+    if (groupId !== remembered) return read(groupId);
+    const result = await early;
+    if ("error" in result) throw result.error;
+    return result.value;
+};
 
 /**
  * Joins the family behind an invite code. Only from a family of one: the user's recipes move

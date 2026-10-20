@@ -8,9 +8,10 @@ vi.mock('firebase/firestore', async () => ({...(await import('../test/fakeFirest
 vi.mock('./firebase', () => ({ db: {}, auth: { get currentUser() {return {uid:fake.uid};} }, currentUid: () => fake.uid }));
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
-const { forgetMyGroupId } = await import('./groupService');
-const { getDayPlan, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, subscribeFamilyMeals } = await import('./storageService');
-const { getCachedDayPlan } = await import('../utils/cacheService');
+const { forgetMyGroupId, getMyGroupId } = await import('./groupService');
+const { deleteRecipe, getDayPlan, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
+const { RECIPE_CACHE_MS } = await import('./recipeCache');
+const { getCachedDayPlan, getFromCache, getUserCacheKey, saveToCache } = await import('../utils/cacheService');
 const { groupFamilyUpdates, recordFamilyUpdate } = await import('./activityService');
 
 const chili: Recipe = {
@@ -138,6 +139,89 @@ describe('day plans', () => {
 
   it('gives an empty plan for a day with nothing saved', async () => {
     expect(await getDayPlan('2026-10-10')).toMatchObject({ date: '2026-10-10', meals: [], completedMealIds: [] });
+  });
+});
+
+describe('plan reads', () => {
+  const recipeReads = () => store.reads.filter(path => path === 'groups/g/recipes/r1').length;
+  const loadBoth = () => Promise.all([getDayPlan('2026-10-01'), getDayPlan('2026-10-02')]);
+  beforeEach(async () => {
+    await saveDayPlan(plan('2026-10-01', [planMeal(chili, 'dinner')]));
+    await saveDayPlan(plan('2026-10-02', [planMeal(chili, 'lunch')]));
+    store.reads.length = 0;
+  });
+
+  it("reads a planned recipe once for both days, and not again on the next refresh", async () => {
+    await loadBoth();
+    const [today] = await loadBoth();
+    expect(today.meals[0]).toMatchObject({ name: 'Chili', calories: 520 });
+    expect(recipeReads()).toBe(1);
+  });
+
+  it("shows the user's own recipe changes at once", async () => {
+    await loadBoth();
+    await saveRecipe({ ...chili, name: 'Chili con carne' });
+    expect((await getDayPlan('2026-10-01')).meals[0].name).toBe('Chili con carne');
+
+    await setRecipeFavorite('r1', true);
+    expect((await getDayPlan('2026-10-01')).meals[0].isFavorite).toBe(true);
+
+    await deleteRecipe('r1');
+    expect((await getDayPlan('2026-10-01')).meals[0]).toMatchObject({ isMissing: true });
+  });
+
+  it("shows another member's edit once the kept copy is a few minutes old, or the recipes are loaded", async () => {
+    const now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      await loadBoth();
+      putRecipe({ ...chili, calories: 480 });
+      expect((await getDayPlan('2026-10-01')).meals[0].calories).toBe(520);
+      clock.mockReturnValue(now + RECIPE_CACHE_MS);
+      expect((await getDayPlan('2026-10-01')).meals[0].calories).toBe(480);
+
+      putRecipe({ ...chili, calories: 450 });
+      await getRecipes();
+      expect((await getDayPlan('2026-10-01')).meals[0].calories).toBe(450);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('starts with the family remembered from last time, before the profile and group are read', async () => {
+    await getMyGroupId();
+    expect(getFromCache(getUserCacheKey('me', 'groupId'))).toBe('g');
+    forgetMyGroupId(); // a new launch: the session's groupId is gone, the device remembers it
+    expect(getFromCache(getUserCacheKey('me', 'groupId'))).toBeNull();
+    saveToCache(getUserCacheKey('me', 'groupId'), 'g');
+    store.reads.length = 0;
+
+    expect((await getDayPlan('2026-10-01')).meals[0].name).toBe('Chili');
+    const at = (path: string) => store.reads.indexOf(path);
+    expect(at('users/me/days/2026-10-01')).toBeLessThan(at('groups/g'));
+    expect(at('groups/g/dinners')).toBeLessThan(at('groups/g'));
+    expect(at('groups/g/recipes/r1')).toBeGreaterThan(-1);
+  });
+
+  it('reads again in the confirmed family when the remembered one is no longer theirs', async () => {
+    setFamily(['me', 'partner']);
+    store.docs.set('groups/old', { id: 'old', name: 'Old', ownerId: 'ex', createdAt: 0, inviteCode: 'OLDOLDOL', memberIds: ['ex'] });
+    store.docs.set('groups/old/recipes/r1', { ...JSON.parse(JSON.stringify(chili)), name: 'Old chili' });
+    const meal = (name: string) => ({ type: 'reference', recipeId: 'r1', servings: 1, instanceId: name, slot: 'dinner', familyMeal: true, position: 0 });
+    store.docs.set('groups/old/dinners/2026-10-03', { date: '2026-10-03', meals: { old: meal('old') } });
+    store.docs.set('groups/g/dinners/2026-10-03', { date: '2026-10-03', meals: { now: meal('now') } });
+    forgetMyGroupId();
+    saveToCache(getUserCacheKey('me', 'groupId'), 'old');
+
+    const day = await getDayPlan('2026-10-03');
+    expect(day.meals.map(m => [m.instanceId, m.name])).toEqual([['now', 'Chili']]);
+    expect(getFromCache(getUserCacheKey('me', 'groupId'))).toBe('g');
+
+    // Saves only ever go to the confirmed family
+    store.writes.length = 0;
+    await saveDayPlan({ ...day, meals: [...day.meals, planMeal(chili, 'dinner', { familyMeal: true })] });
+    expect(store.writes).toContain('groups/g/dinners/2026-10-03');
+    expect(store.writes.filter(path => path.startsWith('groups/') && !path.startsWith('groups/g/'))).toEqual([]);
   });
 });
 
