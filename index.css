@@ -452,6 +452,12 @@
     --color-stone-50: #1A1714;
   }
 
+  /* No rubber-band overscroll: on iOS it drags fixed elements (the tab bar) along with the page */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+
   body {
     background-color: var(--background);
     color: var(--text-main);
@@ -733,6 +739,8 @@
   .tab-bar {
     @apply fixed left-[var(--nav-inset-left)] right-[var(--nav-inset-right)] bottom-[var(--tab-bar-bottom)] z-50 flex justify-center gap-0.5 p-1.5 rounded-full border border-border bg-surface nav:hidden;
     box-shadow: var(--elev-md);
+    /* Own compositor layer, so it stays put while the page scrolls or bounces */
+    transform: translateZ(0);
   }
   .tab-item {
     @apply flex-1 max-w-32 h-[52px] flex flex-col items-center justify-center gap-0.5 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-4 rounded-full;
