@@ -7,7 +7,8 @@ import type { DayPlan, Recipe } from '../types';
 
 const spies = vi.hoisted(() => ({ saveFamilyMealOut: vi.fn(async () => {}) }));
 vi.mock('../services/storageService', () => ({ saveFamilyMealOut: spies.saveFamilyMealOut }));
-vi.mock('../services/pageData', () => ({ familyData: {} }));
+vi.mock('../services/pageData', () => ({ familyData: {}, shoppingData: {} }));
+vi.mock('../services/shoppingService', () => ({ getCachedShoppingList: () => null, subscribeShoppingList: () => () => {} }));
 vi.mock('../utils/prewarm', () => ({ usePrewarmed: () => null }));
 
 const { PlanToday, upcomingMealIndex } = await import('./PlanToday');

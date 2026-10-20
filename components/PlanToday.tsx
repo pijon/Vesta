@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarHeart, ChevronRight, CookingPot, Plus, ShoppingBasket, UsersRound } from 'lucide-react';
+import { CalendarHeart, ChevronRight, CookingPot, Plus, UsersRound } from 'lucide-react';
 import { AppView, DayPlan, MealSlot, Recipe } from '../types';
 import { MEAL_SLOTS, PLANNABLE_SLOTS, SLOT_TIMES, setFamilyMealOut, slotFor, slotLabel } from '../utils/planUtils';
 import { mealVisualFor } from '../utils/mealVisual';
@@ -8,6 +8,7 @@ import { saveFamilyMealOut } from '../services/storageService';
 import { familyData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
 import { FamilyFaces } from './MemberAvatar';
+import { TodayShoppingWidget } from './TodayShoppingWidget';
 
 /** How long after a slot's usual time its meal still counts as "next" */
 const NEXT_WINDOW_MINUTES = 90;
@@ -143,9 +144,13 @@ export const PlanToday: React.FC<PlanTodayProps> = ({ uid, todayPlan, tomorrowPl
               return (
                 <li key={meal.instanceId ?? meal.id} className="py-2 flex items-center gap-3">
                   <button onClick={() => openPlanner()} className="flex-1 min-w-0 min-h-11 flex items-center gap-3 text-left rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
-                    <span className={`size-10 shrink-0 rounded-full flex items-center justify-center ${visual.tint}`} aria-hidden="true">
-                      <visual.Icon size={18} strokeWidth={2.25} />
-                    </span>
+                    {meal.image ? (
+                      <img src={meal.image} alt="" loading="lazy" className="size-12 shrink-0 rounded-full object-cover bg-surface-sunken" />
+                    ) : (
+                      <span className={`size-12 shrink-0 rounded-full flex items-center justify-center ${visual.tint}`} aria-hidden="true">
+                        <visual.Icon size={20} strokeWidth={2.25} />
+                      </span>
+                    )}
                     <span className="min-w-0">
                       <span className="flex items-center gap-2 text-xs font-semibold text-muted">
                         {label}{isNext && <span className="badge badge-weight">Next</span>}
@@ -186,16 +191,12 @@ export const PlanToday: React.FC<PlanTodayProps> = ({ uid, todayPlan, tomorrowPl
 
       <div className="flex flex-col gap-6">
       {/* Ways onward */}
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => openPlanner()} className="card card-hover p-4 text-left flex flex-col gap-3 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
-          <span className="icon-tile tile-weight size-10 flex items-center justify-center" aria-hidden="true"><CalendarHeart size={18} strokeWidth={2.25} /></span>
-          <span className="font-semibold">Plan the week</span>
-        </button>
-        <button onClick={() => onNavigate(AppView.SHOPPING)} className="card card-hover p-4 text-left flex flex-col gap-3 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
-          <span className="icon-tile tile-water size-10 flex items-center justify-center" aria-hidden="true"><ShoppingBasket size={18} strokeWidth={2.25} /></span>
-          <span className="font-semibold">Shopping list</span>
-        </button>
-      </div>
+      <button onClick={() => openPlanner()} className="card card-hover p-4 text-left flex items-center gap-3 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
+        <span className="icon-tile tile-weight size-10 flex items-center justify-center" aria-hidden="true"><CalendarHeart size={18} strokeWidth={2.25} /></span>
+        <span className="font-semibold">Plan the week</span>
+      </button>
+
+      <TodayShoppingWidget onOpen={() => onNavigate(AppView.SHOPPING)} />
 
       {/* Coming up: tomorrow, as a plain card */}
       <section className="card p-4 md:p-6" aria-labelledby="tomorrow-heading">
