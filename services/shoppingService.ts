@@ -181,6 +181,15 @@ export const removeMealFromList = async (instanceId: string) => {
   ]);
 };
 
+/** Puts a meal taken off the list back (undo): its record, and its items as they were */
+export const restoreMealOnList = async (instanceId: string, meal: ShoppingListMeal, items: ShoppingListItem[]) => {
+  const groupId = await familyId();
+  await commit([
+    ...items.map((item): Write => batch => batch.set(itemRef(groupId, item.id), item)),
+    ...mealsChange(groupId, { [instanceId]: meal }),
+  ]);
+};
+
 /** Something typed onto the list ("2 l mjölk", "toilet paper"); it doesn't add up with meals. */
 export const addOwnItem = async (text: string) => {
   const typed = text.trim();

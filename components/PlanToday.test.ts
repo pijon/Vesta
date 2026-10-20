@@ -64,6 +64,14 @@ describe('Today for Plan meals', () => {
     expect(container.textContent).not.toMatch(/eaten|log/i);
   });
 
+  it('offers the next meal\'s recipe from the hero', async () => {
+    vi.setSystemTime(at(6));
+    await renderToday({ date: '2026-10-20', meals: [breakfast, dinner], completedMealIds: [] });
+    vi.useRealTimers();
+    expect(container.querySelector('#next-meal-heading')?.textContent).toBe('Porridge');
+    expect(container.querySelector('.hero')?.textContent).toContain('See recipe');
+  });
+
   it('saves "not eating" for a family meal through the family path', async () => {
     const onPlanChange = await renderToday({ date: '2026-10-20', meals: [breakfast, dinner], completedMealIds: [] });
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="I\'m not eating Chili"]')!.click());

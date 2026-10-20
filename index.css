@@ -596,6 +596,8 @@
     color: var(--hero-foreground);
     border-radius: 28px;
   }
+  /* Headings default to text-main, which is cream in dark mode; on the hero they keep its ink */
+  .hero :is(h1, h2, h3, h4, h5, h6) { color: inherit; }
 
   /* Metric tiles: tint fill + tint text, no border */
   .tile { @apply flex flex-col rounded-[20px] p-4; }

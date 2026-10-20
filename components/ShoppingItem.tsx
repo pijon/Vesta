@@ -44,7 +44,9 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ name, amount, meals, isChec
             </button>
 
             <div className="flex-1 min-w-0 py-2">
+                {/* The name leads, since that's what you look for in the shop; the amount follows, tap to change it */}
                 <div className={`flex flex-wrap items-baseline gap-x-2 ${isChecked ? 'text-muted' : ''}`}>
+                    <span className={`font-semibold first-letter:uppercase [overflow-wrap:anywhere] ${isChecked ? 'line-through decoration-1' : ''}`}>{name}</span>
                     {isEditing ? (
                         <input
                             autoFocus
@@ -57,20 +59,19 @@ const ShoppingItem: React.FC<ShoppingItemProps> = ({ name, amount, meals, isChec
                                 if (e.key === 'Escape') setIsEditing(false);
                             }}
                             aria-label={`Amount of ${name}`}
-                            className="input min-h-9 py-1 px-2 w-32 font-bold"
+                            className="input min-h-9 py-1 px-2 w-32 text-sm font-semibold"
                         />
                     ) : amount && (
                         // Typed onto the list without one: type it with the item instead
                         <button
                             onClick={startEditing}
                             disabled={isChecked}
-                            className="font-display font-extrabold text-lg leading-6 underline decoration-dashed decoration-border-control underline-offset-4 disabled:no-underline hover:decoration-main rounded focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                            className="hit-target text-sm font-semibold text-muted underline decoration-dashed decoration-border-control underline-offset-4 disabled:no-underline hover:text-main hover:decoration-main rounded focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                             aria-label={`Change amount: ${amount}`}
                         >
                             {amount}
                         </button>
                     )}
-                    <span className={`inline-block font-semibold first-letter:uppercase ${isChecked ? 'line-through decoration-1' : ''}`}>{name}</span>
                 </div>
                 {meals.length > 0 && (
                     <p className="text-xs text-muted mt-0.5 line-clamp-1">For {meals.join(', ')}</p>

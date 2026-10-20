@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({ list: null as unknown, plans: {} as Record<str
 vi.mock('../services/shoppingService', () => ({
   getCachedShoppingList: () => state.list,
   subscribeShoppingList: () => () => {},
+  addMealsToList: async () => {},
 }));
 vi.mock('../services/pageData', () => ({ shoppingData: {} }));
 vi.mock('../utils/prewarm', () => ({ usePrewarmed: () => ({ plans: state.plans }) }));
@@ -60,6 +61,6 @@ describe('Today\'s shopping widget', () => {
     state.plans = { [date]: plan };
     await render();
     expect(container.textContent).toContain('Nothing on the list yet');
-    expect(container.textContent).toContain('1 planned meal isn\'t on the list yet');
+    expect(container.textContent).toContain('Add 1 meal to the list');
   });
 });
