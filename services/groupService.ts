@@ -16,6 +16,7 @@ import { Avatar, Group, PlannedMeal, Recipe } from "../types";
 import { MAX_FAMILY_GROUP_SIZE } from "../constants";
 import { getFromCache, getUserCacheKey, saveToCache } from "../utils/cacheService";
 import { forgetRecipes } from "./recipeCache";
+import { noteLocalWrite } from "../utils/localWrites";
 
 // --- Collection Refs ---
 const getGroupRef = (groupId: string) => doc(db, "groups", groupId);
@@ -216,6 +217,7 @@ export const forgetMyGroupId = () => {
     const uid = myGroupId?.uid ?? currentUid();
     myGroupId = null;
     forgetRecipes();
+    noteLocalWrite(); // the user's plans and recipes now come from another family
     if (uid) try { localStorage.removeItem(groupHintKey(uid)); } catch { /* storage blocked */ }
 };
 

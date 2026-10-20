@@ -11,6 +11,7 @@ const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId, getMyGroupId } = await import('./groupService');
 const { deleteRecipe, getDayPlan, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
 const { RECIPE_CACHE_MS } = await import('./recipeCache');
+const { localWriteCount } = await import('../utils/localWrites');
 const { getCachedDayPlan, getFromCache, getUserCacheKey, saveToCache } = await import('../utils/cacheService');
 const { groupFamilyUpdates, recordFamilyUpdate } = await import('./activityService');
 
@@ -186,6 +187,14 @@ describe('plan reads', () => {
     } finally {
       clock.mockRestore();
     }
+  });
+
+  it('counts its writes, so a refresh on its way from before one is not reused', async () => {
+    const before = localWriteCount();
+    await saveDayPlan(plan('2026-10-01', []));
+    await saveRecipe({ ...chili, name: 'Chili con carne' });
+    await deleteRecipe('r1');
+    expect(localWriteCount()).toBeGreaterThanOrEqual(before + 6); // each when it starts and when it's done
   });
 
   it('starts with the family remembered from last time, before the profile and group are read', async () => {

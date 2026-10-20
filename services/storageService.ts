@@ -3,6 +3,7 @@ import { CoachReadState, EatingOutDish, RecipeSaveOptions, Recipe, DayPlan, User
 import { getCacheKey, getUserCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, readInMyGroup, toStoredRecipe } from "./groupService";
 import { forgetRecipe, readRecipeOnce, rememberRecipe } from "./recipeCache";
+import { noteLocalWrite } from "../utils/localWrites";
 import { DEFAULT_USER_STATS } from "../constants";
 import { forgetFamilyUpdate, recordFamilyUpdate } from "./activityService";
 import { auth, currentUid, db } from "./firebase";
@@ -49,6 +50,7 @@ const familyRecipeRef = async (id: string) => {
 const recipeChanged = async (id: string) => {
   const groupId = await getMyGroupId();
   if (groupId) forgetRecipe(groupId, id);
+  noteLocalWrite();
 };
 
 export const getRecipes = async (limitCount?: number): Promise<Recipe[]> => {
@@ -78,6 +80,7 @@ export const saveRecipe = async (recipe: Recipe, options: RecipeSaveOptions = {}
   const assertOwner = () => { if (!uid || auth.currentUser?.uid !== uid) throw new Error('Your account changed. Try again.'); };
   assertOwner();
   if (recipe.image?.startsWith('data:')) throw new Error('Base64 images are not allowed. Please upload to Firebase Storage first.');
+  noteLocalWrite();
   const groupId = await getMyGroupId();
   assertOwner();
   if (!groupId) throw new Error("Couldn't load your family");
@@ -105,12 +108,14 @@ export const saveRecipe = async (recipe: Recipe, options: RecipeSaveOptions = {}
   });
   const { isFavorite: _isFavorite, ...stored } = saved;
   rememberRecipe(groupId, recipe.id, JSON.parse(JSON.stringify(stored)));
+  noteLocalWrite();
   assertOwner();
   return saved;
 };
 
 /** Keeps ingredient lines read for the shopping list on their recipe, for the whole family */
 export const saveParsedIngredients = async (recipeId: string, parsedIngredients: ParsedIngredientLine[]) => {
+  noteLocalWrite();
   await updateDoc(await familyRecipeRef(recipeId), { parsedIngredients });
   await recipeChanged(recipeId);
 };
@@ -118,11 +123,13 @@ export const saveParsedIngredients = async (recipeId: string, parsedIngredients:
 /** Favourites are per member, so this only adds or removes the current user. */
 export const setRecipeFavorite = async (id: string, favorite: boolean) => {
   const uid = getUserId();
+  noteLocalWrite();
   await updateDoc(await familyRecipeRef(id), { favoritedBy: favorite ? arrayUnion(uid) : arrayRemove(uid) });
   await recipeChanged(id);
 };
 
 export const deleteRecipe = async (id: string) => {
+  noteLocalWrite();
   await deleteDoc(await familyRecipeRef(id));
   await recipeChanged(id);
   void forgetFamilyUpdate('recipe', id);
@@ -626,6 +633,7 @@ export const getDayPlan = async (date: string): Promise<DayPlan> => {
 
 export const saveDayPlan = async (dayPlan: DayPlan) => {
   const plan: DayPlan = { ...dayPlan, meals: withInstanceIds(dayPlan.meals) };
+  noteLocalWrite();
 
   // 1. Optimistic Cache Update
   saveToCache(getCacheKey('dayPlan', plan.date), plan);
@@ -641,6 +649,7 @@ export const saveDayPlan = async (dayPlan: DayPlan) => {
     setDoc(doc(db, 'users', getUserId(), 'days', plan.date), { ...day, meals: ownMeals.map(meal => dehydrateMeal(meal)), totalCalories, totalCaloriesComplete: nutrition.complete }),
     saveFamilyMeals(plan.date, familyMeals),
   ]);
+  noteLocalWrite();
 };
 
 /**
@@ -980,7 +989,9 @@ export const getUserStats = async (expectedUid?: string): Promise<UserStats> => 
 export const saveUserStats = async (stats: UserStats, expectedUid?: string): Promise<void> => {
   const uid = getUserId();
   if (expectedUid && expectedUid !== uid) throw new Error('Your account changed. Reload and try again.');
+  noteLocalWrite();
   await setDoc(doc(db, 'users', uid, 'data', STATS_DOC), stats);
+  noteLocalWrite();
   saveToCache(getUserCacheKey(uid, 'stats'), stats);
   syncPublicProfile(stats, uid);
 };
@@ -1071,7 +1082,9 @@ export const saveDailyLog = async (log: DailyLog) => {
   normalized.workouts = normalized.workouts || [];
   normalized.waterIntake = typeof normalized.waterIntake === 'number' ? normalized.waterIntake : 0;
   saveToCache(getCacheKey('dailyLog', normalized.date), normalized);
+  noteLocalWrite();
   await setDoc(getDocRef('logs', normalized.date), normalized);
+  noteLocalWrite();
 };
 
 // --- Daily Summaries ---
@@ -1193,7 +1206,9 @@ export const getFastingState = async (): Promise<FastingState> => {
 export const saveFastingState = async (state: FastingState) => {
   // Optimistic Cache
   saveToCache(getCacheKey('fasting'), state);
+  noteLocalWrite();
   await setDoc(getDocRef('data', FASTING_DOC), state);
+  noteLocalWrite();
 };
 
 export const getFastingHistory = async (): Promise<FastingEntry[]> => {

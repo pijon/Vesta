@@ -10,6 +10,7 @@ import { addDays, isFastDay, isRememberableDish, mealCalories, mealKey, mealProt
 import { getDayPlan, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, subscribeFamilyMeals, withFamilyMeals, FamilyMealChange } from './services/storageService';
 import { clearWarm, holdWarmUntil } from './utils/prewarm';
 import { createInFlight, InFlight } from './utils/inFlight';
+import { localWriteCount } from './utils/localWrites';
 import { useTheme } from './hooks/useTheme';
 // Lazy load non-critical components for performance
 const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
@@ -315,8 +316,12 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
     // Refreshes overlap (every planner edit starts one, so does focus); only the newest may set state,
     // or a slow earlier one lands last and puts back the plan from before the latest change
     const refreshSeq = useRef(0);
+    // A trigger while a refresh is on its way (focus, back to Today, a second launch event) shares it,
+    // unless something changed here since it started: a local write (utils/localWrites), an edit
+    // that bumped refreshSeq or logEdits, or the dates or experience it reads for. Those start anew.
+    const refreshes = useRef(createInFlight<void, string>());
 
-    const refreshData = useCallback(async () => {
+    const refreshFromServer = useCallback(async () => {
         const seq = ++refreshSeq.current;
         const editsAtStart = logEdits.current;
         try {
@@ -374,6 +379,11 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
         }
         // A switch to tracking loads today's log and fasting
     }, [todayDate, tomorrowDate, setDailyLogState, uid, ownsSession, onSetupChange, setupVersion, readSetup, experience]);
+
+    const refreshData = useCallback((): Promise<void> => refreshes.current(
+        () => [refreshSeq.current, logEdits.current, localWriteCount(), uid, todayDate, tomorrowDate, experience].join('|'),
+        refreshFromServer,
+    ).promise, [refreshFromServer, uid, todayDate, tomorrowDate, experience]);
 
     // Family meals are live: one another member plans or changes shows up on Today straight away,
     // and a new one is pointed out wherever the user is
