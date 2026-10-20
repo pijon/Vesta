@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
 import { isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
-import { saveDayPlan, saveFamilyMealOut, getDailySummaries } from '../services/storageService';
+import { saveDayPlan, saveFamilyMealOut } from '../services/storageService';
 import { currentUid } from '../services/firebase';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { addDays, creditedBurn, dayTarget, decideEatingOut, isBudgetMeal, withLiveBudgets, proteinTarget, isFastDay, isMealEaten, nextMealIndex, mealKey, planMeal, setFamilyMealOut, slotFor, slotTime } from '../utils/planUtils';
@@ -13,7 +13,7 @@ import { EatingOutDecideSheet } from './EatingOutDecideSheet';
 import { DualTrackSection } from './DualTrackSection';
 import { TomorrowCard } from './TomorrowCard';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { analyticsDayTypesData, frequentFoodsData, FrequentFood } from '../services/pageData';
+import { analyticsDayTypesData, analyticsSummariesData, frequentFoodsData, FrequentFood } from '../services/pageData';
 import { CoachCard } from './CoachPanel';
 import { usePrewarmed } from '../utils/prewarm';
 import { buildDays, weekendGap, weightSummary } from '../utils/analyticsModel';
@@ -101,7 +101,6 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const [isMealSelectorOpen, setIsMealSelectorOpen] = useState(false);
   const [activeMealIndexToSwap, setActiveMealIndexToSwap] = useState<number | null>(null);
 
-  const [activityHistory, setActivityHistory] = useState<DailySummary[]>([]);
 
   // Fasting Live Timer State
   const [elapsedFastingHours, setElapsedFastingHours] = useState(0);
@@ -127,17 +126,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     return () => clearInterval(interval);
   }, [fastingState.lastAteTime]);
 
-  useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const data = await getDailySummaries(90);
-        setActivityHistory(data);
-      } catch (e) {
-        console.error("Failed to load activity history", e);
-      }
-    };
-    loadHistory();
-  }, [dailyLog.workouts]); // Reload when workouts change
+  // The last 90 days, from the summaries Analytics also reads (today comes from dailyLog below)
+  const summaries = usePrewarmed(analyticsSummariesData);
+  const activityHistory = React.useMemo(() => {
+    const since = addDays(localDateString(), -90);
+    return (summaries ?? []).filter(summary => summary.date >= since);
+  }, [summaries]);
 
   // Merge current dailyLog into activityHistory for accurate real-time streak
   const effectiveHistory = React.useMemo(() => {

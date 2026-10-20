@@ -774,6 +774,32 @@ export const getRecipePlanDates = async (startDate: string, endDate: string): Pr
   return dates;
 };
 
+/** Each day's fast/nourish type in a range (days without one are left out). Reads only the day
+ *  docs, without hydrating their meals. */
+export const getDayTypesInRange = async (startDate: string, endDate: string): Promise<Record<string, string>> => {
+  const [days, legacyDoc] = await Promise.all([
+    getDocs(query(getCollectionRef('days'), where('date', '>=', startDate), where('date', '<=', endDate))),
+    // Legacy plan doc, for dates with no day doc (unmigrated users)
+    getDoc(doc(db, 'users', getUserId(), 'data', 'plan')).catch(() => null),
+  ]);
+  const types: Record<string, string> = {};
+  const withDoc = new Set<string>();
+  days.forEach(d => {
+    const data = d.data() as { date: string; type?: string };
+    withDoc.add(data.date);
+    if (data.type) types[data.date] = data.type;
+  });
+  const legacy = legacyDoc?.exists() ? legacyDoc.data() as Record<string, { type?: string } | undefined> : null;
+  if (legacy) {
+    for (let d = parseLocalDate(startDate); d <= parseLocalDate(endDate); d.setDate(d.getDate() + 1)) {
+      const date = localDateString(d);
+      const type = legacy[date]?.type;
+      if (!withDoc.has(date) && type) types[date] = type;
+    }
+  }
+  return types;
+};
+
 // Purely local helper to stitch together a range from existing cache
 export const getCachedPlansInRange = (startDate: string, endDate: string): Record<string, DayPlan> | null => {
   const plans: Record<string, DayPlan> = {};
@@ -974,11 +1000,6 @@ export const saveEnhancedShoppingState = async (state: EnhancedShoppingState) =>
 
 // --- Daily Logs ---
 // Using a collection 'logs' where docId = date
-/** Food items logged since a date (inclusive), oldest day first. */
-export const getFoodItemsSince = async (startDate: string): Promise<FoodLogItem[]> => {
-  const snapshot = await getDocs(query(getCollectionRef('logs'), where('date', '>=', startDate), orderBy('date', 'asc')));
-  return snapshot.docs.flatMap(d => (d.data() as DailyLog).items || []);
-};
 
 export const getDailyLog = async (date: string): Promise<DailyLog> => {
   try {
@@ -1406,47 +1427,39 @@ export const archiveYesterdaysLog = async (): Promise<{ archived: boolean; date?
   }
 };
 
-/**
- * Get daily summaries from the new lightweight 'summaries' collection.
- * Falls back to computing from 'logs' if summary doesn't exist (for today or unmigrated data).
- */
+/** The full logs and stored summaries of the last `daysBack` days, oldest first (read together). */
+export interface LogHistory {
+  logs: DailyLog[];
+  summaries: DailySummary[];
+}
+
+export const getLogHistory = async (daysBack: number): Promise<LogHistory> => {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoff = localDateString(cutoffDate);
+  const since = (name: string) => getDocs(query(getCollectionRef(name), where('date', '>=', cutoff), orderBy('date', 'asc')));
+  const [summariesSnap, logsSnap] = await Promise.all([since('summaries'), since('logs')]);
+  return {
+    summaries: summariesSnap.docs.map(d => d.data() as DailySummary),
+    logs: logsSnap.docs.map(d => d.data() as DailyLog),
+  };
+};
+
+/** One summary per day: a stored summary, else one computed from the log (the log's status wins). */
+export const mergeSummaries = ({ logs, summaries }: LogHistory): DailySummary[] => {
+  const summariesMap = new Map<string, DailySummary>(summaries.map(summary => [summary.date, summary]));
+  logs.forEach(log => {
+    const stored = summariesMap.get(log.date);
+    if (!stored) summariesMap.set(log.date, summarizeLog(log));
+    else if (log.status) summariesMap.set(log.date, { ...stored, status: log.status });
+  });
+  return Array.from(summariesMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+};
+
+/** Daily summaries of the last `daysBack` days, from stored summaries and the logs. */
 export const getDailySummaries = async (daysBack: number = 90): Promise<DailySummary[]> => {
   try {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-    const cutoffDateString = localDateString(cutoffDate);
-
-    // 1. Fetch from summaries collection (new, lightweight)
-    const summariesQuery = query(
-      getCollectionRef('summaries'),
-      where('date', '>=', cutoffDateString),
-      orderBy('date', 'asc')
-    );
-    const summariesSnap = await getDocs(summariesQuery);
-    const summariesMap = new Map<string, DailySummary>();
-    summariesSnap.forEach(doc => {
-      const summary = doc.data() as DailySummary;
-      summariesMap.set(summary.date, summary);
-    });
-
-    // 2. Fetch from logs collection (fallback for today and unmigrated data)
-    const logsQuery = query(
-      getCollectionRef('logs'),
-      where('date', '>=', cutoffDateString),
-      orderBy('date', 'asc')
-    );
-    const logsSnap = await getDocs(logsQuery);
-
-    logsSnap.forEach(doc => {
-      const log = doc.data() as DailyLog;
-      // Only compute if we don't have a summary yet; a stored summary still takes the day's status
-      const stored = summariesMap.get(log.date);
-      if (!stored) summariesMap.set(log.date, summarizeLog(log));
-      else if (log.status) summariesMap.set(log.date, { ...stored, status: log.status });
-    });
-
-    // 3. Return sorted array
-    return Array.from(summariesMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    return mergeSummaries(await getLogHistory(daysBack));
   } catch (e) {
     console.error("Error fetching daily summaries:", e);
     return [];

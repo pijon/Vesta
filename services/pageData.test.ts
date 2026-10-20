@@ -2,7 +2,7 @@ import {it,expect,vi} from 'vitest';
 import type {Recipe} from '../types';
 vi.mock('./storageService',()=>({getEatingOutDishes:async()=>[],getRecipes:async()=>[
  {name:'Tea',calories:0,calorieStatus:'known'}, {name:'Soup',calories:900,calorieStatus:'unknown'}, {name:'Old',calories:0}, {name:'Stew',calories:400}
-] as Recipe[],getFoodItemsSince:async()=>[{name:'Soup',calories:300,timestamp:10},{name:'Bad',calories:Infinity,timestamp:20}]}));
+] as Recipe[],getLogHistory:async()=>({summaries:[],logs:[{date:'2999-01-01',items:[{name:'Soup',calories:300,timestamp:10},{name:'Bad',calories:Infinity,timestamp:20}]},{date:'2000-01-01',items:[{name:'Ancient',calories:100,timestamp:1}]}]}),mergeSummaries:()=>[]}));
 vi.mock('./groupService',()=>({}));
 const {knownFoodsData}=await import('./pageData');
 it('keeps confirmed zero and personal log fallback without accepting unavailable recipe numbers',async()=>{
@@ -10,4 +10,6 @@ it('keeps confirmed zero and personal log fallback without accepting unavailable
  expect.objectContaining({name:'Tea',calories:0,source:'recipe'}),expect.objectContaining({name:'Soup',calories:300,source:'log'}),expect.objectContaining({name:'Stew',calories:400})]));
  expect((await knownFoodsData.load()).map(f=>f.name)).not.toContain('Old');
  expect((await knownFoodsData.load()).map(f=>f.name)).not.toContain('Bad');
+ // Logs older than 90 days are only for the summaries
+ expect((await knownFoodsData.load()).map(f=>f.name)).not.toContain('Ancient');
 });
