@@ -192,15 +192,20 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
         navigate(routes[newView] || '/today');
     };
 
+    // Opens with the last numbers seen on this device while the server is asked (that takes seconds
+    // on a cold start), as long as they were this account's
+    const [fromCache] = useState(() => {
+        const owned = cache.isCacheOwner(uid);
+        if (!owned) cache.releaseCacheUnlessOwner(uid);
+        return owned;
+    });
     const [todayPlan, setTodayPlan] = useState<DayPlan>(() => {
         const date = localDateString();
-        return { date, meals: [], completedMealIds: [] };
+        return (fromCache && cache.getCachedDayPlan(date)) || { date, meals: [], completedMealIds: [] };
     });
     const [tomorrowPlan, setTomorrowPlan] = useState<DayPlan>(() => {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        const date = localDateString(d);
-        return { date, meals: [], completedMealIds: [] };
+        const date = addDays(localDateString(), 1);
+        return (fromCache && cache.getCachedDayPlan(date)) || { date, meals: [], completedMealIds: [] };
     });
 
     // Global Modal State
@@ -223,22 +228,23 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
 
     const theme = useTheme();
 
-    const [fastingState, setFastingState] = useState<FastingState>(() => ({
+    const [fastingState, setFastingState] = useState<FastingState>(() => (fromCache && cache.getCachedFastingState()) || {
         lastAteTime: null,
         config: { protocol: '16:8', targetFastHours: 16 }
-    }));
+    });
 
 
-    const [coachRead, setCoachRead] = useState<CoachReadState>({});
+    const [coachRead, setCoachRead] = useState<CoachReadState>(() => (fromCache && cache.getCachedCoachRead()) || {});
 
     const [dailyLog, setDailyLog] = useState<DailyLog>(() => {
         const date = localDateString();
-        const merged: DailyLog = {
+        const merged: DailyLog = (fromCache && cache.getCachedDailyLog(date)) || {
             date,
             items: [],
             workouts: [],
             waterIntake: 0,
         };
+        merged.items = merged.items || [];
         merged.workouts = merged.workouts || [];
         merged.waterIntake = typeof merged.waterIntake === 'number' ? merged.waterIntake : 0;
         return merged;
@@ -307,6 +313,10 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
             // The app may have opened from the cache while Firebase restores the session
             await auth.authStateReady();
             if (auth.currentUser?.uid !== uid || !ownsSession() || seq !== refreshSeq.current) return;
+            // Today's data is asked for alongside the setup, not after it (each is a server round trip);
+            // health data is only used if the setup still says tracking
+            const plans = Promise.all([getDayPlan(todayDate), getDayPlan(tomorrowDate)]);
+            const health = experience === 'tracking' ? Promise.all([getDailyLog(todayDate), getFastingState()]) : null;
             const nextSetup = await getUserSetup(uid);
             if (!ownsSession() || seq !== refreshSeq.current) return;
             // Health data loads for the tracking experience on screen. A current read that says
@@ -317,19 +327,15 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
                 onSetupChange(nextSetup, readFrom);
                 // Plan meals' Today still needs today's and tomorrow's meals (plans, not health data)
                 if (experience !== 'tracking') {
-                    const [today, tomorrow] = await Promise.all([getDayPlan(todayDate), getDayPlan(tomorrowDate)]);
+                    const [today, tomorrow] = await plans;
                     if (!ownsSession() || seq !== refreshSeq.current) return;
                     setTodayPlan(today);
                     setTomorrowPlan(tomorrow);
                 }
                 return;
             }
-            const [today, tomorrow, log, fasting] = await Promise.all([
-                getDayPlan(todayDate),
-                getDayPlan(tomorrowDate),
-                getDailyLog(todayDate),
-                getFastingState()
-            ]);
+            if (!health) return;
+            const [[today, tomorrow], [log, fasting]] = await Promise.all([plans, health]);
             if (!ownsSession() || seq !== refreshSeq.current) return;
             // Guidance read state is secondary: don't hold up the rest of the refresh for it
             getCoachRead().then(read => { if (ownsSession()) setCoachRead(read); });
@@ -342,6 +348,7 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
             // Edited while loading: the local log is newer (and being saved), keep it
             if (logEdits.current === editsAtStart) {setDailyLogState(log);publishFasting(fasting);}
             setLogFresh(true);
+            cache.claimCache(uid);
 
         } catch (error) {
             console.error("Failed to refresh data", error);

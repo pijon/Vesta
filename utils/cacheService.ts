@@ -31,6 +31,16 @@ export const getCachedDailyLog = (date: string): DailyLog | null => getFromCache
 export const getCachedUserStats = (uid?: string): UserStats | null => uid ? getFromCache<UserStats>(getUserCacheKey(uid, 'stats')) : null;
 export const getCachedFastingState = (): FastingState | null => getFromCache<FastingState>(getCacheKey('fasting'));
 export const getCachedCoachRead = (): CoachReadState | null => getFromCache<CoachReadState>(getCacheKey('coachRead'));
+/** Day plans, logs and fasting are cached under shared keys: they're only read back at launch when
+ *  this account is the one whose data they last held (another account signing in clears the mark,
+ *  and its first full load claims them) */
+const CACHE_OWNER_KEY = getCacheKey('owner');
+export const isCacheOwner = (uid: string) => getFromCache<string>(CACHE_OWNER_KEY) === uid;
+export const claimCache = (uid: string) => saveToCache(CACHE_OWNER_KEY, uid);
+export const releaseCacheUnlessOwner = (uid: string) => {
+    if (isCacheOwner(uid)) return;
+    try { localStorage.removeItem(CACHE_OWNER_KEY); } catch { /* storage blocked */ }
+};
 export const getCachedRecipes = (): Recipe[] | null => getFromCache<Recipe[]>(getCacheKey('recipes'));
 
 /** The last confirmed setup, so a launch can open the right experience before the server answers */
