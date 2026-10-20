@@ -12,7 +12,9 @@ const remote = vi.hoisted(() => ({
   uid: 'a', loading: false, developer: false,
   load: vi.fn<(uid: string) => Promise<UserSetupSnapshot>>(),
   complete: vi.fn(), change: vi.fn(), name: vi.fn(), avatar: vi.fn(),
-  logRead: vi.fn(), migration: vi.fn(),
+  logRead: vi.fn(), migration: vi.fn(), planRead: vi.fn(),
+  // While holdPlans is set, each plan read waits for its resolver in heldPlans
+  holdPlans: false, heldPlans: [] as (() => void)[],
   todayMeals: [] as Recipe[], commit: vi.fn(), remove: vi.fn(), results: [] as PlannedMealIntakeResult[], errors: [] as string[],
   SetupRequired: class extends Error { constructor(public experience: 'planning' | 'tracking') { super('Complete setup'); } },
 }));
@@ -66,7 +68,12 @@ vi.mock('./components/EatingOutHistorySettings', () => ({ EatingOutHistorySettin
 vi.mock('./services/activityService', () => ({ subscribeFamilyUpdates: () => () => {} }));
 vi.mock('./services/pageData', () => ({ prewarmPages: async () => {} }));
 vi.mock('./services/storageService', () => ({
-  getDayPlan: async (date: string) => ({ date, meals: date === localDateString() ? remote.todayMeals : [], completedMealIds: [] }),
+  getDayPlan: async (date: string) => {
+    remote.planRead(date);
+    const meals = date === localDateString() ? remote.todayMeals : [];
+    if (remote.holdPlans) await new Promise<void>(resolve => remote.heldPlans.push(resolve));
+    return { date, meals, completedMealIds: [] };
+  },
   getUserStats: async () => ({ ...DEFAULT_USER_STATS, name: 'Alex' }),
   getDailyLog: async (date: string) => { remote.logRead(); return { date, items: [], workouts: [], waterIntake: 0 }; },
   getFastingState: async () => ({ lastAteTime: null, config: { protocol: '16:8', targetFastHours: 16 } }),
@@ -77,6 +84,7 @@ vi.mock('./services/storageService', () => ({
 }));
 
 const { App } = await import('./App');
+const { noteLocalWrite } = await import('./utils/localWrites');
 let root: Root;
 let container: HTMLDivElement;
 const setup = (uid = 'a', experience: 'planning' | 'tracking' = 'tracking'): UserSetupSnapshot => ({
@@ -90,7 +98,8 @@ const render = async (path = '/') => {
 beforeEach(() => {
   Object.assign(remote, { uid: 'a', loading: false, developer: false });
   remote.load.mockReset().mockImplementation(async uid => setup(uid));
-  for (const fn of [remote.complete, remote.change, remote.name, remote.avatar, remote.logRead, remote.migration, remote.commit, remote.remove]) fn.mockReset();
+  for (const fn of [remote.complete, remote.change, remote.name, remote.avatar, remote.logRead, remote.migration, remote.planRead, remote.commit, remote.remove]) fn.mockReset();
+  remote.holdPlans = false; remote.heldPlans = [];
   remote.todayMeals = []; remote.results = []; remote.errors = [];
   remote.commit.mockImplementation(async (_uid: string, date: string, entries: ResolvedPlannedMealIntake[]): Promise<CommittedMealIntake> => ({
     log: { date, items: [], workouts: [], waterIntake: 0 }, completedMealIds: entries.map(e => e.key),
@@ -128,6 +137,21 @@ describe('account-owned setup boundary', () => {
     await render();
     expect(container.textContent).toContain('Meal today');
     expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('reads the setup from the server once at launch, with or without a cached setup', async () => {
+    saveCachedUserSetup(setup('a'));
+    await render();
+    expect(container.textContent).toContain('Nutrition dashboard: Alex');
+    expect(remote.load).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.unmount());
+    localStorage.clear();
+    remote.load.mockClear();
+    root = createRoot(container);
+    await render();
+    expect(container.textContent).toContain('Nutrition dashboard: Alex');
+    expect(remote.load).toHaveBeenCalledTimes(1);
   });
 
   it('caches the confirmed setup for the next launch', async () => {
@@ -310,6 +334,48 @@ describe('account-owned setup boundary', () => {
     await render('/today');
     expect(container.textContent).toContain('Meal today: Chili');
     expect(remote.logRead).not.toHaveBeenCalled();
+  });
+
+  describe('refreshes that overlap', () => {
+    const meal = (name: string): Recipe => ({ id: name, instanceId: name, name, calories: 600, ingredients: [], tags: [], servings: 1, slot: 'dinner' });
+    const focus = () => act(async () => { window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); });
+    const release = (indexes: number[]) => act(async () => indexes.forEach(i => remote.heldPlans[i]()));
+    beforeEach(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      remote.load.mockResolvedValue(setup('a', 'planning'));
+      remote.holdPlans = true;
+      remote.todayMeals = [meal('Soup')];
+    });
+
+    it('shares the refresh on its way with a focus that changed nothing', async () => {
+      await render('/today');
+      expect(remote.planRead).toHaveBeenCalledTimes(2); // today and tomorrow
+      await focus();
+      await focus();
+      expect(remote.planRead).toHaveBeenCalledTimes(2);
+      await release([0, 1]);
+      expect(container.textContent).toContain('Meal today: Soup');
+      expect(remote.load).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts again after a local write, and the older refresh landing last changes nothing', async () => {
+      await render('/today');
+      remote.todayMeals = [meal('Chili')];
+      noteLocalWrite(); // the Planner saved a meal
+      await focus();
+      expect(remote.planRead).toHaveBeenCalledTimes(4);
+      await release([2, 3]);
+      expect(container.textContent).toContain('Meal today: Chili');
+      await release([0, 1]);
+      expect(container.textContent).toContain('Meal today: Chili');
+    });
+
+    it('refreshes again once the one on its way is done', async () => {
+      await render('/today');
+      await release([0, 1]);
+      await focus();
+      expect(remote.planRead).toHaveBeenCalledTimes(4);
+    });
   });
 
   it('gives Plan meals a meal Today and the Planner, without logging or Analytics', async () => {

@@ -9,6 +9,8 @@ import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe
 import { addDays, isFastDay, isRememberableDish, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
 import { getDayPlan, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, subscribeFamilyMeals, withFamilyMeals, FamilyMealChange } from './services/storageService';
 import { clearWarm, holdWarmUntil } from './utils/prewarm';
+import { createInFlight, InFlight } from './utils/inFlight';
+import { localWriteCount } from './utils/localWrites';
 import { useTheme } from './hooks/useTheme';
 // Lazy load non-critical components for performance
 const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
@@ -65,6 +67,8 @@ interface TrackerAppProps {
      *  dropped if the setup changed here since (a switch saved meanwhile would otherwise flip back) */
     onSetupChange: (setup: UserSetupSnapshot, readFrom: number) => void;
     setupVersion: () => number;
+    /** The setup from the server, shared with a read already on its way; `version` is its `readFrom` */
+    readSetup: () => InFlight<UserSetupSnapshot, number>;
     /** Saved stats, merged into the current setup (never a whole setup from an older render) */
     onStatsChange: (stats: UserStats) => void;
     experienceSettings: ExperienceSettings;
@@ -77,7 +81,7 @@ const rejectTrackingChange = async () => { throw new Error('Tracking is not enab
 
 /** The app for both experiences. Plan meals leaves out Today, Analytics and everything that tracks
  *  intake; switching only changes what's shown, so nothing is rebuilt. */
-const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setupVersion, onStatsChange, experienceSettings, onTestOnboarding, onSavePlanningAvatar }) => {
+const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setupVersion, readSetup, onStatsChange, experienceSettings, onTestOnboarding, onSavePlanningAvatar }) => {
     const experience: UserExperience = setup.preferences?.experience === 'planning' ? 'planning' : 'tracking';
     const tracking = experience === 'tracking';
     const alive = useRef(true);
@@ -312,11 +316,14 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
     // Refreshes overlap (every planner edit starts one, so does focus); only the newest may set state,
     // or a slow earlier one lands last and puts back the plan from before the latest change
     const refreshSeq = useRef(0);
+    // A trigger while a refresh is on its way (focus, back to Today, a second launch event) shares it,
+    // unless something changed here since it started: a local write (utils/localWrites), an edit
+    // that bumped refreshSeq or logEdits, or the dates or experience it reads for. Those start anew.
+    const refreshes = useRef(createInFlight<void, string>());
 
-    const refreshData = useCallback(async () => {
+    const refreshFromServer = useCallback(async () => {
         const seq = ++refreshSeq.current;
         const editsAtStart = logEdits.current;
-        const readFrom = setupVersion();
         try {
             // The app may have opened from the cache while Firebase restores the session
             await auth.authStateReady();
@@ -325,7 +332,10 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
             // health data is only used if the setup still says tracking
             const plans = Promise.all([getDayPlan(todayDate), getDayPlan(tomorrowDate)]);
             const health = experience === 'tracking' ? Promise.all([getDailyLog(todayDate), getFastingState()]) : null;
-            const nextSetup = await getUserSetup(uid);
+            // At launch this is the read AccountApp started (one server read, not two)
+            const setupRead = readSetup();
+            const readFrom = setupRead.version;
+            const nextSetup = await setupRead.promise;
             if (!ownsSession() || seq !== refreshSeq.current) return;
             // Health data loads for the tracking experience on screen. A current read that says
             // otherwise switches the screen instead; an older one (a switch saved meanwhile) doesn't count
@@ -368,7 +378,12 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
             if (seq === refreshSeq.current) launchRefreshed.current?.();
         }
         // A switch to tracking loads today's log and fasting
-    }, [todayDate, tomorrowDate, setDailyLogState, uid, ownsSession, onSetupChange, setupVersion, experience]);
+    }, [todayDate, tomorrowDate, setDailyLogState, uid, ownsSession, onSetupChange, setupVersion, readSetup, experience]);
+
+    const refreshData = useCallback((): Promise<void> => refreshes.current(
+        () => [refreshSeq.current, logEdits.current, localWriteCount(), uid, todayDate, tomorrowDate, experience].join('|'),
+        refreshFromServer,
+    ).promise, [refreshFromServer, uid, todayDate, tomorrowDate, experience]);
 
     // Family meals are live: one another member plans or changes shows up on Today straight away,
     // and a new one is pointed out wherever the user is
@@ -1113,6 +1128,11 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
     const latestSwitch = useRef(0);
     const switchSaves = useRef<Promise<unknown>>(Promise.resolve());
     const setupVersion = useCallback(() => epoch.current, []);
+    // One server read of the setup for everyone asking while it's on its way (a launch asks here and
+    // in TrackerApp's refresh) or just back, unless the setup changed here since it started: its
+    // version is the epoch it started in, so the epoch rules above still hold for whoever shares it
+    const setupReads = useRef(createInFlight<UserSetupSnapshot, number>(5000));
+    const readSetup = useCallback(() => setupReads.current(() => epoch.current, () => getUserSetup(uid)), [uid]);
     const applyRefreshedSetup = useCallback((snapshot: UserSetupSnapshot, readFrom: number) => {
         if (switching.current === 0 && readFrom === epoch.current) applySetup(snapshot);
     }, [applySetup]);
@@ -1135,7 +1155,7 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
         auth.authStateReady()
             .then(() => {
                 if (request !== epoch.current || auth.currentUser?.uid !== uid) return;
-                return getUserSetup(uid).then(snapshot => {
+                return readSetup().promise.then(snapshot => {
                     if (request === epoch.current) applySetup(snapshot);
                 });
             })
@@ -1148,7 +1168,7 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
                 console.warn('Could not confirm the setup', error);
             });
         return () => { alive.current = false; epoch.current++; clearWarm(); };
-    }, [uid, retry, applySetup, ownsSession]);
+    }, [uid, retry, applySetup, ownsSession, readSetup]);
 
     if (state.status === 'loading') return <main className="min-h-screen bg-background p-6"><p role="status" className="text-muted">Loading your setup…</p></main>;
     if (state.status === 'error') return <main className="min-h-screen bg-background p-6"><div className="card p-6 max-w-md mx-auto space-y-4">
@@ -1235,7 +1255,7 @@ const AccountApp: React.FC<{ uid: string }> = ({ uid }) => {
 
     return <>
         {!required && experienceSettings && (
-            <TrackerApp uid={uid} setup={setup} onSetupChange={applyRefreshedSetup} setupVersion={setupVersion} onStatsChange={applyStats} experienceSettings={experienceSettings} onTestOnboarding={rerun}
+            <TrackerApp uid={uid} setup={setup} onSetupChange={applyRefreshedSetup} setupVersion={setupVersion} readSetup={readSetup} onStatsChange={applyStats} experienceSettings={experienceSettings} onTestOnboarding={rerun}
                 onSavePlanningAvatar={async avatar => {
                     ensureSession();
                     const request = ++epoch.current;

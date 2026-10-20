@@ -7,7 +7,8 @@ vi.mock('firebase/firestore', async () => ({...(await import('../test/fakeFirest
 vi.mock('./firebase', () => ({ db: {}, auth: { get currentUser() {return {uid:fake.uid,displayName:'Jon Lilja'};} }, currentUid: () => fake.uid }));
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
-const { familyAdmin, forgetMyGroupId, getGroupMembersDetails, getMyGroupId, joinGroup, leaveGroup, newInviteCode, removeMember, renameGroup } = await import('./groupService');
+const { familyAdmin, forgetMyGroupId, getGroupMembersDetails, getMyGroupId, joinGroup, leaveGroup, newInviteCode, readInMyGroup, removeMember, renameGroup } = await import('./groupService');
+const { getFromCache, getUserCacheKey, saveToCache } = await import('../utils/cacheService');
 const { getRecipes, saveRecipe, setRecipeFavorite } = await import('./storageService');
 
 const recipe = (id: string, fields: Partial<Recipe> = {}): Recipe => ({
@@ -47,6 +48,33 @@ describe('every user has a family', () => {
     const groupId = await getMyGroupId();
     expect(groupId).not.toBe('old');
     expect(store.docs.get(`groups/${groupId}`)).toMatchObject({ memberIds: ['me'] });
+  });
+
+  it('reads with the family remembered on this device, but only a confirmed one counts', async () => {
+    // Removed from "old" since last time: the remembered family is stale
+    putGroup(group('old', ['partner']));
+    put('users/me', { groupId: 'old' });
+    saveToCache(getUserCacheKey('me', 'groupId'), 'old');
+    const asked: (string | null)[] = [];
+    const result = await readInMyGroup(async groupId => { asked.push(groupId); return groupId; });
+
+    const families = [...store.docs.entries()].filter(([path, data]) =>
+      /^groups\/[^/]+$/.test(path) && (data as unknown as Group).memberIds.includes('me'));
+    expect(families).toHaveLength(1); // one new family, nothing created from the remembered id
+    const [[path]] = families;
+    expect(result).toBe(path.split('/')[1]);
+    expect(asked).toEqual(['old', result]);
+    expect(getFromCache(getUserCacheKey('me', 'groupId'))).toBe(result);
+  });
+
+  it("doesn't fail a read in a family the user has left, when it's read again in theirs", async () => {
+    putGroup(group('g', ['me']));
+    saveToCache(getUserCacheKey('me', 'groupId'), 'gone');
+    const result = await readInMyGroup(async groupId => {
+      if (groupId === 'gone') throw Object.assign(new Error('denied'), { code: 'permission-denied' });
+      return groupId;
+    });
+    expect(result).toBe('g');
   });
 
   it('moves old users/{uid}/recipes into the family once, with who added and favourited them', async () => {

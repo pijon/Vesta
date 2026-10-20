@@ -6,6 +6,7 @@ import { parseUserPreferences, isCalendarDate } from '../utils/userPreferences';
 import { localDateString } from '../utils/dateUtils';
 import { isNutritionNumber } from '../utils/recipeNutrition';
 import { getCacheKey, getCachedDayPlan, saveToCache } from '../utils/cacheService';
+import { noteLocalWrite } from '../utils/localWrites';
 
 const owner = (uid:string) => {if(!uid || auth.currentUser?.uid!==uid) throw new Error('Your account changed. Reload and try again.');};
 const validTime = (date:string,at:number) => {if(!Number.isFinite(at)||localDateString(new Date(at))!==date) throw new Error('The meal date changed. Reload and try again.');};
@@ -26,6 +27,7 @@ const transact = async (uid:string,date:string,reduce:(s:IntakeSnapshots)=>Intak
   owner(uid);
   if(!isCalendarDate(date)||date!==localDateString()) throw new Error('The meal date changed. Reload and try again.');
   const refs={preferences:doc(db,'users',uid,'data','preferences'),log:doc(db,'users',uid,'logs',date),day:doc(db,'users',uid,'days',date),fasting:doc(db,'users',uid,'data','fasting'),history:doc(db,'users',uid,'data','fasting_history')};
+  noteLocalWrite();
   const committed=await runTransaction(db,async transaction=>{
     const [preferences,log,day,fasting,history]=await Promise.all([transaction.get(refs.preferences),transaction.get(refs.log),transaction.get(refs.day),transaction.get(refs.fasting),transaction.get(refs.history)]);
     owner(uid);
@@ -50,6 +52,7 @@ const transact = async (uid:string,date:string,reduce:(s:IntakeSnapshots)=>Intak
     if(JSON.stringify(next.history)!==JSON.stringify(snapshots.history)) transaction.set(refs.history,{entries:next.history},{merge:true});
     return {log:next.log,completedMealIds:next.completedMealIds,fasting:next.fasting,items:next.items};
   });
+  noteLocalWrite();
   owner(uid);
   saveToCache(getCacheKey('dailyLog',date),committed.log);
   saveToCache(getCacheKey('fasting'),committed.fasting);

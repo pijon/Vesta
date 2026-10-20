@@ -1,7 +1,9 @@
 import { calorieAvailability, normalizeRecipeNutrition, dayNutrition } from '../utils/recipeNutrition';
 import { CoachReadState, EatingOutDish, RecipeSaveOptions, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine } from "../types";
 import { getCacheKey, getUserCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
-import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, toStoredRecipe } from "./groupService";
+import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, readInMyGroup, toStoredRecipe } from "./groupService";
+import { forgetRecipe, readRecipeOnce, rememberRecipe } from "./recipeCache";
+import { noteLocalWrite } from "../utils/localWrites";
 import { DEFAULT_USER_STATS } from "../constants";
 import { forgetFamilyUpdate, recordFamilyUpdate } from "./activityService";
 import { auth, currentUid, db } from "./firebase";
@@ -44,13 +46,23 @@ const familyRecipeRef = async (id: string) => {
   return doc(db, 'groups', groupId, 'recipes', id);
 };
 
+/** After a change to a recipe here: plans read it again rather than use the copy kept for them */
+const recipeChanged = async (id: string) => {
+  const groupId = await getMyGroupId();
+  if (groupId) forgetRecipe(groupId, id);
+  noteLocalWrite();
+};
+
 export const getRecipes = async (limitCount?: number): Promise<Recipe[]> => {
   try {
     const groupId = await getMyGroupId();
     if (!groupId) throw new Error("Couldn't load your family");
     const recipesRef = familyRecipesRef(groupId);
     const snapshot = await getDocs(limitCount ? query(recipesRef, limit(limitCount)) : recipesRef);
-    const recipes = snapshot.docs.map(d => fromStoredRecipe(d.data(), d.id));
+    const recipes = snapshot.docs.map(d => {
+      rememberRecipe(groupId, d.id, d.data());
+      return fromStoredRecipe(d.data(), d.id);
+    });
 
     if (!limitCount) {
       saveToCache(getCacheKey('recipes'), recipes);
@@ -68,6 +80,7 @@ export const saveRecipe = async (recipe: Recipe, options: RecipeSaveOptions = {}
   const assertOwner = () => { if (!uid || auth.currentUser?.uid !== uid) throw new Error('Your account changed. Try again.'); };
   assertOwner();
   if (recipe.image?.startsWith('data:')) throw new Error('Base64 images are not allowed. Please upload to Firebase Storage first.');
+  noteLocalWrite();
   const groupId = await getMyGroupId();
   assertOwner();
   if (!groupId) throw new Error("Couldn't load your family");
@@ -93,23 +106,32 @@ export const saveRecipe = async (recipe: Recipe, options: RecipeSaveOptions = {}
     transaction.set(target, stored);
     return {...stored,isFavorite:!!stored.favoritedBy?.includes(uid)};
   });
+  const { isFavorite: _isFavorite, ...stored } = saved;
+  rememberRecipe(groupId, recipe.id, JSON.parse(JSON.stringify(stored)));
+  noteLocalWrite();
   assertOwner();
   return saved;
 };
 
 /** Keeps ingredient lines read for the shopping list on their recipe, for the whole family */
 export const saveParsedIngredients = async (recipeId: string, parsedIngredients: ParsedIngredientLine[]) => {
+  noteLocalWrite();
   await updateDoc(await familyRecipeRef(recipeId), { parsedIngredients });
+  await recipeChanged(recipeId);
 };
 
 /** Favourites are per member, so this only adds or removes the current user. */
 export const setRecipeFavorite = async (id: string, favorite: boolean) => {
   const uid = getUserId();
+  noteLocalWrite();
   await updateDoc(await familyRecipeRef(id), { favoritedBy: favorite ? arrayUnion(uid) : arrayRemove(uid) });
+  await recipeChanged(id);
 };
 
 export const deleteRecipe = async (id: string) => {
+  noteLocalWrite();
   await deleteDoc(await familyRecipeRef(id));
+  await recipeChanged(id);
   void forgetFamilyUpdate('recipe', id);
 };
 
@@ -243,7 +265,10 @@ const dehydrateMeal = (meal: Recipe): PlannedMeal => {
 // Helper to get a single family recipe
 export const getRecipe = async (id: string): Promise<Recipe | null> => {
   try {
-    const docSnap = await getDoc(await familyRecipeRef(id));
+    const groupId = await getMyGroupId();
+    if (!groupId) throw new Error("Couldn't load your family");
+    const docSnap = await getDoc(doc(db, 'groups', groupId, 'recipes', id));
+    rememberRecipe(groupId, id, docSnap.exists() ? docSnap.data() : null);
     if (docSnap.exists()) return fromStoredRecipe(docSnap.data(), docSnap.id);
     return null;
   } catch (e) {
@@ -252,11 +277,27 @@ export const getRecipe = async (id: string): Promise<Recipe | null> => {
   }
 };
 
+/** A family recipe for a plan: kept for a few minutes (see recipeCache), null if there's none or it can't be read */
+const plannedRecipe = async (groupId: string | null, id: string): Promise<Recipe | null> => {
+  if (!groupId) return null;
+  try {
+    const data = await readRecipeOnce(groupId, id, async () => {
+      const snap = await getDoc(doc(db, 'groups', groupId, 'recipes', id));
+      return snap.exists() ? snap.data() : null;
+    });
+    return data ? fromStoredRecipe(data, id) : null;
+  } catch (e) {
+    console.error(`Error fetching recipe ${id}`, e);
+    return null;
+  }
+};
+
 /**
  * Hydrates PlannedMeal[] (from Firestore) back to Recipe[] (for UI display).
- * References are fetched from the family's recipes (also for other members' plans: same family).
+ * References are fetched from the family's recipes (also for other members' plans: same family);
+ * `groupId` is the family's when the caller has it already.
  */
-const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[]> => {
+const hydratePlannedMeals = async (plannedMeals: PlannedMeal[], groupId?: string | null): Promise<Recipe[]> => {
   if (!plannedMeals || plannedMeals.length === 0) return [];
 
   // Fetch every referenced recipe (including sides) once, in parallel
@@ -266,7 +307,8 @@ const hydratePlannedMeals = async (plannedMeals: PlannedMeal[]): Promise<Recipe[
     if (meal?.sides) collect(meal.sides);
   });
   collect(plannedMeals);
-  const fetched = await Promise.all([...recipeIds].map(async id => [id, await getRecipe(id)] as const));
+  const family = recipeIds.size && groupId === undefined ? await getMyGroupId() : groupId ?? null;
+  const fetched = await Promise.all([...recipeIds].map(async id => [id, await plannedRecipe(family, id)] as const));
   const recipeMap = new Map(fetched);
 
   const hydrateOne = (meal: PlannedMeal): Recipe => {
@@ -368,7 +410,7 @@ const hydrateFamilyMeals = async (groupId: string, date: string, stored?: Record
   // An entry with no type is a notEating change that landed after its meal was removed
   const entries = Object.values(stored || {}).filter(entry => entry.type).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const me = currentUid();
-  const meals = (await hydratePlannedMeals(entries)).map(meal => ({ ...meal, slot: meal.slot || 'dinner' as const, familyMeal: true }));
+  const meals = (await hydratePlannedMeals(entries, groupId)).map(meal => ({ ...meal, slot: meal.slot || 'dinner' as const, familyMeal: true }));
   loadedFamilyMeals.set(`${groupId}/${date}`, new Map(meals.map(meal => [meal.instanceId!, {
     stored: JSON.stringify(storedFamilyMeal(meal).stored),
     out: !!me && !!meal.notEating?.includes(me),
@@ -377,8 +419,10 @@ const hydrateFamilyMeals = async (groupId: string, date: string, stored?: Record
 };
 
 /** Family meals for a date range, keyed by date. Empty without a family group. */
-export const getFamilyMealsInRange = async (startDate: string, endDate: string): Promise<Record<string, Recipe[]>> => {
-  const groupId = await getMyGroupId();
+export const getFamilyMealsInRange = async (startDate: string, endDate: string): Promise<Record<string, Recipe[]>> =>
+  familyMealsInRange(await getMyGroupId(), startDate, endDate);
+
+const familyMealsInRange = async (groupId: string | null, startDate: string, endDate: string): Promise<Record<string, Recipe[]>> => {
   if (!groupId) return {};
   try {
     const snapshot = await getDocs(query(
@@ -554,17 +598,23 @@ export const saveFamilyMealOut = async (plan: DayPlan, instanceId: string, out: 
 const withInstanceIds = (meals: Recipe[]) =>
   meals.map(meal => meal.instanceId ? meal : { ...meal, instanceId: crypto.randomUUID() });
 
+type StoredDay = { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' };
+
+/** The day doc and family meals of a date, with their recipes, read in the family `groupId` */
+const readDay = async (groupId: string | null, date: string) => {
+  const own = getDoc(doc(db, 'users', getUserId(), 'days', date)).then(async dayDoc => {
+    const stored = dayDoc.exists() ? dayDoc.data() as StoredDay : null;
+    return { stored, meals: stored?.meals ? await hydratePlannedMeals(stored.meals, groupId) : [] };
+  });
+  const [{ stored, meals }, familyMeals] = await Promise.all([own, familyMealsInRange(groupId, date, date)]);
+  return { stored, ownMeals: meals, familyMeals };
+};
+
+// Each read starts at once, with the family this device last confirmed (readInMyGroup): the day
+// doc and the family meals, then their recipes. Before, both waited for the profile and group reads.
 export const getDayPlan = async (date: string): Promise<DayPlan> => {
   try {
-    const [dayDoc, familyMeals] = await Promise.all([
-      getDoc(doc(db, 'users', getUserId(), 'days', date)),
-      getFamilyMealsInRange(date, date),
-    ]);
-
-    const stored = dayDoc.exists()
-      ? dayDoc.data() as { date: string; meals: PlannedMeal[]; completedMealIds: string[]; tips?: string; totalCalories?: number; type?: 'fast' | 'non-fast' }
-      : null;
-    const ownMeals = stored?.meals ? await hydratePlannedMeals(stored.meals) : [];
+    const { stored, ownMeals, familyMeals } = await readInMyGroup(groupId => readDay(groupId, date));
 
     const fullPlan = withFamilyMeals({
       ...(stored || {}),
@@ -583,6 +633,7 @@ export const getDayPlan = async (date: string): Promise<DayPlan> => {
 
 export const saveDayPlan = async (dayPlan: DayPlan) => {
   const plan: DayPlan = { ...dayPlan, meals: withInstanceIds(dayPlan.meals) };
+  noteLocalWrite();
 
   // 1. Optimistic Cache Update
   saveToCache(getCacheKey('dayPlan', plan.date), plan);
@@ -598,6 +649,7 @@ export const saveDayPlan = async (dayPlan: DayPlan) => {
     setDoc(doc(db, 'users', getUserId(), 'days', plan.date), { ...day, meals: ownMeals.map(meal => dehydrateMeal(meal)), totalCalories, totalCaloriesComplete: nutrition.complete }),
     saveFamilyMeals(plan.date, familyMeals),
   ]);
+  noteLocalWrite();
 };
 
 /**
@@ -937,7 +989,9 @@ export const getUserStats = async (expectedUid?: string): Promise<UserStats> => 
 export const saveUserStats = async (stats: UserStats, expectedUid?: string): Promise<void> => {
   const uid = getUserId();
   if (expectedUid && expectedUid !== uid) throw new Error('Your account changed. Reload and try again.');
+  noteLocalWrite();
   await setDoc(doc(db, 'users', uid, 'data', STATS_DOC), stats);
+  noteLocalWrite();
   saveToCache(getUserCacheKey(uid, 'stats'), stats);
   syncPublicProfile(stats, uid);
 };
@@ -1028,7 +1082,9 @@ export const saveDailyLog = async (log: DailyLog) => {
   normalized.workouts = normalized.workouts || [];
   normalized.waterIntake = typeof normalized.waterIntake === 'number' ? normalized.waterIntake : 0;
   saveToCache(getCacheKey('dailyLog', normalized.date), normalized);
+  noteLocalWrite();
   await setDoc(getDocRef('logs', normalized.date), normalized);
+  noteLocalWrite();
 };
 
 // --- Daily Summaries ---
@@ -1150,7 +1206,9 @@ export const getFastingState = async (): Promise<FastingState> => {
 export const saveFastingState = async (state: FastingState) => {
   // Optimistic Cache
   saveToCache(getCacheKey('fasting'), state);
+  noteLocalWrite();
   await setDoc(getDocRef('data', FASTING_DOC), state);
+  noteLocalWrite();
 };
 
 export const getFastingHistory = async (): Promise<FastingEntry[]> => {

@@ -9,6 +9,8 @@ type Query = Ref & { constraints?: Where[]; max?: number };
 
 const docs = new Map<string, Data>();
 const writes: string[] = [];
+/** Paths read with getDoc, and collections queried with getDocs */
+const reads: string[] = [];
 const DELETE = { deleteField: true };
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const isObject = (v: unknown): v is Data => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -98,8 +100,9 @@ const api = {
   deleteField: () => DELETE,
   arrayUnion: (...values: unknown[]) => ({ arrayUnion: values }),
   arrayRemove: (...values: unknown[]) => ({ arrayRemove: values }),
-  getDoc: async (ref: Ref) => snapshot(ref.path),
+  getDoc: async (ref: Ref) => { reads.push(ref.path); return snapshot(ref.path); },
   getDocs: async (q: Query) => {
+    reads.push(q.path);
     const matching = [...docs.keys()]
       .filter(p => p.slice(0, p.lastIndexOf('/')) === q.path)
       .filter(p => (q.constraints || []).every(w => passes(docs.get(p)!, w)))
@@ -131,8 +134,9 @@ const api = {
 export const fakeFirestore = {
   docs,
   writes,
+  reads,
   api,
   /** Tells live queries about documents changed directly in `docs` (as another member's save would) */
   notify: notifyAll,
-  reset: () => { docs.clear(); writes.length = 0; listeners.clear(); },
+  reset: () => { docs.clear(); writes.length = 0; reads.length = 0; listeners.clear(); },
 };
