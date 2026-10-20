@@ -15,7 +15,7 @@ vi.mock('../services/storageService', () => ({
   saveFamilyMealOut: async () => {},
   getDailySummaries: async () => [],
 }));
-vi.mock('../services/pageData', () => ({ analyticsDayTypesData: {}, frequentFoodsData: {} }));
+vi.mock('../services/pageData', () => ({ analyticsDayTypesData: {}, analyticsSummariesData: {}, frequentFoodsData: {} }));
 vi.mock('../utils/prewarm', () => ({ usePrewarmed: () => null }));
 vi.mock('../hooks/useAchievements', () => ({ useAchievements: () => {} }));
 // The plate's tick and the "ate what was planned" card, reduced to buttons

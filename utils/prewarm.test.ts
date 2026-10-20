@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearWarm, defineWarm, ensureWarm, peekWarm } from './prewarm';
+import { clearWarm, defineWarm, ensureWarm, holdWarmUntil, peekWarm } from './prewarm';
 
 beforeEach(clearWarm);
 
@@ -43,5 +43,26 @@ describe('account boundaries for prewarmed data', () => {
     finishNew('Sam');
     await current;
     expect(peekWarm(fresh)).toBe('Sam');
+  });
+});
+
+describe('holding loads for the launch refresh', () => {
+  it('starts loads only once the hold ends, and right away after it', async () => {
+    let release!: () => void;
+    holdWarmUntil(new Promise<void>(resolve => { release = resolve; }));
+    let loads = 0;
+    const held = ensureWarm(defineWarm('held', async () => { loads++; return 'x'; }));
+    await Promise.resolve();
+    expect(loads).toBe(0);
+    release();
+    expect(await held).toBe('x');
+    expect(loads).toBe(1);
+    ensureWarm(defineWarm('after', async () => { loads++; return 'y'; }));
+    expect(loads).toBe(2);
+  });
+
+  it('lets loads go when the refresh fails', async () => {
+    holdWarmUntil(Promise.reject(new Error('offline')));
+    expect(await ensureWarm(defineWarm('failed', async () => 'z'))).toBe('z');
   });
 });

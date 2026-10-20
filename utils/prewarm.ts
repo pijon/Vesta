@@ -23,6 +23,14 @@ const subscribe = (listener: () => void) => {
   return () => { listeners.delete(listener); };
 };
 
+// Background loads wait for this, so they don't compete with the launch refresh for the connection
+let gate: Promise<void> | null = null;
+/** Holds every load started from now on until `until` settles (App passes its first refresh). */
+export const holdWarmUntil = (until: Promise<unknown>) => {
+  const held: Promise<void> = until.then(() => {}, () => {}).then(() => { if (gate === held) gate = null; });
+  gate = held;
+};
+
 export const defineWarm = <T,>(key: string, load: () => Promise<T>, maxAgeMs = 60_000): Prewarm<T> => ({ key, load, maxAgeMs });
 
 /** Last loaded value, if any. */
@@ -35,7 +43,7 @@ export const ensureWarm = <T,>(warm: Prewarm<T>, force = false): Promise<T> => {
   if (!force && entry && 'value' in entry && Date.now() - entry.at < warm.maxAgeMs) return Promise.resolve(entry.value as T);
 
   const requestEpoch = epoch;
-  const inFlight = warm.load().then(
+  const inFlight = (gate ? gate.then(() => warm.load()) : warm.load()).then(
     value => {
       if (requestEpoch !== epoch) return value;
       entries.set(warm.key, { value, at: Date.now() });

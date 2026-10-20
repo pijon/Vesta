@@ -1,6 +1,6 @@
 import { calorieAvailability, isNutritionNumber } from '../utils/recipeNutrition';
-import { Avatar, DayPlan, EatingOutDish, KnownFood, Recipe } from '../types';
-import { getDailySummaries, getDayPlansInRange, getFamilyPlansInRange, getRecipePlanDates, getFoodItemsSince, getRecipes, getEatingOutDishes } from './storageService';
+import { Avatar, DailyLog, DayPlan, EatingOutDish, FoodLogItem, KnownFood, Recipe } from '../types';
+import { getDayTypesInRange, getFamilyPlansInRange, getRecipePlanDates, getLogHistory, mergeSummaries, getRecipes, getEatingOutDishes } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
@@ -14,16 +14,19 @@ const daysFromToday = (days: number) => {
   return localDateString(d);
 };
 
+/** Six months of logs and stored summaries, read once for everything below that needs them
+ *  (summaries, streaks, frequent and known foods) */
+const logHistoryData = defineWarm('logs:history', () => getLogHistory(180), 30_000);
+
+/** Food items logged since a date (inclusive), oldest day first. */
+const itemsSince = (logs: DailyLog[], startDate: string): FoodLogItem[] =>
+  logs.filter(log => log.date >= startDate).flatMap(log => log.items || []);
+
 /** Six months of daily summaries: the analytics periods (up to 90 days) and the 90 before, for comparisons. */
-export const analyticsSummariesData = defineWarm('analytics:summaries', () => getDailySummaries(180), 30_000);
+export const analyticsSummariesData = defineWarm('analytics:summaries', async () => mergeSummaries(await ensureWarm(logHistoryData)), 30_000);
 
 /** Fast/nourish type of each day over the analytics period (last ~90 days). */
-export const analyticsDayTypesData = defineWarm('analytics:dayTypes', async () => {
-  const plans = await getDayPlansInRange(daysFromToday(-95), daysFromToday(0));
-  const types: Record<string, string> = {};
-  Object.values(plans).forEach(plan => { if (plan.type) types[plan.date] = plan.type; });
-  return types;
-}, 5 * 60_000);
+export const analyticsDayTypesData = defineWarm('analytics:dayTypes', () => getDayTypesInRange(daysFromToday(-95), daysFromToday(0)), 5 * 60_000);
 
 /** The family's plan for the next two weeks plus the saved list and pantry. */
 /** The family's planned meals for the next two weeks, to add to the shopping list */
@@ -86,7 +89,7 @@ export interface FrequentFood {
 
 /** Foods from the last two weeks for one-tap re-logging: most often logged first, then most recent. */
 export const frequentFoodsData = defineWarm<FrequentFood[]>('today:frequentFoods', async () => {
-  const items = await getFoodItemsSince(daysFromToday(-14));
+  const items = itemsSince((await ensureWarm(logHistoryData)).logs, daysFromToday(-14));
   const byName = new Map<string, FrequentFood & { last: number }>();
   items.forEach(item => {
     const key = item.name.trim().toLowerCase();
@@ -115,7 +118,8 @@ export const frequentFoodsData = defineWarm<FrequentFood[]>('today:frequentFoods
  * A recipe wins over a logged food of the same name.
  */
 export const knownFoodsData = defineWarm<KnownFood[]>('food:known', async () => {
-  const [recipes, items] = await Promise.all([getRecipes(), getFoodItemsSince(daysFromToday(-90))]);
+  const [recipes, history] = await Promise.all([getRecipes(), ensureWarm(logHistoryData)]);
+  const items = itemsSince(history.logs, daysFromToday(-90));
   const byName = new Map<string, KnownFood & { last: number }>();
   items.forEach(item => {
     const key = normalizeFoodName(item.name);

@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AppView, DayPlan, UserStats, DailyLog, FoodLogItem, WorkoutItem, Recipe, FastingState, FastingConfig, CoachReadState, DayLogStatus, UserSetupSnapshot, UserExperience, Avatar } from './types';
 import { addDays, isFastDay, isRememberableDish, mealCalories, mealKey, mealProtein, nextMealIndex, slotFor, slotLabel } from './utils/planUtils';
 import { getDayPlan, saveUserStats, getDailyLog, saveDailyLog, getFastingState, saveFastingState, addFastingEntry, getCoachRead, saveCoachRead, subscribeFamilyMeals, withFamilyMeals, FamilyMealChange } from './services/storageService';
-import { clearWarm } from './utils/prewarm';
+import { clearWarm, holdWarmUntil } from './utils/prewarm';
 import { useTheme } from './hooks/useTheme';
 // Lazy load non-critical components for performance
 const TrackAnalytics = React.lazy(() => import('./components/TrackAnalytics').then(module => ({ default: module.TrackAnalytics })));
@@ -95,6 +95,14 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
         d.setDate(d.getDate() + 1);
         return localDateString(d);
     });
+
+    // Background page data waits for the launch refresh (or 10 s, if that hangs): on a phone they
+    // share one connection, and Today's numbers come first
+    const launchRefreshed = useRef<(() => void) | null>(null);
+    if (!launchRefreshed.current) holdWarmUntil(new Promise<void>(resolve => {
+        launchRefreshed.current = resolve;
+        window.setTimeout(resolve, 10_000);
+    }));
 
     // After start-up: download the other pages' code, pre-render them and load their data in the
     // background, so opening them shows content straight away. It waits for the first paint
@@ -355,6 +363,9 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
 
         } catch (error) {
             console.error("Failed to refresh data", error);
+        } finally {
+            // The newest refresh ending (a superseded one returns early) lets background loads go
+            if (seq === refreshSeq.current) launchRefreshed.current?.();
         }
         // A switch to tracking loads today's log and fasting
     }, [todayDate, tomorrowDate, setDailyLogState, uid, ownsSession, onSetupChange, setupVersion, experience]);
