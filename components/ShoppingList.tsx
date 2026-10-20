@@ -15,6 +15,7 @@ import {
   removeMealFromList,
   resetShoppingList,
   restoreItem,
+  restoreMealOnList,
   setItemAmount,
   setItemChecked,
   subscribeShoppingList,
@@ -109,8 +110,8 @@ export const ShoppingList: React.FC = () => {
     });
   };
 
-  /** The last item removed, offered back for a few seconds */
-  const [lastRemoved, setLastRemoved] = useState<ShoppingListItem | null>(null);
+  /** The last thing removed (an item, or a meal with its items), offered back for a few seconds */
+  const [lastRemoved, setLastRemoved] = useState<{ label: string; undo: () => void } | null>(null);
   useEffect(() => {
     if (!lastRemoved) return;
     const timer = setTimeout(() => setLastRemoved(null), 5000);
@@ -173,7 +174,12 @@ export const ShoppingList: React.FC = () => {
         ...current, items: current.items.map(entry => entry.id === item.id ? { ...entry, checked: !item.checked } : entry),
       }))}
       onRemove={() => {
-        setLastRemoved(item);
+        setLastRemoved({
+          label: `Removed ${item.name}`,
+          undo: () => void run(() => restoreItem(item), `We couldn't put ${item.name} back. Try again.`, current => ({
+            ...current, items: [...current.items.filter(entry => entry.id !== item.id), item],
+          })),
+        });
         void run(() => removeItem(item.id), `We couldn't remove ${item.name}. Try again.`, current => ({
           ...current, items: current.items.filter(entry => entry.id !== item.id),
         }));
@@ -194,6 +200,20 @@ export const ShoppingList: React.FC = () => {
     />
   );
 
+  /** Takes a meal and its share of the items off the list, with a way back: its items as they were */
+  const removeMeal = (key: string, meal: ShoppingListMeal) => {
+    const before = list.items.filter(item => item.sources[key]);
+    setLastRemoved({
+      label: `Took ${meal.name} off the list`,
+      undo: () => void run(() => restoreMealOnList(key, meal, before), `We couldn't put ${meal.name} back. Try again.`, current => ({
+        ...current,
+        meals: { ...current.meals, [key]: meal },
+        items: [...current.items.filter(item => !before.some(entry => entry.id === item.id)), ...before],
+      })),
+    });
+    void run(() => removeMealFromList(key), `We couldn't take ${meal.name} off the list. Try again.`, withoutMeal(key));
+  };
+
   const addMealsButton = (primary: boolean) => mealsToAdd.length > 0 && (
     <button onClick={() => setAddingMeals(true)} className={primary ? 'btn-primary' : 'btn-secondary btn-sm shrink-0'}>
       <CalendarPlus size={primary ? 20 : 16} aria-hidden="true" />
@@ -204,28 +224,30 @@ export const ShoppingList: React.FC = () => {
   return (
     <div className="space-y-5 pb-20">
       {total > 0 && (
-        // What's left to buy is the page's one bold block
-        <section className="hero p-5 md:p-6 flex flex-col gap-4" aria-label="Shopping progress">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[15px] font-bold">{toBuy.length === 0 ? 'All in the basket' : 'Left to buy'}</p>
-            <p className="text-sm font-medium tabular-nums">{inBasket.length} of {total} in the basket</p>
+        // What's left to buy is the page's one bold block, kept short so the list starts high on a phone
+        <section className="hero p-4 md:p-5 flex flex-col gap-3" aria-label="Shopping progress">
+          <div className="flex items-center gap-3">
+            <p className="font-display font-extrabold text-[48px] leading-none tracking-[-0.04em] tabular-nums">
+              {toBuy.length}<span className="sr-only"> {toBuy.length === 1 ? 'item' : 'items'}</span>
+            </p>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold">left to buy</p>
+              <p className="text-sm font-medium tabular-nums">{toBuy.length === 0 ? 'All in the basket' : `${inBasket.length} of ${total} in the basket`}</p>
+            </div>
+            {toBuy.length > 0 && (
+              <button
+                onClick={handleCopyList}
+                className="btn-base btn-sm shrink-0 hover:opacity-90"
+                style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
+              >
+                {listCopied ? <CopyCheck size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                {listCopied ? 'Copied' : 'Copy list'}
+              </button>
+            )}
           </div>
-          <p className="font-display font-extrabold text-[80px] leading-[0.9] tracking-[-0.05em] tabular-nums">
-            {toBuy.length}<span className="sr-only"> {toBuy.length === 1 ? 'item' : 'items'} left to buy</span>
-          </p>
-          <div className="h-2.5 rounded-full bg-current/20 overflow-hidden" aria-hidden="true">
+          <div className="h-2 rounded-full bg-current/20 overflow-hidden" aria-hidden="true">
             <div className="h-full rounded-full bg-current transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${(inBasket.length / total) * 100}%` }} />
           </div>
-          {toBuy.length > 0 && (
-            <button
-              onClick={handleCopyList}
-              className="btn-base btn-block min-h-[52px] text-base hover:opacity-90"
-              style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
-            >
-              {listCopied ? <CopyCheck size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
-              {listCopied ? 'Copied' : 'Copy list'}
-            </button>
-          )}
         </section>
       )}
 
@@ -244,14 +266,7 @@ export const ShoppingList: React.FC = () => {
             <Plus size={20} aria-hidden="true" />
           </button>
         </form>
-        <div className="flex flex-wrap items-center gap-2">
-          {total > 0 && addMealsButton(false)}
-          {(list.items.length > 0 || onList.size > 0) && (
-            <button onClick={() => setConfirmReset(true)} className="btn-secondary btn-sm">
-              <RotateCcw size={16} aria-hidden="true" /> Reset list
-            </button>
-          )}
-        </div>
+        {total > 0 && mealsToAdd.length > 0 && <div className="flex flex-wrap items-center gap-2">{addMealsButton(false)}</div>}
       </div>
 
       {error && errorNotice(error)}
@@ -353,7 +368,7 @@ export const ShoppingList: React.FC = () => {
                   </span>
                 </span>
                 <button
-                  onClick={() => run(() => removeMealFromList(key), `We couldn't take ${meal.name} off the list. Try again.`, withoutMeal(key))}
+                  onClick={() => removeMeal(key, meal)}
                   className="icon-btn hit-target size-9 shrink-0"
                   aria-label={`Take ${meal.name} and its ingredients off the list`}
                 >
@@ -363,6 +378,15 @@ export const ShoppingList: React.FC = () => {
             ))}
           </ul>
         </details>
+      )}
+
+      {/* Rarely needed and empties everyone's list, so it sits last, out of the way */}
+      {(list.items.length > 0 || onList.size > 0) && (
+        <div className="flex justify-center">
+          <button onClick={() => setConfirmReset(true)} className="btn-ghost btn-sm text-muted">
+            <RotateCcw size={16} aria-hidden="true" /> Reset list
+          </button>
+        </div>
       )}
 
       {addingMeals && <AddMealsSheet meals={mealsToAdd} onAdd={addMealsToList} onClose={() => setAddingMeals(false)} />}
@@ -385,14 +409,12 @@ export const ShoppingList: React.FC = () => {
       {lastRemoved && (
         <div className="sticky bottom-[calc(var(--tab-bar-bottom)+78px)] nav:bottom-8 z-20 flex justify-center pt-4 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-ink text-on-ink pl-5 pr-1.5 py-1.5 shadow-[var(--elev-md)]" role="status">
-            <span className="text-sm font-semibold truncate max-w-[55vw] first-letter:uppercase">Removed {lastRemoved.name}</span>
+            <span className="text-sm font-semibold truncate max-w-[55vw] first-letter:uppercase">{lastRemoved.label}</span>
             <button
               onClick={() => {
-                const item = lastRemoved;
+                const { undo } = lastRemoved;
                 setLastRemoved(null);
-                void run(() => restoreItem(item), `We couldn't put ${item.name} back. Try again.`, current => ({
-                  ...current, items: [...current.items.filter(entry => entry.id !== item.id), item],
-                }));
+                undo();
               }}
               className="btn-base min-h-10 px-4 rounded-full text-sm font-bold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--on-ink)]"
             >

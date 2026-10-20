@@ -13,6 +13,7 @@ const remote = vi.hoisted(() => ({
   reset: vi.fn<() => Promise<void>>(),
   check: vi.fn<() => Promise<void>>(),
   removeItem: vi.fn<() => Promise<void>>(),
+  restoreMeal: vi.fn<(...args: unknown[]) => Promise<void>>(),
 }));
 
 vi.mock('../services/shoppingService', () => ({
@@ -23,6 +24,7 @@ vi.mock('../services/shoppingService', () => ({
   resetShoppingList: () => remote.reset(),
   setItemChecked: () => remote.check(),
   removeItem: () => remote.removeItem(),
+  restoreMealOnList: (...args: unknown[]) => remote.restoreMeal(...args),
   moveOldListToFamily: async () => {},
   moveOldPantryToFamily: async () => {},
   forgetOldPantryMarks: async () => {},
@@ -46,6 +48,7 @@ beforeEach(async () => {
   remote.reset.mockReset().mockResolvedValue();
   remote.check.mockReset().mockResolvedValue();
   remote.removeItem.mockReset().mockResolvedValue();
+  remote.restoreMeal.mockReset().mockResolvedValue();
   remote.plans = {
     '2099-01-01': {
       date: '2099-01-01', completedMealIds: [],
@@ -87,15 +90,25 @@ describe('shopping list actions without a reload', () => {
     let finish!: () => void;
     remote.remove.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
     await click('Take Chili and its ingredients off the list');
-    expect(container.textContent).not.toContain('Chili');
+    const chiliRow = () => container.querySelector('[aria-label="Take Chili and its ingredients off the list"]');
+    expect(chiliRow()).toBeNull();
     expect(container.querySelector('[aria-label="Mark onion as in the basket"]')).toBeNull();
     expect(container.querySelector('[aria-label="Change amount: 1"]')).not.toBeNull();
     // A different subscription can emit before the removal has reached Firestore.
     await act(async () => { remote.update({ ...remote.list!, pantry: { salt: { key: 'salt', name: 'salt', by: 'partner', markedAt: Date.now() } } }); });
-    expect(container.textContent).not.toContain('Chili');
+    expect(chiliRow()).toBeNull();
     await act(async () => { finish(); });
-    expect(container.textContent).not.toContain('Chili');
+    expect(chiliRow()).toBeNull();
     expect(container.textContent).toContain('Soup');
+  });
+
+  it('offers a removed meal back, with its items as they were', async () => {
+    await click('Take Chili and its ingredients off the list');
+    expect(container.textContent).toContain('Took Chili off the list');
+    await click('Undo');
+    expect(remote.restoreMeal).toHaveBeenCalledWith('m1', { date: '2099-01-01', name: 'Chili' }, [expect.objectContaining({ id: 'eggs' }), expect.objectContaining({ id: 'onion' })]);
+    expect(container.querySelector('[aria-label="Take Chili and its ingredients off the list"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Mark onion as in the basket"]')).not.toBeNull();
   });
 
   it('restores a meal when saving fails and retains the latest family update', async () => {
@@ -103,7 +116,8 @@ describe('shopping list actions without a reload', () => {
     let fail!: (error: Error) => void;
     remote.remove.mockReturnValue(new Promise<void>((_resolve, reject) => { fail = reject; }));
     await click('Take Chili and its ingredients off the list');
-    expect(container.textContent).not.toContain('Chili');
+    const chiliRow = () => container.querySelector('[aria-label="Take Chili and its ingredients off the list"]');
+    expect(chiliRow()).toBeNull();
     await act(async () => { remote.update({ ...remote.list!, items: [...remote.list!.items, { id: 'coffee', key: 'coffee|item', name: 'coffee', amount: '', sources: {}, addedBy: 'partner', addedAt: 1 }] }); });
     await act(async () => { fail(new Error('Offline')); });
     expect(container.querySelector('[aria-label="Take Chili and its ingredients off the list"]')).not.toBeNull();
