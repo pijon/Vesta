@@ -4,13 +4,13 @@ import { ArrowLeft, Heart, Plus, Search, Sparkles, Store, UsersRound } from 'luc
 import { MealSlot, Recipe } from '../types';
 import { Sheet } from './Sheet';
 import { mealVisualFor } from '../utils/mealVisual';
-import { QUICK_MEAL_DESCRIPTION, eatingOutDishMeal, slotFor, mealKcalLabel } from '../utils/planUtils';
+import { QUICK_MEAL_DESCRIPTION, eatingOutDishMeal, slotFor, mealKcalLabel, slotLabel, usualQuickMeals } from '../utils/planUtils';
 import { useDevMode } from '../contexts/DevModeContext';
 import { QuickMealForm } from './QuickMealForm';
 import { EatingOutBudgetForm } from './EatingOutBudgetForm';
 import { EatingOutDishList } from './EatingOutDishList';
 import { usePrewarmed } from '../utils/prewarm';
-import { eatingOutDishesData } from '../services/pageData';
+import { eatingOutDishesData, quickMealHistoryData } from '../services/pageData';
 import { suggestDishes } from '../utils/eatingOutHistory';
 import { suggestSideDishes } from '../services/geminiService';
 
@@ -65,6 +65,7 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
   /** Setting a budget for eating out with the place undecided */
   const [budgeting, setBudgeting] = useState(false);
   const pastDishes = usePrewarmed(eatingOutDishesData) ?? [];
+  const quickHistory = usePrewarmed(quickMealHistoryData);
   const quickMeals = useDevMode().isFeatureEnabled('quickMeals');
 
   const term = search.trim().toLowerCase();
@@ -83,6 +84,11 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
         Number(!!b.isFavorite) - Number(!!a.isFavorite) ||
         a.name.localeCompare(b.name));
   }, [recipes, familyRecipes, source, term, fitsOnly, favouritesOnly, caloriesLeft, slot, mode]);
+
+  const usual = useMemo(() => {
+    if (mode === 'side' || !quickHistory) return [];
+    return usualQuickMeals(quickHistory, slot, 20).filter(m => !term || m.name.toLowerCase().includes(term)).slice(0, 6);
+  }, [quickHistory, slot, mode, term]);
 
   // Offer to plan the typed text as is, unless it names a recipe exactly
   const offerQuick = quickMeals && !!term &&
@@ -268,6 +274,20 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
               <span className="block text-xs text-muted mt-0.5">Set a calorie budget now, pick the place later</span>
             </span>
           </button>
+        )}
+
+        {quickMeals && usual.length > 0 && (
+          <section aria-labelledby="usual-heading">
+            <h3 id="usual-heading" className="text-sm font-semibold text-muted mb-1">Your usual {slotLabel(slot).toLowerCase()}</h3>
+            <ul>
+              {usual.map(meal => row(
+                meal,
+                `${mealVisualFor(meal).label}${meal.protein ? ` · ${meal.protein} g protein` : ''} · planned before`,
+                () => onPick(meal),
+                `usual-${meal.id}`,
+              ))}
+            </ul>
+          </section>
         )}
 
         {mode !== 'side' && leftovers.length > 0 && !term && (

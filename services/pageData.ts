@@ -1,6 +1,6 @@
 import { calorieAvailability, isNutritionNumber } from '../utils/recipeNutrition';
 import { Avatar, DailyLog, DayPlan, EatingOutDish, FoodLogItem, KnownFood, Recipe } from '../types';
-import { getPlanHistoryInRange, getFamilyPlansInRange, getRecipePlanDates, getLogHistory, mergeSummaries, getRecipes, getEatingOutDishes } from './storageService';
+import { getPlanHistoryInRange, getFamilyPlansInRange, getRecipePlanDates, getLogHistory, mergeSummaries, getRecipes, getEatingOutDishes, getQuickMealHistory } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
@@ -161,3 +161,6 @@ export const prewarmPages = async (shouldContinue: () => boolean = () => true): 
 
 /** Dishes eaten out before, for planning and logging eating out. */
 export const eatingOutDishesData = defineWarm<EatingOutDish[]>('eatingOut:dishes', getEatingOutDishes, 60_000);
+
+/** Quick meals planned in the last 90 days (and the coming two weeks), for planning the usual ones again. */
+export const quickMealHistoryData = defineWarm<{ date: string; meal: Recipe }[]>('plans:quickMeals', () => getQuickMealHistory(daysFromToday(-90), daysFromToday(14)), 60_000);

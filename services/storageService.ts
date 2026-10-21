@@ -1038,6 +1038,22 @@ export const saveUserStats = async (stats: UserStats, expectedUid?: string): Pro
 // --- Eating-out history ---
 const EATING_OUT_DOC = 'eatingOut';
 
+/** Quick meals from the user's own days in a range, for planning the same ones again. Library recipes aren't read. */
+export const getQuickMealHistory = async (startDate: string, endDate: string): Promise<{ date: string; meal: Recipe }[]> => {
+  const snapshot = await getDocs(query(
+    getCollectionRef('days'),
+    where('date', '>=', startDate),
+    where('date', '<=', endDate),
+  ));
+  const history: { date: string; meal: Recipe }[] = [];
+  await Promise.all(snapshot.docs.map(async d => {
+    const raw = d.data() as { date: string; meals?: PlannedMeal[] };
+    const customs = (raw.meals || []).filter(meal => meal?.type === 'custom');
+    (await hydratePlannedMeals(customs, null)).forEach(meal => history.push({ date: raw.date, meal }));
+  }));
+  return history;
+};
+
 /** Dishes eaten out before, newest first. */
 export const getEatingOutDishes = async (): Promise<EatingOutDish[]> => {
   try {

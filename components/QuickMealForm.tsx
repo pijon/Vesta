@@ -39,6 +39,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
   const [preset, setPreset] = useState<number | null>(null);
   const [exact, setExact] = useState('');
   const [estimatedExact, setEstimatedExact] = useState(false);
+  const [protein, setProtein] = useState('');
   const [shopping, setShopping] = useState('');
   const [error, setError] = useState('');
   const [estimating, setEstimating] = useState(false);
@@ -74,6 +75,8 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
       if (!Number.isFinite(kcal) || kcal < 0 || kcal > 5000) { setError('Enter calories from 0 to 5000'); return; }
       calories = Math.round(kcal);
     }
+    const grams = protein.trim() === '' ? undefined : Number(protein);
+    if (grams !== undefined && (!Number.isFinite(grams) || grams < 0 || grams > 500)) { setError('Enter protein from 0 to 500 g'); return; }
     const estimated = preset !== null || (exact.trim() !== '' && estimatedExact);
     onSubmit({
       id: crypto.randomUUID(),
@@ -84,6 +87,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
       instructions: [],
       tags: isSide ? ['side dish'] : [slot],
       servings: 1,
+      ...(grams ? { protein: Math.round(grams) } : {}),
       description: QUICK_MEAL_DESCRIPTION,
       quick: { kind, estimated: estimated || undefined, noCalories: calories === null || undefined },
       ...(askFamily ? { familyMeal } : {}),
@@ -175,6 +179,17 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
         </div>
         {estimateError && <p className="text-sm text-error mt-1">{estimateError}</p>}
       </fieldset>
+
+      <label className="block">
+        <span className="block text-sm font-semibold text-muted mb-1.5">Protein <span className="font-normal">· grams, optional</span></span>
+        <input
+          value={protein}
+          onChange={e => { setProtein(e.target.value); setError(''); }}
+          inputMode="numeric"
+          placeholder="g"
+          className={`input w-28 ${error.startsWith('Enter protein') ? 'input-error' : ''}`}
+        />
+      </label>
 
       {kind === 'home' && (
         <label className="block">

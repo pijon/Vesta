@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Recipe } from '../types';
 import {
   addDays, grams, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, isRememberableDish, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
-  mealKey, mealProtein, planMeal, planRecipe, plannableSlotFor, proteinTarget, QUICK_MEAL_DESCRIPTION, slotFor,
+  mealKey, mealProtein, planMeal, usualQuickMeals, planRecipe, plannableSlotFor, proteinTarget, QUICK_MEAL_DESCRIPTION, slotFor,
   weekDates, weekStart, rangeStart, isoWeek,
 } from './planUtils';
 
@@ -288,5 +288,24 @@ describe('isoWeek', () => {
     expect(isoWeek('2025-12-29')).toBe(1); // the Monday of that week
     expect(isoWeek('2027-01-01')).toBe(53); // a Friday: still 2026's last week
     expect(isoWeek('2027-01-04')).toBe(1);
+  });
+});
+
+describe('usualQuickMeals', () => {
+  const quick = (name: string, fields: Partial<Recipe> = {}): Recipe =>
+    recipe({ id: name, name, slot: 'breakfast', description: QUICK_MEAL_DESCRIPTION, quick: { kind: 'home' }, instanceId: 'x', ...fields });
+
+  it('lists each breakfast once, the most planned first, with the latest numbers and fresh ids', () => {
+    const usual = usualQuickMeals([
+      { date: '2026-10-01', meal: quick('Protein shake', { calories: 250 }) },
+      { date: '2026-10-02', meal: quick('Kvarg with granola', { calories: 300 }) },
+      { date: '2026-10-03', meal: quick('Protein shake', { calories: 280, protein: 30 }) },
+      { date: '2026-10-04', meal: quick('Lunch thing', { slot: 'lunch' }) },
+      { date: '2026-10-05', meal: recipe({ name: 'Oatmeal', slot: 'breakfast' }) },
+      { date: '2026-10-06', meal: quick('Café brunch', { quick: { kind: 'out' } }) },
+    ], 'breakfast');
+    expect(usual.map(m => m.name)).toEqual(['Protein shake', 'Kvarg with granola']);
+    expect(usual[0]).toMatchObject({ calories: 280, protein: 30, instanceId: undefined });
+    expect(usual[0].id).not.toBe('Protein shake');
   });
 });
