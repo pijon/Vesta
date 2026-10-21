@@ -98,8 +98,8 @@ export const generateAi = onCall<GenerateRequest>(
       try {
         return await run(params, model === STABLE_MODEL ? ATTEMPT_MS : PRIMARY_MS);
       } catch (error) {
-        // 3.8 Flash is often overloaded (503), rate limited (429) or stalled; retry once on Flash-Lite.
-        const overloaded = error instanceof ApiError && (error.status === 503 || error.status === 429);
+        // 3.8 Flash is often overloaded (503), rate limited (429), erroring (500/502) or stalled (504); retry once on Flash-Lite.
+        const overloaded = error instanceof ApiError && [429, 500, 502, 503, 504].includes(error.status);
         const stalled = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
         if (!(overloaded || stalled) || model === STABLE_MODEL) throw error;
         logger.warn(`${model} ${stalled ? 'timed out' : `unavailable (${(error as ApiError).status})`}, retrying on ${STABLE_MODEL}`);
@@ -115,7 +115,7 @@ export const generateAi = onCall<GenerateRequest>(
       if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
         throw new HttpsError('deadline-exceeded', 'The AI service took too long. Try again.');
       }
-      if (error instanceof ApiError && (error.status === 503 || error.status === 429)) {
+      if (error instanceof ApiError && [429, 503, 504].includes(error.status)) {
         throw new HttpsError('unavailable', 'The AI service is busy. Try again in a moment.');
       }
       throw new HttpsError('internal', 'The AI request failed.');
