@@ -15,7 +15,7 @@ import { AddToPlanSheet } from './AddToPlanSheet';
 import { CookingMode } from './CookingMode';
 import { parseRecipeText, getRecipeUrl, fetchRecipeFromUrl } from '../services/geminiService';
 import { RecipeCard, RecipeRow, RecipeShelfCard } from './RecipeCard';
-import { byKnownCalories, favouritesShelf, mostProteinShelf, notHadInAWhile, proteinDensity, proteinPerCalorieShelf } from '../utils/recipeShelves';
+import { byKnownCalories, favouritesShelf, latestAddedShelf, mostProteinShelf, notHadInAWhile, proteinDensity, proteinPerCalorieShelf } from '../utils/recipeShelves';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
 import { importRecipeImageFromUrl, checkRecipePage, readRecipePageText } from '../utils/storageUtils';
@@ -428,6 +428,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
           return (b.protein || 0) - (a.protein || 0);
         case 'proteinDensity':
           return proteinDensity(b) - proteinDensity(a) || a.name.localeCompare(b.name);
+        case 'latest':
+          // Recipes without a date last
+          return (b.createdAt ?? 0) - (a.createdAt ?? 0) || a.name.localeCompare(b.name);
         case 'lastHad':
           // Never had first, then longest ago
           return lastHad(a).localeCompare(lastHad(b)) || a.name.localeCompare(b.name);
@@ -458,10 +461,11 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
   // Shelves above the grid, for choosing what to cook; only when browsing, not searching or filtering
   const notHadShelf = useMemo(() => notHadInAWhile(allRecipes, history?.lastHad ?? {}, history?.next ?? {}, today), [allRecipes, history, today]);
   const favouriteShelf = useMemo(() => favouritesShelf(allRecipes, history?.lastHad ?? {}), [allRecipes, history]);
+  const latestShelf = useMemo(() => latestAddedShelf(allRecipes), [allRecipes]);
   const proteinShelf = useMemo(() => mostProteinShelf(allRecipes), [allRecipes]);
   const leanProteinShelf = useMemo(() => proteinPerCalorieShelf(allRecipes), [allRecipes]);
   const showShelves = !onSelect && !filtersActive && !(isLoading && recipes.length === 0)
-    && (notHadShelf.length > 0 || favouriteShelf.length > 0 || proteinShelf.length > 0 || leanProteinShelf.length > 0);
+    && (latestShelf.length > 0 || notHadShelf.length > 0 || favouriteShelf.length > 0 || proteinShelf.length > 0 || leanProteinShelf.length > 0);
   const favouriteCount = allRecipes.filter(r => r.isFavorite).length;
   const toAllRecipes = () => window.setTimeout(() => document.getElementById('all-recipes')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 
@@ -637,6 +641,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
               className="input h-full w-11 sm:w-48 !px-0 sm:!px-4 !text-transparent sm:!text-[var(--text-main)] appearance-none sm:appearance-auto cursor-pointer [&_option]:!text-[var(--text-main)]"
             >
               <option value="name">Name A–Z</option>
+              <option value="latest">Latest added</option>
               <option value="caloriesLow">Fewest calories</option>
               <option value="caloriesHigh">Most calories</option>
               <option value="protein">Most protein</option>
@@ -695,6 +700,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
 
       {showShelves && (
         <div className="space-y-6">
+          {latestShelf.length > 0 && shelf('shelf-latest', 'Latest added', 'New in your family\'s recipes', latestShelf,
+            r => mealKcalLabel(r),
+            () => { setSortOption('latest'); toAllRecipes(); })}
           {notHadShelf.length > 0 && shelf('shelf-not-had', 'Not had in a while', "Good ones you haven't cooked lately", notHadShelf,
             r => (historyLabelFor(history?.lastHad[r.id], today) ?? '').replace(/^Had/, 'Last had'),
             () => { setSortOption('lastHad'); toAllRecipes(); })}

@@ -38,6 +38,15 @@ export const favouritesShelf = (recipes: Recipe[], lastHad: Record<string, strin
   return picked.length >= MIN_SHELF ? picked : [];
 };
 
+/** The recipes added most recently, newest first (recipes from before adds were dated aren't here) */
+export const latestAddedShelf = (recipes: Recipe[]): Recipe[] => {
+  const picked = recipes
+    .filter(r => r.createdAt)
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0) || a.name.localeCompare(b.name))
+    .slice(0, SHELF_SIZE);
+  return picked.length >= MIN_SHELF ? picked : [];
+};
+
 /** Meals, not sides or drinks: under this many kcal a recipe isn't ranked by protein */
 export const MIN_MEAL_KCAL = 150;
 

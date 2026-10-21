@@ -23,6 +23,8 @@ export interface Recipe {
   favoritedBy?: string[];
   /** Uid of the member who added it to the family's recipes */
   createdBy?: string;
+  /** When it was added to the family's recipes (ms); missing on recipes from before this was kept */
+  createdAt?: number;
   isShared?: boolean;
   sharedBy?: string; // UID of sharer
   sharedAt?: number;
