@@ -1,6 +1,6 @@
 import { calorieAvailability, isNutritionNumber } from '../utils/recipeNutrition';
 import { Avatar, DailyLog, DayPlan, EatingOutDish, FoodLogItem, KnownFood, Recipe } from '../types';
-import { getDayTypesInRange, getFamilyPlansInRange, getRecipePlanDates, getLogHistory, mergeSummaries, getRecipes, getEatingOutDishes } from './storageService';
+import { getPlanHistoryInRange, getFamilyPlansInRange, getRecipePlanDates, getLogHistory, mergeSummaries, getRecipes, getEatingOutDishes } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
@@ -25,8 +25,18 @@ const itemsSince = (logs: DailyLog[], startDate: string): FoodLogItem[] =>
 /** Six months of daily summaries: the analytics periods (up to 90 days) and the 90 before, for comparisons. */
 export const analyticsSummariesData = defineWarm('analytics:summaries', async () => mergeSummaries(await ensureWarm(logHistoryData)), 30_000);
 
+/** Food logged over the analytics periods (last 90 days), for where the calories come from. */
+export const analyticsLogsData = defineWarm('analytics:logs', async () =>
+  (await ensureWarm(logHistoryData)).logs.filter(log => log.date >= daysFromToday(-95) && log.items?.length), 30_000);
+
+/** Day types, planned meals and ticks over the analytics period (last ~90 days), read together. */
+const planHistoryData = defineWarm('plans:history', () => getPlanHistoryInRange(daysFromToday(-95), daysFromToday(0)), 5 * 60_000);
+
 /** Fast/nourish type of each day over the analytics period (last ~90 days). */
-export const analyticsDayTypesData = defineWarm('analytics:dayTypes', () => getDayTypesInRange(daysFromToday(-95), daysFromToday(0)), 5 * 60_000);
+export const analyticsDayTypesData = defineWarm('analytics:dayTypes', async () => (await ensureWarm(planHistoryData)).types, 5 * 60_000);
+
+/** Planned meals and what was ticked as eaten, by date, over the analytics period. */
+export const analyticsPlannedDaysData = defineWarm('analytics:plannedDays', async () => (await ensureWarm(planHistoryData)).days, 5 * 60_000);
 
 /** The family's plan for the next two weeks plus the saved list and pantry. */
 /** The family's planned meals for the next two weeks, to add to the shopping list */
@@ -138,7 +148,7 @@ export const knownFoodsData = defineWarm<KnownFood[]>('food:known', async () => 
 
 /** Starts every page's background load, one after another so start-up stays light. */
 export const prewarmPages = async (shouldContinue: () => boolean = () => true): Promise<void> => {
-  for (const warm of [frequentFoodsData, knownFoodsData, familyData, recipeHistoryData, analyticsSummariesData, shoppingData, analyticsDayTypesData]) {
+  for (const warm of [frequentFoodsData, knownFoodsData, familyData, recipeHistoryData, analyticsSummariesData, shoppingData, analyticsDayTypesData, analyticsPlannedDaysData, analyticsLogsData]) {
     if (!shouldContinue()) return;
     try {
       await ensureWarm(warm as Parameters<typeof ensureWarm>[0]);

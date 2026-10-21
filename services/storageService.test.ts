@@ -9,7 +9,7 @@ vi.mock('./firebase', () => ({ db: {}, auth: { get currentUser() {return {uid:fa
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId, getMyGroupId } = await import('./groupService');
-const { deleteRecipe, getDayPlan, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
+const { deleteRecipe, getDayPlan, getPlanHistoryInRange, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
 const { RECIPE_CACHE_MS } = await import('./recipeCache');
 const { localWriteCount } = await import('../utils/localWrites');
 const { getCachedDayPlan, getFromCache, getUserCacheKey, saveToCache } = await import('../utils/cacheService');
@@ -344,6 +344,22 @@ describe('family meals', () => {
         expect(theirs.meals.map(m => [m.instanceId, m.notEating])).toEqual([[dinner.instanceId, ['me']]]);
         expect(theirs.familyMealsOut).toBeUndefined();
       });
+    });
+
+    it("reads the user's own meals and the family's for analytics, without the ones they're out of", async () => {
+      const { lunch, dinner, loaded } = await setUp();
+      const breakfast = planMeal(chili, 'breakfast', { familyMeal: true });
+      await saveDayPlan({ ...loaded, meals: [...loaded.meals, breakfast], completedMealIds: [lunch.instanceId!], type: 'fast' });
+      await goOut(await getDayPlan(date), dinner.instanceId!);
+
+      const history = await getPlanHistoryInRange(date, date);
+      expect(history.types).toEqual({ [date]: 'fast' });
+      expect(history.days[date].meals).toEqual(expect.arrayContaining([
+        { key: lunch.instanceId, slot: 'lunch' },
+        { key: breakfast.instanceId, slot: 'breakfast' },
+      ]));
+      expect(history.days[date].meals).toHaveLength(2);
+      expect(history.days[date].completed).toEqual([lunch.instanceId]);
     });
 
     it("isn't removed for the family when the user saves their plan without it", async () => {

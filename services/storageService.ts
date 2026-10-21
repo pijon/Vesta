@@ -1,5 +1,5 @@
 import { calorieAvailability, normalizeRecipeNutrition, dayNutrition } from '../utils/recipeNutrition';
-import { CoachReadState, EatingOutDish, RecipeSaveOptions, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine } from "../types";
+import { CoachReadState, EatingOutDish, RecipeSaveOptions, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine, PlannedDayRecord } from "../types";
 import { getCacheKey, getUserCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, readInMyGroup, toStoredRecipe } from "./groupService";
 import { forgetRecipe, readRecipeOnce, rememberRecipe } from "./recipeCache";
@@ -140,7 +140,7 @@ export const deleteRecipe = async (id: string) => {
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
-import { QUICK_MEAL_DESCRIPTION, isQuickMeal } from '../utils/planUtils';
+import { QUICK_MEAL_DESCRIPTION, isQuickMeal, slotFor } from '../utils/planUtils';
 import { rememberDish } from '../utils/eatingOutHistory';
 import { readRecipeLines } from '../utils/ingredientParse';
 
@@ -826,20 +826,58 @@ export const getRecipePlanDates = async (startDate: string, endDate: string): Pr
   return dates;
 };
 
-/** Each day's fast/nourish type in a range (days without one are left out). Reads only the day
- *  docs, without hydrating their meals. */
-export const getDayTypesInRange = async (startDate: string, endDate: string): Promise<Record<string, string>> => {
-  const [days, legacyDoc] = await Promise.all([
+export interface PlanHistory {
+  /** Each day's fast/nourish type (days without one are left out) */
+  types: Record<string, string>;
+  /** Days with planned meals */
+  days: Record<string, PlannedDayRecord>;
+}
+
+/** A stored meal's key (as completedMealIds holds it) and slot; legacy full recipes use their id */
+const plannedMealRecord = (raw: unknown): PlannedDayRecord['meals'][number] | null => {
+  const meal = raw as Partial<PlannedMeal> & { id?: string; recipeId?: string; tags?: string[] };
+  const key = meal?.instanceId || (meal?.type === 'reference' ? meal.recipeId : meal?.id);
+  return key ? { key, slot: slotFor({ slot: meal.slot, tags: meal.tags }) } : null;
+};
+
+/**
+ * Each day's type, planned meals (family meals included) and ticks in a range. Reads only the
+ * stored references, without hydrating recipes.
+ */
+export const getPlanHistoryInRange = async (startDate: string, endDate: string): Promise<PlanHistory> => {
+  const groupId = await getMyGroupId().catch(() => null);
+  const [days, legacyDoc, dinners] = await Promise.all([
     getDocs(query(getCollectionRef('days'), where('date', '>=', startDate), where('date', '<=', endDate))),
     // Legacy plan doc, for dates with no day doc (unmigrated users)
     getDoc(doc(db, 'users', getUserId(), 'data', 'plan')).catch(() => null),
+    groupId
+      ? getDocs(query(collection(db, 'groups', groupId, 'dinners'), where('date', '>=', startDate), where('date', '<=', endDate))).catch(() => null)
+      : Promise.resolve(null),
   ]);
   const types: Record<string, string> = {};
+  const planned: Record<string, PlannedDayRecord> = {};
+  const dayRecord = (date: string) => (planned[date] ||= { meals: [], completed: [] });
   const withDoc = new Set<string>();
   days.forEach(d => {
-    const data = d.data() as { date: string; type?: string };
+    const data = d.data() as { date: string; type?: string; meals?: unknown[]; completedMealIds?: string[] };
     withDoc.add(data.date);
     if (data.type) types[data.date] = data.type;
+    const meals = (data.meals || []).map(plannedMealRecord).filter((m): m is PlannedDayRecord['meals'][number] => !!m);
+    if (meals.length || data.completedMealIds?.length) {
+      const record = dayRecord(data.date);
+      record.meals.push(...meals);
+      record.completed = data.completedMealIds || [];
+    }
+  });
+  const me = currentUid();
+  dinners?.forEach(d => {
+    const data = d.data() as { date: string; meals?: Record<string, StoredFamilyMeal> };
+    // An entry with no type is a notEating change that landed after its meal was removed
+    const meals = Object.values(data.meals || {})
+      .filter(meal => meal.type && !(me && meal.notEating?.includes(me)))
+      .map(meal => plannedMealRecord({ ...meal, slot: meal.slot || 'dinner' }))
+      .filter((m): m is PlannedDayRecord['meals'][number] => !!m);
+    if (meals.length) dayRecord(data.date).meals.push(...meals);
   });
   const legacy = legacyDoc?.exists() ? legacyDoc.data() as Record<string, { type?: string } | undefined> : null;
   if (legacy) {
@@ -849,7 +887,7 @@ export const getDayTypesInRange = async (startDate: string, endDate: string): Pr
       if (!withDoc.has(date) && type) types[date] = type;
     }
   }
-  return types;
+  return { types, days: planned };
 };
 
 // Purely local helper to stitch together a range from existing cache

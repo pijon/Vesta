@@ -86,6 +86,13 @@ export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export type Meal = Recipe;
 
+/** What was planned on a day and what was ticked as eaten, without the recipes */
+export interface PlannedDayRecord {
+  /** One per planned meal the user is eating (family meals they're out of are left out) */
+  meals: { key: string; slot: MealSlot }[];
+  completed: string[];
+}
+
 // --- Normalized Meal Planning (Database Optimization) ---
 
 /** Per-instance fields stored with every planned meal (all optional for legacy data) */
