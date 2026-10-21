@@ -258,6 +258,39 @@ export const isoWeek = (date: string) => {
   return 1 + Math.round(((d.getTime() - jan4.getTime()) / 86_400_000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
 };
 
+/**
+ * Quick meals planned before for a slot (cooked at home or ready-made, not eating out), as a
+ * fresh copy ready to plan again. The same name counts once, with its latest numbers; the ones
+ * planned most often come first, then the most recent.
+ */
+export const usualQuickMeals = (history: { date: string; meal: Recipe }[], slot: MealSlot, limit = 8): Recipe[] => {
+  const byName = new Map<string, { meal: Recipe; date: string; times: number }>();
+  history.forEach(({ date, meal }) => {
+    if (!isQuickMeal(meal) || isBudgetMeal(meal) || meal.quick?.kind === 'out' || slotFor(meal) !== slot) return;
+    const key = meal.name.trim().toLowerCase();
+    if (!key) return;
+    const seen = byName.get(key);
+    if (!seen) byName.set(key, { meal, date, times: 1 });
+    else {
+      seen.times++;
+      if (date > seen.date) Object.assign(seen, { meal, date });
+    }
+  });
+  return [...byName.values()]
+    .sort((a, b) => b.times - a.times || (a.date < b.date ? 1 : -1))
+    .slice(0, limit)
+    .map(({ meal }) => ({
+      ...meal,
+      id: crypto.randomUUID(),
+      instanceId: undefined,
+      sides: [],
+      isLeftover: false,
+      isPacked: false,
+      familyMeal: undefined,
+      notEating: undefined,
+    }));
+};
+
 /** A fresh planned copy of a recipe for a slot. */
 export const planMeal = (recipe: Recipe, slot: MealSlot, extra: Partial<Recipe> = {}): Recipe => ({
   ...recipe,
