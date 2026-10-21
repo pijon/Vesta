@@ -97,10 +97,12 @@ export const saveRecipe = async (recipe: Recipe, options: RecipeSaveOptions = {}
       }
       // A stale edit must not erase the family's author or favourites either.
       next.createdBy = latest.createdBy;
+      if (latest.createdAt !== undefined) next.createdAt = latest.createdAt; else delete next.createdAt;
       next.favoritedBy = latest.favoritedBy;
     } else if (next.calorieStatus === 'known' && !(typeof next.calories === 'number' && Number.isFinite(next.calories) && next.calories >= 0)) {
       throw new Error('Enter valid nutrition before saving.');
     }
+    if (!snapshot.exists() && next.createdAt === undefined) next.createdAt = Date.now();
     next = normalizeRecipeNutrition(next);
     const stored = toStoredRecipe(next, uid);
     transaction.set(target, stored);
