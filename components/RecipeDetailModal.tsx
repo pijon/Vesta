@@ -1,4 +1,6 @@
 import { mealKcalLabel } from '../utils/planUtils';
+import { MarkdownText } from './MarkdownText';
+import { sectionsOf, withoutHeadings } from '../utils/recipeSections';
 import React, { useEffect, useRef, useState } from 'react';
 import { Recipe } from '../types';
 import { Portal } from './Portal';
@@ -74,8 +76,10 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
     if (!recipe) return null;
 
     const visual = mealVisualFor(recipe);
-    const ingredients = recipe.ingredients || [];
-    const steps = recipe.instructions || [];
+    const ingredientSections = sectionsOf(recipe.ingredients || []);
+    const stepSections = sectionsOf(recipe.instructions || []);
+    const ingredients = withoutHeadings(recipe.ingredients || []).filter(line => line.trim());
+    const steps = withoutHeadings(recipe.instructions || []).filter(line => line.trim());
     const toggle = (set: Set<number>, i: number) => {
         const next = new Set(set);
         if (next.has(i)) next.delete(i); else next.add(i);
@@ -305,25 +309,32 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                     {ingredients.length === 0 ? (
                                         <p className="text-sm text-muted">No ingredients listed.</p>
                                     ) : (
-                                        <ul>
-                                            {ingredients.map((ing, i) => {
-                                                const have = haveIngredients.has(i);
-                                                return (
-                                                    <li key={i}>
-                                                        <button
-                                                            onClick={() => setHaveIngredients(s => toggle(s, i))}
-                                                            aria-pressed={have}
-                                                            className="w-full flex items-start gap-3 py-2 px-1 rounded-[10px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-                                                        >
-                                                            <span className={`mt-0.5 size-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${have ? 'bg-secondary border-secondary text-secondary-foreground' : 'border-border-control text-transparent'}`}>
-                                                                <Check size={14} strokeWidth={3} aria-hidden="true" />
-                                                            </span>
-                                                            <span className={`leading-snug ${have ? 'text-muted line-through' : ''}`}>{scaleIngredient(ing, servings / baseServings)}</span>
-                                                        </button>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
+                                        <div>
+                                            {ingredientSections.map((section, n) => (
+                                                <div key={n}>
+                                                    {section.title && <h4 className="font-display font-extrabold mt-4 mb-1"><MarkdownText text={section.title} /></h4>}
+                                                    <ul>
+                                                        {section.items.map(({ text: ing, index: i }) => {
+                                                            const have = haveIngredients.has(i);
+                                                            return (
+                                                                <li key={i}>
+                                                                    <button
+                                                                        onClick={() => setHaveIngredients(s => toggle(s, i))}
+                                                                        aria-pressed={have}
+                                                                        className="w-full flex items-start gap-3 py-2 px-1 rounded-[10px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                                                                    >
+                                                                        <span className={`mt-0.5 size-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${have ? 'bg-secondary border-secondary text-secondary-foreground' : 'border-border-control text-transparent'}`}>
+                                                                            <Check size={14} strokeWidth={3} aria-hidden="true" />
+                                                                        </span>
+                                                                        <span className={`leading-snug ${have ? 'text-muted line-through' : ''}`}>{scaleIngredient(ing, servings / baseServings)}</span>
+                                                                    </button>
+                                                                </li>
+                                                            );
+                                                        })}
+                                                    </ul>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </section>
 
@@ -332,25 +343,32 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
                                     {steps.length === 0 ? (
                                         <p className="text-sm text-muted">No steps written down yet.</p>
                                     ) : (
-                                        <ol className="space-y-1">
-                                            {steps.map((step, i) => {
-                                                const done = doneSteps.has(i);
-                                                return (
-                                                    <li key={i}>
-                                                        <button
-                                                            onClick={() => setDoneSteps(s => toggle(s, i))}
-                                                            aria-pressed={done}
-                                                            className="w-full flex items-start gap-3 p-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-                                                        >
-                                                            <span className={`size-8 shrink-0 rounded-full flex items-center justify-center font-display font-extrabold text-sm transition-colors ${done ? 'bg-secondary text-secondary-foreground' : 'bg-ink text-on-ink'}`}>
-                                                                {done ? <Check size={16} strokeWidth={3} aria-hidden="true" /> : i + 1}
-                                                            </span>
-                                                            <span className={`pt-1 leading-relaxed ${done ? 'text-muted' : ''}`}>{step}</span>
-                                                        </button>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ol>
+                                        <div>
+                                            {stepSections.map((section, n) => (
+                                                <div key={n}>
+                                                    {section.title && <h4 className="font-display font-extrabold mt-4 mb-1 px-2"><MarkdownText text={section.title} /></h4>}
+                                                    <ol className="space-y-1">
+                                                        {section.items.map(({ text: step, index: i }, k) => {
+                                                            const done = doneSteps.has(i);
+                                                            return (
+                                                                <li key={i}>
+                                                                    <button
+                                                                        onClick={() => setDoneSteps(s => toggle(s, i))}
+                                                                        aria-pressed={done}
+                                                                        className="w-full flex items-start gap-3 p-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                                                                    >
+                                                                        <span className={`size-8 shrink-0 rounded-full flex items-center justify-center font-display font-extrabold text-sm transition-colors ${done ? 'bg-secondary text-secondary-foreground' : 'bg-ink text-on-ink'}`}>
+                                                                            {done ? <Check size={16} strokeWidth={3} aria-hidden="true" /> : k + 1}
+                                                                        </span>
+                                                                        <span className={`pt-1 leading-relaxed ${done ? 'text-muted' : ''}`}><MarkdownText text={step} /></span>
+                                                                    </button>
+                                                                </li>
+                                                            );
+                                                        })}
+                                                    </ol>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </section>
                             </div>

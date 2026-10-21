@@ -1,4 +1,5 @@
 import { ParsedIngredientLine } from '../types';
+import { withoutHeadings } from './recipeSections';
 import { NUMBER, parseAmount } from './scaleIngredient';
 
 /**
@@ -175,7 +176,7 @@ export const ingredientKey = (name: string): string => {
 /** A recipe's read lines for its current ingredients: earlier readings kept, new lines read in code where possible */
 export const readRecipeLines = (ingredients: string[], known: ParsedIngredientLine[] = []): ParsedIngredientLine[] => {
   const byText = new Map(known.map(line => [line.text, line]));
-  return [...new Set(ingredients)].flatMap(text => {
+  return [...new Set(withoutHeadings(ingredients))].flatMap(text => {
     const line = byText.get(text) ?? parseIngredientLine(text);
     return line ? [line] : [];
   });

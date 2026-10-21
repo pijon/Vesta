@@ -125,8 +125,9 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
     CRITICAL INSTRUCTIONS:
 
     1. INGREDIENTS PROCESSING:
-       - FLATTEN all ingredient sections into ONE single list
-       - If recipe has "For the sauce", "For the marinade", "For the topping", etc., ignore these headers
+       - If the recipe has separate parts or dishes ("For the sauce", "Gremolata", "Gräddkokt purjolök"), keep them: put a markdown heading line such as "## Sauce" before that part's ingredients, in the original language
+       - Only add headings when the recipe really has two or more parts; a plain recipe is one list with no heading
+       - Headings are lines that start with "## " and contain nothing else
        - Remove checkboxes (☐), bullets (•, -, *), and formatting characters
        - Keep ingredient text clean and readable
        - Preserve quantities and measurements exactly as written
@@ -153,6 +154,8 @@ export const parseRecipeText = async (text: string, attempt = 1): Promise<Partia
 
     6. INSTRUCTIONS:
        - Keep numbered steps in order
+       - If the ingredients have parts, put the same "## Name" heading line before each part's steps (steps that begin with a part name such as "Dillgremolata:" belong under that heading; drop the prefix)
+       - Keep bold (**word**) only if the source uses it
        - Remove unnecessary text like "Step 1:", just use the instruction
        - Be clear and concise
 

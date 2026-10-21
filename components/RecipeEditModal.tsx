@@ -228,24 +228,24 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                 {/* Ingredients and steps */}
                 <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="recipe-ingredients" className={label}>Ingredients <span className="font-normal text-muted">one per line</span></label>
+                        <label htmlFor="recipe-ingredients" className={label}>Ingredients <span className="font-normal text-muted">one per line. Start a new dish with ## Name</span></label>
                         <textarea
                             id="recipe-ingredients"
                             rows={10}
                             value={(editForm.ingredients || []).join('\n')}
                             onChange={e => setEditForm({ ...editForm, ingredients: e.target.value.split('\n') })}
-                            placeholder={'200 g chicken breast\n1 cup rice'}
+                            placeholder={'## Chicken\n200 g chicken breast\n## Sauce\n1 dl cream'}
                             className="input w-full resize-none leading-relaxed"
                         />
                     </div>
                     <div>
-                        <label htmlFor="recipe-steps" className={label}>Steps <span className="font-normal text-muted">one per line</span></label>
+                        <label htmlFor="recipe-steps" className={label}>Steps <span className="font-normal text-muted">one per line. ## Name starts a dish, **bold** works</span></label>
                         <textarea
                             id="recipe-steps"
                             rows={10}
                             value={(editForm.instructions || []).join('\n')}
                             onChange={e => setEditForm({ ...editForm, instructions: e.target.value.split('\n') })}
-                            placeholder={'Heat the oven to 180 °C\nMix the ingredients'}
+                            placeholder={'## Chicken\nHeat the oven to 180 °C\n## Sauce\nMix the **cream** and herbs'}
                             className="input w-full resize-none leading-relaxed"
                         />
                     </div>

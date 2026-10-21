@@ -1,4 +1,5 @@
 import { DayPlan, ParsedIngredientLine, Recipe } from '../types';
+import { withoutHeadings } from './recipeSections';
 
 /** A recipe in a planned meal (its main dish or a side), or a quick meal's shopping items */
 export interface PlanMealPart {
@@ -26,7 +27,7 @@ export interface PlanMeal {
 const part = (meal: Recipe): PlanMealPart => ({
   id: meal.id,
   name: meal.name,
-  ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
+  ingredients: Array.isArray(meal.ingredients) ? withoutHeadings(meal.ingredients) : [],
   parsedIngredients: meal.parsedIngredients,
   isQuick: !!meal.quick || undefined,
 });
