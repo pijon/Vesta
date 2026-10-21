@@ -76,6 +76,22 @@ const checkRecipePageCallable = httpsCallable<{ pageUrl: string }, { ok: boolean
     { timeout: 20_000 }
 );
 
+const readRecipePageCallable = httpsCallable<{ pageUrl: string }, { text: string | null }>(
+    functions,
+    'readRecipePage',
+    { timeout: 25_000 }
+);
+
+/** The recipe on a page as plain text, read from its structured data; null when the page has none. */
+export const readRecipePageText = async (pageUrl: string): Promise<string | null> => {
+    try {
+        return (await readRecipePageCallable({ pageUrl })).data.text;
+    } catch (error) {
+        console.warn('Recipe page read failed:', error);
+        return null;
+    }
+};
+
 /**
  * Quick look at a recipe link before the slow AI read, so a site that blocks readers
  * fails in about a second. Inconclusive checks (including errors) count as readable.

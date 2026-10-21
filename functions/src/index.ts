@@ -6,6 +6,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import sharp from 'sharp';
+import { recipeTextFromHtml } from './recipeLd.js';
 
 initializeApp();
 
@@ -271,6 +272,28 @@ export const checkRecipePage = onCall<{ pageUrl: string }>(
       }
       logger.warn('Recipe page check inconclusive', { pageUrl, reason: error instanceof Error ? error.message : String(error) });
       return { ok: true };
+    }
+  }
+);
+
+/**
+ * Reads a recipe page's structured data (schema.org JSON-LD) into plain text, so most recipe sites
+ * import without the slow, less reliable AI page read. Returns null text when the page has none.
+ */
+export const readRecipePage = onCall<{ pageUrl: string }>(
+  { region: 'europe-west1', timeoutSeconds: 20, maxInstances: 10 },
+  async (request): Promise<{ text: string | null }> => {
+    if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Sign in first.');
+    const { pageUrl } = request.data ?? {};
+    if (typeof pageUrl !== 'string') throw new HttpsError('invalid-argument', 'pageUrl is required.');
+
+    try {
+      const page = await safeFetch(pageUrl, 'text/html,application/xhtml+xml');
+      const html = (await readCapped(page.res, MAX_HTML_BYTES)).toString('utf8');
+      return { text: recipeTextFromHtml(html) };
+    } catch (error) {
+      logger.warn('Recipe page read failed', { pageUrl, reason: error instanceof Error ? error.message : String(error) });
+      return { text: null };
     }
   }
 );
