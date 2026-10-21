@@ -18,7 +18,7 @@ import { RecipeCard, RecipeRow, RecipeShelfCard } from './RecipeCard';
 import { byKnownCalories, favouritesShelf, mostProteinShelf, notHadInAWhile, proteinDensity, proteinPerCalorieShelf } from '../utils/recipeShelves';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { ImageInput } from './ImageInput';
-import { importRecipeImageFromUrl, checkRecipePage } from '../utils/storageUtils';
+import { importRecipeImageFromUrl, checkRecipePage, readRecipePageText } from '../utils/storageUtils';
 import { IngredientRecipeModal } from './IngredientRecipeModal';
 import { RecipeEditModal } from './RecipeEditModal';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
@@ -253,7 +253,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
       const pageImage = sourceUrl && !uploadedImage
         ? importRecipeImageFromUrl(sourceUrl, newRecipeId)
         : Promise.resolve(null);
-      const recipeText = sourceUrl ? await fetchRecipeFromUrl(sourceUrl) : inputText;
+      const recipeText = sourceUrl ? (await readRecipePageText(sourceUrl)) ?? await fetchRecipeFromUrl(sourceUrl) : inputText;
       const partialRecipe = await parseRecipeText(recipeText);
       if (partialRecipe) {
         const newRecipe: Recipe = {
