@@ -1,3 +1,5 @@
+import { MarkdownText } from './MarkdownText';
+import { headingOf, sectionsOf } from '../utils/recipeSections';
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, CookingPot, ListChecks, Minus, Plus, Sun, Timer, X } from 'lucide-react';
 import { Recipe } from '../types';
@@ -84,7 +86,9 @@ const useWakeLock = () => {
  * and the screen kept awake.
  */
 export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose, onEaten }) => {
-    const steps = recipe.instructions?.filter(s => s.trim()) ?? [];
+    // Steps without section headings; each step remembers the dish it belongs to
+    const stepList = sectionsOf(recipe.instructions ?? []).flatMap(s => s.items.map(item => ({ text: item.text, section: s.title })));
+    const steps = stepList.map(s => s.text);
     const baseServings = recipe.servings > 0 ? recipe.servings : 1;
     const [step, setStep] = useState(0);
     const [servings, setServings] = useState(baseServings);
@@ -107,7 +111,7 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose, onEat
     const go = (to: number) => setStep(Math.min(Math.max(to, 0), last));
     const factor = servings / baseServings;
     const stepTimers = steps[step] ? timersIn(steps[step]) : [];
-    const stepIngredients = steps[step] ? ingredientsInStep(steps[step], recipe.ingredients) : [];
+    const stepIngredients = steps[step] ? ingredientsInStep(steps[step], recipe.ingredients.map(line => headingOf(line) === null ? line : '')) : [];
     // Below lg the ingredients panel covers the step
     const panelOpen = showIngredients && steps.length > 0;
     panelOpenRef.current = panelOpen;
@@ -194,7 +198,14 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose, onEat
                 </div>
             </div>
             {recipe.ingredients.length ? (
-                <ul>{recipe.ingredients.map((_, i) => ingredientRow(i))}</ul>
+                <div>
+                    {sectionsOf(recipe.ingredients).map((section, n) => (
+                        <div key={n}>
+                            {section.title && <h3 className="text-sm font-semibold text-muted mt-3 mb-0.5"><MarkdownText text={section.title} /></h3>}
+                            <ul>{section.items.map(item => ingredientRow(item.index))}</ul>
+                        </div>
+                    ))}
+                </div>
             ) : (
                 <p className="text-sm text-muted">This recipe has no ingredients listed.</p>
             )}
@@ -297,7 +308,8 @@ export const CookingMode: React.FC<CookingModeProps> = ({ recipe, onClose, onEat
                                             {/* Short steps sit in the middle of the space; long ones start at the top */}
                                             <div key={step} className="flex-1 flex flex-col justify-center py-6 md:py-10 motion-safe:animate-page-in">
                                                 <p className="size-14 mb-5 rounded-full bg-[var(--hero)] text-[var(--hero-foreground)] flex items-center justify-center font-display font-extrabold text-2xl"><span className="sr-only">Step </span>{step + 1}</p>
-                                                <p className={`${steps[step].length > 220 ? 'text-2xl md:text-3xl' : 'text-[28px] md:text-4xl'} font-display font-bold leading-tight tracking-tight text-main`}>{steps[step]}</p>
+                                                {stepList[step].section && <p className="text-sm font-semibold text-muted mb-1"><MarkdownText text={stepList[step].section!} /></p>}
+                                                <p className={`${steps[step].length > 220 ? 'text-2xl md:text-3xl' : 'text-[28px] md:text-4xl'} font-display font-bold leading-tight tracking-tight text-main`}><MarkdownText text={steps[step]} /></p>
 
                                                 {stepTimers.length > 0 && (
                                                     <div className="flex flex-wrap gap-2 mt-6">

@@ -313,8 +313,12 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
     await saveNewRecipe(newRecipe);
     await loadData();
     resetImport();
-    // Open the newly created recipe
+    // Imports are often imperfect (missed ingredients, odd amounts), so go straight to the editor
     setSelectedRecipe(newRecipe);
+    setEditForm({ ...newRecipe });
+    setUploadedImage(newRecipe.image || null);
+    setIsEditing(true);
+    showToast('Imported. Check the ingredients and steps before you cook.');
   };
 
   const handleSaveGeneratedRecipe = async (recipe: Recipe) => {

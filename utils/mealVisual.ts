@@ -1,3 +1,4 @@
+import { withoutHeadings } from './recipeSections';
 import {
   Apple, Banana, Bean, Beef, Beer, CakeSlice, Candy, Carrot, Cherry, Citrus, Coffee, Cookie, CookingPot,
   Croissant, CupSoda, Donut, Drumstick, EggFried, Fish, GlassWater, Grape, Ham, Hamburger, IceCreamCone,
@@ -74,7 +75,7 @@ export const foodIconFor = (meal: Partial<Pick<Recipe, 'name' | 'ingredients'>>)
   const name = meal.name || '';
   const fromName = matchIcon(name, DISH_PATTERNS) || matchIcon(name, INGREDIENT_PATTERNS);
   if (fromName) return fromName;
-  const leadIngredients = (meal.ingredients || []).slice(0, 3).join(' · ');
+  const leadIngredients = withoutHeadings(meal.ingredients || []).slice(0, 3).join(' · ');
   return leadIngredients ? matchIcon(leadIngredients, INGREDIENT_PATTERNS) : undefined;
 };
 
