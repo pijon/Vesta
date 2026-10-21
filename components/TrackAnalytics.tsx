@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, CalendarCheck, CircleAlert, CookingPot, Droplet, Egg, Equal, Flag, Flame, Gauge, NotebookPen, Scale, ThumbsUp, Timer } from 'lucide-react';
+import { Activity, CalendarCheck, ChartPie, CircleAlert, ClipboardCheck, CookingPot, Droplet, Egg, Equal, Flag, Flame, Gauge, Link, NotebookPen, Scale, ThumbsUp, Timer } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { AppView, DayPlan, DailyLog, FastingState, UserStats, CoachReadState } from '../types';
-import { analyticsDayTypesData, analyticsSummariesData } from '../services/pageData';
+import { analyticsDayTypesData, analyticsLogsData, analyticsPlannedDaysData, analyticsSummariesData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
-import { AnalyticsDay, AnalyticsPeriod, Insight, PERIODS, buildDays, chartStart, insightsFor, summarize, weightProgress, weightSummary } from '../utils/analyticsModel';
+import { AnalyticsDay, AnalyticsPeriod, Insight, LINK_WEEKS, LOGGED_WEEK_DAYS, PERIODS, WeekGroup, buildDays, calorieSources, chartStart, insightsFor, lastFullWeekEnd, loggingWeightLink, loggingWeightVerdict, planAdherence, summarize, weakestSlot, weightProgress, weightSummary } from '../utils/analyticsModel';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
-import { addDays, proteinTarget } from '../utils/planUtils';
+import { addDays, proteinTarget, slotLabel } from '../utils/planUtils';
 import { ChartContainer } from './analytics/ChartContainer';
 import { BurnUnlock, EnergyPanel, useEnergy } from './EnergyCheckIn';
 import { CoachPanel } from './CoachPanel';
@@ -72,10 +72,46 @@ const Empty: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="h-40 flex items-center justify-center rounded-[20px] bg-surface-sunken text-sm text-muted text-center px-6">{children}</div>
 );
 
+/** A labelled bar for a share of something, with its figure on the right */
+const ShareRow: React.FC<{ label: React.ReactNode; figure: React.ReactNode; fraction: number; color: string }> = ({ label, figure, fraction, color }) => (
+    <li>
+        <div className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate font-medium">{label}</span>
+            <span className="shrink-0 text-muted tabular-nums">{figure}</span>
+        </div>
+        <div className="mt-1.5 h-2 rounded-full bg-surface-sunken overflow-hidden" aria-hidden="true">
+            <div className="h-full rounded-full" style={{ width: `${Math.max(2, Math.round(fraction * 100))}%`, background: color }} />
+        </div>
+    </li>
+);
+
+/** One side of the logging-and-weight comparison */
+const WeekGroupStat: React.FC<{ label: string; group: WeekGroup }> = ({ label, group }) => (
+    <div className="tile tile-neutral min-w-0">
+        <p className="text-xs font-semibold">{label}</p>
+        <p className="mt-1.5 font-display font-extrabold text-[24px] leading-7 tracking-tight tabular-nums">
+            {Math.abs(group.change) < 0.05 ? '±0.0' : `${group.change > 0 ? '+' : '−'}${Math.abs(group.change).toFixed(1)}`}
+            <span className="font-sans text-xs font-semibold tracking-normal"> kg a week</span>
+        </p>
+        <p className="text-xs font-medium mt-0.5">{group.weeks} weeks</p>
+    </div>
+);
+
 const INSIGHT_TONE: Record<Insight['tone'], { Icon: typeof ThumbsUp; className: string; label: string }> = {
     win: { Icon: ThumbsUp, className: 'tile-weight', label: 'Better' },
     watch: { Icon: CircleAlert, className: 'bg-warning-bg text-warning', label: 'Worth a look' },
     steady: { Icon: Equal, className: 'tile-neutral', label: 'Steady' },
+};
+
+/** An insight with its tone as a small round icon */
+const InsightLine: React.FC<{ insight: Pick<Insight, 'tone' | 'text'>; as?: 'li' | 'p'; className?: string }> = ({ insight, as: Tag = 'p', className = '' }) => {
+    const { Icon, className: tone, label } = INSIGHT_TONE[insight.tone];
+    return (
+        <Tag className={`flex items-start gap-2.5 ${className}`}>
+            <span className={`mt-0.5 size-6 shrink-0 rounded-full flex items-center justify-center ${tone}`}><Icon size={14} aria-hidden="true" /></span>
+            <span className="leading-relaxed"><span className="sr-only">{label}: </span>{insight.text}</span>
+        </Tag>
+    );
 };
 
 /** Tooltip in the app's card style */
@@ -109,6 +145,8 @@ const Sparkline: React.FC<{ line: { time: number; trend: number }[]; goal: numbe
 export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog, fastingState, onUpdateStats, onOpenFoodModal, onOpenWeightModal, onNavigate, coachRead, onSetCoachRead }) => {
     const summaries = usePrewarmed(analyticsSummariesData) ?? [];
     const dayTypes = usePrewarmed(analyticsDayTypesData) ?? {};
+    const plannedDays = usePrewarmed(analyticsPlannedDaysData);
+    const logs = usePrewarmed(analyticsLogsData);
     const [period, setPeriod] = useState<AnalyticsPeriod>(() => {
         try { return (localStorage.getItem(PERIOD_KEY) as AnalyticsPeriod) || 'month'; } catch { return 'month'; }
     });
@@ -137,6 +175,27 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
         const previous = buildDays(periodDays, summaries, dayTypes, stats, dailyLog, addDays(yesterday, -periodDays));
         return insightsFor(current, previous, targetFast, stats.dailyCalorieGoal);
     }, [periodDays, summaries, dayTypes, stats, dailyLog, targetFast]);
+
+    // --- Patterns ---
+    // Logging against weight change over the last full weeks; it doesn't follow the period
+    const weightLink = useMemo(() => {
+        const link = loggingWeightLink(buildDays(LINK_WEEKS * 7, summaries, dayTypes, stats, dailyLog, lastFullWeekEnd()), stats.weightHistory);
+        if (!link) return null;
+        const losing = !(stats.goalWeight > 0 && progress && stats.goalWeight > progress.current);
+        return { ...link, verdict: loggingWeightVerdict(link, losing) };
+    }, [summaries, dayTypes, stats, dailyLog, progress]);
+    // The plan up to yesterday: today's meals may still be ahead
+    const adherence = useMemo(() => {
+        if (!plannedDays) return null;
+        const result = planAdherence(plannedDays, buildDays(periodDays, summaries, dayTypes, stats, dailyLog, addDays(localDateString(), -1)));
+        return result && { ...result, weakest: weakestSlot(result) };
+    }, [plannedDays, periodDays, summaries, dayTypes, stats, dailyLog]);
+    // Today's food from the live log
+    const sources = useMemo(() => {
+        if (!logs) return null;
+        const live = [...logs.filter(log => log.date !== dailyLog.date), dailyLog];
+        return calorieSources(live, days[0].date, localDateString());
+    }, [logs, dailyLog, days]);
 
     const tickDate = (date: string) => period === 'week'
         ? parseLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })
@@ -308,15 +367,7 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                     <section className="card p-4 md:p-6" aria-label="Insights">
                         <h3 className="font-semibold">Against the {periodName} before</h3>
                         <ul className="space-y-2.5 mt-3">
-                            {insights.map(insight => {
-                                const { Icon, className, label } = INSIGHT_TONE[insight.tone];
-                                return (
-                                    <li key={insight.id} className="flex items-start gap-2.5">
-                                        <span className={`mt-0.5 size-6 shrink-0 rounded-full flex items-center justify-center ${className}`}><Icon size={14} aria-hidden="true" /></span>
-                                        <span className="leading-relaxed"><span className="sr-only">{label}: </span>{insight.text}</span>
-                                    </li>
-                                );
-                            })}
+                            {insights.map(insight => <InsightLine key={insight.id} as="li" insight={insight} />)}
                         </ul>
                     </section>
                 )}
@@ -371,6 +422,16 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 )}
             </Panel>
 
+            {weightLink && (
+                <Panel title="Logging and your weight" icon={Link} tile="tile-weight" subtitle={`Trend weight change in each of the last ${LINK_WEEKS} weeks`}>
+                    <div className="grid grid-cols-2 gap-2">
+                        <WeekGroupStat label={`Logged ${LOGGED_WEEK_DAYS}+ days`} group={weightLink.logged} />
+                        <WeekGroupStat label="Other weeks" group={weightLink.other} />
+                    </div>
+                    <InsightLine insight={weightLink.verdict} className="mt-3" />
+                </Panel>
+            )}
+
             <Panel
                 title="Calories"
                 icon={Gauge}
@@ -409,7 +470,60 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
                 )}
             </Panel>
 
-            <div className="grid lg:grid-cols-2 gap-4 md:gap-5 items-start">
+            {(sources || adherence) && (
+                <div className="grid lg:grid-cols-2 gap-4 md:gap-5">
+                    {sources && (
+                        <Panel title="Where your calories come from" icon={ChartPie} tile="tile-calories" className="min-w-0"
+                            subtitle={`${fmt(sources.total)} kcal over ${sources.days} days with food logged`}>
+                            {sources.foods.length > 0 && (
+                                <>
+                                    <h3 className="text-sm font-semibold">Your regulars</h3>
+                                    <p className="text-sm text-muted mt-0.5">Foods you logged more than once: {Math.round(sources.repeatShare * 100)}% of your calories</p>
+                                    <ul className="divide-y divide-border mt-2">
+                                        {sources.foods.map(food => (
+                                            <li key={food.name} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                                                <span className="min-w-0 truncate font-medium">{food.name}</span>
+                                                <span className="shrink-0 text-muted tabular-nums">{food.count}× · {fmt(food.calories)} kcal · {Math.round(food.share * 100)}%</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </>
+                            )}
+                            {sources.times.length > 0 && (
+                                <>
+                                    <h3 className={`text-sm font-semibold ${sources.foods.length ? 'mt-4' : ''}`}>By time of day</h3>
+                                    <ul className="space-y-3 mt-2.5">
+                                        {sources.times.map(t => (
+                                            <ShareRow key={t.id} label={t.label} fraction={t.share} color="var(--calories)" figure={`${Math.round(t.share * 100)}%`} />
+                                        ))}
+                                    </ul>
+                                </>
+                            )}
+                        </Panel>
+                    )}
+                    {adherence && (
+                        <Panel title="Your plan" icon={ClipboardCheck} tile="tile-weight" className="min-w-0"
+                            subtitle="Planned meals ticked as eaten, on days you logged food">
+                            <p className="font-display font-extrabold text-[24px] leading-7 tracking-tight tabular-nums">
+                                {adherence.eaten}<span className="font-sans text-sm font-semibold tracking-normal text-muted"> of {adherence.planned} eaten</span>
+                            </p>
+                            <ul className="space-y-3 mt-4">
+                                {adherence.slots.map(s => (
+                                    <ShareRow key={s.slot} label={slotLabel(s.slot)} fraction={s.eaten / s.planned} color="var(--weight)"
+                                        figure={`${s.eaten} of ${s.planned}`} />
+                                ))}
+                            </ul>
+                            {adherence.weakest && (
+                                <p className="text-sm text-muted mt-4">
+                                    {slotLabel(adherence.weakest.slot)} is the meal that slips most. Planning {adherence.weakest.slot === 'snack' ? 'fewer snacks' : `a simpler ${slotLabel(adherence.weakest.slot).toLowerCase()}`} might fit your days better.
+                                </p>
+                            )}
+                        </Panel>
+                    )}
+                </div>
+            )}
+
+            <div className="grid lg:grid-cols-2 gap-4 md:gap-5">
                 <div className="space-y-4 md:space-y-5">
                     <Panel title="Fasting window" icon={Timer} tile="tile-fasting" subtitle={summary.fastCount ? `Hours between your last and first meal · goal ${targetFast} h` : undefined}>
                         {summary.fastCount === 0 ? <Empty>No fasts recorded in this period. They're measured between logged meals.</Empty> : (

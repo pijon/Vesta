@@ -1,7 +1,8 @@
-import { DailyLog, DailySummary, UserStats, WeightEntry } from '../types';
+import { DailyLog, DailySummary, MealSlot, PlannedDayRecord, UserStats, WeightEntry } from '../types';
 import { MAX_PLAUSIBLE_FAST_HOURS } from '../constants';
 import { localDateString, parseLocalDate } from './dateUtils';
-import { addDays } from './planUtils';
+import { MEAL_SLOTS, addDays } from './planUtils';
+import { normalizeFoodName } from './foodMatch';
 import { isCompleteDay } from './logCompleteness';
 import { weightTrend } from './energyModel';
 
@@ -475,4 +476,182 @@ export const insightsFor = (
 
   const order = { win: 0, watch: 1, steady: 2 };
   return { insights: insights.sort((a, b) => order[a.tone] - order[b.tone]).slice(0, MAX_INSIGHTS), compared: hasPrev };
+};
+
+// --- Patterns: what goes with weight change, how the plan goes, where calories come from ---
+
+/** Fully logged days that make a week a logged week */
+export const LOGGED_WEEK_DAYS = 5;
+/** Weeks the logging-and-weight comparison looks back over */
+export const LINK_WEEKS = 12;
+
+export interface WeekGroup {
+  weeks: number;
+  /** Average change in trend weight per week, kg (negative = losing) */
+  change: number;
+}
+
+export interface LoggingWeightLink {
+  /** Weeks (Mon–Sun) with at least LOGGED_WEEK_DAYS fully logged days, and the rest */
+  logged: WeekGroup;
+  other: WeekGroup;
+}
+
+/** The Sunday that ended the last full week before `today` */
+export const lastFullWeekEnd = (today = localDateString()) => addDays(today, -(parseLocalDate(today).getDay() || 7));
+
+/**
+ * How the trend weight moved in weeks you logged most days against the other weeks. `days` should
+ * be whole Mon–Sun weeks (oldest first). A week counts when the trend covers both its ends in one
+ * run of weigh-ins; each side needs two such weeks.
+ */
+export const loggingWeightLink = (days: AnalyticsDay[], history: WeightEntry[]): LoggingWeightLink | null => {
+  const trend = new Map(weightTrend(history).map(p => [p.date, p]));
+  const logged: number[] = [];
+  const other: number[] = [];
+  for (let i = 0; i + 7 <= days.length; i += 7) {
+    const week = days.slice(i, i + 7);
+    const end = trend.get(week[6].date);
+    const start = trend.get(addDays(week[0].date, -1));
+    if (!end || !start || end.run !== start.run) continue;
+    (week.filter(d => d.complete).length >= LOGGED_WEEK_DAYS ? logged : other).push(end.trend - start.trend);
+  }
+  if (logged.length < 2 || other.length < 2) return null;
+  return {
+    logged: { weeks: logged.length, change: average(logged)! },
+    other: { weeks: other.length, change: average(other)! },
+  };
+};
+
+/** What the comparison says, in a sentence; better means closer to the goal (losing unless the goal is above) */
+export const loggingWeightVerdict = (link: LoggingWeightLink, losing: boolean): Pick<Insight, 'tone' | 'text'> => {
+  const gain = (losing ? -1 : 1) * (link.logged.change - link.other.change);
+  return gain >= 0.1 ? { tone: 'win', text: 'Weeks you log most days go better for your weight.' }
+    : gain <= -0.1 ? { tone: 'steady', text: 'Your weight did as well in the weeks you logged less.' }
+    : { tone: 'steady', text: 'Your weight moved about the same either way.' };
+};
+
+export interface SlotAdherence { slot: MealSlot; planned: number; eaten: number }
+
+export interface PlanAdherence {
+  planned: number;
+  eaten: number;
+  /** Planned meals by slot, in slot order (slots with nothing planned left out) */
+  slots: SlotAdherence[];
+}
+
+/** Days with ticks needed before untouched meals read as skipped rather than as a habit of not ticking */
+const MIN_TICKED_DAYS = 3;
+const MIN_PLANNED = 5;
+
+/**
+ * How many planned meals were ticked as eaten, on days with food logged (a day you didn't open the
+ * app says nothing about the plan). Needs some ticked days, so someone who logs without ticking
+ * doesn't read as skipping every meal.
+ */
+export const planAdherence = (planned: Record<string, PlannedDayRecord>, days: AnalyticsDay[]): PlanAdherence | null => {
+  const bySlot = new Map<MealSlot, SlotAdherence>();
+  let tickedDays = 0;
+  days.filter(d => d.logged).forEach(day => {
+    const record = planned[day.date];
+    if (!record?.meals.length) return;
+    const done = new Set(record.completed);
+    let ticked = false;
+    record.meals.forEach(({ key, slot }) => {
+      const entry = bySlot.get(slot) ?? { slot, planned: 0, eaten: 0 };
+      entry.planned++;
+      if (done.has(key)) { entry.eaten++; ticked = true; }
+      bySlot.set(slot, entry);
+    });
+    if (ticked) tickedDays++;
+  });
+  const slots = MEAL_SLOTS.map(s => bySlot.get(s.slot)).filter((s): s is SlotAdherence => !!s);
+  const total = slots.reduce((sum, s) => sum + s.planned, 0);
+  if (tickedDays < MIN_TICKED_DAYS || total < MIN_PLANNED) return null;
+  return { planned: total, eaten: slots.reduce((sum, s) => sum + s.eaten, 0), slots };
+};
+
+/** The slot most often skipped, when it's clearly behind the others (at least 3 planned) */
+export const weakestSlot = (adherence: PlanAdherence): SlotAdherence | null => {
+  const rate = (s: SlotAdherence) => s.eaten / s.planned;
+  const candidates = adherence.slots.filter(s => s.planned >= 3);
+  if (candidates.length < 2) return null;
+  const weakest = candidates.reduce((a, b) => (rate(b) < rate(a) ? b : a));
+  const rest = candidates.filter(s => s !== weakest);
+  const restRate = rest.reduce((sum, s) => sum + s.eaten, 0) / rest.reduce((sum, s) => sum + s.planned, 0);
+  return restRate - rate(weakest) >= 0.25 ? weakest : null;
+};
+
+export type TimeOfDay = 'morning' | 'midday' | 'evening' | 'late';
+
+export const TIMES_OF_DAY: { id: TimeOfDay; label: string; from: number }[] = [
+  { id: 'morning', label: 'Morning', from: 0 },
+  { id: 'midday', label: 'Midday', from: 11 },
+  { id: 'evening', label: 'Evening', from: 16 },
+  { id: 'late', label: 'After 9 pm', from: 21 },
+];
+
+export interface FoodSource {
+  name: string;
+  calories: number;
+  /** Times it was logged */
+  count: number;
+  /** Fraction of all calories in the period */
+  share: number;
+}
+
+export interface CalorieSources {
+  total: number;
+  days: number;
+  /** Foods logged more than once, most calories in total first */
+  foods: FoodSource[];
+  /** Fraction of all calories from foods logged more than once */
+  repeatShare: number;
+  /** Calories by time of day, from when entries were logged on their own day */
+  times: { id: TimeOfDay; label: string; calories: number; share: number }[];
+}
+
+const TOP_FOODS = 5;
+
+/**
+ * The foods you keep coming back to that brought the most calories between `from` and `to`
+ * (inclusive), grouped by name (one-offs say little about habits),
+ * and how the day's calories split by time of day. Entries logged on another day than the one
+ * they're for (filled in later) count for foods but not for the time of day.
+ */
+export const calorieSources = (logs: DailyLog[], from: string, to: string): CalorieSources | null => {
+  const inRange = logs.filter(log => log.date >= from && log.date <= to && log.items?.length);
+  const items = inRange.flatMap(log => log.items.filter(item => item.calories > 0).map(item => ({ item, date: log.date })));
+  if (inRange.length < 3 || items.length < 10) return null;
+
+  const total = items.reduce((sum, { item }) => sum + item.calories, 0);
+  const byName = new Map<string, { name: string; calories: number; count: number; last: number }>();
+  const byTime = new Map<TimeOfDay, number>();
+  items.forEach(({ item, date }) => {
+    const key = normalizeFoodName(item.name);
+    if (key) {
+      const entry = byName.get(key) ?? { name: item.name.trim(), calories: 0, count: 0, last: 0 };
+      entry.calories += item.calories;
+      entry.count++;
+      if (item.timestamp > entry.last) Object.assign(entry, { name: item.name.trim(), last: item.timestamp });
+      byName.set(key, entry);
+    }
+    const at = new Date(item.timestamp);
+    if (item.timestamp && localDateString(at) === date) {
+      const time = [...TIMES_OF_DAY].reverse().find(t => at.getHours() >= t.from)!.id;
+      byTime.set(time, (byTime.get(time) ?? 0) + item.calories);
+    }
+  });
+  const timed = [...byTime.values()].reduce((a, b) => a + b, 0);
+  const repeats = [...byName.values()].filter(f => f.count >= 2);
+  return {
+    total,
+    days: inRange.length,
+    repeatShare: repeats.reduce((sum, f) => sum + f.calories, 0) / total,
+    foods: repeats
+      .sort((a, b) => b.calories - a.calories)
+      .slice(0, TOP_FOODS)
+      .map(({ name, calories, count }) => ({ name, calories, count, share: calories / total })),
+    times: timed ? TIMES_OF_DAY.map(t => ({ id: t.id, label: t.label, calories: byTime.get(t.id) ?? 0, share: (byTime.get(t.id) ?? 0) / timed })) : [],
+  };
 };
