@@ -1,7 +1,7 @@
 import type { PlannedMealIntakeEntry, PlannedMealIntakeResult } from '../types';
 import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
-import { ENERGY_COMPLETE_DAY_SHARE, isCompleteDay } from '../utils/logCompleteness';
+import { ENERGY_COMPLETE_DAY_SHARE, isCompleteDay, looksLight, usualIntake } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, saveFamilyMealOut } from '../services/storageService';
 import { currentUid } from '../services/firebase';
@@ -374,6 +374,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     () => weekendGap(buildDays(56, activityHistory, dayTypes, stats, dailyLog, addDays(localDateString(), -1))),
     [activityHistory, dayTypes, stats, dailyLog],
   );
+  // Your usual intake on this kind of day, to ask about a day that looks light next to it
+  const usual = React.useMemo(() => usualIntake(activityHistory, dayTypes, stats, !isNonFastDay), [activityHistory, dayTypes, stats, isNonFastDay]);
   const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
   useEffect(() => {
     if (!toast) return;
@@ -460,6 +462,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         dayStatus={dailyLog.status}
         dayCounts={isCompleteDay(consumed, dailyTarget, dailyLog.status)}
         dayCountsForBurn={isCompleteDay(consumed, dailyTarget, dailyLog.status, ENERGY_COMPLETE_DAY_SHARE)}
+        lightDayUsual={looksLight(consumed, usual, dailyLog.status) ? usual! : undefined}
+        isFastDay={!isNonFastDay}
         onSetDayStatus={onSetDayStatus}
         planAside={comingUp}
       />

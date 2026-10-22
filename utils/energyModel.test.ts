@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DailySummary, WeightEntry } from '../types';
 import { addDays } from './planUtils';
-import { burnRange, estimateEnergy, estimateEnergyFor, fastDaysPerWeek, MIN_BURN_MARGIN, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
+import { burnRange, estimateEnergy, rangeLimit, estimateEnergyFor, fastDaysPerWeek, MIN_BURN_MARGIN, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
 
 const TODAY = '2026-10-14';
 
@@ -105,6 +105,15 @@ describe('estimateEnergy', () => {
     const est = estimateEnergy(days, noisy, TODAY);
     expect(est.expenditureMargin!).toBeGreaterThan(MIN_BURN_MARGIN);
     expect(burnRange({ expenditure: null, expenditureMargin: null })).toBeNull();
+  });
+
+  it('says what limits the range and how narrow daily data would make it', () => {
+    const base = { expenditureMargin: 500, weighIns: 12, loggedDays: 20 };
+    expect(rangeLimit({ ...base, weightMargin: 480, intakeMargin: 140 })).toEqual({ cause: 'weighIns', daily: Math.round(Math.max(250, Math.hypot(480 * Math.sqrt(12 / 28), 140)) / 10) * 10 });
+    expect(rangeLimit({ ...base, weightMargin: 480, intakeMargin: 140, weighIns: 28 })).toEqual({ cause: 'weighIns', daily: null });
+    expect(rangeLimit({ ...base, weightMargin: 200, intakeMargin: 450 })?.cause).toBe('logging');
+    expect(rangeLimit({ ...base, expenditureMargin: 250, weightMargin: 150, intakeMargin: 100 })).toEqual({ cause: 'floor', daily: null });
+    expect(rangeLimit({ ...base, expenditureMargin: null, weightMargin: null, intakeMargin: null })).toBeNull();
   });
 
   it('waits for enough logging and weigh-ins', () => {

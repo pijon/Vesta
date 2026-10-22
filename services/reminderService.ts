@@ -6,7 +6,7 @@ import { VAPID_PUBLIC_KEY } from '../constants';
 
 export const DEFAULT_REMINDERS: ReminderSettings = {
   log: { enabled: true, time: '20:00' },
-  weighIn: { enabled: true, time: '07:30', days: [1, 3, 5] },
+  weighIn: { enabled: true, time: '07:30', days: [0, 1, 2, 3, 4, 5, 6] },
   eatingOut: { enabled: true, delayMinutes: 90 },
 };
 

@@ -119,6 +119,9 @@ export interface EnergyEstimate {
    * around their line and of the logged days around their average. It doesn't cover food left unlogged.
    */
   expenditureMargin: number | null;
+  /** The two parts of the margin before the floor: from the weigh-ins' scatter, and from the logged days' */
+  weightMargin: number | null;
+  intakeMargin: number | null;
   /** Average workout calories per day in the window */
   avgWorkoutBurn: number;
 }
@@ -178,8 +181,10 @@ export const estimateEnergy = (
     ? Math.sqrt((fastShare * sem(loggedFast)!) ** 2 + ((1 - fastShare) * sem(loggedNourish)!) ** 2)
     : sem(logged);
   const expenditure = ready && avgIntake !== null && slope !== null ? avgIntake - slope * KCAL_PER_KG : null;
-  const expenditureMargin = expenditure !== null && fit?.se != null && intakeSe !== null
-    ? Math.max(MIN_BURN_MARGIN, Math.hypot(t80(weighIns.length - 2) * fit.se * KCAL_PER_KG, t80(logged.length - 1) * intakeSe))
+  const weightMargin = expenditure !== null && fit?.se != null ? t80(weighIns.length - 2) * fit.se * KCAL_PER_KG : null;
+  const intakeMargin = expenditure !== null && intakeSe !== null ? t80(logged.length - 1) * intakeSe : null;
+  const expenditureMargin = weightMargin !== null && intakeMargin !== null
+    ? Math.max(MIN_BURN_MARGIN, Math.hypot(weightMargin, intakeMargin))
     : null;
   const avgWorkoutBurn = inWindow.reduce((a, s) => a + (s.caloriesBurned || 0), 0) / ESTIMATE_WINDOW_DAYS;
 
@@ -197,6 +202,8 @@ export const estimateEnergy = (
     weightChangePerWeek: slope !== null ? slope * 7 : null,
     expenditure,
     expenditureMargin,
+    weightMargin,
+    intakeMargin,
     avgWorkoutBurn,
   };
 };
@@ -214,6 +221,29 @@ export const burnRange = (estimate: Pick<EnergyEstimate, 'expenditure' | 'expend
   if (estimate.expenditure === null || estimate.expenditureMargin === null) return null;
   const round = (n: number) => Math.round(n / 10) * 10;
   return [round(estimate.expenditure - estimate.expenditureMargin), round(estimate.expenditure + estimate.expenditureMargin)];
+};
+
+export interface RangeLimit {
+  /** What widens the range most */
+  cause: 'floor' | 'weighIns' | 'logging';
+  /** About how wide (±) it would be with a weigh-in, or a fully logged day, every day; null when that's already so */
+  daily: number | null;
+}
+
+/**
+ * What limits the burn's range, and roughly how narrow it would get without that limit. Both parts shrink
+ * about with the square root of how many days feed them, so a full window's worth is estimated from that.
+ */
+export const rangeLimit = (estimate: Pick<EnergyEstimate, 'expenditureMargin' | 'weightMargin' | 'intakeMargin' | 'weighIns' | 'loggedDays'>): RangeLimit | null => {
+  const { expenditureMargin, weightMargin, intakeMargin } = estimate;
+  if (expenditureMargin === null || weightMargin === null || intakeMargin === null) return null;
+  if (Math.hypot(weightMargin, intakeMargin) <= MIN_BURN_MARGIN) return { cause: 'floor', daily: null };
+  const full = (margin: number, days: number) => margin * Math.sqrt(Math.min(days, ESTIMATE_WINDOW_DAYS) / ESTIMATE_WINDOW_DAYS);
+  const round = (n: number) => Math.round(Math.max(MIN_BURN_MARGIN, n) / 10) * 10;
+  if (weightMargin >= intakeMargin) {
+    return { cause: 'weighIns', daily: estimate.weighIns < ESTIMATE_WINDOW_DAYS ? round(Math.hypot(full(weightMargin, estimate.weighIns), intakeMargin)) : null };
+  }
+  return { cause: 'logging', daily: estimate.loggedDays < ESTIMATE_WINDOW_DAYS ? round(Math.hypot(weightMargin, full(intakeMargin, estimate.loggedDays))) : null };
 };
 
 export const LOSS_RATES = [0.25, 0.5, 0.75, 1] as const;

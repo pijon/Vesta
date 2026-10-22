@@ -150,6 +150,12 @@ export const ReminderSettings: React.FC = () => {
               })}
             </div>
           </div>
+          {settings.weighIn.enabled && settings.weighIn.days.length < 7 && (
+            <div className="sm:pl-12 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="text-xs text-muted flex-1 min-w-[12rem]">Your daily burn needs about three weigh-ins a week. Weighing in every day gives it the narrowest range.</p>
+              <button onClick={() => change({ ...settings, weighIn: { ...settings.weighIn, days: WEEKDAYS.map(w => w.day) } })} className="btn-ghost btn-sm shrink-0">Every day</button>
+            </div>
+          )}
         </li>
         <li className="py-4 first:pt-0 space-y-3">
           <div className="flex items-start gap-3">

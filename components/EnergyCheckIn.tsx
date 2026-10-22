@@ -3,7 +3,7 @@ import { Check, TrendingDown } from 'lucide-react';
 import { DailySummary, UserStats } from '../types';
 import {
   DEFAULT_LOSS_RATE, EnergyEstimate, LOSS_RATES, MIN_LOGGED_DAYS, MIN_NOURISH_TARGET, MIN_WEIGH_INS, MIN_WEIGH_SPAN_DAYS,
-  TargetSuggestion, burnRange, estimateEnergyFor, fastDaysPerWeek, suggestTargets,
+  TargetSuggestion, burnRange, estimateEnergyFor, rangeLimit, fastDaysPerWeek, suggestTargets,
 } from '../utils/energyModel';
 import { goalDateAtPace } from '../utils/analyticsModel';
 import { parseLocalDate } from '../utils/dateUtils';
@@ -87,6 +87,22 @@ export const BurnUnlock: React.FC<{ estimate: EnergyEstimate }> = ({ estimate })
   </div>
 );
 
+/** What widens the burn's range most, and what would narrow it */
+export const rangeAdvice = (estimate: EnergyEstimate): string | null => {
+  const limit = rangeLimit(estimate);
+  if (!limit) return null;
+  const narrower = limit.daily !== null ? ` would narrow it to about ±${fmt(limit.daily)}` : '';
+  if (limit.cause === 'floor') return 'That range is as narrow as this kind of estimate gets.';
+  if (limit.cause === 'weighIns') {
+    return limit.daily !== null
+      ? `The range is mostly down to the weigh-ins (${estimate.weighIns} days in four weeks). Weighing in every day${narrower}.`
+      : 'The range is mostly down to day-to-day swings on the scale. Weighing at the same time each morning helps.';
+  }
+  return limit.daily !== null
+    ? `The range is mostly down to how much your logged days vary, with ${estimate.loggedDays} of 28 counted. Logging every day fully${narrower}.`
+    : 'The range is mostly down to how much your days vary.';
+};
+
 const monthYear = (date: string) => parseLocalDate(date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 
 interface PanelProps {
@@ -123,8 +139,9 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
           <p className="text-sm text-muted mt-1">
             You burn about {approx(estimate.expenditure)} kcal a day
             {range && `, likely between ${range[0].toLocaleString()} and ${range[1].toLocaleString()}`}
-            {', worked out from what you eat and how your weight moves. Unlogged food makes it read low, and weighing in more often narrows the range.'}
+            {', worked out from what you eat and how your weight moves. Unlogged food makes it read low.'}
           </p>
+          {rangeAdvice(estimate) && <p className="text-xs text-muted mt-1">{rangeAdvice(estimate)}</p>}
         </div>
       </div>
 
