@@ -59,29 +59,47 @@ export const weightTrend = (history: WeightEntry[]): TrendPoint[] => {
   return points;
 };
 
-/** Least-squares slope in kg per day. */
-const slopePerDay = (points: { time: number; weight: number }[]) => {
+/** Student's t for an 80% range, by degrees of freedom; beyond the table it's about 1.3 */
+const T80 = [Infinity, 3.078, 1.886, 1.638, 1.533, 1.476, 1.44, 1.415, 1.397, 1.383, 1.372, 1.363, 1.356, 1.35, 1.345, 1.341];
+export const t80 = (df: number) => T80[df] ?? (df < 30 ? 1.32 : 1.3);
+
+/** Least-squares slope in kg per day, and its standard error (null with fewer than three points). */
+const fitSlope = (points: { time: number; weight: number }[]) => {
   const xs = points.map(p => (p.time - points[0].time) / DAY_MS);
   const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
   const my = points.reduce((a, p) => a + p.weight, 0) / points.length;
-  const den = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
-  return den === 0 ? 0 : xs.reduce((a, x, i) => a + (x - mx) * (points[i].weight - my), 0) / den;
+  const sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
+  if (sxx === 0) return { slope: 0, se: null };
+  const slope = xs.reduce((a, x, i) => a + (x - mx) * (points[i].weight - my), 0) / sxx;
+  if (xs.length < 3) return { slope, se: null };
+  const residuals = xs.reduce((a, x, i) => a + (points[i].weight - (my + slope * (x - mx))) ** 2, 0);
+  return { slope, se: Math.sqrt(residuals / (xs.length - 2) / sxx) };
 };
 
 /** What the estimate needs over the window before it's worth showing. */
 export const ESTIMATE_WINDOW_DAYS = 28;
 export const MIN_LOGGED_DAYS = 14;
-export const MIN_WEIGH_INS = 4;
+/**
+ * Days with a weigh-in: about three a week. Hall & Chow (AJCN 2011) needed daily weigh-ins over more than
+ * 28 days to estimate intake within ±300 kcal/day, so fewer than this leaves the range very wide.
+ */
+export const MIN_WEIGH_INS = 12;
 /** First and last weigh-in in the window must be at least this far apart */
 export const MIN_WEIGH_SPAN_DAYS = 14;
 /** Fast and nourish days are only averaged apart once each kind has this many logged days */
 export const MIN_LOGGED_PER_KIND = 3;
+/**
+ * The burn's likely range is never narrower than this either way. Even a validated model was off by
+ * about 215 kcal/day per person against doubly labelled water (Sanghvi et al., AJCN 2015); 80% of that spread is about ±275.
+ */
+export const MIN_BURN_MARGIN = 250;
 
 export interface EnergyEstimate {
   /** The window: the 28 days up to yesterday (today isn't finished) */
   from: string;
   to: string;
   loggedDays: number;
+  /** Days with a weigh-in (several on one day count once) */
   weighIns: number;
   weighSpanDays: number;
   ready: boolean;
@@ -96,6 +114,11 @@ export interface EnergyEstimate {
   weightChangePerWeek: number | null;
   /** Calories burned per day, everything included (workouts too) */
   expenditure: number | null;
+  /**
+   * How far the burn could plausibly be off either way (an 80% range), from the scatter of the weigh-ins
+   * around their line and of the logged days around their average. It doesn't cover food left unlogged.
+   */
+  expenditureMargin: number | null;
   /** Average workout calories per day in the window */
   avgWorkoutBurn: number;
 }
@@ -121,10 +144,13 @@ export const estimateEnergy = (
   const from = addDays(to, -(ESTIMATE_WINDOW_DAYS - 1));
   const inWindow = summaries.filter(s => s.date >= from && s.date <= to);
   const logged = inWindow.filter(isComplete);
-  const weighIns = (history || [])
-    .filter(e => e.weight > 0 && e.date >= from && e.date <= to)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map(e => ({ time: parseLocalDate(e.date).getTime(), weight: e.weight, date: e.date }));
+  // One point per day (several weigh-ins on a day count as their average), so a day can't count twice
+  const byDate = new Map<string, number[]>();
+  (history || []).filter(e => e.weight > 0 && e.date >= from && e.date <= to)
+    .forEach(e => byDate.set(e.date, [...(byDate.get(e.date) ?? []), e.weight]));
+  const weighIns = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, ws]) => ({ time: parseLocalDate(date).getTime(), weight: ws.reduce((a, b) => a + b, 0) / ws.length, date }));
   const weighSpanDays = weighIns.length >= 2 ? daysBetween(weighIns[0].date, weighIns[weighIns.length - 1].date) : 0;
   const ready = logged.length >= MIN_LOGGED_DAYS && weighIns.length >= MIN_WEIGH_INS && weighSpanDays >= MIN_WEIGH_SPAN_DAYS;
 
@@ -138,7 +164,23 @@ export const estimateEnergy = (
   const split = fastDays > 0 && fastDays < ESTIMATE_WINDOW_DAYS && fastAvg !== null && nourishAvg !== null
     && loggedFast.length >= MIN_LOGGED_PER_KIND && loggedNourish.length >= MIN_LOGGED_PER_KIND;
   const avgIntake = split ? (fastAvg * fastDays + nourishAvg * (ESTIMATE_WINDOW_DAYS - fastDays)) / ESTIMATE_WINDOW_DAYS : mean(logged);
-  const slope = weighIns.length >= 2 && weighSpanDays > 0 ? slopePerDay(weighIns) : null;
+  const fit = weighIns.length >= 2 && weighSpanDays > 0 ? fitSlope(weighIns) : null;
+  const slope = fit ? fit.slope : null;
+
+  // Standard error of the average intake: each kind of day apart when split, weighted by its share of the window
+  const sem = (days: DailySummary[]) => {
+    const m = mean(days);
+    if (m === null || days.length < 2) return null;
+    return Math.sqrt(days.reduce((a, s) => a + (s.caloriesConsumed - m) ** 2, 0) / (days.length - 1) / days.length);
+  };
+  const fastShare = fastDays / ESTIMATE_WINDOW_DAYS;
+  const intakeSe = split
+    ? Math.sqrt((fastShare * sem(loggedFast)!) ** 2 + ((1 - fastShare) * sem(loggedNourish)!) ** 2)
+    : sem(logged);
+  const expenditure = ready && avgIntake !== null && slope !== null ? avgIntake - slope * KCAL_PER_KG : null;
+  const expenditureMargin = expenditure !== null && fit?.se != null && intakeSe !== null
+    ? Math.max(MIN_BURN_MARGIN, Math.hypot(t80(weighIns.length - 2) * fit.se * KCAL_PER_KG, t80(logged.length - 1) * intakeSe))
+    : null;
   const avgWorkoutBurn = inWindow.reduce((a, s) => a + (s.caloriesBurned || 0), 0) / ESTIMATE_WINDOW_DAYS;
 
   return {
@@ -153,7 +195,8 @@ export const estimateEnergy = (
     nourishAvgIntake: split ? nourishAvg : null,
     fastDays,
     weightChangePerWeek: slope !== null ? slope * 7 : null,
-    expenditure: ready && avgIntake !== null && slope !== null ? avgIntake - slope * KCAL_PER_KG : null,
+    expenditure,
+    expenditureMargin,
     avgWorkoutBurn,
   };
 };
@@ -165,6 +208,13 @@ export const estimateEnergyFor = (
   dayTypes: Record<string, string>,
   today = localDateString(),
 ) => estimateEnergy(summaries, stats.weightHistory, today, completeDayFor(stats, dayTypes, ENERGY_COMPLETE_DAY_SHARE), dayTypes);
+
+/** The burn's likely range, rounded to tens: [low, high], or null before there's an estimate. */
+export const burnRange = (estimate: Pick<EnergyEstimate, 'expenditure' | 'expenditureMargin'>): [number, number] | null => {
+  if (estimate.expenditure === null || estimate.expenditureMargin === null) return null;
+  const round = (n: number) => Math.round(n / 10) * 10;
+  return [round(estimate.expenditure - estimate.expenditureMargin), round(estimate.expenditure + estimate.expenditureMargin)];
+};
 
 export const LOSS_RATES = [0.25, 0.5, 0.75, 1] as const;
 export const DEFAULT_LOSS_RATE = 0.5;

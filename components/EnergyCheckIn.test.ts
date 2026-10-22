@@ -4,20 +4,21 @@ import { stillNeeded } from './EnergyCheckIn';
 
 const estimate = (loggedDays: number, weighIns: number, weighSpanDays: number): EnergyEstimate => ({
   from: '2026-09-19', to: '2026-10-16', loggedDays, weighIns, weighSpanDays, ready: false,
-  avgIntake: null, fastAvgIntake: null, nourishAvgIntake: null, fastDays: 0, weightChangePerWeek: null, expenditure: null, avgWorkoutBurn: 0,
+  avgIntake: null, fastAvgIntake: null, nourishAvgIntake: null, fastDays: 0, weightChangePerWeek: null, expenditure: null, expenditureMargin: null, avgWorkoutBurn: 0,
 });
 
 describe('stillNeeded', () => {
   it('says how many logged days are missing', () => {
-    expect(stillNeeded(estimate(10, 4, 20))).toBe('4 more fully logged days');
-    expect(stillNeeded(estimate(13, 4, 20))).toBe('1 more fully logged day');
+    expect(stillNeeded(estimate(10, 12, 20))).toBe('4 more fully logged days');
+    expect(stillNeeded(estimate(13, 12, 20))).toBe('1 more fully logged day');
   });
 
   it('adds missing weigh-ins', () => {
-    expect(stillNeeded(estimate(10, 3, 20))).toBe('4 more fully logged days and 1 more weigh-in');
+    expect(stillNeeded(estimate(10, 11, 20))).toBe('4 more fully logged days and 1 more weigh-in');
+    expect(stillNeeded(estimate(14, 4, 20))).toBe('8 more weigh-ins');
   });
 
   it('asks for weigh-ins spread over two weeks once there are enough of them', () => {
-    expect(stillNeeded(estimate(14, 4, 6))).toBe('weigh-ins spread over two weeks');
+    expect(stillNeeded(estimate(14, 12, 6))).toBe('weigh-ins spread over two weeks');
   });
 });

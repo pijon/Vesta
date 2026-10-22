@@ -12,7 +12,7 @@ const LOGGING_GOOD = 9;
 const LOGGING_LOW = 5;
 /** Fully logged days that make a week count towards the steady-logging streak */
 const STEADY_WEEK_DAYS = 4;
-import { EnergyEstimate, TargetSuggestion, estimateEnergyFor, fastDaysPerWeek, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
+import { EnergyEstimate, TargetSuggestion, burnRange, estimateEnergyFor, fastDaysPerWeek, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
 
 /**
  * The numbers guidance is based on. Everything here is measured from the user's own logs, so the
@@ -157,6 +157,11 @@ export interface Finding {
 }
 
 const kcal = (n: number) => `${(Math.round(n / 10) * 10).toLocaleString()} kcal`;
+/** "1,910 kcal (likely 1,660–2,160)" */
+const burn = (estimate: EnergyEstimate) => {
+  const range = burnRange(estimate);
+  return `${kcal(estimate.expenditure!)}${range ? ` (likely ${range[0].toLocaleString()}–${range[1].toLocaleString()})` : ''}`;
+};
 const shortDate = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 /** "Since 10 Aug you're down 2.8 kg", when the longer view shows real progress */
 const longerView = (f: CoachFacts) => {
@@ -208,7 +213,7 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
       id: 'plateau',
       tone: 'focus',
       title: 'A real plateau: flat for two weeks on complete logs',
-      detail: `You've fully logged most days and the trend hasn't moved, so your current intake is close to what you burn (about ${kcal(f.estimate.expenditure!)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(f.suggestion.weeklyLoss)} a week.`,
+      detail: `You've fully logged most days and the trend hasn't moved, so your current intake is close to what you burn (about ${burn(f.estimate)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(f.suggestion.weeklyLoss)} a week.`,
       action: f.suggestion.nourish < f.nourishTarget ? { kind: 'applyTarget', label: `Use ${kcal(f.suggestion.nourish)}`, nourish: f.suggestion.nourish } : undefined,
     });
   } else if (flat) {
@@ -258,7 +263,7 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
       id: 'target',
       tone: 'tip',
       title: `Nourish days at ${kcal(f.suggestion.nourish)} for ${kg(f.suggestion.weeklyLoss)} a week`,
-      detail: `You burn about ${kcal(f.estimate.expenditure!)} a day, worked out from your last four weeks. Your nourish target is ${kcal(f.nourishTarget)} now.`,
+      detail: `You burn about ${burn(f.estimate)} a day, worked out from your last four weeks. Your nourish target is ${kcal(f.nourishTarget)} now.`,
       action: { kind: 'applyTarget', label: `Use ${kcal(f.suggestion.nourish)}`, nourish: f.suggestion.nourish },
     });
   }
