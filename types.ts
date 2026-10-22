@@ -370,6 +370,8 @@ export interface FoodLogItem {
   isPacked?: boolean;
   /** The planned meal (its mealKey) this entry was logged from, so Today shows it once and unticking removes it */
   planInstanceId?: string;
+  /** Portions of the planned meal eaten, when not one; calories and protein are already scaled to it */
+  portions?: number;
   caloriesEstimated?: boolean;
 }
 

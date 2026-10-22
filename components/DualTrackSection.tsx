@@ -9,6 +9,8 @@ import { workoutIconFor } from '../utils/workoutVisual';
 import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel, slotTime } from '../utils/planUtils';
 import type { FrequentFood } from '../services/pageData';
 import { useMoment } from '../hooks/useMoment';
+import { PORTIONS, portionLabel, scaleToPortions } from '../utils/portions';
+import { SelectionPill } from './SelectionPill';
 
 interface DualTrackSectionProps {
   todayPlan: DayPlan;
@@ -39,6 +41,9 @@ interface DualTrackSectionProps {
   lightDayUsual?: number;
   isFastDay?: boolean;
   onSetDayStatus: (status: DayLogStatus | undefined) => void;
+  /** Opens the edit sheet for this logged entry (Today's "Portion" shortcut after a tick), then clears it */
+  editItemId?: string | null;
+  onEditItemOpened?: () => void;
   /** Shown under the plan card from lg up, where the plan and the log sit side by side (Today passes Coming up: tomorrow and the weekend) */
   planAside?: React.ReactNode;
 }
@@ -140,12 +145,15 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   isFastDay,
   onSetDayStatus,
   planAside,
+  editItemId,
+  onEditItemOpened,
 }) => {
   const [editingFoodItem, setEditingFoodItem] = useState<FoodLogItem | null>(null);
   const [editFoodName, setEditFoodName] = useState('');
   const [editFoodCalories, setEditFoodCalories] = useState('');
   const [editFoodProtein, setEditFoodProtein] = useState('');
   const [editFoodTime, setEditFoodTime] = useState('');
+  const [editPortions, setEditPortions] = useState(1);
   const [showAllLoggedItems, setShowAllLoggedItems] = useState(false);
   const [showEaten, setShowEaten] = useState(false);
   const [foldPlan, setFoldPlan] = useState(todayPlan);
@@ -189,6 +197,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     setEditFoodName(item.name);
     setEditFoodCalories(item.calories.toString());
     setEditFoodProtein(typeof item.protein === 'number' ? String(item.protein) : '');
+    setEditPortions(item.portions ?? 1);
 
     // Format timestamp to HH:mm for input
     const date = new Date(item.timestamp);
@@ -207,13 +216,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     originalDate.setMinutes(minutes);
 
     const protein = parseInt(editFoodProtein, 10);
-    const { protein: _previous, ...rest } = editingFoodItem;
+    const { protein: _previous, portions: _portions, ...rest } = editingFoodItem;
     const updatedItem: FoodLogItem = {
       ...rest,
       name: editFoodName.trim(),
       calories: parseInt(editFoodCalories, 10) || 0,
       // Empty clears it, so the protein estimate can fill it in again
       ...(Number.isFinite(protein) ? { protein } : {}),
+      ...(editingFoodItem.planInstanceId && editPortions !== 1 ? { portions: editPortions } : {}),
       timestamp: originalDate.getTime()
     };
 
@@ -230,6 +240,23 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
     setEditFoodCalories('');
     setEditFoodTime('');
   };
+
+  /** A different portion of a planned meal: calories and protein follow from what's in the fields now */
+  const choosePortions = (portions: number) => {
+    const calories = parseInt(editFoodCalories, 10);
+    const protein = parseInt(editFoodProtein, 10);
+    if (Number.isFinite(calories)) setEditFoodCalories(String(scaleToPortions(calories, editPortions, portions)));
+    if (Number.isFinite(protein)) setEditFoodProtein(String(scaleToPortions(protein, editPortions, portions)));
+    setEditPortions(portions);
+  };
+
+  // Today's "Portion" shortcut opens the sheet for the entry a tick just logged, once it's in the log
+  useEffect(() => {
+    const item = editItemId ? dailyLog.items.find(i => i.id === editItemId) : undefined;
+    if (!item) return;
+    handleStartEditFood(item);
+    onEditItemOpened?.();
+  }, [editItemId, dailyLog.items]);
 
   // Deletes at once; Today offers Undo
   const handleDeleteFood = (itemId: string) => onDeleteFoodItem(itemId);
@@ -572,6 +599,26 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
                 <button type="button" onClick={() => { const meal = editingPlanned; handleCancelEditFood(); onViewRecipe(meal); }} className="btn-ghost btn-sm">
                   <BookOpen size={16} aria-hidden="true" /> View recipe
                 </button>
+              </div>
+            )}
+            {editingFoodItem.planInstanceId && (
+              <div>
+                <span className="block text-sm font-semibold mb-1.5" id="portion-label">Portions</span>
+                <div role="radiogroup" aria-labelledby="portion-label" className="segmented pill-group grid grid-cols-4 w-full">
+                  {PORTIONS.map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      role="radio"
+                      aria-checked={editPortions === p}
+                      onClick={() => choosePortions(p)}
+                      className="segment justify-center"
+                    >
+                      {editPortions === p && <SelectionPill group="food-portion-pill" />}
+                      {portionLabel(p)}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <label className="block">

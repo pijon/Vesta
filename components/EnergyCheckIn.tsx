@@ -139,7 +139,7 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
           <p className="text-sm text-muted mt-1">
             You burn about {approx(estimate.expenditure)} kcal a day
             {range && `, likely between ${range[0].toLocaleString()} and ${range[1].toLocaleString()}`}
-            {', worked out from what you eat and how your weight moves. Unlogged food makes it read low.'}
+            {', worked out from what you log and how your weight moves. It\'s in your own logging terms: if you usually log a bit less than you eat, it reads low, and your target allows for that.'}
           </p>
           {rangeAdvice(estimate) && <p className="text-xs text-muted mt-1">{rangeAdvice(estimate)}</p>}
         </div>
