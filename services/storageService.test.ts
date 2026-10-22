@@ -9,7 +9,7 @@ vi.mock('./firebase', () => ({ db: {}, auth: { get currentUser() {return {uid:fa
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId, getMyGroupId } = await import('./groupService');
-const { deleteRecipe, getCheckIns, getDayPlan, saveCheckInIfNew, getPlanHistoryInRange, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
+const { deleteRecipe, getCheckIns, getDayPlan, getUserStats, saveCheckInIfNew, saveUserStats, getPlanHistoryInRange, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
 const { RECIPE_CACHE_MS } = await import('./recipeCache');
 const { localWriteCount } = await import('../utils/localWrites');
 const { getCachedDayPlan, getFromCache, getUserCacheKey, saveToCache } = await import('../utils/cacheService');
@@ -603,5 +603,17 @@ describe('weekly check-ins', () => {
     await saveCheckInIfNew(checkIn('2026-11-01', 1800));
     await saveCheckInIfNew(checkIn('2026-10-25', 1950));
     expect((await getCheckIns()).map(c => c.date)).toEqual(['2026-10-25', '2026-11-01']);
+  });
+});
+
+describe('breaks on stats', () => {
+  it('reads breaks along with stats and never saves them back with stats', async () => {
+    store.docs.set('users/me/data/stats', { name: 'Alex', weightHistory: [] });
+    store.docs.set('users/me/data/breaks', { list: [{ start: '2026-10-20' }] });
+    const stats = await getUserStats();
+    expect(stats.breaks).toEqual([{ start: '2026-10-20' }]);
+    await saveUserStats({ ...stats, breaks: [] });
+    expect(store.docs.get('users/me/data/stats')).not.toHaveProperty('breaks');
+    expect(store.docs.get('users/me/data/breaks')).toEqual({ list: [{ start: '2026-10-20' }] });
   });
 });

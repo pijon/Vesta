@@ -395,7 +395,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Switch anytime. Your tracking history is kept.
                 </SectionTitle>
                 <ExperienceChoice value={experienceSettings.preferences.experience} onChange={value => void changeExperience(value)} disabled={saveState === 'saving'} hideLegend />
-                <p className="text-xs text-muted">Plan meals is a preview: the Planner, Recipes and Family, without calories. Tracking reminders pause meanwhile and pick up again when you switch back, without the ones you missed.</p>
+                <p className="text-xs text-muted">Plan meals is a preview: the Planner, Recipes and Family, without calories. Tracking reminders pause meanwhile and pick up again when you switch back, without the ones you missed. Use it for a holiday or a break too: those days are left out of your daily burn and Sunday's check-in.</p>
                 {(experienceSaving > 0 || nameSaving || experienceMessage || experienceError) && (
                     experienceError
                         ? <p role="alert" className="inline-flex items-start gap-1.5 text-sm font-medium text-error"><CircleAlert size={16} className="shrink-0 mt-0.5" aria-hidden="true" />{experienceError}</p>

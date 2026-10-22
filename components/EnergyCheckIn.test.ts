@@ -3,7 +3,7 @@ import { EnergyEstimate } from '../utils/energyModel';
 import { rangeAdvice, stillNeeded } from './EnergyCheckIn';
 
 const estimate = (loggedDays: number, weighIns: number, weighSpanDays: number): EnergyEstimate => ({
-  from: '2026-09-19', to: '2026-10-16', loggedDays, weighIns, weighSpanDays, ready: false,
+  from: '2026-09-19', to: '2026-10-16', windowDays: 28, loggedDays, weighIns, weighSpanDays, ready: false,
   avgIntake: null, fastAvgIntake: null, nourishAvgIntake: null, fastDays: 0, weightChangePerWeek: null, expenditure: null, expenditureMargin: null, weightMargin: null, intakeMargin: null, avgWorkoutBurn: 0,
 });
 

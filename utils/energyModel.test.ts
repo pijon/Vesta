@@ -171,6 +171,41 @@ describe('suggestTargets', () => {
 describe('fastDaysPerWeek', () => {
   it('counts fast days in the window, per week', () => {
     const types = Object.fromEntries([...windowDays.filter((_, i) => i % 7 < 2).map(d => [d, 'fast']), [TODAY, 'fast']]);
-    expect(fastDaysPerWeek(types, { from: windowDays[0], to: windowDays[27] })).toBe(2);
+    expect(fastDaysPerWeek(estimateEnergy([], [], TODAY, undefined, types))).toBe(2);
+  });
+});
+
+describe('breaks', () => {
+  // A two-week holiday ending ten days ago; the window reaches back past it
+  const breakStart = addDays(TODAY, -24);
+  const breakEnd = addDays(TODAY, -10);
+  const breaks = [{ start: breakStart, end: breakEnd }];
+  const days = Array.from({ length: 60 }, (_, i) => addDays(TODAY, i - 60));
+  const onHoliday = (d: string) => d >= breakStart && d < breakEnd;
+
+  it('leaves break days out and reaches back for 28 others', () => {
+    const summaries = days.map(d => summary(d, onHoliday(d) ? 3500 : 1800));
+    const est = estimateEnergy(summaries, [], TODAY, undefined, {}, breaks);
+    expect(est).toMatchObject({ windowDays: 28, loggedDays: 28, avgIntake: 1800, from: addDays(TODAY, -42), to: addDays(TODAY, -1) });
+  });
+
+  it('ignores weigh-ins on the break and while the scale settles, and lets the line jump across it', () => {
+    // Losing 0.5 kg a week throughout, with 2 kg more on the scale after the holiday and a water spike just after it
+    const history = days.filter((_, i) => i % 2 === 0).map(date => {
+      const base = 92 + (-0.5 / 7) * days.indexOf(date);
+      const after = date >= breakEnd;
+      const spike = after && date < addDays(breakEnd, 3) ? 1.5 : 0;
+      return { date, weight: onHoliday(date) ? base + 3 : base + (after ? 2 : 0) + spike };
+    });
+    const est = estimateEnergy(days.map(d => summary(d, 1800)), history, TODAY, undefined, {}, breaks);
+    expect(est.weightChangePerWeek).toBeCloseTo(-0.5, 5);
+    expect(est.expenditure).toBeCloseTo(1800 + 550, 5);
+    // Without the break the holiday weigh-ins and the jump hide most of the loss
+    expect(estimateEnergy(days.map(d => summary(d, 1800)), history, TODAY).weightChangePerWeek!).toBeGreaterThan(-0.3);
+  });
+
+  it('counts fast days only outside the break', () => {
+    const types = Object.fromEntries(days.filter(onHoliday).map(d => [d, 'fast']));
+    expect(estimateEnergy([], [], TODAY, undefined, types, breaks).fastDays).toBe(0);
   });
 });

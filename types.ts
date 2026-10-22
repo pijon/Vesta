@@ -183,6 +183,12 @@ export type WorkoutCalorieCredit = 1 | 0.5 | 0;
 
 export type UserExperience = 'planning' | 'tracking';
 
+/** A break from tracking: from the day Plan meals mode was chosen up to (not including) the day tracking resumed. Open while still planning */
+export interface TrackingBreak {
+  start: string;
+  end?: string;
+}
+
 /** Owner-only setup state; health history is not a setup flag. */
 export interface UserPreferences {
   version: 1;
@@ -219,6 +225,9 @@ export interface UserStats {
   dailyCalorieGoal: number; // Used for "fast" days in 5:2, or every day in daily mode
   dailyWaterGoal: number; // in ml
   weightHistory: WeightEntry[];
+  /** Stretches spent in Plan meals mode after tracking, oldest first; left out of the burn estimate (utils/breaks.ts).
+   *  Read from data/breaks with the stats and never saved with them */
+  breaks?: TrackingBreak[];
   dietMode?: 'daily' | '5:2'; // Default 'daily'
   nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
   dailyWorkoutCalorieGoal?: number; // Daily calorie burn target for workouts

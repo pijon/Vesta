@@ -29,7 +29,7 @@ export const useEnergy = (stats: UserStats, summaries: DailySummary[], dayTypes:
   useMemo(() => {
     const estimate = estimateEnergyFor(stats, summaries, dayTypes);
     const rate = rateOverride ?? stats.weeklyLossGoal ?? DEFAULT_LOSS_RATE;
-    const suggestion = suggestTargets(estimate, stats, fastDaysPerWeek(dayTypes, estimate), rate);
+    const suggestion = suggestTargets(estimate, stats, fastDaysPerWeek(estimate), rate);
     const current = stats.nonFastDayCalories || 2000;
     return { estimate, suggestion, rate, differs: !!suggestion && Math.abs(suggestion.nourish - current) >= MEANINGFUL_CHANGE };
   }, [stats, summaries, dayTypes, rateOverride]);

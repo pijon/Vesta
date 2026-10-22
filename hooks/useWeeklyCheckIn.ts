@@ -4,11 +4,12 @@ import { checkInsData } from '../services/pageData';
 import { saveCheckInIfNew } from '../services/storageService';
 import { ensureWarm, usePrewarmed } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
+import { onBreak } from '../utils/breaks';
 import { FIRST_CHECK_IN, checkInDateFor, weeklyCheckIn } from '../utils/checkIn';
 import { DEFAULT_LOSS_RATE, estimateEnergyFor, fastDaysPerWeek, suggestTargets } from '../utils/energyModel';
 
 /**
- * Runs this week's check-in once its Sunday has come, if no device has yet, and applies a changed
+ * Runs this week's check-in once its Sunday has come, if no device has yet and it wasn't on a break, and applies a changed
  * nourish target. Waits for the logs, day types and past check-ins, which load after the first refresh
  * (so `stats` is fresh by then). Returns this week's check-in and the history.
  */
@@ -25,11 +26,12 @@ export const useWeeklyCheckIn = (
   useEffect(() => {
     if (!summaries || !dayTypes || !history || ran.current === date || date < FIRST_CHECK_IN) return;
     ran.current = date;
-    if (history.some(c => c.date === date)) return;
+    // A Sunday spent on a break (Plan meals mode) gets no check-in, even when you're back by the time it's read
+    if (history.some(c => c.date === date) || onBreak(stats.breaks, date)) return;
     const last = history.filter(c => c.date < date).at(-1) ?? null;
     const rate = stats.weeklyLossGoal ?? DEFAULT_LOSS_RATE;
     const estimate = estimateEnergyFor(stats, summaries, dayTypes);
-    const suggestion = suggestTargets(estimate, stats, fastDaysPerWeek(dayTypes, estimate), rate);
+    const suggestion = suggestTargets(estimate, stats, fastDaysPerWeek(estimate), rate);
     const checkIn = weeklyCheckIn(estimate, suggestion, stats.nonFastDayCalories || 2000, last, date, rate);
     saveCheckInIfNew(checkIn)
       .then(({ checkIn: saved, created }) => {
