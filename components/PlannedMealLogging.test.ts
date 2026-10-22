@@ -15,9 +15,10 @@ vi.mock('../services/storageService', () => ({
   saveFamilyMealOut: async () => {},
   getDailySummaries: async () => [],
 }));
-vi.mock('../services/pageData', () => ({ analyticsDayTypesData: {}, analyticsSummariesData: {}, frequentFoodsData: {} }));
+vi.mock('../services/pageData', () => ({ analyticsDayTypesData: {}, analyticsSummariesData: {}, frequentFoodsData: {}, checkInsData: {} }));
 vi.mock('../utils/prewarm', () => ({ usePrewarmed: () => null }));
 vi.mock('../hooks/useAchievements', () => ({ useAchievements: () => {} }));
+vi.mock('../hooks/useWeeklyCheckIn', () => ({ useWeeklyCheckIn: () => ({ latest: null, history: [] }) }));
 // The plate's tick and the "ate what was planned" card, reduced to buttons
 vi.mock('./DualTrackSection', () => ({
   DualTrackSection: ({ todayPlan, onToggleMeal }: { todayPlan: DayPlan; onToggleMeal: (i: number) => void }) =>

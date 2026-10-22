@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, CalendarCheck, ChartPie, CircleAlert, ClipboardCheck, CookingPot, Droplet, Egg, Equal, Flag, Flame, Gauge, Link, NotebookPen, Scale, ThumbsUp, Timer } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { AppView, DayPlan, DailyLog, FastingState, UserStats, CoachReadState } from '../types';
-import { analyticsDayTypesData, analyticsLogsData, analyticsPlannedDaysData, analyticsSummariesData } from '../services/pageData';
+import { analyticsDayTypesData, analyticsLogsData, analyticsPlannedDaysData, analyticsSummariesData, checkInsData } from '../services/pageData';
 import { usePrewarmed } from '../utils/prewarm';
 import { AnalyticsDay, AnalyticsPeriod, Insight, LINK_WEEKS, LOGGED_WEEK_DAYS, PERIODS, WeekGroup, buildDays, calorieSources, chartStart, insightsFor, lastFullWeekEnd, loggingWeightLink, loggingWeightVerdict, planAdherence, summarize, weakestSlot, weightProgress, weightSummary } from '../utils/analyticsModel';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
@@ -168,6 +168,11 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
     // Progress and the burn estimate don't follow the period: they read the trend and the last four weeks
     const progress = useMemo(() => weightProgress(stats.weightHistory, stats.goalWeight), [stats.weightHistory, stats.goalWeight]);
     const energy = useEnergy(stats, summaries, dayTypes);
+    // Burn over time, one point per Sunday check-in that had an estimate
+    const checkIns = usePrewarmed(checkInsData);
+    const burnHistory = useMemo(() => (checkIns ?? [])
+        .filter(c => c.expenditure !== null && c.margin !== null)
+        .map(c => ({ date: c.date, burn: Math.round(c.expenditure!), band: [Math.round(c.expenditure! - c.margin!), Math.round(c.expenditure! + c.margin!)] as [number, number], target: c.target, status: c.status })), [checkIns]);
     // The period up to yesterday (today is still in progress) against the same length before it
     const { insights, compared } = useMemo(() => {
         const yesterday = addDays(localDateString(), -1);
@@ -322,6 +327,32 @@ export const TrackAnalytics: React.FC<TrackAnalyticsProps> = ({ stats, dailyLog,
 
             {/* 3. How to get there faster: pace, goal date and target together, once the burn is known */}
             <EnergyPanel stats={stats} summaries={summaries} dayTypes={dayTypes} onUpdateStats={onUpdateStats} currentWeight={progress?.current ?? null} />
+
+            {burnHistory.length >= 2 && (
+                <Panel title="Your burn over time" icon={Flame} tile="tile-weight" subtitle="From your Sunday check-ins, with the likely range shaded">
+                    <div className="h-48 -mx-1" role="img" aria-label={`Burn from ${fmt(burnHistory[0].burn)} to ${fmt(burnHistory[burnHistory.length - 1].burn)} kcal a day over ${burnHistory.length} check-ins`}>
+                        <ChartContainer>
+                            <ComposedChart data={burnHistory} margin={{ top: 8, right: 16, bottom: 0, left: -4 }}>
+                                <CartesianGrid vertical={false} stroke="var(--border)" />
+                                <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={shortDate} />
+                                <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} domain={['dataMin - 100', 'dataMax + 100']} tickFormatter={v => fmt(Number(v))} />
+                                <Tooltip cursor={{ stroke: 'var(--border)' }} content={({ active, label }) => (
+                                    <ChartTip active={active} label={label} lines={l => {
+                                        const d = burnHistory.find(p => p.date === String(l));
+                                        if (!d) return null;
+                                        return <><p className="text-muted">Check-in {shortDate(d.date)}</p>
+                                            <p className="font-semibold">About {fmt(d.burn)} kcal (likely {fmt(d.band[0])}–{fmt(d.band[1])})</p>
+                                            <p className="text-muted">Nourish days {d.status === 'changed' ? 'set to' : 'at'} {fmt(d.target)} kcal</p></>;
+                                    }} />
+                                )} />
+                                <Area dataKey="band" stroke="none" fill="var(--weight-bg)" isAnimationActive={false} />
+                                <Line dataKey="burn" stroke="var(--weight)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--weight)', strokeWidth: 0 }} {...chartMotion} />
+                            </ComposedChart>
+                        </ChartContainer>
+                    </div>
+                    <p className="text-xs text-muted mt-3">A steady line means your target is settled. A shift that leaves the shaded range is when Sunday's check-in moves your target.</p>
+                </Panel>
+            )}
 
             {/* 4. Habits: everything from here follows the period */}
             <section className="space-y-3 pt-2" aria-labelledby="habits-heading">

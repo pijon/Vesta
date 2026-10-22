@@ -1,6 +1,8 @@
 import type { PlannedMealIntakeEntry, PlannedMealIntakeResult } from '../types';
 import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
+import { WeeklyCheckInCard } from './WeeklyCheckInCard';
+import { useWeeklyCheckIn } from '../hooks/useWeeklyCheckIn';
 import { ENERGY_COMPLETE_DAY_SHARE, isCompleteDay, looksLight, usualIntake } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, saveFamilyMealOut } from '../services/storageService';
@@ -371,7 +373,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
 
   // One-tap re-logging of frequent foods, with undo
   const frequentFoods = usePrewarmed(frequentFoodsData) ?? [];
-  const dayTypes = usePrewarmed(analyticsDayTypesData) ?? EMPTY_DAY_TYPES;
+  const loadedDayTypes = usePrewarmed(analyticsDayTypesData);
+  const dayTypes = loadedDayTypes ?? EMPTY_DAY_TYPES;
+  // Sunday's check-in, run once the logs and day types are in
+  const { latest: weeklyCheckIn } = useWeeklyCheckIn(stats, summaries, loadedDayTypes, onUpdateStats);
 
   // Extra calories a day at weekends over the last eight weeks of fully logged days
   const recentWeekendGap = React.useMemo(
@@ -475,6 +480,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onSetDayStatus={onSetDayStatus}
         planAside={comingUp}
       />
+
+      <WeeklyCheckInCard checkIn={weeklyCheckIn} onSeePace={() => onNavigate(AppView.ANALYTICS)} />
 
       {/* The most useful piece of guidance right now (all of it is on Analytics) */}
       <CoachCard
