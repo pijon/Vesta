@@ -43,9 +43,6 @@ const TONE = {
 /** Runs a finding's action; returns a confirmation for actions that change settings */
 const useRunAction = (stats: UserStats, handlers: CoachHandlers) => (action: CoachAction): string | null => {
   switch (action.kind) {
-    case 'applyTarget':
-      handlers.onUpdateStats({ ...stats, nonFastDayCalories: action.nourish });
-      return `Nourish days are now ${action.nourish.toLocaleString()} kcal.`;
     case 'setWorkoutCredit':
       handlers.onUpdateStats({ ...stats, workoutCalorieCredit: action.credit });
       return 'Workouts now add half their calories.';

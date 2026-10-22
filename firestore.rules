@@ -91,6 +91,10 @@ service cloud.firestore {
       match /fasting/{document=**} {
         allow read, write: if isOwner(userId);
       }
+      // Weekly check-ins of the burn and nourish target, one per Sunday
+      match /checkins/{date} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Groups: Shared Data

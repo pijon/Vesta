@@ -382,6 +382,29 @@ export interface WorkoutItem {
   timestamp: number;
 }
 
+/** Sunday's look at the burn and the nourish-day target (users/{uid}/checkins/{date}); see utils/checkIn.ts */
+export interface WeeklyCheckIn {
+  /** The Sunday it belongs to */
+  date: string;
+  /** changed: the target moved; kept: it still fits; held: not enough data to judge */
+  status: 'changed' | 'kept' | 'held';
+  /** Nourish-day target before and after */
+  previousTarget: number;
+  target: number;
+  /** The burn and its likely range (±) that week, as measured */
+  expenditure: number | null;
+  margin: number | null;
+  /** The burn the target was set from: last week's, while this week's stays inside its range */
+  burnUsed: number | null;
+  /** The target the pace called for, before the weekly step limit */
+  suggested: number | null;
+  weeklyLoss: number;
+  weightChangePerWeek: number | null;
+  loggedDays: number;
+  weighIns: number;
+  createdAt: number;
+}
+
 /** The user's own word on a day's food log; unset means judged from calories (see isCompleteDay) */
 export type DayLogStatus = 'complete' | 'incomplete';
 

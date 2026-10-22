@@ -1,6 +1,6 @@
 import { calorieAvailability, isNutritionNumber } from '../utils/recipeNutrition';
 import { Avatar, DailyLog, DayPlan, EatingOutDish, FoodLogItem, KnownFood, Recipe } from '../types';
-import { getPlanHistoryInRange, getFamilyPlansInRange, getRecipePlanDates, getLogHistory, mergeSummaries, getRecipes, getEatingOutDishes, getQuickMealHistory } from './storageService';
+import { getPlanHistoryInRange, getFamilyPlansInRange, getRecipePlanDates, getLogHistory, mergeSummaries, getRecipes, getEatingOutDishes, getQuickMealHistory, getCheckIns } from './storageService';
 import { getGroupMembersDetails, getUserGroup } from './groupService';
 import { defineWarm, ensureWarm } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
@@ -23,6 +23,9 @@ const itemsSince = (logs: DailyLog[], startDate: string): FoodLogItem[] =>
   logs.filter(log => log.date >= startDate).flatMap(log => log.items || []);
 
 /** Six months of daily summaries: the analytics periods (up to 90 days) and the 90 before, for comparisons. */
+/** Weekly check-ins, oldest first (Today runs Sunday's; Analytics charts the burn from them) */
+export const checkInsData = defineWarm('checkins', () => getCheckIns(), 5 * 60_000);
+
 export const analyticsSummariesData = defineWarm('analytics:summaries', async () => mergeSummaries(await ensureWarm(logHistoryData)), 30_000);
 
 /** Food logged over the analytics periods (last 90 days), for where the calories come from. */

@@ -140,7 +140,6 @@ export const buildCoachFacts = (
 
 /** Something the app can do for the user straight from a piece of guidance */
 export type CoachAction =
-  | { kind: 'applyTarget'; label: string; nourish: number }
   | { kind: 'setWorkoutCredit'; label: string; credit: 0.5 }
   | { kind: 'logFood'; label: string }
   | { kind: 'logWeight'; label: string }
@@ -213,8 +212,7 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
       id: 'plateau',
       tone: 'focus',
       title: 'A real plateau: flat for two weeks on complete logs',
-      detail: `You've fully logged most days and the trend hasn't moved, so your current intake is close to what you burn (about ${burn(f.estimate)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(f.suggestion.weeklyLoss)} a week.`,
-      action: f.suggestion.nourish < f.nourishTarget ? { kind: 'applyTarget', label: `Use ${kcal(f.suggestion.nourish)}`, nourish: f.suggestion.nourish } : undefined,
+      detail: `You've fully logged most days and the trend hasn't moved, so your current intake is close to what you burn (about ${burn(f.estimate)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(f.suggestion.weeklyLoss)} a week, and Sunday's check-in moves your target towards it, at most 150 kcal a week.`,
     });
   } else if (flat) {
     findings.push({
@@ -257,18 +255,9 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
     });
   }
 
-  // 3. A better target, once the burn estimate is ready (if the plateau finding hasn't offered it)
-  if (f.suggestion && !findings.some(x => x.id === 'plateau') && Math.abs(f.suggestion.nourish - f.nourishTarget) >= 50) {
-    findings.push({
-      id: 'target',
-      tone: 'tip',
-      title: `Nourish days at ${kcal(f.suggestion.nourish)} for ${kg(f.suggestion.weeklyLoss)} a week`,
-      detail: `You burn about ${burn(f.estimate)} a day, worked out from your last four weeks. Your nourish target is ${kcal(f.nourishTarget)} now.`,
-      action: { kind: 'applyTarget', label: `Use ${kcal(f.suggestion.nourish)}`, nourish: f.suggestion.nourish },
-    });
-  }
+  // A better target needs no finding of its own: Sunday's check-in applies it (utils/checkIn.ts)
 
-  // 4. Workout calories eaten back
+  // 3. Workout calories eaten back
   if (f.workoutCredit === 1 && f.avgWorkoutBurn >= 100) {
     findings.push({
       id: 'workout-credit',
@@ -279,7 +268,7 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
     });
   }
 
-  // 5. Fast days: how many were actually planned
+  // 4. Fast days: how many were actually planned
   if (f.fastDays28 > 0 && f.fastDays28 < 6) {
     const gap = f.nourishTarget - f.fastTarget;
     findings.push({
@@ -291,7 +280,7 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
     });
   }
 
-  // 6. Protein
+  // 5. Protein
   if (f.avgProtein !== null && f.proteinDays >= 3 && f.avgProtein < f.proteinTarget * 0.8) {
     findings.push({
       id: 'protein',
@@ -301,7 +290,7 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
     });
   }
 
-  // 7. Losing faster than is comfortable to sustain
+  // 6. Losing faster than is comfortable to sustain
   if (f.trendChange14 !== null && f.trendNow !== null && f.trendChange14 < -(f.trendNow * 0.02)) {
     findings.push({
       id: 'too-fast',

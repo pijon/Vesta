@@ -1,5 +1,5 @@
 import { calorieAvailability, normalizeRecipeNutrition, dayNutrition } from '../utils/recipeNutrition';
-import { CoachReadState, EatingOutDish, RecipeSaveOptions, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine, PlannedDayRecord } from "../types";
+import { CoachReadState, EatingOutDish, RecipeSaveOptions, Recipe, DayPlan, UserStats, DailyLog, FoodLogItem, PantryInventory, EnhancedShoppingState, FastingState, WeeklyCheckIn, FastingEntry, DailySummary, WorkoutItem, PlannedMeal, PlannedMealMeta, MealSlot, ParsedIngredientLine, PlannedDayRecord } from "../types";
 import { getCacheKey, getUserCacheKey, saveToCache, getCachedDayPlan, getCachedDailyLog, getCachedUserStats, getCachedFastingState, getCachedEatingOutDishes } from "../utils/cacheService";
 import { getUserGroup, getGroupMembersDetails, getMyGroupId, familyRecipesRef, readInMyGroup, toStoredRecipe } from "./groupService";
 import { forgetRecipe, readRecipeOnce, rememberRecipe } from "./recipeCache";
@@ -1571,6 +1571,23 @@ export const mergeSummaries = ({ logs, summaries }: LogHistory): DailySummary[] 
 };
 
 /** Daily summaries of the last `daysBack` days, from stored summaries and the logs. */
+// --- Weekly check-ins (users/{uid}/checkins/{Sunday}) ---
+
+/** The last `max` weekly check-ins, oldest first */
+export const getCheckIns = async (max = 26): Promise<WeeklyCheckIn[]> => {
+  const snapshot = await getDocs(getCollectionRef('checkins'));
+  return snapshot.docs.map(d => d.data() as WeeklyCheckIn).sort((a, b) => a.date.localeCompare(b.date)).slice(-max);
+};
+
+/** Saves a week's check-in unless that Sunday already has one (another device got there first); returns the one kept */
+export const saveCheckInIfNew = async (checkIn: WeeklyCheckIn): Promise<{ checkIn: WeeklyCheckIn; created: boolean }> => {
+  const ref = getDocRef('checkins', checkIn.date);
+  const existing = await getDoc(ref);
+  if (existing.exists()) return { checkIn: existing.data() as WeeklyCheckIn, created: false };
+  await setDoc(ref, checkIn);
+  return { checkIn, created: true };
+};
+
 export const getDailySummaries = async (daysBack: number = 90): Promise<DailySummary[]> => {
   try {
     return mergeSummaries(await getLogHistory(daysBack));

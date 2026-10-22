@@ -9,7 +9,7 @@ vi.mock('./firebase', () => ({ db: {}, auth: { get currentUser() {return {uid:fa
 
 const { fakeFirestore: store } = await import('../test/fakeFirestore');
 const { forgetMyGroupId, getMyGroupId } = await import('./groupService');
-const { deleteRecipe, getDayPlan, getPlanHistoryInRange, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
+const { deleteRecipe, getCheckIns, getDayPlan, saveCheckInIfNew, getPlanHistoryInRange, getRecipes, saveDayPlan, saveFamilyMealOut, saveParsedIngredients, saveRecipe, setRecipeFavorite, subscribeFamilyMeals } = await import('./storageService');
 const { RECIPE_CACHE_MS } = await import('./recipeCache');
 const { localWriteCount } = await import('../utils/localWrites');
 const { getCachedDayPlan, getFromCache, getUserCacheKey, saveToCache } = await import('../utils/cacheService');
@@ -583,5 +583,25 @@ describe('nutrition compatibility', () => {
     expect(loaded).toMatchObject({totalCalories:520,totalCaloriesComplete:false});
     expect(loaded.meals[0].sides[0].calorieStatus).toBe('unknown');
     expect(store.writes).toEqual([]);
+  });
+});
+
+describe('weekly check-ins', () => {
+  const checkIn = (date: string, target: number) => ({
+    date, status: 'changed' as const, previousTarget: 2100, target, expenditure: 2300, margin: 300, burnUsed: 2300,
+    suggested: 1750, weeklyLoss: 0.5, weightChangePerWeek: -0.4, loggedDays: 20, weighIns: 20, createdAt: 1,
+  });
+
+  it('saves one per Sunday and keeps the first when another device got there', async () => {
+    expect(await saveCheckInIfNew(checkIn('2026-10-25', 1950))).toMatchObject({ created: true });
+    const second = await saveCheckInIfNew(checkIn('2026-10-25', 1800));
+    expect(second).toMatchObject({ created: false, checkIn: { target: 1950 } });
+    expect(store.docs.get('users/me/checkins/2026-10-25')).toMatchObject({ target: 1950 });
+  });
+
+  it('reads them oldest first', async () => {
+    await saveCheckInIfNew(checkIn('2026-11-01', 1800));
+    await saveCheckInIfNew(checkIn('2026-10-25', 1950));
+    expect((await getCheckIns()).map(c => c.date)).toEqual(['2026-10-25', '2026-11-01']);
   });
 });
