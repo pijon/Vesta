@@ -4,7 +4,7 @@ import { stillNeeded } from './EnergyCheckIn';
 
 const estimate = (loggedDays: number, weighIns: number, weighSpanDays: number): EnergyEstimate => ({
   from: '2026-09-19', to: '2026-10-16', loggedDays, weighIns, weighSpanDays, ready: false,
-  avgIntake: null, weightChangePerWeek: null, expenditure: null, avgWorkoutBurn: 0,
+  avgIntake: null, fastAvgIntake: null, nourishAvgIntake: null, fastDays: 0, weightChangePerWeek: null, expenditure: null, avgWorkoutBurn: 0,
 });
 
 describe('stillNeeded', () => {

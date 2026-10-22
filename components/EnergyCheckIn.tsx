@@ -3,9 +3,8 @@ import { Check, TrendingDown } from 'lucide-react';
 import { DailySummary, UserStats } from '../types';
 import {
   DEFAULT_LOSS_RATE, EnergyEstimate, LOSS_RATES, MIN_LOGGED_DAYS, MIN_NOURISH_TARGET, MIN_WEIGH_INS, MIN_WEIGH_SPAN_DAYS,
-  TargetSuggestion, estimateEnergy, fastDaysPerWeek, suggestTargets,
+  TargetSuggestion, estimateEnergyFor, fastDaysPerWeek, suggestTargets,
 } from '../utils/energyModel';
-import { completeDayFor } from '../utils/logCompleteness';
 import { goalDateAtPace } from '../utils/analyticsModel';
 import { parseLocalDate } from '../utils/dateUtils';
 
@@ -28,7 +27,7 @@ export interface EnergyState {
 /** Burn estimate and suggested target from the last four weeks of logs, weigh-ins and day types. */
 export const useEnergy = (stats: UserStats, summaries: DailySummary[], dayTypes: Record<string, string>, rateOverride?: number): EnergyState =>
   useMemo(() => {
-    const estimate = estimateEnergy(summaries, stats.weightHistory, undefined, completeDayFor(stats, dayTypes));
+    const estimate = estimateEnergyFor(stats, summaries, dayTypes);
     const rate = rateOverride ?? stats.weeklyLossGoal ?? DEFAULT_LOSS_RATE;
     const suggestion = suggestTargets(estimate, stats, fastDaysPerWeek(dayTypes, estimate), rate);
     const current = stats.nonFastDayCalories || 2000;
@@ -64,7 +63,7 @@ export const stillNeeded = (estimate: EnergyEstimate) => {
 /** What's still needed before the estimate can be made */
 const Requirements: React.FC<{ estimate: EnergyEstimate }> = ({ estimate }) => (
   <div className="space-y-3">
-    <Progress label="Fully logged days" value={estimate.loggedDays} of={MIN_LOGGED_DAYS} hint="In the last four weeks, drinks included. A day under 40% of its target only counts if you mark it complete on Today." />
+    <Progress label="Fully logged days" value={estimate.loggedDays} of={MIN_LOGGED_DAYS} hint="In the last four weeks, drinks included. A day under 60% of its target only counts if you mark it complete on Today." />
     <Progress
       label="Weigh-ins"
       value={estimate.weighIns}
@@ -169,7 +168,11 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
       </div>
 
       <p className="text-xs text-muted mt-3">
-        From {fmt(estimate.avgIntake!)} kcal a day over {estimate.loggedDays} fully logged days, while your weight moved
+        From {fmt(estimate.avgIntake!)} kcal a day over {estimate.loggedDays} fully logged days
+        {estimate.fastAvgIntake !== null && estimate.nourishAvgIntake !== null
+          ? ` (${fmt(estimate.fastAvgIntake)} on fast days, ${fmt(estimate.nourishAvgIntake)} on the rest, weighted for ${estimate.fastDays} fast days in 28)`
+          : ''}
+        {', while your weight moved'}
         {' '}{estimate.weightChangePerWeek! > 0 ? '+' : '−'}{kg(Math.abs(estimate.weightChangePerWeek!))} kg a week.
         {estimate.avgWorkoutBurn > 0 && ` That includes about ${fmt(estimate.avgWorkoutBurn)} kcal a day from workouts.`}
         {' '}Days you only partly log make it look lower than it is.

@@ -31,8 +31,10 @@ interface DualTrackSectionProps {
   onLogFood: () => void;
   /** The user's own mark on today's log, if any */
   dayStatus?: DayLogStatus;
-  /** Today counts in averages and the burn estimate (see isCompleteDay) */
+  /** Today counts in averages (see isCompleteDay) */
   dayCounts: boolean;
+  /** Today also clears the burn estimate's stricter bar (ENERGY_COMPLETE_DAY_SHARE) */
+  dayCountsForBurn: boolean;
   onSetDayStatus: (status: DayLogStatus | undefined) => void;
   /** Shown under the plan card from lg up, where the plan and the log sit side by side (Today passes Coming up: tomorrow and the weekend) */
   planAside?: React.ReactNode;
@@ -74,14 +76,16 @@ const COLLAPSED_COUNT = 6;
 const STATUS_FROM_HOUR = 17;
 
 /** Whether today's log counts in averages, with a one-tap way to say otherwise. */
-const DayStatusRow: React.FC<{ status?: DayLogStatus; counts: boolean; onSet: (status: DayLogStatus | undefined) => void }> = ({ status, counts, onSet }) => {
+const DayStatusRow: React.FC<{ status?: DayLogStatus; counts: boolean; countsForBurn: boolean; onSet: (status: DayLogStatus | undefined) => void }> = ({ status, counts, countsForBurn, onSet }) => {
   const [text, action] = status === 'complete'
     ? ['Marked as everything you ate today.', <button key="a" onClick={() => onSet(undefined)} className="btn-ghost btn-sm shrink-0">Undo</button>]
     : status === 'incomplete'
       ? ["Marked as not fully logged, so it's left out of your averages.", <button key="a" onClick={() => onSet(undefined)} className="btn-ghost btn-sm shrink-0">Undo</button>]
-      : counts
+      : countsForBurn
         ? ['Counts towards your averages and daily burn.', <button key="a" onClick={() => onSet('incomplete')} className="btn-ghost btn-sm shrink-0">Not everything is logged</button>]
-        : ["Under 40% of today's target, so it won't count in your averages.", <button key="a" onClick={() => onSet('complete')} className="btn-secondary btn-sm shrink-0">That's all I ate</button>];
+        : counts
+          ? ["Counts in your averages, but under 60% of today's target, so not your daily burn.", <button key="a" onClick={() => onSet('complete')} className="btn-secondary btn-sm shrink-0">That's all I ate</button>]
+          : ["Under 40% of today's target, so it won't count in your averages or daily burn.", <button key="a" onClick={() => onSet('complete')} className="btn-secondary btn-sm shrink-0">That's all I ate</button>];
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border mt-3 pt-3 px-2">
       <p className="text-xs text-muted flex-1 min-w-[12rem]">{text}</p>
@@ -108,6 +112,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   onLogFood,
   dayStatus,
   dayCounts,
+  dayCountsForBurn,
   onSetDayStatus,
   planAside,
 }) => {
@@ -509,7 +514,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {entryGroups.map(renderLogGroup)}
 
               {sortedFoodItems.length > 0 && (dayStatus || new Date().getHours() >= STATUS_FROM_HOUR) && (
-                <DayStatusRow status={dayStatus} counts={dayCounts} onSet={onSetDayStatus} />
+                <DayStatusRow status={dayStatus} counts={dayCounts} countsForBurn={dayCountsForBurn} onSet={onSetDayStatus} />
               )}
             </>
           )}

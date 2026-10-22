@@ -1,7 +1,7 @@
 import type { PlannedMealIntakeEntry, PlannedMealIntakeResult } from '../types';
 import React, { useState, useEffect } from 'react';
 import { DayPlan, UserStats, DailyLog, Recipe, FoodLogItem, WorkoutItem, FastingState, FastingConfig, AppView, DailySummary, CoachReadState, MealSlot, DayLogStatus } from '../types';
-import { isCompleteDay } from '../utils/logCompleteness';
+import { ENERGY_COMPLETE_DAY_SHARE, isCompleteDay } from '../utils/logCompleteness';
 import { localDateString } from '../utils/dateUtils';
 import { saveDayPlan, saveFamilyMealOut } from '../services/storageService';
 import { currentUid } from '../services/firebase';
@@ -459,6 +459,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onLogFood={onOpenFoodModal}
         dayStatus={dailyLog.status}
         dayCounts={isCompleteDay(consumed, dailyTarget, dailyLog.status)}
+        dayCountsForBurn={isCompleteDay(consumed, dailyTarget, dailyLog.status, ENERGY_COMPLETE_DAY_SHARE)}
         onSetDayStatus={onSetDayStatus}
         planAside={comingUp}
       />

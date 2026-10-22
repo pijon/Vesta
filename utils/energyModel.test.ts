@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DailySummary, WeightEntry } from '../types';
 import { addDays } from './planUtils';
-import { estimateEnergy, fastDaysPerWeek, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
+import { estimateEnergy, estimateEnergyFor, fastDaysPerWeek, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
 
 const TODAY = '2026-10-14';
 
@@ -57,11 +57,54 @@ describe('estimateEnergy', () => {
     expect(est).toMatchObject({ loggedDays: 14, avgIntake: 2000 });
   });
 
+  it('weights fast and nourish days by how many of each the window held', () => {
+    // 8 fast days (a 5:2 pattern) at 600 and 20 nourish days at 2,100; the fast days are logged every time,
+    // the nourish days only on 14 of 20, so a plain average of logged days would over-weight the fast days
+    const fast = new Set(windowDays.filter((_, i) => i % 7 === 2 || i % 7 === 5 || i === 27 || i === 26));
+    const dayTypes = Object.fromEntries([...fast].map(d => [d, 'fast']));
+    const nourish = windowDays.filter(d => !fast.has(d));
+    const days = [...fast].map(d => summary(d, 600)).concat(nourish.slice(0, 14).map(d => summary(d, 2100)));
+    const plain = estimateEnergy(days, weighIns(92, 0), TODAY);
+    const weighted = estimateEnergy(days, weighIns(92, 0), TODAY, undefined, dayTypes);
+    expect(weighted).toMatchObject({ fastDays: fast.size, fastAvgIntake: 600, nourishAvgIntake: 2100 });
+    expect(weighted.avgIntake).toBeCloseTo((600 * fast.size + 2100 * (28 - fast.size)) / 28, 5);
+    expect(weighted.avgIntake!).toBeGreaterThan(plain.avgIntake!);
+  });
+
+  it('falls back to the plain average without fast days or when one kind was never logged', () => {
+    const days = windowDays.map(d => summary(d, 1800));
+    expect(estimateEnergy(days, weighIns(92, 0), TODAY, undefined, {})).toMatchObject({ avgIntake: 1800, fastAvgIntake: null });
+    const noFastDayLogged = estimateEnergy(days.slice(0, 14), weighIns(92, 0), TODAY, undefined, { [windowDays[20]]: 'fast' });
+    expect(noFastDayLogged).toMatchObject({ avgIntake: 1800, fastAvgIntake: null, nourishAvgIntake: null });
+  });
+
+  it('waits for a few logged days of each kind before averaging them apart', () => {
+    const fast = windowDays.filter((_, i) => i % 7 === 2 || i % 7 === 5);
+    const dayTypes = Object.fromEntries(fast.map(d => [d, 'fast']));
+    const nourish = windowDays.filter(d => !fast.includes(d)).map(d => summary(d, 2100));
+    const twoFast = estimateEnergy([...nourish, ...fast.slice(0, 2).map(d => summary(d, 600))], weighIns(92, 0), TODAY, undefined, dayTypes);
+    expect(twoFast.fastAvgIntake).toBeNull();
+    const threeFast = estimateEnergy([...nourish, ...fast.slice(0, 3).map(d => summary(d, 600))], weighIns(92, 0), TODAY, undefined, dayTypes);
+    expect(threeFast.fastAvgIntake).toBe(600);
+  });
+
   it('waits for enough logging and weigh-ins', () => {
     const fewLogs = estimateEnergy(windowDays.slice(0, 13).map(d => summary(d, 1800)), weighIns(92, -0.5), TODAY);
     expect(fewLogs).toMatchObject({ ready: false, expenditure: null });
     const fewWeighIns = estimateEnergy(windowDays.map(d => summary(d, 1800)), weighIns(92, -0.5, 10), TODAY);
     expect(fewWeighIns).toMatchObject({ weighIns: 3, ready: false, expenditure: null });
+  });
+});
+
+describe('estimateEnergyFor', () => {
+  it('leaves out days under 60% of their target and averages fast days apart', () => {
+    const stats = { dailyCalorieGoal: 800, nonFastDayCalories: 2000, weightHistory: weighIns(92, 0) };
+    const fast = windowDays.filter((_, i) => i % 7 === 2 || i % 7 === 5);
+    const dayTypes = Object.fromEntries(fast.map(d => [d, 'fast']));
+    const days = windowDays.map(d => (fast.includes(d) ? summary(d, 500) : summary(d, 2100)));
+    days[0] = summary(windowDays[0], 1000); // nourish day at 50%: counts in averages, not the burn
+    const est = estimateEnergyFor(stats, days, dayTypes, TODAY);
+    expect(est).toMatchObject({ loggedDays: 27, fastAvgIntake: 500, nourishAvgIntake: 2100 });
   });
 });
 

@@ -12,7 +12,7 @@ const LOGGING_GOOD = 9;
 const LOGGING_LOW = 5;
 /** Fully logged days that make a week count towards the steady-logging streak */
 const STEADY_WEEK_DAYS = 4;
-import { EnergyEstimate, TargetSuggestion, estimateEnergy, fastDaysPerWeek, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
+import { EnergyEstimate, TargetSuggestion, estimateEnergyFor, fastDaysPerWeek, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
 
 /**
  * The numbers guidance is based on. Everything here is measured from the user's own logs, so the
@@ -90,7 +90,8 @@ export const buildCoachFacts = (
   };
 
   const protein14 = logged(inLast(14)).filter(s => typeof s.proteinConsumed === 'number');
-  const estimate = estimateEnergy(summaries, stats.weightHistory, today, isComplete);
+  // The same estimate as the Analytics pace panel, so both show one burn
+  const estimate = estimateEnergyFor(stats, summaries, dayTypes, today);
 
   // Weeks in a row (Monday to Sunday) with at least STEADY_WEEK_DAYS fully logged days, counting
   // back from last week; this week joins in once it has reached that too
