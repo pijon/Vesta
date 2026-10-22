@@ -1,5 +1,6 @@
 import { DailySummary, UserStats, WeightEntry } from '../types';
 import { localDateString, parseLocalDate } from './dateUtils';
+import { completeDayFor, ENERGY_COMPLETE_DAY_SHARE } from './logCompleteness';
 import { addDays } from './planUtils';
 
 /** Energy in a kilogram of body weight change (mostly fat), the usual rule of thumb. */
@@ -73,6 +74,8 @@ export const MIN_LOGGED_DAYS = 14;
 export const MIN_WEIGH_INS = 4;
 /** First and last weigh-in in the window must be at least this far apart */
 export const MIN_WEIGH_SPAN_DAYS = 14;
+/** Fast and nourish days are only averaged apart once each kind has this many logged days */
+export const MIN_LOGGED_PER_KIND = 3;
 
 export interface EnergyEstimate {
   /** The window: the 28 days up to yesterday (today isn't finished) */
@@ -82,8 +85,13 @@ export interface EnergyEstimate {
   weighIns: number;
   weighSpanDays: number;
   ready: boolean;
-  /** Average food logged on logged days */
+  /** Average daily food: logged days, weighted by how many fast and nourish days the window held (see estimateEnergy) */
   avgIntake: number | null;
+  /** Average food on logged fast / nourish days, when the window has both kinds and each has MIN_LOGGED_PER_KIND logged days */
+  fastAvgIntake: number | null;
+  nourishAvgIntake: number | null;
+  /** Fast days in the window, from the planner's day types */
+  fastDays: number;
   /** kg per week from the weigh-ins in the window (negative = losing) */
   weightChangePerWeek: number | null;
   /** Calories burned per day, everything included (workouts too) */
@@ -96,6 +104,9 @@ export interface EnergyEstimate {
  * Estimates daily calorie burn from what was eaten and how weight changed:
  * burn ≈ average intake − (weight change per day × 7,700 kcal/kg).
  * Only days with food logged count towards intake, so the estimate is only as good as the logging.
+ * With day types (fast or nourish), fast and nourish days are averaged apart and combined by how many of
+ * each the window held, so logging fast days more (or less) diligently than the rest doesn't skew it,
+ * which matters on a 5:2 pattern where the two differ by well over a thousand kcal.
  */
 export const estimateEnergy = (
   summaries: DailySummary[],
@@ -103,6 +114,8 @@ export const estimateEnergy = (
   today = localDateString(),
   /** Which days' food logs are full enough to count (see isCompleteDay); default any food at all */
   isComplete: (s: DailySummary) => boolean = s => (s.caloriesConsumed || 0) > 0,
+  /** date → day type from the planner; 'fast' days are told apart from the rest */
+  dayTypes: Record<string, string> = {},
 ): EnergyEstimate => {
   const to = addDays(today, -1);
   const from = addDays(to, -(ESTIMATE_WINDOW_DAYS - 1));
@@ -115,7 +128,16 @@ export const estimateEnergy = (
   const weighSpanDays = weighIns.length >= 2 ? daysBetween(weighIns[0].date, weighIns[weighIns.length - 1].date) : 0;
   const ready = logged.length >= MIN_LOGGED_DAYS && weighIns.length >= MIN_WEIGH_INS && weighSpanDays >= MIN_WEIGH_SPAN_DAYS;
 
-  const avgIntake = logged.length ? logged.reduce((a, s) => a + s.caloriesConsumed, 0) / logged.length : null;
+  const mean = (days: DailySummary[]) => (days.length ? days.reduce((a, s) => a + s.caloriesConsumed, 0) / days.length : null);
+  const isFast = (date: string) => dayTypes[date] === 'fast';
+  const fastDays = Object.keys(dayTypes).filter(d => isFast(d) && d >= from && d <= to).length;
+  const loggedFast = logged.filter(s => isFast(s.date));
+  const loggedNourish = logged.filter(s => !isFast(s.date));
+  const fastAvg = mean(loggedFast);
+  const nourishAvg = mean(loggedNourish);
+  const split = fastDays > 0 && fastDays < ESTIMATE_WINDOW_DAYS && fastAvg !== null && nourishAvg !== null
+    && loggedFast.length >= MIN_LOGGED_PER_KIND && loggedNourish.length >= MIN_LOGGED_PER_KIND;
+  const avgIntake = split ? (fastAvg * fastDays + nourishAvg * (ESTIMATE_WINDOW_DAYS - fastDays)) / ESTIMATE_WINDOW_DAYS : mean(logged);
   const slope = weighIns.length >= 2 && weighSpanDays > 0 ? slopePerDay(weighIns) : null;
   const avgWorkoutBurn = inWindow.reduce((a, s) => a + (s.caloriesBurned || 0), 0) / ESTIMATE_WINDOW_DAYS;
 
@@ -127,11 +149,22 @@ export const estimateEnergy = (
     weighSpanDays,
     ready,
     avgIntake,
+    fastAvgIntake: split ? fastAvg : null,
+    nourishAvgIntake: split ? nourishAvg : null,
+    fastDays,
     weightChangePerWeek: slope !== null ? slope * 7 : null,
     expenditure: ready && avgIntake !== null && slope !== null ? avgIntake - slope * KCAL_PER_KG : null,
     avgWorkoutBurn,
   };
 };
+
+/** The burn estimate as the app shows it everywhere: the stricter completeness bar, fast and nourish days apart. */
+export const estimateEnergyFor = (
+  stats: Pick<UserStats, 'dailyCalorieGoal' | 'nonFastDayCalories' | 'weightHistory'>,
+  summaries: DailySummary[],
+  dayTypes: Record<string, string>,
+  today = localDateString(),
+) => estimateEnergy(summaries, stats.weightHistory, today, completeDayFor(stats, dayTypes, ENERGY_COMPLETE_DAY_SHARE), dayTypes);
 
 export const LOSS_RATES = [0.25, 0.5, 0.75, 1] as const;
 export const DEFAULT_LOSS_RATE = 0.5;
