@@ -35,6 +35,9 @@ interface DualTrackSectionProps {
   dayCounts: boolean;
   /** Today also clears the burn estimate's stricter bar (ENERGY_COMPLETE_DAY_SHARE) */
   dayCountsForBurn: boolean;
+  /** Your usual intake on this kind of day, when today looks well under it (see looksLight) */
+  lightDayUsual?: number;
+  isFastDay?: boolean;
   onSetDayStatus: (status: DayLogStatus | undefined) => void;
   /** Shown under the plan card from lg up, where the plan and the log sit side by side (Today passes Coming up: tomorrow and the weekend) */
   planAside?: React.ReactNode;
@@ -76,7 +79,27 @@ const COLLAPSED_COUNT = 6;
 const STATUS_FROM_HOUR = 17;
 
 /** Whether today's log counts in averages, with a one-tap way to say otherwise. */
-const DayStatusRow: React.FC<{ status?: DayLogStatus; counts: boolean; countsForBurn: boolean; onSet: (status: DayLogStatus | undefined) => void }> = ({ status, counts, countsForBurn, onSet }) => {
+const DayStatusRow: React.FC<{
+  status?: DayLogStatus;
+  counts: boolean;
+  countsForBurn: boolean;
+  lightDayUsual?: number;
+  isFastDay?: boolean;
+  onSet: (status: DayLogStatus | undefined) => void;
+}> = ({ status, counts, countsForBurn, lightDayUsual, isFastDay, onSet }) => {
+  if (!status && lightDayUsual !== undefined) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border mt-3 pt-3 px-2">
+        <p className="text-xs text-muted flex-1 min-w-[12rem]">
+          Lighter than your usual {isFastDay ? 'fast' : 'nourish'} day (about {(Math.round(lightDayUsual / 10) * 10).toLocaleString()} kcal). Is everything logged?
+        </p>
+        <div className="flex gap-2 shrink-0">
+          <button onClick={() => onSet('incomplete')} className="btn-ghost btn-sm">Something's missing</button>
+          <button onClick={() => onSet('complete')} className="btn-secondary btn-sm">That's all I ate</button>
+        </div>
+      </div>
+    );
+  }
   const [text, action] = status === 'complete'
     ? ['Marked as everything you ate today.', <button key="a" onClick={() => onSet(undefined)} className="btn-ghost btn-sm shrink-0">Undo</button>]
     : status === 'incomplete'
@@ -113,6 +136,8 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   dayStatus,
   dayCounts,
   dayCountsForBurn,
+  lightDayUsual,
+  isFastDay,
   onSetDayStatus,
   planAside,
 }) => {
@@ -514,7 +539,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {entryGroups.map(renderLogGroup)}
 
               {sortedFoodItems.length > 0 && (dayStatus || new Date().getHours() >= STATUS_FROM_HOUR) && (
-                <DayStatusRow status={dayStatus} counts={dayCounts} countsForBurn={dayCountsForBurn} onSet={onSetDayStatus} />
+                <DayStatusRow status={dayStatus} counts={dayCounts} countsForBurn={dayCountsForBurn} lightDayUsual={lightDayUsual} isFastDay={isFastDay} onSet={onSetDayStatus} />
               )}
             </>
           )}
