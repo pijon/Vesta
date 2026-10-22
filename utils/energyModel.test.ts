@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DailySummary, WeightEntry } from '../types';
 import { addDays } from './planUtils';
-import { estimateEnergy, estimateEnergyFor, fastDaysPerWeek, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
+import { burnRange, estimateEnergy, estimateEnergyFor, fastDaysPerWeek, MIN_BURN_MARGIN, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
 
 const TODAY = '2026-10-14';
 
@@ -14,7 +14,7 @@ const summary = (date: string, caloriesConsumed: number, caloriesBurned = 0): Da
 const windowDays = Array.from({ length: 28 }, (_, i) => addDays(TODAY, i - 28));
 
 /** Weigh-ins every `every` days over the window, losing `perWeek` kg a week from `start` */
-const weighIns = (start: number, perWeek: number, every = 3): WeightEntry[] =>
+const weighIns = (start: number, perWeek: number, every = 2): WeightEntry[] =>
   windowDays.filter((_, i) => i % every === 0).map(date => ({ date, weight: start + (perWeek / 7) * windowDays.indexOf(date) }));
 
 describe('weightTrend', () => {
@@ -88,11 +88,32 @@ describe('estimateEnergy', () => {
     expect(threeFast.fastAvgIntake).toBe(600);
   });
 
+  it('counts several weigh-ins on one day once', () => {
+    const doubled = weighIns(92, -0.5, 3).flatMap(e => [e, { ...e, weight: e.weight + 0.2 }]);
+    const est = estimateEnergy(windowDays.map(d => summary(d, 1800)), doubled, TODAY);
+    expect(est).toMatchObject({ weighIns: 10, ready: false });
+    expect(est.weightChangePerWeek).toBeCloseTo(-0.5, 5);
+  });
+
+  it('gives a likely range that widens with noisy weigh-ins and never narrows below the floor', () => {
+    const days = windowDays.map((d, i) => summary(d, i % 2 ? 1700 : 1900));
+    const steady = estimateEnergy(days, weighIns(92, -0.5), TODAY);
+    expect(steady.expenditureMargin).toBe(MIN_BURN_MARGIN);
+    expect(burnRange(steady)).toEqual([Math.round((steady.expenditure! - 250) / 10) * 10, Math.round((steady.expenditure! + 250) / 10) * 10]);
+    // ±0.8 kg of day-to-day water swing around the same line
+    const noisy = weighIns(92, -0.5).map((e, i) => ({ ...e, weight: e.weight + (i % 2 ? 0.8 : -0.8) }));
+    const est = estimateEnergy(days, noisy, TODAY);
+    expect(est.expenditureMargin!).toBeGreaterThan(MIN_BURN_MARGIN);
+    expect(burnRange({ expenditure: null, expenditureMargin: null })).toBeNull();
+  });
+
   it('waits for enough logging and weigh-ins', () => {
     const fewLogs = estimateEnergy(windowDays.slice(0, 13).map(d => summary(d, 1800)), weighIns(92, -0.5), TODAY);
     expect(fewLogs).toMatchObject({ ready: false, expenditure: null });
     const fewWeighIns = estimateEnergy(windowDays.map(d => summary(d, 1800)), weighIns(92, -0.5, 10), TODAY);
     expect(fewWeighIns).toMatchObject({ weighIns: 3, ready: false, expenditure: null });
+    const elevenWeighIns = estimateEnergy(windowDays.map(d => summary(d, 1800)), weighIns(92, -0.5).slice(0, 11), TODAY);
+    expect(elevenWeighIns).toMatchObject({ weighIns: 11, ready: false, expenditure: null });
   });
 });
 

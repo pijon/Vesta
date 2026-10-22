@@ -3,7 +3,7 @@ import { Check, TrendingDown } from 'lucide-react';
 import { DailySummary, UserStats } from '../types';
 import {
   DEFAULT_LOSS_RATE, EnergyEstimate, LOSS_RATES, MIN_LOGGED_DAYS, MIN_NOURISH_TARGET, MIN_WEIGH_INS, MIN_WEIGH_SPAN_DAYS,
-  TargetSuggestion, estimateEnergyFor, fastDaysPerWeek, suggestTargets,
+  TargetSuggestion, burnRange, estimateEnergyFor, fastDaysPerWeek, suggestTargets,
 } from '../utils/energyModel';
 import { goalDateAtPace } from '../utils/analyticsModel';
 import { parseLocalDate } from '../utils/dateUtils';
@@ -70,7 +70,7 @@ const Requirements: React.FC<{ estimate: EnergyEstimate }> = ({ estimate }) => (
       of={MIN_WEIGH_INS}
       hint={estimate.weighIns >= MIN_WEIGH_INS && estimate.weighSpanDays < MIN_WEIGH_SPAN_DAYS
         ? `Spread them over at least two weeks (now ${estimate.weighSpanDays} days apart).`
-        : 'Same time of day is best, for example in the morning before breakfast.'}
+        : 'On different days, about three a week; every day is best. Same time of day, for example in the morning before breakfast.'}
     />
   </div>
 );
@@ -105,6 +105,7 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
   const current = stats.nonFastDayCalories || 2000;
   const [applied, setApplied] = useState(false);
   if (!estimate.ready || estimate.expenditure === null) return null;
+  const range = burnRange(estimate);
 
   const goalDate = currentWeight !== null ? goalDateAtPace(currentWeight, stats.goalWeight, suggestion?.weeklyLoss ?? activeRate) : null;
   const apply = () => {
@@ -119,7 +120,11 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
         <span className="icon-tile size-10 shrink-0 tile-weight flex items-center justify-center"><TrendingDown size={18} strokeWidth={2.25} aria-hidden="true" /></span>
         <div className="min-w-0">
           <h2 id="energy-title" className="heading-3 pt-2">Your pace</h2>
-          <p className="text-sm text-muted mt-1">You burn about {approx(estimate.expenditure)} kcal a day, worked out from what you eat and how your weight moves.</p>
+          <p className="text-sm text-muted mt-1">
+            You burn about {approx(estimate.expenditure)} kcal a day
+            {range && `, likely between ${range[0].toLocaleString()} and ${range[1].toLocaleString()}`}
+            {', worked out from what you eat and how your weight moves. Unlogged food makes it read low, and weighing in more often narrows the range.'}
+          </p>
         </div>
       </div>
 
@@ -175,7 +180,6 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
         {', while your weight moved'}
         {' '}{estimate.weightChangePerWeek! > 0 ? '+' : '−'}{kg(Math.abs(estimate.weightChangePerWeek!))} kg a week.
         {estimate.avgWorkoutBurn > 0 && ` That includes about ${fmt(estimate.avgWorkoutBurn)} kcal a day from workouts.`}
-        {' '}Days you only partly log make it look lower than it is.
       </p>
     </section>
   );

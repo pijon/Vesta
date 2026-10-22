@@ -4,7 +4,7 @@ import { localDateString, parseLocalDate } from './dateUtils';
 import { MEAL_SLOTS, addDays } from './planUtils';
 import { normalizeFoodName } from './foodMatch';
 import { isCompleteDay } from './logCompleteness';
-import { weightTrend } from './energyModel';
+import { t80, weightTrend } from './energyModel';
 
 export type AnalyticsPeriod = 'week' | 'month' | 'quarter';
 
@@ -252,9 +252,6 @@ export const PROJECTION_WINDOW_DAYS = 28;
 const PROJECTION_MIN_WEIGH_INS = 4;
 const PROJECTION_MIN_SPAN_DAYS = 14;
 const PROJECTION_MAX_DAYS = 730;
-/** Student's t for an 80% range, by degrees of freedom (weigh-ins − 2); beyond the table it's about 1.3 */
-const T80 = [Infinity, 3.078, 1.886, 1.638, 1.533, 1.476, 1.44, 1.415, 1.397, 1.383, 1.372, 1.363, 1.356, 1.35, 1.345, 1.341];
-const t80 = (df: number) => T80[df] ?? (df < 30 ? 1.32 : 1.3);
 
 export interface WeightProjection {
   /** Most likely date the goal is reached */
