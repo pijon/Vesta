@@ -201,6 +201,10 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       if (timed) {
         const kcal = result.items.reduce((sum, item) => sum + item.calories, 0);
         setToast({ message: `Logged ${result.items.length} meal${result.items.length === 1 ? '' : 's'} · ${kcal.toLocaleString()} kcal` });
+      } else if (result.items.length === 1) {
+        // One meal ticked: a way to say you had more or less of it
+        const [item] = result.items;
+        setToast({ message: `Logged ${item.name} · ${item.calories.toLocaleString()} kcal`, action: { label: 'Portion', run: () => setEditItemId(item.id) } });
       }
     } catch (e) {
       console.error('Failed to log the meals', e);
@@ -376,7 +380,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   );
   // Your usual intake on this kind of day, to ask about a day that looks light next to it
   const usual = React.useMemo(() => usualIntake(activityHistory, dayTypes, stats, !isNonFastDay), [activityHistory, dayTypes, stats, isNonFastDay]);
-  const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
+  const [toast, setToast] = useState<{ message: string; undo?: () => void; action?: { label: string; run: () => void } } | null>(null);
+  /** A logged entry to open for editing (the toast's Portion shortcut) */
+  const [editItemId, setEditItemId] = useState<string | null>(null);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 5000);
@@ -464,6 +470,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         dayCountsForBurn={isCompleteDay(consumed, dailyTarget, dailyLog.status, ENERGY_COMPLETE_DAY_SHARE)}
         lightDayUsual={looksLight(consumed, usual, dailyLog.status) ? usual! : undefined}
         isFastDay={!isNonFastDay}
+        editItemId={editItemId}
+        onEditItemOpened={() => setEditItemId(null)}
         onSetDayStatus={onSetDayStatus}
         planAside={comingUp}
       />
@@ -499,6 +507,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           <span className="truncate">{toast.message}</span>
           {toast.undo && (
             <button onClick={() => { toast.undo!(); setToast(null); }} className="hit-target shrink-0 min-h-8 px-3 rounded-full bg-on-ink/15 hover:bg-on-ink/25 font-semibold">Undo</button>
+          )}
+          {toast.action && (
+            <button onClick={() => { toast.action!.run(); setToast(null); }} className="hit-target shrink-0 min-h-8 px-3 rounded-full bg-on-ink/15 hover:bg-on-ink/25 font-semibold">{toast.action.label}</button>
           )}
         </div>
       )}

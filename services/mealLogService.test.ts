@@ -36,6 +36,11 @@ it('preserves fresh unrelated log/day fields and exactly restores personal histo
  expect(store.docs.get('users/a/days/'+date)).toMatchObject({tips:'keep',meals:[]});
  expect((await service.removePlannedMealIntake('a',date,meal)).completedMealIds).toEqual(['other']);
 });
+it('keeps the portions eaten on an updated planned entry',async()=>{
+ const item=(await service.commitPlannedMealIntake('a',date,[entry])).items[0];
+ await service.updatePlannedMealIntake('a',date,{...item,calories:Math.round(item.calories*1.5),portions:1.5});
+ expect(store.docs.get('users/a/logs/'+date).items[0]).toMatchObject({id:item.id,portions:1.5,calories:Math.round(item.calories*1.5)});
+});
 it('rejects planning mode, incomplete setup, malformed records and changed ownership without writes',async()=>{
  for(const patch of [{experience:'planning'},{trackingSetupComplete:false}]) {
  store.docs.set('users/a/data/preferences',{version:1,experience:'tracking',profileSetupComplete:true,trackingSetupComplete:true,...patch});
