@@ -1009,10 +1009,16 @@ export const getUserStats = async (expectedUid?: string): Promise<UserStats> => 
   const uid = getUserId();
   if (expectedUid && expectedUid !== uid) throw new Error('Your account changed. Reload and try again.');
   try {
-    const d = await getDoc(doc(db, 'users', uid, 'data', STATS_DOC));
+    const [d, breaksDoc] = await Promise.all([getDoc(doc(db, 'users', uid, 'data', STATS_DOC)), getDoc(doc(db, 'users', uid, 'data', 'breaks'))]);
     if (d.exists()) {
       const stored = d.data() as Partial<UserStats>;
-      const stats: UserStats = { ...DEFAULT_USER_STATS, ...stored, weightHistory: Array.isArray(stored.weightHistory) ? stored.weightHistory : [] };
+      // Breaks from tracking live in their own doc (written when switching modes) and ride along on stats
+      const breaks = breaksDoc.exists() ? (breaksDoc.data() as { list?: unknown }).list : undefined;
+      const stats: UserStats = {
+        ...DEFAULT_USER_STATS, ...stored,
+        weightHistory: Array.isArray(stored.weightHistory) ? stored.weightHistory : [],
+        ...(Array.isArray(breaks) && breaks.length ? { breaks: breaks as UserStats['breaks'] } : {}),
+      };
       // Update Cache
       saveToCache(getUserCacheKey(uid, 'stats'), stats);
       syncPublicProfile(stats, uid);
@@ -1030,7 +1036,9 @@ export const saveUserStats = async (stats: UserStats, expectedUid?: string): Pro
   const uid = getUserId();
   if (expectedUid && expectedUid !== uid) throw new Error('Your account changed. Reload and try again.');
   noteLocalWrite();
-  await setDoc(doc(db, 'users', uid, 'data', STATS_DOC), stats);
+  // Breaks are saved by the mode switch, not with stats (a stale copy here would undo one)
+  const { breaks: _breaks, ...stored } = stats;
+  await setDoc(doc(db, 'users', uid, 'data', STATS_DOC), stored);
   noteLocalWrite();
   saveToCache(getUserCacheKey(uid, 'stats'), stats);
   syncPublicProfile(stats, uid);

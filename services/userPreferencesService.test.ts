@@ -124,6 +124,22 @@ describe('committed setup and experience changes', () => {
     expect(store.docs.get('users/a/data/stats')).toEqual(original);
   });
 
+  it('records a break from tracking while in Plan meals, apart from stats', async () => {
+    await completeUserSetup('a', tracking, '2026-10-18');
+    const original = structuredClone(store.docs.get('users/a/data/stats'));
+    await saveUserExperience('a', 'planning', '2026-10-20');
+    expect(store.docs.get('users/a/data/breaks')).toEqual({ list: [{ start: '2026-10-20' }] });
+    await saveUserExperience('a', 'tracking', '2026-11-03');
+    expect(store.docs.get('users/a/data/breaks')).toEqual({ list: [{ start: '2026-10-20', end: '2026-11-03' }] });
+    expect(store.docs.get('users/a/data/stats')).toEqual(original);
+  });
+
+  it('records no break for someone who never tracked', async () => {
+    await completeUserSetup('a', { experience: 'planning', name: 'Sam' }, '2026-10-18');
+    await expect(saveUserExperience('a', 'tracking', '2026-10-20')).rejects.toBeInstanceOf(UserSetupRequiredError);
+    expect(store.docs.has('users/a/data/breaks')).toBe(false);
+  });
+
   it('requires actual health setup before enabling tracking', async () => {
     await completeUserSetup('a', { experience: 'planning', name: 'Sam' }, '2026-10-18');
     await expect(saveUserExperience('a', 'tracking')).rejects.toBeInstanceOf(UserSetupRequiredError);

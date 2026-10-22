@@ -133,7 +133,7 @@ export const buildCoachFacts = (
     todayEaten: (todayLog.items || []).reduce((a, i) => a + (i.calories || 0), 0),
     todayProtein: (todayLog.items || []).reduce((a, i) => a + (i.protein || 0), 0),
     estimate,
-    suggestion: suggestTargets(estimate, stats, fastDaysPerWeek(dayTypes, estimate), weeklyLossGoal),
+    suggestion: suggestTargets(estimate, stats, fastDaysPerWeek(estimate), weeklyLossGoal),
     weeklyLossGoal,
   };
 };

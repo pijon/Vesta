@@ -1,4 +1,5 @@
-import { DailySummary, UserStats, WeightEntry } from '../types';
+import { DailySummary, TrackingBreak, UserStats, WeightEntry } from '../types';
+import { onBreak, settling, stretchOf } from './breaks';
 import { localDateString, parseLocalDate } from './dateUtils';
 import { completeDayFor, ENERGY_COMPLETE_DAY_SHARE } from './logCompleteness';
 import { addDays } from './planUtils';
@@ -63,17 +64,27 @@ export const weightTrend = (history: WeightEntry[]): TrendPoint[] => {
 const T80 = [Infinity, 3.078, 1.886, 1.638, 1.533, 1.476, 1.44, 1.415, 1.397, 1.383, 1.372, 1.363, 1.356, 1.35, 1.345, 1.341];
 export const t80 = (df: number) => T80[df] ?? (df < 30 ? 1.32 : 1.3);
 
-/** Least-squares slope in kg per day, and its standard error (null with fewer than three points). */
-const fitSlope = (points: { time: number; weight: number }[]) => {
+/**
+ * Least-squares slope in kg per day, its standard error and degrees of freedom (no error with too few
+ * points). Points carry the stretch of tracking they belong to: each stretch gets its own level and they
+ * share one slope, so the jump on the scale across a break doesn't bend the line.
+ */
+const fitSlope = (points: { time: number; weight: number; stretch: number }[]) => {
   const xs = points.map(p => (p.time - points[0].time) / DAY_MS);
-  const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
-  const my = points.reduce((a, p) => a + p.weight, 0) / points.length;
-  const sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
-  if (sxx === 0) return { slope: 0, se: null };
-  const slope = xs.reduce((a, x, i) => a + (x - mx) * (points[i].weight - my), 0) / sxx;
-  if (xs.length < 3) return { slope, se: null };
-  const residuals = xs.reduce((a, x, i) => a + (points[i].weight - (my + slope * (x - mx))) ** 2, 0);
-  return { slope, se: Math.sqrt(residuals / (xs.length - 2) / sxx) };
+  const groups = new Map<number, number[]>();
+  points.forEach((p, i) => groups.set(p.stretch, [...(groups.get(p.stretch) ?? []), i]));
+  const avg = (ns: number[]) => ns.reduce((a, b) => a + b, 0) / ns.length;
+  const stretches = [...groups.values()].map(idx => ({ idx, mx: avg(idx.map(i => xs[i])), my: avg(idx.map(i => points[i].weight)) }));
+  let sxx = 0;
+  let sxy = 0;
+  for (const { idx, mx, my } of stretches) for (const i of idx) { sxx += (xs[i] - mx) ** 2; sxy += (xs[i] - mx) * (points[i].weight - my); }
+  const df = points.length - 1 - stretches.length;
+  if (sxx === 0) return { slope: 0, se: null, df };
+  const slope = sxy / sxx;
+  if (df < 1) return { slope, se: null, df };
+  let residuals = 0;
+  for (const { idx, mx, my } of stretches) for (const i of idx) residuals += (points[i].weight - (my + slope * (xs[i] - mx))) ** 2;
+  return { slope, se: Math.sqrt(residuals / df / sxx), df };
 };
 
 /** What the estimate needs over the window before it's worth showing. */
@@ -86,6 +97,8 @@ export const MIN_LOGGED_DAYS = 14;
 export const MIN_WEIGH_INS = 12;
 /** First and last weigh-in in the window must be at least this far apart */
 export const MIN_WEIGH_SPAN_DAYS = 14;
+/** How far back the window may reach past breaks to find its 28 days (the logs read cover about 90) */
+const MAX_LOOKBACK_DAYS = 89;
 /** Fast and nourish days are only averaged apart once each kind has this many logged days */
 export const MIN_LOGGED_PER_KIND = 3;
 /**
@@ -95,9 +108,11 @@ export const MIN_LOGGED_PER_KIND = 3;
 export const MIN_BURN_MARGIN = 250;
 
 export interface EnergyEstimate {
-  /** The window: the 28 days up to yesterday (today isn't finished) */
+  /** The window: the 28 days up to yesterday (today isn't finished), reaching back past any break */
   from: string;
   to: string;
+  /** Days in the window, not counting breaks: 28 unless a long break left too few */
+  windowDays: number;
   loggedDays: number;
   /** Days with a weigh-in (several on one day count once) */
   weighIns: number;
@@ -142,31 +157,41 @@ export const estimateEnergy = (
   isComplete: (s: DailySummary) => boolean = s => (s.caloriesConsumed || 0) > 0,
   /** date → day type from the planner; 'fast' days are told apart from the rest */
   dayTypes: Record<string, string> = {},
+  /** Breaks from tracking: their days are left out and the window reaches back past them (utils/breaks.ts) */
+  breaks: TrackingBreak[] = [],
 ): EnergyEstimate => {
   const to = addDays(today, -1);
-  const from = addDays(to, -(ESTIMATE_WINDOW_DAYS - 1));
-  const inWindow = summaries.filter(s => s.date >= from && s.date <= to);
+  const windowDates: string[] = [];
+  for (let back = 0; windowDates.length < ESTIMATE_WINDOW_DAYS && back <= MAX_LOOKBACK_DAYS; back++) {
+    const date = addDays(to, -back);
+    if (!onBreak(breaks, date)) windowDates.push(date);
+  }
+  const inWindowDate = new Set(windowDates);
+  const windowDays = Math.max(windowDates.length, 1);
+  const from = windowDates[windowDates.length - 1] ?? to;
+  const inWindow = summaries.filter(s => inWindowDate.has(s.date));
   const logged = inWindow.filter(isComplete);
-  // One point per day (several weigh-ins on a day count as their average), so a day can't count twice
+  // One point per day (several weigh-ins on a day count as their average), so a day can't count twice.
+  // The days just after a break are left out while the scale settles
   const byDate = new Map<string, number[]>();
-  (history || []).filter(e => e.weight > 0 && e.date >= from && e.date <= to)
+  (history || []).filter(e => e.weight > 0 && inWindowDate.has(e.date) && !settling(breaks, e.date))
     .forEach(e => byDate.set(e.date, [...(byDate.get(e.date) ?? []), e.weight]));
   const weighIns = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, ws]) => ({ time: parseLocalDate(date).getTime(), weight: ws.reduce((a, b) => a + b, 0) / ws.length, date }));
+    .map(([date, ws]) => ({ time: parseLocalDate(date).getTime(), weight: ws.reduce((a, b) => a + b, 0) / ws.length, date, stretch: stretchOf(breaks, date) }));
   const weighSpanDays = weighIns.length >= 2 ? daysBetween(weighIns[0].date, weighIns[weighIns.length - 1].date) : 0;
   const ready = logged.length >= MIN_LOGGED_DAYS && weighIns.length >= MIN_WEIGH_INS && weighSpanDays >= MIN_WEIGH_SPAN_DAYS;
 
   const mean = (days: DailySummary[]) => (days.length ? days.reduce((a, s) => a + s.caloriesConsumed, 0) / days.length : null);
   const isFast = (date: string) => dayTypes[date] === 'fast';
-  const fastDays = Object.keys(dayTypes).filter(d => isFast(d) && d >= from && d <= to).length;
+  const fastDays = windowDates.filter(isFast).length;
   const loggedFast = logged.filter(s => isFast(s.date));
   const loggedNourish = logged.filter(s => !isFast(s.date));
   const fastAvg = mean(loggedFast);
   const nourishAvg = mean(loggedNourish);
-  const split = fastDays > 0 && fastDays < ESTIMATE_WINDOW_DAYS && fastAvg !== null && nourishAvg !== null
+  const split = fastDays > 0 && fastDays < windowDays && fastAvg !== null && nourishAvg !== null
     && loggedFast.length >= MIN_LOGGED_PER_KIND && loggedNourish.length >= MIN_LOGGED_PER_KIND;
-  const avgIntake = split ? (fastAvg * fastDays + nourishAvg * (ESTIMATE_WINDOW_DAYS - fastDays)) / ESTIMATE_WINDOW_DAYS : mean(logged);
+  const avgIntake = split ? (fastAvg * fastDays + nourishAvg * (windowDays - fastDays)) / windowDays : mean(logged);
   const fit = weighIns.length >= 2 && weighSpanDays > 0 ? fitSlope(weighIns) : null;
   const slope = fit ? fit.slope : null;
 
@@ -176,21 +201,22 @@ export const estimateEnergy = (
     if (m === null || days.length < 2) return null;
     return Math.sqrt(days.reduce((a, s) => a + (s.caloriesConsumed - m) ** 2, 0) / (days.length - 1) / days.length);
   };
-  const fastShare = fastDays / ESTIMATE_WINDOW_DAYS;
+  const fastShare = fastDays / windowDays;
   const intakeSe = split
     ? Math.sqrt((fastShare * sem(loggedFast)!) ** 2 + ((1 - fastShare) * sem(loggedNourish)!) ** 2)
     : sem(logged);
   const expenditure = ready && avgIntake !== null && slope !== null ? avgIntake - slope * KCAL_PER_KG : null;
-  const weightMargin = expenditure !== null && fit?.se != null ? t80(weighIns.length - 2) * fit.se * KCAL_PER_KG : null;
+  const weightMargin = expenditure !== null && fit?.se != null ? t80(fit.df) * fit.se * KCAL_PER_KG : null;
   const intakeMargin = expenditure !== null && intakeSe !== null ? t80(logged.length - 1) * intakeSe : null;
   const expenditureMargin = weightMargin !== null && intakeMargin !== null
     ? Math.max(MIN_BURN_MARGIN, Math.hypot(weightMargin, intakeMargin))
     : null;
-  const avgWorkoutBurn = inWindow.reduce((a, s) => a + (s.caloriesBurned || 0), 0) / ESTIMATE_WINDOW_DAYS;
+  const avgWorkoutBurn = inWindow.reduce((a, s) => a + (s.caloriesBurned || 0), 0) / windowDays;
 
   return {
     from,
     to,
+    windowDays,
     loggedDays: logged.length,
     weighIns: weighIns.length,
     weighSpanDays,
@@ -210,11 +236,11 @@ export const estimateEnergy = (
 
 /** The burn estimate as the app shows it everywhere: the stricter completeness bar, fast and nourish days apart. */
 export const estimateEnergyFor = (
-  stats: Pick<UserStats, 'dailyCalorieGoal' | 'nonFastDayCalories' | 'weightHistory'>,
+  stats: Pick<UserStats, 'dailyCalorieGoal' | 'nonFastDayCalories' | 'weightHistory' | 'breaks'>,
   summaries: DailySummary[],
   dayTypes: Record<string, string>,
   today = localDateString(),
-) => estimateEnergy(summaries, stats.weightHistory, today, completeDayFor(stats, dayTypes, ENERGY_COMPLETE_DAY_SHARE), dayTypes);
+) => estimateEnergy(summaries, stats.weightHistory, today, completeDayFor(stats, dayTypes, ENERGY_COMPLETE_DAY_SHARE), dayTypes, stats.breaks);
 
 /** The burn's likely range, rounded to tens: [low, high], or null before there's an estimate. */
 export const burnRange = (estimate: Pick<EnergyEstimate, 'expenditure' | 'expenditureMargin'>): [number, number] | null => {
@@ -290,6 +316,5 @@ export const suggestTargets = (
   return { nourish, fast, fastDaysPerWeek: fastDays, weeklyLoss: rate, dailyDeficit, capped: rate < weeklyLoss, floored: raw < MIN_NOURISH_TARGET };
 };
 
-/** Fast days per week over the estimate window, from the planner's day types. */
-export const fastDaysPerWeek = (dayTypes: Record<string, string>, estimate: Pick<EnergyEstimate, 'from' | 'to'>) =>
-  (Object.entries(dayTypes).filter(([date, type]) => type === 'fast' && date >= estimate.from && date <= estimate.to).length / ESTIMATE_WINDOW_DAYS) * 7;
+/** Fast days per week over the estimate window, from the planner's day types (break days left out). */
+export const fastDaysPerWeek = (estimate: Pick<EnergyEstimate, 'fastDays' | 'windowDays'>) => (estimate.fastDays / estimate.windowDays) * 7;

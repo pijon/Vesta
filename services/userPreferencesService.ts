@@ -1,7 +1,9 @@
 import { doc, getDocFromServer, runTransaction } from 'firebase/firestore';
 import type { DocumentSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import type { Avatar, UserExperience, UserPreferences, UserSetupSnapshot, UserSetupSubmission, UserStats } from '../types';
+import type { Avatar, TrackingBreak, UserExperience, UserPreferences, UserSetupSnapshot, UserSetupSubmission, UserStats } from '../types';
+import { breaksAfterSwitch } from '../utils/breaks';
+import { localDateString } from '../utils/dateUtils';
 import { isCalendarDate, legacyUserPreferences, parseUserPreferences } from '../utils/userPreferences';
 
 const assertUser = (uid: string) => {
@@ -12,6 +14,8 @@ const refsFor = (uid: string) => ({
   preferences: doc(db, 'users', uid, 'data', 'preferences'),
   stats: doc(db, 'users', uid, 'data', 'stats'),
   profile: doc(db, 'users', uid, 'profile', 'public'),
+  /** Breaks from tracking (utils/breaks.ts), kept apart from stats so a stats save can't drop them */
+  breaks: doc(db, 'users', uid, 'data', 'breaks'),
 });
 
 const statsFrom = (snapshot: DocumentSnapshot): Partial<UserStats> | null => {
@@ -62,21 +66,24 @@ interface SetupChange {
   statsPatch?: Partial<UserStats>;
   name?: string;
   avatar?: Avatar;
+  breaks?: TrackingBreak[];
 }
 
 /** No UI/cache side effects here: Firestore may repeat the callback. */
-const changeSetup = async (uid: string, change: (current: UserSetupSnapshot) => SetupChange): Promise<UserSetupSnapshot> => {
+const changeSetup = async (uid: string, change: (current: UserSetupSnapshot, breaks: TrackingBreak[]) => SetupChange): Promise<UserSetupSnapshot> => {
   assertUser(uid);
   const refs = refsFor(uid);
   const result = await runTransaction(db, async transaction => {
-    const [preferenceDoc, statsDoc] = await Promise.all([
-      transaction.get(refs.preferences), transaction.get(refs.stats),
+    const [preferenceDoc, statsDoc, breaksDoc] = await Promise.all([
+      transaction.get(refs.preferences), transaction.get(refs.stats), transaction.get(refs.breaks),
     ]);
     assertUser(uid);
     const stats = statsFrom(statsDoc);
     const preferences = preferencesFrom(preferenceDoc) ?? legacyUserPreferences(stats);
-    const next = change({ uid, preferences, stats });
+    const stored = breaksDoc.exists() ? (breaksDoc.data() as { list?: unknown }).list : undefined;
+    const next = change({ uid, preferences, stats }, Array.isArray(stored) ? stored as TrackingBreak[] : []);
     transaction.set(refs.preferences, next.preferences);
+    if (next.breaks) transaction.set(refs.breaks, { list: next.breaks });
     if (next.statsPatch) transaction.set(refs.stats, next.statsPatch, { merge: true });
     if (next.name !== undefined || next.avatar) transaction.set(refs.profile, {
       ...(next.name !== undefined ? { name: next.name } : {}), ...(next.avatar ? { avatar: next.avatar } : {}),
@@ -127,13 +134,16 @@ export const completeUserSetup = async (uid: string, submission: UserSetupSubmis
   });
 };
 
-export const saveUserExperience = async (uid: string, experience: UserExperience): Promise<UserSetupSnapshot> => {
+/** Switching from tracking to Plan meals starts a break from tracking, and switching back ends it (utils/breaks.ts) */
+export const saveUserExperience = async (uid: string, experience: UserExperience, today = localDateString()): Promise<UserSetupSnapshot> => {
   if (experience !== 'planning' && experience !== 'tracking') throw new Error('Choose how you want to use Vesta.');
-  return changeSetup(uid, current => {
+  return changeSetup(uid, (current, breaks) => {
     if (!current.preferences?.profileSetupComplete || (experience === 'tracking' && !current.preferences.trackingSetupComplete)) {
       throw new UserSetupRequiredError(experience);
     }
-    return { preferences: { ...current.preferences, experience } };
+    const from = current.preferences.experience;
+    const tracked = current.preferences.trackingSetupComplete && from !== experience;
+    return { preferences: { ...current.preferences, experience }, ...(tracked ? { breaks: breaksAfterSwitch(breaks, from, experience, today) } : {}) };
   });
 };
 
