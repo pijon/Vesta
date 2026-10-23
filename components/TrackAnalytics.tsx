@@ -133,12 +133,19 @@ const Sparkline: React.FC<{ line: { time: number; trend: number }[]; goal: numbe
     const x = (t: number) => ((t - t0) / Math.max(t1 - t0, 1)) * 296 + 2;
     const y = (v: number) => 6 + (1 - (v - lo) / Math.max(hi - lo, 0.01)) * 52;
     const last = line[line.length - 1];
+    // The line stretches to the card's width; the end dot sits on top as a real circle, as a stretched
+    // SVG circle would turn into a wide oval on desktop
     return (
-        <svg viewBox="0 0 300 64" preserveAspectRatio="none" className="block w-full h-16 mt-3" aria-hidden="true">
-            {showGoal && <line x1="0" x2="300" y1={y(goal)} y2={y(goal)} stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />}
-            <polyline points={line.map(p => `${x(p.time)},${y(p.trend)}`).join(' ')} fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            <circle cx={x(last.time)} cy={y(last.trend)} r="4.5" fill="currentColor" />
-        </svg>
+        <div className="relative mt-3" aria-hidden="true">
+            <svg viewBox="0 0 300 64" preserveAspectRatio="none" className="block w-full h-16">
+                {showGoal && <line x1="0" x2="300" y1={y(goal)} y2={y(goal)} stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />}
+                <polyline points={line.map(p => `${x(p.time)},${y(p.trend)}`).join(' ')} fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <span
+                className="absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-current"
+                style={{ left: `${(x(last.time) / 300) * 100}%`, top: `${(y(last.trend) / 64) * 100}%` }}
+            />
+        </div>
     );
 };
 

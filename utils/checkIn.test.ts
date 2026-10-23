@@ -4,7 +4,7 @@ import { checkInDateFor, weeklyCheckIn } from './checkIn';
 const estimate = (expenditure: number | null, margin: number | null = 300) => ({
   expenditure, expenditureMargin: margin, weightChangePerWeek: -0.4, loggedDays: 20, weighIns: 20,
 });
-const suggestion = (nourish: number, fastDaysPerWeek = 0) => ({ nourish, fastDaysPerWeek, weeklyLoss: 0.5 });
+const suggestion = (nourish: number, fastDaysPerWeek = 0, limited = false) => ({ nourish, fastDaysPerWeek, limited, expectedLoss: 0.5 });
 const SUNDAY = '2026-10-25';
 
 describe('checkInDateFor', () => {
@@ -39,6 +39,15 @@ describe('weeklyCheckIn', () => {
     // 2 fast days: 200 kcal of burn is 280 kcal on each of the 5 nourish days
     const est = weeklyCheckIn(estimate(2500), suggestion(2580, 2), 2300, { burnUsed: 2300, margin: 300 }, SUNDAY, 0.5);
     expect(est).toMatchObject({ suggested: 2300, status: 'kept' });
+  });
+
+  it('moves a 5:2 target held under the burn one for one with a steady burn', () => {
+    const est = weeklyCheckIn(estimate(2500), suggestion(2200, 2, true), 1900, { burnUsed: 2300, margin: 300 }, SUNDAY, 0.5);
+    expect(est).toMatchObject({ suggested: 2000, status: 'changed', target: 2000 });
+  });
+
+  it('records the pace the targets give', () => {
+    expect(weeklyCheckIn(estimate(2300), { ...suggestion(1480, 2, true), expectedLoss: 0.396 }, 1480, null, SUNDAY, 0.5).weeklyLoss).toBe(0.4);
   });
 
   it('keeps converging on a steady burn after a capped step', () => {

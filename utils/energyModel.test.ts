@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DailySummary, WeightEntry } from '../types';
 import { addDays } from './planUtils';
-import { burnRange, estimateEnergy, rangeLimit, estimateEnergyFor, fastDaysPerWeek, MIN_BURN_MARGIN, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
+import { burnRange, estimateEnergy, planFastDays, planOutcome, rangeLimit, estimateEnergyFor, fastDaysPerWeek, MIN_BURN_MARGIN, MIN_NOURISH_TARGET, suggestTargets, weightTrend } from './energyModel';
 
 const TODAY = '2026-10-14';
 
@@ -147,6 +147,26 @@ describe('suggestTargets', () => {
     expect(suggestTargets(estimate, stats, 0, 0.5)).toMatchObject({ nourish: 1950, fast: 800, capped: false, floored: false });
   });
 
+  it('keeps 5:2 nourish days no lower than 300 under the burn, and says what pace that gives', () => {
+    // The case that prompted it: burn 1,910 with 132 a day of workouts added back, 2 fast days at 1,000
+    const low = { ...estimate, expenditure: 1910, avgWorkoutBurn: 132 };
+    const s = suggestTargets(low, { dailyCalorieGoal: 1000, currentWeight: 90 }, 2, 0.5)!;
+    expect(s).toMatchObject({ limited: true, unlimited: 1320, nourish: 1480, maintenance: 1780, weeklyLoss: 0.5, floored: false });
+    expect(s.expectedLoss).toBeCloseTo((1778 * 7 - 2000 - 5 * 1480) / 7700, 5);
+    expect(s.maintenanceLoss).toBeCloseTo((1778 * 7 - 2000 - 5 * 1778) / 7700, 5);
+  });
+
+  it('can leave the limit off', () => {
+    const low = { ...estimate, expenditure: 1910, avgWorkoutBurn: 132 };
+    expect(suggestTargets(low, { dailyCalorieGoal: 1000, currentWeight: 90 }, 2, 0.5, { limit: false })).toMatchObject({ limited: false, nourish: 1320 });
+  });
+
+  it('has no such limit without fast days', () => {
+    const s = suggestTargets({ ...estimate, expenditure: 1910 }, { dailyCalorieGoal: 800, currentWeight: 90 }, 0, 0.5)!;
+    expect(s).toMatchObject({ limited: false, nourish: 1360, maintenanceLoss: 0 });
+    expect(s.expectedLoss).toBeCloseTo(0.5, 2);
+  });
+
   it('spreads fast days across the week', () => {
     // (1950 × 7 − 2 × 800) / 5 = 2410
     expect(suggestTargets(estimate, stats, 2, 0.5)?.nourish).toBe(2410);
@@ -172,6 +192,33 @@ describe('fastDaysPerWeek', () => {
   it('counts fast days in the window, per week', () => {
     const types = Object.fromEntries([...windowDays.filter((_, i) => i % 7 < 2).map(d => [d, 'fast']), [TODAY, 'fast']]);
     expect(fastDaysPerWeek(estimateEnergy([], [], TODAY, undefined, types))).toBe(2);
+  });
+});
+
+describe('planOutcome', () => {
+  const estimate = { expenditure: 1910, avgWorkoutBurn: 132 };
+
+  it('works out the week of your own targets against your burn', () => {
+    const o = planOutcome(estimate, {}, { fastDays: 2, fast: 1000, nourish: 1480 })!;
+    expect(o.maintenance).toBe(1778);
+    expect(o.weeklyIntake).toBe(2 * 1000 + 5 * 1480);
+    expect(o.weeklyLoss).toBeCloseTo((1778 * 7 - 9400) / 7700, 5);
+    expect(o.nourishNearFast).toBe(false);
+  });
+
+  it('flags nourish days far under the burn on 5:2, and reports gaining as negative', () => {
+    expect(planOutcome(estimate, {}, { fastDays: 2, fast: 1000, nourish: 1320 })!.nourishNearFast).toBe(true);
+    expect(planOutcome(estimate, {}, { fastDays: 0, fast: 1000, nourish: 1320 })!.nourishNearFast).toBe(false);
+    expect(planOutcome(estimate, {}, { fastDays: 0, fast: 1000, nourish: 2200 })!.weeklyLoss).toBeLessThan(0);
+    expect(planOutcome({ expenditure: null, avgWorkoutBurn: 0 }, {}, { fastDays: 2, fast: 1000, nourish: 1500 })).toBeNull();
+  });
+});
+
+describe('planFastDays', () => {
+  it('uses the saved number, else the Planner', () => {
+    expect(planFastDays({ fastDaysPerWeek: 2 }, { fastDays: 0, windowDays: 28 })).toBe(2);
+    expect(planFastDays({}, { fastDays: 7, windowDays: 28 })).toBe(2);
+    expect(planFastDays({ fastDaysPerWeek: 0 }, { fastDays: 8, windowDays: 28 })).toBe(0);
   });
 });
 
