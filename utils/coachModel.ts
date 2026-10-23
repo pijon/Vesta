@@ -12,7 +12,7 @@ const LOGGING_GOOD = 9;
 const LOGGING_LOW = 5;
 /** Fully logged days that make a week count towards the steady-logging streak */
 const STEADY_WEEK_DAYS = 4;
-import { EnergyEstimate, TargetSuggestion, burnRange, estimateEnergyFor, fastDaysPerWeek, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
+import { EnergyEstimate, TargetSuggestion, burnRange, estimateEnergyFor, planFastDays, suggestTargets, weightTrend, DEFAULT_LOSS_RATE } from './energyModel';
 
 /**
  * The numbers guidance is based on. Everything here is measured from the user's own logs, so the
@@ -133,7 +133,7 @@ export const buildCoachFacts = (
     todayEaten: (todayLog.items || []).reduce((a, i) => a + (i.calories || 0), 0),
     todayProtein: (todayLog.items || []).reduce((a, i) => a + (i.protein || 0), 0),
     estimate,
-    suggestion: suggestTargets(estimate, stats, fastDaysPerWeek(estimate), weeklyLossGoal),
+    suggestion: suggestTargets(estimate, stats, planFastDays(stats, estimate), weeklyLossGoal),
     weeklyLossGoal,
   };
 };
@@ -191,8 +191,11 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
     });
   } else if (losing) {
     const perWeek = -f.trendChange14! / 2;
-    const onPace = perWeek >= f.weeklyLossGoal * 1.1 ? ` That's ahead of your ${kg(f.weeklyLossGoal)} a week goal.`
-      : perWeek >= f.weeklyLossGoal * 0.9 ? ` That's right on your ${kg(f.weeklyLossGoal)} a week goal.`
+    // The pace the targets give (on 5:2 it can be slower than the one chosen, or set by the fast days alone)
+    const goal = f.suggestion ? Math.round(f.suggestion.expectedLoss * 20) / 20 : f.weeklyLossGoal;
+    const onPace = goal <= 0 ? ''
+      : perWeek >= goal * 1.1 ? ` That's ahead of your ${kg(goal)} a week pace.`
+      : perWeek >= goal * 0.9 ? ` That's right on your ${kg(goal)} a week pace.`
       : '';
     const toGo = f.goalWeight > 0 && f.trendNow !== null && f.trendNow > f.goalWeight ? f.trendNow - f.goalWeight : 0;
     const weeksToGo = toGo > 0 ? Math.ceil(toGo / perWeek) : 0;
@@ -212,7 +215,7 @@ export const coachFindings = (f: CoachFacts): Finding[] => {
       id: 'plateau',
       tone: 'focus',
       title: 'A real plateau: flat for two weeks on complete logs',
-      detail: `You've fully logged most days and the trend hasn't moved, so your current intake is close to what you burn (about ${burn(f.estimate)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(f.suggestion.weeklyLoss)} a week, and Sunday's check-in moves your target towards it, at most 150 kcal a week.`,
+      detail: `You've fully logged most days and the trend hasn't moved, so your current intake is close to what you burn (about ${burn(f.estimate)} a day). Nourish days at ${kcal(f.suggestion.nourish)} would get you back to about ${kg(Math.round(f.suggestion.expectedLoss * 20) / 20)} a week, and Sunday's check-in moves your target towards it, at most 150 kcal a week.`,
     });
   } else if (flat) {
     findings.push({

@@ -23,7 +23,7 @@ const round10 = (n: number) => Math.round(n / 10) * 10;
  */
 export const weeklyCheckIn = (
   estimate: Pick<EnergyEstimate, 'expenditure' | 'expenditureMargin' | 'weightChangePerWeek' | 'loggedDays' | 'weighIns'>,
-  suggestion: Pick<TargetSuggestion, 'nourish' | 'fastDaysPerWeek' | 'weeklyLoss'> | null,
+  suggestion: Pick<TargetSuggestion, 'nourish' | 'fastDaysPerWeek' | 'limited' | 'expectedLoss'> | null,
   currentTarget: number,
   last: Pick<WeeklyCheckIn, 'burnUsed' | 'margin'> | null,
   date: string,
@@ -38,7 +38,8 @@ export const weeklyCheckIn = (
     weightChangePerWeek: estimate.weightChangePerWeek,
     loggedDays: estimate.loggedDays,
     weighIns: estimate.weighIns,
-    weeklyLoss: suggestion?.weeklyLoss ?? weeklyLoss,
+    // The pace the targets give, which on 5:2 can be slower than asked (see suggestTargets' `limited`)
+    weeklyLoss: suggestion ? Math.round(suggestion.expectedLoss * 20) / 20 : weeklyLoss,
     createdAt: now,
   };
   if (estimate.expenditure === null || !suggestion) {
@@ -47,8 +48,9 @@ export const weeklyCheckIn = (
 
   const steady = last?.burnUsed != null && last.margin != null && Math.abs(estimate.expenditure - last.burnUsed) <= last.margin;
   const burnUsed = steady ? last!.burnUsed! : estimate.expenditure;
-  // The nourish target moves 7 / (nourish days) kcal for each kcal of burn, as suggestTargets spreads it
-  const perKcal = 7 / (7 - suggestion.fastDaysPerWeek);
+  // The nourish target moves 7 / (nourish days) kcal for each kcal of burn, as suggestTargets spreads it;
+  // held at its 5:2 limit under the burn, it moves one for one
+  const perKcal = suggestion.limited ? 1 : 7 / (7 - suggestion.fastDaysPerWeek);
   const suggested = Math.max(MIN_NOURISH_TARGET, round10(suggestion.nourish - (estimate.expenditure - burnUsed) * perKcal));
 
   const gap = suggested - currentTarget;

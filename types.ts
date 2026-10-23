@@ -230,6 +230,8 @@ export interface UserStats {
   breaks?: TrackingBreak[];
   dietMode?: 'daily' | '5:2'; // Default 'daily'
   nonFastDayCalories?: number; // Target for non-fast days (e.g. 2000)
+  /** Fast days a week the targets plan for, set on the pace panel; unset uses what the Planner shows lately */
+  fastDaysPerWeek?: number;
   dailyWorkoutCalorieGoal?: number; // Daily calorie burn target for workouts
   weeklyLossGoal?: number; // kg per week the suggested calorie target aims for (default 0.5)
   workoutCalorieCredit?: WorkoutCalorieCredit; // Share of workout calories added to the day's budget (default 1)

@@ -291,29 +291,93 @@ export interface TargetSuggestion {
   capped: boolean;
   /** The target hit the floor, so the real loss will be slower than asked */
   floored: boolean;
+  /** What you burn on a nourish day before workouts are added back: eating this, only fast days make a deficit */
+  maintenance: number;
+  /** kg a week with nourish days at maintenance, from the fast days alone (0 without fast days) */
+  maintenanceLoss: number;
+  /** With fast days, the pace asked for would have put nourish days more than NOURISH_BELOW_BURN under maintenance */
+  limited: boolean;
+  /** The nourish target the pace alone would have given, before the limits */
+  unlimited: number;
+  /** kg a week the suggested targets actually give */
+  expectedLoss: number;
 }
+
+/**
+ * On 5:2 the fast days make the deficit and nourish days stay near what you burn. A faster pace may
+ * take nourish days this far under it, no further, so they don't turn into a second kind of fast day.
+ */
+export const NOURISH_BELOW_BURN = 300;
 
 /**
  * The nourish-day target that gives the chosen weekly loss, given the fast days and their target.
  * The app adds workout calories (all, half or none, per Settings) back to the day's budget, so that
  * share of the average workout burn is taken off the estimate first; otherwise it would count twice.
+ * With fast days (and `limit`), nourish days go no lower than NOURISH_BELOW_BURN under maintenance, and
+ * the pace that gives is reported instead (`limited`, `expectedLoss`).
  */
 export const suggestTargets = (
   estimate: EnergyEstimate,
   stats: Pick<UserStats, 'dailyCalorieGoal' | 'currentWeight' | 'workoutCalorieCredit'>,
   fastDaysPerWeek: number,
   weeklyLoss: number,
+  /** Keep 5:2 nourish days within NOURISH_BELOW_BURN of maintenance; off for targets you set yourself */
+  { limit = true }: { limit?: boolean } = {},
 ): TargetSuggestion | null => {
   if (estimate.expenditure === null) return null;
   const maxRate = stats.currentWeight > 0 ? Math.floor(stats.currentWeight * 0.01 * 20) / 20 : 1;
   const rate = Math.min(weeklyLoss, maxRate);
   const dailyDeficit = (rate * KCAL_PER_KG) / 7;
-  const allowance = estimate.expenditure - estimate.avgWorkoutBurn * (stats.workoutCalorieCredit ?? 1) - dailyDeficit;
+  const maintenance = estimate.expenditure - estimate.avgWorkoutBurn * (stats.workoutCalorieCredit ?? 1);
+  const allowance = maintenance - dailyDeficit;
   const fastDays = Math.min(Math.max(Math.round(fastDaysPerWeek), 0), 6);
   const fast = stats.dailyCalorieGoal;
   const raw = (allowance * 7 - fastDays * fast) / (7 - fastDays);
-  const nourish = Math.max(MIN_NOURISH_TARGET, Math.round(raw / 10) * 10);
-  return { nourish, fast, fastDaysPerWeek: fastDays, weeklyLoss: rate, dailyDeficit, capped: rate < weeklyLoss, floored: raw < MIN_NOURISH_TARGET };
+  const lowest = fastDays > 0 && limit ? maintenance - NOURISH_BELOW_BURN : -Infinity;
+  const limited = raw < lowest;
+  const nourish = Math.max(MIN_NOURISH_TARGET, Math.round(Math.max(raw, lowest) / 10) * 10);
+  const lossFrom = (nourishDay: number) => Math.max(0, (maintenance * 7 - fastDays * fast - (7 - fastDays) * nourishDay) / KCAL_PER_KG);
+  return {
+    nourish, fast, fastDaysPerWeek: fastDays, weeklyLoss: rate, dailyDeficit, capped: rate < weeklyLoss,
+    floored: !limited && raw < MIN_NOURISH_TARGET,
+    maintenance: Math.round(maintenance / 10) * 10, maintenanceLoss: fastDays > 0 ? lossFrom(maintenance) : 0,
+    limited, unlimited: Math.round(raw / 10) * 10, expectedLoss: lossFrom(nourish),
+  };
+};
+
+/** The fast days a week the targets plan for: the number you saved, else what the Planner shows lately */
+export const planFastDays = (stats: Pick<UserStats, 'fastDaysPerWeek'>, estimate: Pick<EnergyEstimate, 'fastDays' | 'windowDays'>) =>
+  stats.fastDaysPerWeek ?? Math.round(fastDaysPerWeek(estimate));
+
+export interface PlanOutcome {
+  /** What you burn on a nourish day before workouts are added back */
+  maintenance: number;
+  /** A week of the plan, and how far under maintenance that is */
+  weeklyIntake: number;
+  weeklyDeficit: number;
+  /** kg a week it gives (negative = gaining) */
+  weeklyLoss: number;
+  /** Nourish days more than NOURISH_BELOW_BURN under maintenance on 5:2: close to a fast day */
+  nourishNearFast: boolean;
+}
+
+/** What a week of your own targets gives: fast days at `fast`, the rest at `nourish`. */
+export const planOutcome = (
+  estimate: Pick<EnergyEstimate, 'expenditure' | 'avgWorkoutBurn'>,
+  stats: Pick<UserStats, 'workoutCalorieCredit'>,
+  plan: { fastDays: number; fast: number; nourish: number },
+): PlanOutcome | null => {
+  if (estimate.expenditure === null) return null;
+  const maintenance = estimate.expenditure - estimate.avgWorkoutBurn * (stats.workoutCalorieCredit ?? 1);
+  const weeklyIntake = plan.fastDays * plan.fast + (7 - plan.fastDays) * plan.nourish;
+  const weeklyDeficit = maintenance * 7 - weeklyIntake;
+  return {
+    maintenance,
+    weeklyIntake,
+    weeklyDeficit,
+    weeklyLoss: weeklyDeficit / KCAL_PER_KG,
+    nourishNearFast: plan.fastDays > 0 && plan.nourish < maintenance - NOURISH_BELOW_BURN,
+  };
 };
 
 /** Fast days per week over the estimate window, from the planner's day types (break days left out). */

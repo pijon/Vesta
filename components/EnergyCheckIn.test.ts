@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EnergyEstimate } from '../utils/energyModel';
-import { rangeAdvice, stillNeeded } from './EnergyCheckIn';
+import { paceText, rangeAdvice, stillNeeded } from './EnergyCheckIn';
 
 const estimate = (loggedDays: number, weighIns: number, weighSpanDays: number): EnergyEstimate => ({
   from: '2026-09-19', to: '2026-10-16', windowDays: 28, loggedDays, weighIns, weighSpanDays, ready: false,
@@ -36,5 +36,13 @@ describe('rangeAdvice', () => {
 
   it('says so when the range is already as narrow as it gets', () => {
     expect(rangeAdvice({ ...ready, expenditureMargin: 250, weightMargin: 150, intakeMargin: 100 })).toBe('That range is as narrow as this kind of estimate gets.');
+  });
+});
+
+describe('paceText', () => {
+  it('says the pace a week of targets gives, to the nearest 0.05 kg', () => {
+    expect(paceText(0.396)).toBe('About 0.4 kg a week down');
+    expect(paceText(-0.21)).toBe('About 0.2 kg a week up');
+    expect(paceText(0.01)).toBe('About the same as you burn');
   });
 });

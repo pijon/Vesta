@@ -6,7 +6,7 @@ import { ensureWarm, usePrewarmed } from '../utils/prewarm';
 import { localDateString } from '../utils/dateUtils';
 import { onBreak } from '../utils/breaks';
 import { FIRST_CHECK_IN, checkInDateFor, weeklyCheckIn } from '../utils/checkIn';
-import { DEFAULT_LOSS_RATE, estimateEnergyFor, fastDaysPerWeek, suggestTargets } from '../utils/energyModel';
+import { DEFAULT_LOSS_RATE, estimateEnergyFor, planFastDays, suggestTargets } from '../utils/energyModel';
 
 /**
  * Runs this week's check-in once its Sunday has come, if no device has yet and it wasn't on a break, and applies a changed
@@ -31,7 +31,8 @@ export const useWeeklyCheckIn = (
     const last = history.filter(c => c.date < date).at(-1) ?? null;
     const rate = stats.weeklyLossGoal ?? DEFAULT_LOSS_RATE;
     const estimate = estimateEnergyFor(stats, summaries, dayTypes);
-    const suggestion = suggestTargets(estimate, stats, fastDaysPerWeek(estimate), rate);
+    // Your own targets keep their pace: no 5:2 limit here, as you may have set nourish days lower yourself
+    const suggestion = suggestTargets(estimate, stats, planFastDays(stats, estimate), rate, { limit: false });
     const checkIn = weeklyCheckIn(estimate, suggestion, stats.nonFastDayCalories || 2000, last, date, rate);
     saveCheckInIfNew(checkIn)
       .then(({ checkIn: saved, created }) => {
