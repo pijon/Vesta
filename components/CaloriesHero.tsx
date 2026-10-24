@@ -65,16 +65,19 @@ export const CaloriesHero: React.FC<CaloriesHeroProps> = ({
                 />
             </div>
 
-            <p className="text-sm font-medium tabular-nums">{detail}</p>
+            {/* Full width on phones; from md the button sits beside the detail line */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm font-medium tabular-nums">{detail}</p>
 
-            {/* Ink on tomato in both modes (btn-primary's ink turns cream in dark mode) */}
-            <button
-                onClick={onLogFood}
-                className="btn-base btn-block min-h-[52px] text-base hover:opacity-90"
-                style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
-            >
-                <Plus size={20} strokeWidth={2.75} aria-hidden="true" /> Log food
-            </button>
+                {/* Ink on tomato in both modes (btn-primary's ink turns cream in dark mode) */}
+                <button
+                    onClick={onLogFood}
+                    className="btn-base btn-block min-h-[52px] text-base hover:opacity-90 md:w-auto md:shrink-0 md:min-h-11 md:px-6"
+                    style={{ background: 'var(--hero-foreground)', color: 'var(--hero)' }}
+                >
+                    <Plus size={20} strokeWidth={2.75} aria-hidden="true" /> Log food
+                </button>
+            </div>
         </section>
     );
 };
