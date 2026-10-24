@@ -95,6 +95,8 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
   const [isAdding, setIsAdding] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  // What the import is doing right now, shown on the button so a long import doesn't look stuck
+  const [importStep, setImportStep] = useState('Reading recipe…');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<string>('name');
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -239,8 +241,13 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
     setImportError(null);
     try {
       const sourceUrl = getRecipeUrl(inputText);
+      let recipeText = inputText;
+      let pageImage: Promise<string | null> = Promise.resolve(null);
       if (sourceUrl) {
+        setImportStep('Opening the page…');
         // Some sites refuse automated readers; find out in a second instead of after a long AI wait.
+        // The page read starts at the same time, so a readable page costs one round trip, not two.
+        const pageText = readRecipePageText(sourceUrl);
         const check = await checkRecipePage(sourceUrl);
         if (!check.ok) {
           setImportError(check.reason === 'blocked'
@@ -248,12 +255,13 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
             : "We couldn't find a page at that link. Check the address, or paste the recipe text instead.");
           return;
         }
+        // Copy the page's photo in parallel with reading the recipe; a user upload wins.
+        if (!uploadedImage) pageImage = importRecipeImageFromUrl(sourceUrl, newRecipeId);
+        const structured = await pageText;
+        if (structured === null) setImportStep('Reading the page with AI…');
+        recipeText = structured ?? await fetchRecipeFromUrl(sourceUrl);
       }
-      // Copy the page's photo in parallel with reading the recipe; a user upload wins.
-      const pageImage = sourceUrl && !uploadedImage
-        ? importRecipeImageFromUrl(sourceUrl, newRecipeId)
-        : Promise.resolve(null);
-      const recipeText = sourceUrl ? (await readRecipePageText(sourceUrl)) ?? await fetchRecipeFromUrl(sourceUrl) : inputText;
+      setImportStep('Sorting ingredients and steps…');
       const partialRecipe = await parseRecipeText(recipeText);
       if (partialRecipe) {
         const newRecipe: Recipe = {
@@ -271,6 +279,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
           servings: partialRecipe.servings || 1,
         };
 
+        if (!uploadedImage && sourceUrl) setImportStep('Adding the photo…');
         const image = uploadedImage ?? await pageImage;
         if (image) {
           newRecipe.image = image;
@@ -291,6 +300,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
         : "We couldn't make sense of that recipe. Check the text and try again.");
     } finally {
       setIsProcessing(false);
+      setImportStep('Reading recipe…');
     }
   };
 
@@ -310,6 +320,7 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
   };
 
   const finishImport = async (newRecipe: Recipe) => {
+    setImportStep('Saving…');
     await saveNewRecipe(newRecipe);
     await loadData();
     resetImport();
@@ -610,8 +621,9 @@ export const RecipeLibrary: React.FC<RecipeLibraryProps> = ({ onSelect, experien
 
           <button onClick={handleAIAdd} disabled={isProcessing || !inputText.trim()} className="btn-primary btn-block">
             {isProcessing ? <span className="spinner spinner-sm" aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
-            {isProcessing ? 'Reading recipe…' : 'Import recipe'}
+            <span aria-live="polite">{isProcessing ? importStep : 'Import recipe'}</span>
           </button>
+          {isProcessing && <p className="text-sm text-muted text-center -mt-2">Links can take up to a minute to read.</p>}
         </section>
       )}
 
