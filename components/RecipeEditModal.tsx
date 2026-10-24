@@ -17,11 +17,19 @@ const MEAL_TAGS = ['breakfast', 'main meal', 'snack', 'light meal'];
 
 const label = 'block text-sm font-semibold mb-1.5';
 
+// What an import writes as the description: the source link (the detail sheet shows it as one)
+// or a note that it came from text. Neither is the user's own text to edit, so the field starts
+// empty and leaving it empty keeps the marker.
+const isImportMarker = (description?: string) =>
+    description === 'Imported from text' || /^Imported from https?:\/\//.test(description || '');
+
 /** Edit a recipe's photo, name, servings, tags, nutrition, ingredients and steps. */
 export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave, onCancel, isSaving = false, experience = 'tracking' }) => {
     const [editForm, setEditForm] = useState<Recipe>({ ...recipe });
     const [uploadedImage, setUploadedImage] = useState<string | null>(recipe.image || null);
     const [imageError, setImageError] = useState<string | null>(null);
+    const descriptionFor = (r: Recipe) => isImportMarker(r.description) ? '' : r.description || '';
+    const [description, setDescription] = useState(() => descriptionFor(recipe));
 
     const fieldsFor = (r: Recipe) => ({calories:calorieAvailability(r)==='unknown'?'':String(r.calories),protein:r.protein===undefined?'':String(r.protein),fat:r.fat===undefined?'':String(r.fat),carbs:r.carbs===undefined?'':String(r.carbs)});
     const [nutrition, setNutrition] = useState(() => fieldsFor(recipe));
@@ -37,6 +45,7 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
         setNutrition(fieldsFor(recipe));
         setNutritionTouched(false);
         setUploadedImage(recipe.image || null);
+        setDescription(descriptionFor(recipe));
     }, [recipe]);
 
     const handleSave = async () => {
@@ -57,6 +66,7 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
         }
         const updatedRecipe: Recipe = {
             ...editForm, ...values, name:editForm.name.trim(),
+            description: description.trim() || (isImportMarker(recipe.description) ? recipe.description : undefined),
             ingredients: (editForm.ingredients || []).filter(i => i.trim()),
             instructions: (editForm.instructions || []).filter(i => i.trim()),
             image: uploadedImage || undefined,
@@ -155,6 +165,18 @@ export const RecipeEditModal: React.FC<RecipeEditModalProps> = ({ recipe, onSave
                             <button onClick={() => setEditForm({ ...editForm, servings: servings + 1 })} className="icon-btn" aria-label="One serving more"><Plus size={18} /></button>
                         </div>
                     </div>
+                </div>
+
+                <div>
+                    <label htmlFor="recipe-description" className={label}>Description <span className="font-normal text-muted">optional</span></label>
+                    <textarea
+                        id="recipe-description"
+                        rows={3}
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        placeholder="A weeknight favourite. Make the sauce a day ahead."
+                        className="input w-full resize-none leading-relaxed"
+                    />
                 </div>
 
                 {/* Tags */}

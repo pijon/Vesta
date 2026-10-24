@@ -29,3 +29,16 @@ it('planning editor mounts no nutrition controls and always preserves',async()=>
  const save=vi.fn();await act(async()=>root.render(React.createElement(RecipeEditModal,{recipe:{...recipe,calories:450},experience:'planning',onSave:save,onCancel:()=>{}})));
  expect(container.querySelector('input[type="number"]')).toBeNull();await click('Save changes');expect(save).toHaveBeenCalledWith(expect.objectContaining({calories:450}),{nutrition:'preserve'});
 });
+const type=async(textarea:HTMLTextAreaElement,value:string)=>act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value')!.set!.call(textarea,value);textarea.dispatchEvent(new Event('input',{bubbles:true}));});
+it('edits and clears the description',async()=>{
+ const save=vi.fn();await act(async()=>root.render(React.createElement(RecipeEditModal,{recipe:{...recipe,description:'A long book intro'},onSave:save,onCancel:()=>{}})));
+ const field=container.querySelector<HTMLTextAreaElement>('#recipe-description')!;
+ expect(field.value).toBe('A long book intro');
+ await type(field,'  Short note ');await click('Save changes');expect(save.mock.calls[0][0].description).toBe('Short note');
+ await type(field,'');await click('Save changes');expect(save.mock.calls[1][0].description).toBeUndefined();
+});
+it('keeps an import source when the description is left empty',async()=>{
+ const save=vi.fn();await act(async()=>root.render(React.createElement(RecipeEditModal,{recipe:{...recipe,description:'Imported from https://example.com/soup'},onSave:save,onCancel:()=>{}})));
+ expect(container.querySelector<HTMLTextAreaElement>('#recipe-description')!.value).toBe('');
+ await click('Save changes');expect(save.mock.calls[0][0].description).toBe('Imported from https://example.com/soup');
+});
