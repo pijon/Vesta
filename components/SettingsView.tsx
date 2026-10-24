@@ -10,6 +10,7 @@ import { exportAllData, importAllData, getLocalStorageDebugInfo, migrateFromLoca
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { localDateString } from '../utils/dateUtils';
+import { recipesOnlyCount } from '../utils/backupContents';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 import { SelectionPill } from './SelectionPill';
 import { MemberAvatar } from './MemberAvatar';
@@ -109,8 +110,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const ownerUid = useRef(sessionUid).current;
     const ownsSession = () => !!ownerUid && currentUid() === ownerUid;
     const [hasCopiedId, setHasCopiedId] = useState(false);
-    // The action waiting on its confirmation sheet (a backup to restore carries its file)
-    const [confirming, setConfirming] = useState<'logout' | 'sync' | { restore: File } | null>(null);
+    // The action waiting on its confirmation sheet (a backup to restore carries its file, read, and
+    // its recipe count when recipes are all it holds)
+    const [confirming, setConfirming] = useState<'logout' | 'sync' | { restore: File; text: string; recipes: number | null } | null>(null);
 
     const update = (field: keyof ReturnType<typeof toForm>) => (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm(f => ({ ...f, [field]: e.target.value }));
@@ -286,14 +288,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         flash('Backup downloaded');
     };
 
-    const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         e.target.value = '';
-        if (file) setConfirming({ restore: file });
+        if (!file) return;
+        const text = await file.text();
+        if (mounted.current) setConfirming({ restore: file, text, recipes: recipesOnlyCount(text) });
     };
 
-    const restoreBackup = async (file: File) => {
-        const result = await importAllData(await file.text());
+    const restoreBackup = async (text: string) => {
+        const result = await importAllData(text);
         if (result.success) window.location.reload();
         else flash(`That backup couldn't be restored: ${result.error}`);
     };
@@ -673,16 +677,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     onClose={() => setConfirming(null)}
                 />
             )}
-            {confirming && typeof confirming === 'object' && (
+            {confirming && typeof confirming === 'object' && (confirming.recipes !== null ? (
+                <ConfirmSheet
+                    title={confirming.recipes === 1 ? 'Add this recipe?' : `Add ${confirming.recipes} recipes?`}
+                    message={<><span className="font-semibold text-main">{confirming.restore.name}</span> holds only recipes. {confirming.recipes === 1 ? "It's" : "They're"} added to your family's recipes, and the app reloads. Nothing else in Vesta changes.</>}
+                    confirmLabel={confirming.recipes === 1 ? 'Add recipe' : 'Add recipes'}
+                    onConfirm={() => restoreBackup(confirming.text)}
+                    onClose={() => setConfirming(null)}
+                />
+            ) : (
                 <ConfirmSheet
                     title="Restore this backup?"
                     message={<>Everything in Vesta is replaced with <span className="font-semibold text-main">{confirming.restore.name}</span>, and the app reloads. Download a backup first if you might want today's data back.</>}
                     confirmLabel="Restore"
                     tone="danger"
-                    onConfirm={() => restoreBackup(confirming.restore)}
+                    onConfirm={() => restoreBackup(confirming.text)}
                     onClose={() => setConfirming(null)}
                 />
-            )}
+            ))}
         </div>
     );
 };
