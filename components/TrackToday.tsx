@@ -30,6 +30,8 @@ import { TodayMealSheet } from './TodayMealSheet';
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Sheet } from './Sheet';
 import { useAchievements } from '../hooks/useAchievements';
+import { UnwellCard } from './UnwellCard';
+import { unwellDays } from '../utils/unwell';
 import { analyzeActivityStreaks } from '../utils/analytics';
 
 
@@ -50,6 +52,8 @@ interface TrackTodayProps {
   /** Unticks a planned meal and removes its diary entry */
   onRemovePlannedIntake: (meal: Recipe) => Promise<void>;
   onSetDayStatus: (status: DayLogStatus | undefined) => Promise<DailyLog>;
+  /** Marks today as a day the user feels unwell, or not */
+  onSetUnwell: (unwell: boolean) => Promise<DailyLog>;
   onAddFoodLogItems: (items: FoodLogItem[]) => Promise<void>;
   onUpdateFoodItem: (item: FoodLogItem) => Promise<void>;
   onDeleteFoodItem: (itemId: string) => Promise<void>;
@@ -79,6 +83,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   onRequestPlannedIntake,
   onRemovePlannedIntake,
   onSetDayStatus,
+  onSetUnwell,
   onAddFoodLogItems,
   onUpdateFoodItem,
   onDeleteFoodItem,
@@ -149,7 +154,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
       netCalories: 0, // Calculated below
       workoutCount: (dailyLog.workouts || []).length,
       waterIntake: dailyLog.waterIntake,
-      maxFastingHours: dailyLog.maxFastingHours
+      maxFastingHours: dailyLog.maxFastingHours,
+      ...(dailyLog.unwell ? { unwell: true } : {}),
     };
     todaySummary.netCalories = todaySummary.caloriesConsumed - todaySummary.caloriesBurned;
 
@@ -160,8 +166,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     return Array.from(historyMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [activityHistory, dailyLog]);
 
-  // Called for its side effect: keeps streaks in stats up to date
-  useAchievements(dailyLog, fastingState, stats, onUpdateStats);
+  // Called for its side effect: keeps streaks in stats up to date (once the history says which days were unwell)
+  const unwell = React.useMemo(() => (summaries ? unwellDays(effectiveHistory) : null), [summaries, effectiveHistory]);
+  useAchievements(dailyLog, fastingState, stats, onUpdateStats, unwell);
 
   // Calculate calories
   const consumed = (dailyLog.items || []).reduce((sum, item) => sum + item.calories, 0);
@@ -340,6 +347,22 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     return true;
   };
 
+  /** Feeling unwell: a planned fast day becomes a nourish day (with Undo), as fasting while ill isn't advised */
+  const handleSetUnwell = async (next: boolean) => {
+    try {
+      await onSetUnwell(next);
+    } catch (e) {
+      console.error('Failed to save unwell mark', e);
+      setToast({ message: "Couldn't save that change. Check your connection." });
+      return;
+    }
+    const plan = storedPlanRef.current;
+    if (!next || !isFastDay(plan)) return;
+    if (await savePlan({ ...plan, type: 'non-fast' })) {
+      setToast({ message: 'Today is a nourish day now', undo: () => { savePlan({ ...storedPlanRef.current, type: 'fast' }); } });
+    }
+  };
+
   const handleMealSelected = async (recipe: Recipe) => {
     const plan = storedPlanRef.current;
     const old = plan.meals.find(m => mealKey(m) === swapKey);
@@ -477,6 +500,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
             onOpen: () => onNavigate(AppView.ANALYTICS),
           }}
         />
+        <UnwellCard unwell={!!dailyLog.unwell} water={dailyLog.waterIntake || 0} waterGoal={stats.dailyWaterGoal || 2500} onSet={handleSetUnwell} />
       </div>
 
       {/* Only prompts about today's meals sit above the plate; later days are under Coming up */}
@@ -506,7 +530,8 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         dayStatus={dailyLog.status}
         dayCounts={isCompleteDay(consumed, dailyTarget, dailyLog.status)}
         dayCountsForBurn={isCompleteDay(consumed, dailyTarget, dailyLog.status, ENERGY_COMPLETE_DAY_SHARE)}
-        lightDayUsual={looksLight(consumed, usual, dailyLog.status) ? usual! : undefined}
+        lightDayUsual={!dailyLog.unwell && looksLight(consumed, usual, dailyLog.status) ? usual! : undefined}
+        unwell={!!dailyLog.unwell}
         isFastDay={!isNonFastDay}
         editItemId={editItemId}
         onEditItemOpened={() => setEditItemId(null)}

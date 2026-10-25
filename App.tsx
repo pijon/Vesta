@@ -871,6 +871,7 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
         onRequestPlannedIntake: handleRequestPlannedIntake,
         onRemovePlannedIntake: handleRemovePlannedIntake,
         onSetDayStatus: (status: DayLogStatus | undefined) => updateDailyLog(current => ({ ...current, status })),
+        onSetUnwell: (unwell: boolean) => updateDailyLog(current => ({ ...current, unwell: unwell || undefined })),
         onAddFoodLogItems: handleAddFoodLogItems,
         onUpdateFoodItem: (item:FoodLogItem) => runHealthMutation(async()=>{
             if(item.planInstanceId) {publishIntake(await updatePlannedMealIntake(uid,todayDate,item));return;}

@@ -301,7 +301,7 @@ export const EnergyPanel: React.FC<PanelProps> = ({ stats, summaries, dayTypes, 
           <p>
             The method is energy balance: what you burn is what you eat, less the energy your body stored or used, read
             from the slope of a straight line through your weigh-ins. Your intake is averaged over the last four weeks
-            of fully logged days, fast and nourish days apart; breaks and the days after them are left out. The range is
+            of fully logged days, fast and nourish days apart; breaks, days you felt unwell and the days after them are left out. The range is
             an 80% band from how much your weigh-ins and logged days scatter, and it never gets narrower than
             ±{MIN_BURN_MARGIN.toLocaleString()} kcal.
           </p>

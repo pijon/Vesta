@@ -26,6 +26,8 @@ export function analyzeActivityStreaks(summaries: DailySummary[]): StreakAnalysi
   // Map all active dates for O(1) lookup
   const activityMap = new Map<string, boolean>();
   let totalActiveDays = 0;
+  // Days marked unwell pause the streak: they neither count nor break it
+  const unwell = new Set(summaries.filter(s => s.unwell).map(s => s.date));
 
   summaries.forEach(s => {
     if (s.caloriesBurned > 0 || s.workoutCount > 0) {
@@ -52,6 +54,8 @@ export function analyzeActivityStreaks(summaries: DailySummary[]): StreakAnalysi
     dStr = localDateString(d);
     if (activityMap.get(dStr)) {
       currentStreak++;
+      d.setDate(d.getDate() - 1);
+    } else if (unwell.has(dStr)) {
       d.setDate(d.getDate() - 1);
     } else {
       break;
@@ -80,7 +84,7 @@ export function analyzeActivityStreaks(summaries: DailySummary[]): StreakAnalysi
       if (activityMap.get(s)) {
         tempStreak++;
         longestStreak = Math.max(longestStreak, tempStreak);
-      } else {
+      } else if (!unwell.has(s)) {
         tempStreak = 0;
       }
       scanner.setDate(scanner.getDate() + 1);

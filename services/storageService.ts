@@ -1500,6 +1500,7 @@ const summarizeLog = (log: DailyLog): DailySummary => {
     maxFastingHours: log.maxFastingHours || 0,
     ...(withProtein.length ? { proteinConsumed: Math.round(withProtein.reduce((sum, item) => sum + (item.protein || 0), 0)) } : {}),
     ...(log.status ? { status: log.status } : {}),
+    ...(log.unwell ? { unwell: true } : {}),
   };
 };
 
@@ -1567,13 +1568,13 @@ export const getLogHistory = async (daysBack: number): Promise<LogHistory> => {
   };
 };
 
-/** One summary per day: a stored summary, else one computed from the log (the log's status wins). */
+/** One summary per day: a stored summary, else one computed from the log (the log's status and unwell mark win). */
 export const mergeSummaries = ({ logs, summaries }: LogHistory): DailySummary[] => {
   const summariesMap = new Map<string, DailySummary>(summaries.map(summary => [summary.date, summary]));
   logs.forEach(log => {
     const stored = summariesMap.get(log.date);
     if (!stored) summariesMap.set(log.date, summarizeLog(log));
-    else if (log.status) summariesMap.set(log.date, { ...stored, status: log.status });
+    else if (log.status || log.unwell) summariesMap.set(log.date, { ...stored, ...(log.status ? { status: log.status } : {}), ...(log.unwell ? { unwell: true } : {}) });
   });
   return Array.from(summariesMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 };
