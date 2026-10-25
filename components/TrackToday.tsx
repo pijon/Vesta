@@ -25,6 +25,7 @@ import { WorkoutOverviewModal } from './WorkoutOverviewModal';
 import { DEFAULT_FAST_BREAK_CALORIES } from '../constants';
 import { CaloriesHero } from './CaloriesHero';
 import { TodayStrip } from './TodayStrip';
+import { TodayMealSheet } from './TodayMealSheet';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Sheet } from './Sheet';
@@ -99,9 +100,9 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isWorkoutOverviewOpen, setIsWorkoutOverviewOpen] = useState(false);
 
-  // Meal Swap State
-  const [isMealSelectorOpen, setIsMealSelectorOpen] = useState(false);
-  const [activeMealIndexToSwap, setActiveMealIndexToSwap] = useState<number | null>(null);
+  // A planned meal being changed from the plate: its actions sheet, then the recipe picker for a swap
+  const [mealActionsKey, setMealActionsKey] = useState<string | null>(null);
+  const [swapKey, setSwapKey] = useState<string | null>(null);
 
 
   // Fasting Live Timer State
@@ -324,33 +325,65 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
     if (out) setToast({ message: `You're not eating ${meal.name}`, undo: () => { handleFamilyMealOut(meal, false, next); } });
   };
 
-  const handleSwapMeal = (index: number) => {
-    setActiveMealIndexToSwap(index);
-    setIsMealSelectorOpen(true);
+  // The stored plan (without live budgets) as it is now, for saves and an Undo that comes later
+  const storedPlanRef = React.useRef(storedPlan);
+  storedPlanRef.current = storedPlan;
+  const savePlan = async (plan: DayPlan) => {
+    try {
+      await saveDayPlan(plan);
+    } catch (e) {
+      console.error('Failed to save plan', e);
+      setToast({ message: "Couldn't save that change. Check your connection." });
+      return false;
+    }
+    refreshData();
+    return true;
   };
 
   const handleMealSelected = async (recipe: Recipe) => {
-    if (activeMealIndexToSwap === null) return;
-    const newMeals = [...todayPlan.meals];
-    const oldMeal = newMeals[activeMealIndexToSwap];
-    const updatedCompletedIds = todayPlan.completedMealIds.filter(id => id !== mealKey(oldMeal));
-
-    newMeals[activeMealIndexToSwap] = planMeal(recipe, slotFor(oldMeal), {
-      familyMeal: oldMeal.familyMeal,
-      notEating: oldMeal.notEating,
+    const plan = storedPlanRef.current;
+    const old = plan.meals.find(m => mealKey(m) === swapKey);
+    setSwapKey(null);
+    if (!old) return;
+    const meal = planMeal(recipe, slotFor(old), {
+      familyMeal: old.familyMeal,
+      notEating: old.notEating,
+      addedBy: currentUid() ?? undefined,
+      ownerId: recipe.ownerId,
     });
-
-    const updatedPlan: DayPlan = {
-      ...todayPlan,
-      meals: newMeals,
-      completedMealIds: updatedCompletedIds
-    };
-
-    await saveDayPlan(updatedPlan);
-    setIsMealSelectorOpen(false);
-    setActiveMealIndexToSwap(null);
-    refreshData();
+    const saved = await savePlan({
+      ...plan,
+      meals: plan.meals.map(m => (m === old ? meal : m)),
+      completedMealIds: plan.completedMealIds.filter(id => id !== mealKey(old)),
+    });
+    if (saved) setToast({ message: `Swapped in ${recipe.name}` });
   };
+
+  /** Takes a meal off today's plan (a family meal for everyone), with Undo putting it back where it was */
+  const handleRemoveMeal = async (key: string) => {
+    const plan = storedPlanRef.current;
+    const index = plan.meals.findIndex(m => mealKey(m) === key);
+    if (index < 0) return;
+    const meal = plan.meals[index];
+    const saved = await savePlan({
+      ...plan,
+      meals: plan.meals.filter((_, i) => i !== index),
+      completedMealIds: plan.completedMealIds.filter(id => id !== key),
+    });
+    if (!saved) return;
+    setToast({
+      message: `Removed ${meal.name}`,
+      undo: () => {
+        // The refreshed plan may not be in yet, so it can still hold the meal
+        const current = storedPlanRef.current;
+        const meals = current.meals.filter(m => mealKey(m) !== key);
+        meals.splice(Math.min(index, meals.length), 0, meal);
+        savePlan({ ...current, meals });
+      },
+    });
+  };
+
+  const mealForActions = mealActionsKey ? todayPlan.meals.find(m => mealKey(m) === mealActionsKey) : undefined;
 
   // Weight tile: the smoothed trend (as on Analytics), the latest scale reading and the last month's pace
   const weightInfo = React.useMemo(() => {
@@ -463,7 +496,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         onUpdateFoodItem={onUpdateFoodItem}
         onDeleteFoodItem={handleDeleteFoodItem}
         onNavigate={onNavigate}
-        onSwapMeal={handleSwapMeal}
+        onMealActions={index => { const meal = todayPlan.meals[index]; if (meal) setMealActionsKey(mealKey(meal)); }}
         onSetFamilyMealOut={(meal, out) => { handleFamilyMealOut(meal, out); }}
         nextIndex={nextIndex}
         caloriesLeft={dailyTarget - consumed + creditedBurn(caloriesBurned, stats)}
@@ -539,8 +572,18 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         streak={analyzeActivityStreaks(effectiveHistory).currentStreak}
       />
 
-      {isMealSelectorOpen && (
-        <Sheet title="Swap meal" size="xl" onClose={() => setIsMealSelectorOpen(false)}>
+      {mealForActions && (
+        <TodayMealSheet
+          meal={mealForActions}
+          onSwap={() => { setSwapKey(mealKey(mealForActions)); setMealActionsKey(null); }}
+          onNotEating={() => { handleFamilyMealOut(mealForActions, true); setMealActionsKey(null); }}
+          onRemove={() => { handleRemoveMeal(mealKey(mealForActions)); setMealActionsKey(null); }}
+          onClose={() => setMealActionsKey(null)}
+        />
+      )}
+
+      {swapKey && (
+        <Sheet title="Swap meal" size="xl" onClose={() => setSwapKey(null)}>
           <React.Suspense fallback={<p className="p-8 text-center text-muted">Loading recipes…</p>}>
             <RecipeLibrary onSelect={handleMealSelected} />
           </React.Suspense>

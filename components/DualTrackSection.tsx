@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DayPlan, DailyLog, DayLogStatus, FoodLogItem, Recipe, WorkoutItem, AppView } from '../types';
 import { Sheet } from './Sheet';
 import { motion } from 'framer-motion';
-import { Coffee, Salad, Cookie, CookingPot, Moon, Trash2, ChevronDown, Check, Shuffle, Plus, BookOpen, UserX } from 'lucide-react';
+import { Coffee, Salad, Cookie, CookingPot, Moon, Trash2, ChevronDown, Check, MoreHorizontal, Plus, BookOpen } from 'lucide-react';
 import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
 import { workoutIconFor } from '../utils/workoutVisual';
 import { MEAL_SLOTS, isMealEaten, mealCalories, mealKcalLabel, mealKey, slotFor, slotLabel, slotTime } from '../utils/planUtils';
@@ -21,8 +21,9 @@ interface DualTrackSectionProps {
   onUpdateFoodItem: (item: FoodLogItem) => void;
   onDeleteFoodItem: (itemId: string) => void;
   onNavigate: (view: AppView) => void;
-  onSwapMeal: (index: number) => void;
-  /** The user isn't eating a family meal (out), or is again; family meals offer this instead of Swap */
+  /** Opens what can be changed about a planned meal (swap, not eating, remove) */
+  onMealActions: (index: number) => void;
+  /** The user is eating a family meal after all */
   onSetFamilyMealOut: (meal: Recipe, out: boolean) => void;
   /** The plan index of the next meal still to eat, shown as a highlighted row */
   nextIndex?: number;
@@ -131,7 +132,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   onUpdateFoodItem,
   onDeleteFoodItem,
   onNavigate,
-  onSwapMeal,
+  onMealActions,
   onSetFamilyMealOut,
   nextIndex,
   caloriesLeft,
@@ -337,7 +338,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   };
 
   // A planned meal as a row on the page, a round plate, the name large and a big tick.
-  // The next meal to eat is highlighted: a sunken pill with its time, who it's for and Swap always shown.
+  // The next meal to eat is highlighted: a sunken pill with its time, who it's for and its actions always shown.
   const renderPlateRow = ({ meal, index }: { meal: Recipe; index: number }) => {
     const isEaten = isMealEaten(todayPlan, meal);
     const isNext = index === nextIndex && !isEaten;
@@ -382,14 +383,14 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
         </button>
         {!isEaten && (
           <button
-            onClick={() => (meal.familyMeal ? onSetFamilyMealOut(meal, true) : onSwapMeal(index))}
+            onClick={() => onMealActions(index)}
             className={`hit-target size-9 shrink-0 flex items-center justify-center rounded-full text-muted hover:text-main transition-[opacity,colors] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${isNext
               ? 'hover:bg-surface'
               : 'hover:bg-surface-sunken md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'}`}
-            aria-label={meal.familyMeal ? `I'm not eating ${meal.name}` : `Swap ${meal.name}`}
-            title={meal.familyMeal ? 'Not eating this' : undefined}
+            aria-label={`Change ${meal.name}`}
+            aria-haspopup="dialog"
           >
-            {meal.familyMeal ? <UserX size={16} /> : <Shuffle size={16} />}
+            <MoreHorizontal size={16} />
           </button>
         )}
         <motion.button
