@@ -426,6 +426,8 @@ export interface DailyLog {
   waterIntake: number; // in ml
   maxFastingHours?: number; // Maximum fast achieved/broken on this day
   status?: DayLogStatus;
+  /** Marked as feeling unwell: left out of the burn estimate (with the next few weigh-ins) and streaks pause (utils/unwell.ts) */
+  unwell?: boolean;
 }
 
 export interface DailySummary {
@@ -439,6 +441,7 @@ export interface DailySummary {
   maxFastingHours?: number; // Fasting hours achieved
   proteinConsumed?: number; // grams, from items with a known protein amount
   status?: DayLogStatus;
+  unwell?: boolean;
 }
 
 export interface DailyProgress {

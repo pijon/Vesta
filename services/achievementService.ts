@@ -1,5 +1,6 @@
 import { DailyLog, FastingState, UserStats, DailyProgress } from '../types';
 import { localDateString } from '../utils/dateUtils';
+import { addDays } from '../utils/planUtils';
 
 /**
  * Calculates the progress for the 3 daily rings: Calories, Water, Fasting.
@@ -87,15 +88,24 @@ export const calculateDailyProgress = (
 /**
  * Checks and updates the user's streak based on yesterday/today's performance.
  * Should be called once on app load or when returning to foreground.
+ * Days marked unwell (`unwell`) pause streaks: a gap made only of them doesn't break one.
  */
 export const updateStreak = (
     stats: UserStats,
     dailyProgress: DailyProgress,
-    todayDate: string
+    todayDate: string,
+    unwell: Set<string> = new Set()
 ): UserStats => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = localDateString(yesterday);
+    const yesterdayStr = addDays(todayDate, -1);
+
+    // The streak was last kept on `lastLogDate` and has lapsed since: a day after it, up to yesterday, wasn't an unwell day
+    const lapsed = (lastLogDate: string) => {
+        if (!lastLogDate || lastLogDate >= yesterdayStr) return false;
+        for (let date = addDays(lastLogDate, 1); date <= yesterdayStr; date = addDays(date, 1)) {
+            if (!unwell.has(date)) return true;
+        }
+        return false;
+    };
 
     // Helper to update a single streak category
     const updateCategory = (
@@ -104,8 +114,8 @@ export const updateStreak = (
     ) => {
         const streak = current || { current: 0, best: 0, lastLogDate: '' };
 
-        // Gap detection: If last log was older than yesterday, reset
-        if (streak.lastLogDate && streak.lastLogDate !== todayDate && streak.lastLogDate !== yesterdayStr) {
+        // Gap detection: If last log was older than yesterday (unwell days aside), reset
+        if (lapsed(streak.lastLogDate)) {
             streak.current = 0;
         }
 
@@ -140,7 +150,7 @@ export const updateStreak = (
 
     // 1. Global Perfect Day Streak
     // Logic: Gap check
-    if (streaks.lastLogDate && streaks.lastLogDate !== todayDate && streaks.lastLogDate !== yesterdayStr) {
+    if (lapsed(streaks.lastLogDate)) {
         newStats.streaks.currentStreak = 0;
     }
 

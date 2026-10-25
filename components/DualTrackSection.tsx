@@ -41,6 +41,8 @@ interface DualTrackSectionProps {
   /** Your usual intake on this kind of day, when today looks well under it (see looksLight) */
   lightDayUsual?: number;
   isFastDay?: boolean;
+  /** Today is marked as feeling unwell, so it stays out of the daily burn whatever was logged */
+  unwell?: boolean;
   onSetDayStatus: (status: DayLogStatus | undefined) => void;
   /** Opens the edit sheet for this logged entry (Today's "Portion" shortcut after a tick), then clears it */
   editItemId?: string | null;
@@ -91,8 +93,16 @@ const DayStatusRow: React.FC<{
   countsForBurn: boolean;
   lightDayUsual?: number;
   isFastDay?: boolean;
+  unwell?: boolean;
   onSet: (status: DayLogStatus | undefined) => void;
-}> = ({ status, counts, countsForBurn, lightDayUsual, isFastDay, onSet }) => {
+}> = ({ status, counts, countsForBurn, lightDayUsual, isFastDay, unwell, onSet }) => {
+  if (unwell) {
+    return (
+      <div className="border-t border-border mt-3 pt-3 px-2">
+        <p className="text-xs text-muted">You're unwell today, so it's left out of your daily burn.</p>
+      </div>
+    );
+  }
   if (!status && lightDayUsual !== undefined) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border mt-3 pt-3 px-2">
@@ -144,6 +154,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
   dayCountsForBurn,
   lightDayUsual,
   isFastDay,
+  unwell,
   onSetDayStatus,
   planAside,
   editItemId,
@@ -567,7 +578,7 @@ export const DualTrackSection: React.FC<DualTrackSectionProps> = ({
               {entryGroups.map(renderLogGroup)}
 
               {sortedFoodItems.length > 0 && (dayStatus || new Date().getHours() >= STATUS_FROM_HOUR) && (
-                <DayStatusRow status={dayStatus} counts={dayCounts} countsForBurn={dayCountsForBurn} lightDayUsual={lightDayUsual} isFastDay={isFastDay} onSet={onSetDayStatus} />
+                <DayStatusRow status={dayStatus} counts={dayCounts} countsForBurn={dayCountsForBurn} lightDayUsual={lightDayUsual} isFastDay={isFastDay} unwell={unwell} onSet={onSetDayStatus} />
               )}
             </>
           )}

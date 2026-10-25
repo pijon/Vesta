@@ -3,6 +3,7 @@ import { onBreak, settling, stretchOf } from './breaks';
 import { localDateString, parseLocalDate } from './dateUtils';
 import { completeDayFor, ENERGY_COMPLETE_DAY_SHARE } from './logCompleteness';
 import { addDays } from './planUtils';
+import { recovering, unwellDays } from './unwell';
 
 /** Energy in a kilogram of body weight change (mostly fat), the usual rule of thumb. */
 export const KCAL_PER_KG = 7700;
@@ -108,10 +109,10 @@ export const MIN_LOGGED_PER_KIND = 3;
 export const MIN_BURN_MARGIN = 250;
 
 export interface EnergyEstimate {
-  /** The window: the 28 days up to yesterday (today isn't finished), reaching back past any break */
+  /** The window: the 28 days up to yesterday (today isn't finished), reaching back past any break or unwell day */
   from: string;
   to: string;
-  /** Days in the window, not counting breaks: 28 unless a long break left too few */
+  /** Days in the window, not counting breaks or unwell days: 28 unless a long break left too few */
   windowDays: number;
   loggedDays: number;
   /** Days with a weigh-in (several on one day count once) */
@@ -148,6 +149,7 @@ export interface EnergyEstimate {
  * With day types (fast or nourish), fast and nourish days are averaged apart and combined by how many of
  * each the window held, so logging fast days more (or less) diligently than the rest doesn't skew it,
  * which matters on a 5:2 pattern where the two differ by well over a thousand kcal.
+ * Days marked unwell are left out like break days, and so are the weigh-ins of the few days after them.
  */
 export const estimateEnergy = (
   summaries: DailySummary[],
@@ -161,10 +163,11 @@ export const estimateEnergy = (
   breaks: TrackingBreak[] = [],
 ): EnergyEstimate => {
   const to = addDays(today, -1);
+  const unwell = unwellDays(summaries);
   const windowDates: string[] = [];
   for (let back = 0; windowDates.length < ESTIMATE_WINDOW_DAYS && back <= MAX_LOOKBACK_DAYS; back++) {
     const date = addDays(to, -back);
-    if (!onBreak(breaks, date)) windowDates.push(date);
+    if (!onBreak(breaks, date) && !unwell.has(date)) windowDates.push(date);
   }
   const inWindowDate = new Set(windowDates);
   const windowDays = Math.max(windowDates.length, 1);
@@ -172,9 +175,9 @@ export const estimateEnergy = (
   const inWindow = summaries.filter(s => inWindowDate.has(s.date));
   const logged = inWindow.filter(isComplete);
   // One point per day (several weigh-ins on a day count as their average), so a day can't count twice.
-  // The days just after a break are left out while the scale settles
+  // The days just after a break or an unwell day are left out while the scale settles
   const byDate = new Map<string, number[]>();
-  (history || []).filter(e => e.weight > 0 && inWindowDate.has(e.date) && !settling(breaks, e.date))
+  (history || []).filter(e => e.weight > 0 && inWindowDate.has(e.date) && !settling(breaks, e.date) && !recovering(unwell, e.date))
     .forEach(e => byDate.set(e.date, [...(byDate.get(e.date) ?? []), e.weight]));
   const weighIns = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))

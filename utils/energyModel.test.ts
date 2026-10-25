@@ -256,3 +256,28 @@ describe('breaks', () => {
     expect(estimateEnergy([], [], TODAY, undefined, types, breaks).fastDays).toBe(0);
   });
 });
+
+describe('unwell days', () => {
+  // Three days with a cold, ending a week ago
+  const days = Array.from({ length: 40 }, (_, i) => addDays(TODAY, i - 40));
+  const sickDays = [addDays(TODAY, -10), addDays(TODAY, -9), addDays(TODAY, -8)];
+  const unwellSummary = (d: string, calories: number) => ({ ...summary(d, calories), ...(sickDays.includes(d) ? { unwell: true } : {}) });
+
+  it('leaves unwell days out of intake and reaches back for 28 others', () => {
+    const est = estimateEnergy(days.map(d => unwellSummary(d, sickDays.includes(d) ? 600 : 1800)), [], TODAY);
+    expect(est).toMatchObject({ windowDays: 28, loggedDays: 28, avgIntake: 1800, from: addDays(TODAY, -31) });
+  });
+
+  it('ignores weigh-ins on unwell days and the three days after', () => {
+    // Losing 0.5 kg a week, with 1.5 kg of fluid on the scale while ill and just after
+    const recoveryEnd = addDays(TODAY, -5);
+    const history = days.map(date => {
+      const base = 92 + (-0.5 / 7) * days.indexOf(date);
+      return { date, weight: date >= sickDays[0] && date <= recoveryEnd ? base + 1.5 : base };
+    });
+    const est = estimateEnergy(days.map(d => unwellSummary(d, 1800)), history, TODAY);
+    expect(est.weightChangePerWeek).toBeCloseTo(-0.5, 5);
+    // Unmarked, the fluid bends the line
+    expect(Math.abs(estimateEnergy(days.map(d => summary(d, 1800)), history, TODAY).weightChangePerWeek! + 0.5)).toBeGreaterThan(0.05);
+  });
+});

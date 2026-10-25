@@ -8,7 +8,9 @@ export const useAchievements = (
     log: DailyLog,
     fastingState: FastingState,
     stats: UserStats,
-    onUpdateStats: (stats: UserStats) => void
+    onUpdateStats: (stats: UserStats) => void,
+    /** Days marked unwell, which pause streaks; null until the history is in, and streaks wait for it */
+    unwell: Set<string> | null
 ) => {
     const [progress, setProgress] = useState<DailyProgress | null>(null);
 
@@ -21,8 +23,8 @@ export const useAchievements = (
 
         // 2. Check Streak Updates (Side Effect)
         // Only run if stats loaded
-        if (stats && stats.currentWeight !== 0) { // basic check if loaded
-            const updatedStats = updateStreak(stats, dailyProgress, today);
+        if (stats && stats.currentWeight !== 0 && unwell) { // basic check if loaded
+            const updatedStats = updateStreak(stats, dailyProgress, today, unwell);
 
             // Save if changed
             if (
@@ -34,7 +36,7 @@ export const useAchievements = (
             }
         }
 
-    }, [log, fastingState, stats.dailyCalorieGoal, stats.dailyWaterGoal]); // Re-run when inputs change
+    }, [log, fastingState, stats.dailyCalorieGoal, stats.dailyWaterGoal, unwell]); // Re-run when inputs change
 
     return { progress };
 };
