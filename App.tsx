@@ -47,7 +47,7 @@ import { completeUserSetup, getUserSetup, saveUserExperience, saveUserProfileNam
 import { DevModeProvider, useDevMode } from './contexts/DevModeContext';
 import { LoginScreen } from './components/LoginScreen';
 import { OnboardingWizard, OnboardingResult } from './components/OnboardingWizard';
-import { FoodEntryModal } from './components/FoodEntryModal';
+import { FoodEntryModal, PlannedMealOffer } from './components/FoodEntryModal';
 import { WorkoutEntryModal } from './components/WorkoutEntryModal';
 import { WeightEntryModal } from './components/WeightEntryModal';
 import { ViewSkeleton } from './components/ViewSkeleton';
@@ -221,7 +221,8 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
     });
 
     // Global Modal State
-    const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
+    // Open with Today's next planned meal when Today opened it
+    const [foodModal, setFoodModal] = useState<{ planned?: PlannedMealOffer } | null>(null);
     const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
     // A weigh-in reminder opens /today?weigh=1: go straight to the weight sheet
@@ -894,7 +895,7 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
         refreshData,
         onNavigate: handleNavigate,
         // Modal Handlers
-        onOpenFoodModal: () => setIsFoodModalOpen(true),
+        onOpenFoodModal: (planned?: PlannedMealOffer) => setFoodModal({ planned }),
         onOpenWorkoutModal: (workout?: WorkoutItem, onDelete?: () => void) => {
             if (workout) setEditingWorkout(workout);
             else setEditingWorkout(null);
@@ -1032,8 +1033,9 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
 
                 {/* Global Modals */}
                 <FoodEntryModal
-                    isOpen={isFoodModalOpen}
-                    onClose={() => setIsFoodModalOpen(false)}
+                    isOpen={!!foodModal}
+                    planned={foodModal?.planned}
+                    onClose={() => setFoodModal(null)}
                     onAddItems={handleAddFoodLogItems}
                 />
 

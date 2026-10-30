@@ -29,6 +29,7 @@ import { TodayMealSheet } from './TodayMealSheet';
 // Lazy load RecipeLibrary
 const RecipeLibrary = React.lazy(() => import('./RecipeLibrary').then(module => ({ default: module.RecipeLibrary })));
 import { Sheet } from './Sheet';
+import type { PlannedMealOffer } from './FoodEntryModal';
 import { useAchievements } from '../hooks/useAchievements';
 import { UnwellCard } from './UnwellCard';
 import { unwellDays } from '../utils/unwell';
@@ -64,7 +65,8 @@ interface TrackTodayProps {
   onUpdateFastingConfig: (config: FastingConfig) => Promise<void>;
   refreshData: () => void;
   onNavigate: (view: AppView) => void;
-  onOpenFoodModal: () => void;
+  /** Opens the log food sheet; `planned` offers the next planned meal at its top */
+  onOpenFoodModal: (planned?: PlannedMealOffer) => void;
   /** `onDelete` gives the edit sheet a Delete button (with Today's Undo) */
   onOpenWorkoutModal: (workout?: WorkoutItem, onDelete?: () => void) => void;
   onOpenWeightModal: () => void;
@@ -282,6 +284,12 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
   // "Next up" on Today's plate
   const nextIndex = nextMealIndex(todayPlan);
 
+  /** The log food sheet, offering the next meal on the plate (logged like ticking it there) */
+  const openFoodSheet = () => {
+    const meal = nextIndex === undefined ? undefined : todayPlan.meals[nextIndex];
+    onOpenFoodModal(meal && nextIndex !== undefined ? { meal, onLog: () => logPlanned([nextIndex], false) } : undefined);
+  };
+
   /** Deletes at once with Undo. An entry logged from the plan also unticks that meal (and Undo ticks it again). */
   const handleDeleteFoodItem = async (itemId: string) => {
     const item = dailyLog.items?.find(i => i.id === itemId);
@@ -477,7 +485,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
           caloriesBurned={caloriesBurned}
           burnCredit={stats.workoutCalorieCredit ?? 1}
           isFastDay={!isNonFastDay}
-          onLogFood={onOpenFoodModal}
+          onLogFood={openFoodSheet}
         />
         <TodayStrip
           water={{ liters: (dailyLog.waterIntake || 0) / 1000, goal: stats.dailyWaterGoal ? stats.dailyWaterGoal / 1000 : 2.5, onAdd: handleAddWaterClick }}
@@ -526,7 +534,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         caloriesLeft={dailyTarget - consumed + creditedBurn(caloriesBurned, stats)}
         frequentFoods={frequentFoods}
         onQuickLog={handleQuickLog}
-        onLogFood={onOpenFoodModal}
+        onLogFood={openFoodSheet}
         dayStatus={dailyLog.status}
         dayCounts={isCompleteDay(consumed, dailyTarget, dailyLog.status)}
         dayCountsForBurn={isCompleteDay(consumed, dailyTarget, dailyLog.status, ENERGY_COMPLETE_DAY_SHARE)}
@@ -548,7 +556,7 @@ export const TrackToday: React.FC<TrackTodayProps> = ({
         dayTypes={dayTypes}
         dailyLog={dailyLog}
         onUpdateStats={onUpdateStats}
-        onOpenFoodModal={onOpenFoodModal}
+        onOpenFoodModal={openFoodSheet}
         onOpenWeightModal={onOpenWeightModal}
         onNavigate={onNavigate}
         coachRead={coachRead}

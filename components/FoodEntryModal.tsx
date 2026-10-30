@@ -1,19 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CircleAlert, Camera, Loader2, MessageSquareText, Pencil, Plus, ScanBarcode, Sparkles, CookingPot, X } from 'lucide-react';
-import { FoodLogItem, KnownFood } from '../types';
+import { FoodLogItem, KnownFood, Recipe } from '../types';
 import { analyzeFoodLog, analyzeFoodImage } from '../services/geminiService';
 import { frequentFoodsData, knownFoodsData } from '../services/pageData';
 import { exactKnownFood, knownFoodsMentioned, searchKnownFoods } from '../utils/foodMatch';
 import { usePrewarmed } from '../utils/prewarm';
-import { foodIconFor } from '../utils/mealVisual';
+import { foodIconFor, mealVisualFor } from '../utils/mealVisual';
+import { mealCalories, slotFor, slotLabel } from '../utils/planUtils';
 import { Sheet } from './Sheet';
 import { BarcodeScanner } from './BarcodeScanner';
 import { SelectionPill } from './SelectionPill';
+
+/** Today's next planned meal, offered at the top of the sheet. `onLog` ticks it the way Today's plate does */
+export interface PlannedMealOffer {
+  meal: Recipe;
+  onLog: () => void;
+}
 
 interface FoodEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddItems: (items: FoodLogItem[]) => void;
+  planned?: PlannedMealOffer;
 }
 
 type Mode = 'describe' | 'photo' | 'scan' | 'manual';
@@ -74,7 +82,7 @@ const photoForAnalysis = async (file: File): Promise<{ base64: string; mimeType:
   }
 };
 
-const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose, onAddItems }) => {
+const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose, onAddItems, planned }) => {
   const [mode, setMode] = useState<Mode>('describe');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -284,6 +292,32 @@ const FoodEntrySheet: React.FC<Omit<FoodEntryModalProps, 'isOpen'>> = ({ onClose
                 </ul>
               </div>
             )}
+
+            {/* The meal the plan says comes next: logged as that meal (ticked on the plate), not as a diary item */}
+            {matches.length === 0 && planned && (() => {
+              const { meal } = planned;
+              const { Icon, tint } = mealVisualFor(meal);
+              const kcal = mealCalories(meal);
+              return (
+                <div>
+                  <p className="heading-3 mb-1">From your plan</p>
+                  <button
+                    onClick={() => { onClose(); planned.onLog(); }}
+                    aria-label={`Log ${meal.name} as eaten`}
+                    className="w-full flex items-center text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] gap-3 min-h-14 px-1 py-2 rounded-[16px]"
+                  >
+                    <span className={`size-10 shrink-0 rounded-full flex items-center justify-center ${tint}`}>
+                      <Icon size={18} strokeWidth={2.25} aria-hidden="true" />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block truncate font-semibold text-sm">{meal.name}</span>
+                      <span className="block text-xs text-muted">{[slotLabel(slotFor(meal)), kcal > 0 ? `${kcal.toLocaleString()} kcal` : undefined].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <span className="chip shrink-0 pointer-events-none">Ate it</span>
+                  </button>
+                </div>
+              );
+            })()}
 
             {matches.length === 0 && recent.length > 0 && (
               <div>
