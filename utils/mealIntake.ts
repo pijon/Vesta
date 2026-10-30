@@ -82,7 +82,29 @@ export const updateIntakeInSnapshots = (s:IntakeSnapshots,item:FoodLogItem):Inta
   validateItem(item);
   const old=s.log.items.find(i=>i.id===item.id);
   if(!old || old.planInstanceId!==item.planInstanceId) throw new Error('That meal entry changed. Reload and try again.');
-  const fasting=item.calories>(s.fasting.config.fastBreakCalories??DEFAULT_FAST_BREAK_CALORIES) && item.timestamp>(s.fasting.lastAteTime??0)
-    ? {...s.fasting,lastAteTime:item.timestamp}:s.fasting;
-  return result({...s,fasting,log:{...s.log,items:s.log.items.map(i=>i.id===item.id?{...item}:i)}},[item]);
+  const {log,fasting}=retimeFasting(s.log,s.fasting,item);
+  return result({...s,fasting,log},[item]);
+};
+
+/**
+ * A food on the day's log edited (its time, often, when logged late): last night's fast ends at the
+ * day's first meal and the last time eaten is its latest, so both follow the edit, earlier as well as later.
+ */
+export const retimeFasting = (log:DailyLog,fasting:FastingState,item:FoodLogItem):{log:DailyLog;fasting:FastingState} => {
+  const limit=fasting.config.fastBreakCalories??DEFAULT_FAST_BREAK_CALORIES;
+  const items=log.items.map(i=>i.id===item.id?{...item}:i);
+  const times=(list:FoodLogItem[])=>list.filter(i=>i.calories>limit).map(i=>i.timestamp);
+  const before=times(log.items),after=times(items);
+  const next:DailyLog={...log,items};
+  // The fast that ended at the first meal is the day's longest; it shifts with that meal
+  if(before.length && after.length && log.maxFastingHours) {
+    const hours=log.maxFastingHours+(Math.min(...after)-Math.min(...before))/3_600_000;
+    next.maxFastingHours=hours>0 && hours<=MAX_PLAUSIBLE_FAST_HOURS?hours:0;
+  }
+  if(!after.length) return {log:next,fasting};
+  const latest=Math.max(...after),previous=fasting.lastAteTime;
+  // Set by this day's food (on or after its start), or older than it: the day's latest meal
+  const dayStart=new Date(`${log.date}T00:00`).getTime();
+  const lastAteTime=previous===null || previous>=dayStart || latest>previous?latest:previous;
+  return {log:next,fasting:lastAteTime===previous?fasting:{...fasting,lastAteTime}};
 };

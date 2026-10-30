@@ -1,7 +1,7 @@
 import type { PlannedMealIntakeEntry, PlannedMealIntakeResult, PlannedIntakeTicks, ResolvedPlannedMealIntake, CommittedMealIntake } from './types';
 import { commitPlannedMealIntake, removePlannedMealIntake, deletePlannedMealIntake, restorePlannedMealIntake, updatePlannedMealIntake } from './services/mealLogService';
 import { mealNutrition } from './utils/recipeNutrition';
-import { assertUniqueMealKeys } from './utils/mealIntake';
+import { assertUniqueMealKeys, retimeFasting } from './utils/mealIntake';
 import { MealCaloriesSheet } from './components/MealCaloriesSheet';
 import React, { Activity, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -875,10 +875,9 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
         onAddFoodLogItems: handleAddFoodLogItems,
         onUpdateFoodItem: (item:FoodLogItem) => runHealthMutation(async()=>{
             if(item.planInstanceId) {publishIntake(await updatePlannedMealIntake(uid,todayDate,item));return;}
-            await writeDailyLog(current=>({...current,items:current.items.map(i=>i.id===item.id?item:i)}));
-            if(item.calories>(fastingStateRef.current.config.fastBreakCalories??DEFAULT_FAST_BREAK_CALORIES) && item.timestamp>(fastingStateRef.current.lastAteTime??0)) {
-                const next={...fastingStateRef.current,lastAteTime:item.timestamp};await saveFastingState(next);requireSession();publishFasting(next);
-            }
+            let fasting=fastingStateRef.current;
+            await writeDailyLog(current=>{const next=retimeFasting(current,fastingStateRef.current,item);fasting=next.fasting;return next.log;});
+            if(fasting!==fastingStateRef.current) {await saveFastingState(fasting);requireSession();publishFasting(fasting);}
         }),
         onRestoreFoodItem: (item:FoodLogItem) => runHealthMutation(async()=>{
             if(item.planInstanceId) {publishIntake(await restorePlannedMealIntake(uid,todayDate,item));return;}
