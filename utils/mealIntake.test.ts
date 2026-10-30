@@ -1,6 +1,6 @@
 import {it,expect} from 'vitest';
 import type {Recipe,ResolvedPlannedMealIntake} from '../types';
-import {applyIntakeToSnapshots,removeIntakeFromSnapshots,restoreIntakeToSnapshots,updateIntakeInSnapshots,validateResolvedIntake,assertUniqueMealKeys,IntakeSnapshots} from './mealIntake';
+import {applyIntakeToSnapshots,removeIntakeFromSnapshots,restoreIntakeToSnapshots,retimeFasting,updateIntakeInSnapshots,validateResolvedIntake,assertUniqueMealKeys,IntakeSnapshots} from './mealIntake';
 const meal:Recipe={id:'r',instanceId:'m',name:'Soup',calories:400,protein:20,ingredients:[],tags:[],servings:1};
 const entry=(extra:Partial<ResolvedPlannedMealIntake>={}):ResolvedPlannedMealIntake=>({key:'m',meal,at:20*3_600_000,calories:400,source:'recipe',caloriesEstimated:false,...extra});
 const snapshot=():IntakeSnapshots=>({log:{date:'2026-10-19',items:[],workouts:[],waterIntake:100,status:'complete'},completedMealIds:['other'],fasting:{lastAteTime:3_600_000,config:{protocol:'16:8',targetFastHours:16}},history:[]});
@@ -33,3 +33,20 @@ it('removes one linked entry and exactly restores historical personal intake wit
  const edited=updateIntakeInSnapshots(restored,{...s.items[0],calories:700});expect(edited.log.items[0].calories).toBe(700);expect(edited.history).toEqual(s.history);
 });
 it('rejects ambiguous older duplicate meal identities',()=>expect(()=>assertUniqueMealKeys([{...meal,instanceId:undefined},{...meal,instanceId:undefined}])).toThrow('re-save'));
+it('moves last night\'s fast and the last time eaten when a meal logged late is set to an earlier time',()=>{
+ const at=(h:number,m=0)=>new Date(2026,9,19,h,m).getTime();
+ const fasting={lastAteTime:at(10,30),config:{protocol:'16:8' as const,targetFastHours:16}};
+ const breakfast={id:'b',name:'Oats',calories:400,timestamp:at(10,30)};
+ const coffee={id:'c',name:'Coffee',calories:20,timestamp:at(7)};
+ const log={date:'2026-10-19',items:[coffee,breakfast],workouts:[],waterIntake:0,maxFastingHours:16.5};
+ const moved=retimeFasting(log,fasting,{...breakfast,timestamp:at(8)});
+ expect(moved.log.maxFastingHours).toBe(14);expect(moved.fasting.lastAteTime).toBe(at(8));
+ expect(moved.log.items.find(i=>i.id==='b')?.timestamp).toBe(at(8));
+ // Only the last time eaten follows a later meal; the fast still ended at breakfast
+ const lunch={id:'l',name:'Soup',calories:500,timestamp:at(12)};
+ const later=retimeFasting({...log,items:[breakfast,lunch]},{...fasting,lastAteTime:at(12)},{...lunch,timestamp:at(13)});
+ expect(later.log.maxFastingHours).toBe(16.5);expect(later.fasting.lastAteTime).toBe(at(13));
+ // A coffee moving changes nothing
+ const same=retimeFasting(log,fasting,{...coffee,timestamp:at(6)});
+ expect(same.fasting).toBe(fasting);expect(same.log.maxFastingHours).toBe(16.5);
+});
