@@ -204,7 +204,7 @@ export const PlannerMealSheet: React.FC<PlannerMealSheetProps> = ({
         )}
 
         <ul className="-mx-1">
-          {(isBudget || meal.quick?.kind === 'out') && action(<MapPin size={18} />, isBudget ? 'Where are you eating?' : 'Change what you\'re having', onDecideEatingOut)}
+          {meal.quick?.kind === 'out' && action(<MapPin size={18} />, isBudget ? 'Where are you eating?' : 'Change what you\'re having', onDecideEatingOut)}
           {!isCustom && action(<BookOpen size={18} />, 'View recipe', onView)}
           {hasRecipe && action(<ChefHat size={18} />, 'Cook', onCook)}
           {action(<Shuffle size={18} />, 'Swap for another meal', onSwap)}

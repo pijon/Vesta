@@ -79,17 +79,17 @@ export const isBudgetMeal = (meal: Pick<Recipe, 'quick'>) => !!meal.quick?.budge
 /** Name given to an eating-out meal planned before a place is picked. */
 export const EATING_OUT_NAME = 'Eating out';
 
-/** A planned "eating out, place TBD" meal with a calorie budget. */
-export const eatingOutBudgetMeal = (slot: MealSlot, budget: number, auto = true): Recipe => ({
+/** A planned "eating out, place TBD" (or takeaway, dish TBD) meal with a calorie budget. */
+export const eatingOutBudgetMeal = (slot: MealSlot, budget: number, auto = true, kind: 'out' | 'in' = 'out'): Recipe => ({
   id: crypto.randomUUID(),
-  name: EATING_OUT_NAME,
+  name: kind === 'in' ? 'Takeaway' : EATING_OUT_NAME,
   calories: Math.max(0, Math.round(budget)),
   ingredients: [],
   instructions: [],
   tags: [slot],
   servings: 1,
   description: QUICK_MEAL_DESCRIPTION,
-  quick: { kind: 'out', budget: true, autoBudget: auto || undefined },
+  quick: { kind, budget: true, autoBudget: auto || undefined },
 });
 
 /**
@@ -133,6 +133,14 @@ export const withLiveBudgets = (plan: DayPlan, { loggedKcal }: { loggedKcal: num
     }),
   };
 };
+
+/**
+ * Today's calories so far and still to come: everything logged (eaten planned meals included) plus
+ * the planned meals not eaten yet. Pass the plan with live budgets, or a budget counts twice what
+ * was eaten beyond the plan.
+ */
+export const todayCalories = (plan: DayPlan, loggedKcal: number) =>
+  loggedKcal + plan.meals.filter(meal => !isMealEaten(plan, meal)).reduce((sum, meal) => sum + mealCalories(meal), 0);
 
 /**
  * The budget meal once the real meal is known. It keeps its slot, instance and day, so eaten status

@@ -26,7 +26,7 @@ export const QUICK_MEAL_PRESETS: Record<MealSlot | 'side', [number, number, numb
   side: [100, 200, 300],
 };
 export const PRESET_LABELS = ['Light', 'Regular', 'Hearty'];
-const KINDS: QuickMealKind[] = ['home', 'out', 'ready'];
+const KINDS: QuickMealKind[] = ['home', 'out', 'in', 'ready'];
 
 /** Plan a meal without a recipe. Only the name is required; calories may be a preset, an estimate or left out. */
 export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, slot, isSide, askFamily = false, onSubmit }) => {
@@ -108,7 +108,7 @@ export const QuickMealForm: React.FC<QuickMealFormProps> = ({ id, initialName, s
 
       <fieldset>
         <legend className="text-sm font-semibold text-muted mb-1.5">What kind of meal</legend>
-        <div role="radiogroup" aria-label="What kind of meal" className="segmented pill-group flex w-full">
+        <div role="radiogroup" aria-label="What kind of meal" className="segmented pill-group grid grid-cols-2 sm:flex w-full max-sm:!rounded-3xl">
           {KINDS.map(k => (
             <button
               key={k}

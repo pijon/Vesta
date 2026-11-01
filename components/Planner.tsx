@@ -13,7 +13,7 @@ import { getCachedRecipes } from '../utils/cacheService';
 import { localDateString, parseLocalDate } from '../utils/dateUtils';
 import { mealVisualFor } from '../utils/mealVisual';
 import {
-  MEAL_SLOTS, addDays, dayCalories, decideEatingOut, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isBudgetMeal, isFastDay, isMealEaten,
+  MEAL_SLOTS, addDays, dayCalories, decideEatingOut, dayKcalApprox, dayMealsWithoutKcal, dayTarget, emptyDayPlan, isBudgetMeal, isFastDay, isMealEaten, todayCalories, withLiveBudgets,
   isQuickMeal, mealCalories, mealKcalLabel, mealKcalSpoken, mealKey, planMeal, planRecipe, setFamilyMealOut, slotFor, slotLabel, weekDates, rangeStart, isoWeek,
 } from '../utils/planUtils';
 import { RecipeDetailModal } from './RecipeDetailModal';
@@ -44,7 +44,9 @@ export const Planner: React.FC<{
   onRequestPlannedIntake?: (entries: PlannedMealIntakeEntry[], onTick?: PlannedIntakeTicks) => Promise<PlannedMealIntakeResult>;
   /** Plan meals shows the meals without calories, targets, fast days or calorie-driven planning */
   experience?: UserExperience;
-}> = ({ stats, onPlanChanged, onRequestPlannedIntake, experience = 'tracking' }) => {
+  /** Calories logged today, so today counts what was really eaten and its budgets shrink by any extra */
+  todayLoggedKcal?: number;
+}> = ({ stats, onPlanChanged, onRequestPlannedIntake, experience = 'tracking', todayLoggedKcal }) => {
   const planning = experience === 'planning';
   const location = useLocation();
   const today = localDateString();
@@ -148,6 +150,11 @@ export const Planner: React.FC<{
   // --- Saving ---
 
   const planFor = (date: string) => plansRef.current[date] || emptyDayPlan(date);
+  const countsLog = (date: string) => date === today && todayLoggedKcal !== undefined;
+  /** The plan as shown: today's budgets are live (see withLiveBudgets). Edits go to planFor's plan. */
+  const shownPlan = (plan: DayPlan) => countsLog(plan.date) ? withLiveBudgets(plan, { loggedKcal: todayLoggedKcal! }) : plan;
+  /** The day's calories: today counts what was logged plus what's still to eat */
+  const shownCalories = (plan: DayPlan) => countsLog(plan.date) ? todayCalories(plan, todayLoggedKcal!) : dayCalories(plan);
 
   /** Applies changes to several days at once, then saves them. */
   const updateDays = async (changes: Record<string, (plan: DayPlan) => DayPlan>) => {
@@ -417,7 +424,7 @@ export const Planner: React.FC<{
   const addTargetPlan = addTarget ? planFor(addTarget.date) : undefined;
   const addParent = addTarget?.index !== undefined ? addTargetPlan?.meals[addTarget.index] : undefined;
   const addCaloriesLeft = !planning && addTargetPlan && dayNutrition(addTargetPlan).complete
-    ? dayTarget(addTargetPlan, stats) - dayCalories(addTargetPlan) + (addTarget?.mode === 'swap' && addParent ? mealCalories(addParent) : 0)
+    ? dayTarget(addTargetPlan, stats) - shownCalories(shownPlan(addTargetPlan)) + (addTarget?.mode === 'swap' && addParent ? mealCalories(addParent) : 0)
     : undefined;
 
   // --- Render ---
@@ -621,8 +628,8 @@ export const Planner: React.FC<{
       ) : (
         <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-4 @min-[66rem]/week:grid-cols-7 md:gap-3 @min-[66rem]/week:gap-x-2">
           {dates.map((date, i) => {
-            const plan = plans[date] || emptyDayPlan(date);
-            const kcal = dayCalories(plan);
+            const plan = shownPlan(plans[date] || emptyDayPlan(date));
+            const kcal = shownCalories(plan);
             const nutrition = dayNutrition(plan);
             const approx = dayKcalApprox(plan);
             const withoutKcal = dayMealsWithoutKcal(plan);
