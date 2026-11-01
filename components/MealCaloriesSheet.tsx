@@ -26,6 +26,9 @@ export const MealCaloriesSheet: React.FC<MealCaloriesSheetProps> = ({ meal, prog
   const [preset, setPreset] = useState<number | null>(null);
   const [exact, setExact] = useState('');
   const [estimatedExact, setEstimatedExact] = useState(false);
+  const fullName = [meal.name, ...(meal.sides || []).map(s => s.name)].join(' with ');
+  // What the estimate is for: a placeholder name like "Takeaway" says nothing, so it can be described here
+  const [description, setDescription] = useState(fullName);
   const [error, setError] = useState('');
   const [estimating, setEstimating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,12 +46,14 @@ export const MealCaloriesSheet: React.FC<MealCaloriesSheetProps> = ({ meal, prog
   // A new meal (or request) starts with a clean answer; a pending estimate for the old one is dropped
   useEffect(() => {
     revision.current++;
-    setExact(''); setPreset(null); setError(''); setEstimatedExact(false); setEstimating(false);
+    setExact(''); setPreset(null); setError(''); setEstimatedExact(false); setEstimating(false); setDescription(fullName);
   }, [identity]);
   const pending = busy || saving;
   const nutrition = mealNutrition(meal);
 
   const estimate = async () => {
+    const what = description.trim();
+    if (!what) { setError('Say what you had to estimate it'); return; }
     const token = ++revision.current;
     const captured = identityRef.current;
     // An estimate only fills the answer if nothing changed while it was on its way
@@ -56,7 +61,7 @@ export const MealCaloriesSheet: React.FC<MealCaloriesSheetProps> = ({ meal, prog
     setEstimating(true);
     setError('');
     try {
-      const kcal = await estimateMealCalories([meal.name,...(meal.sides||[]).map(s=>s.name)].join(' with '), meal.quick?.kind || 'home', slot);
+      const kcal = await estimateMealCalories(what, meal.quick?.kind || 'home', slot);
       if (!current()) return;
       if (typeof kcal !== 'number' || !Number.isFinite(kcal) || kcal < 0 || kcal > 5000) { setError("Couldn't estimate that one. Pick a size or enter a number."); return; }
       setExact(String(kcal));
@@ -152,13 +157,24 @@ export const MealCaloriesSheet: React.FC<MealCaloriesSheetProps> = ({ meal, prog
             />
           </label>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 mt-1.5">
-          <button type="button" onClick={estimate} disabled={estimating || pending} className="btn-ghost btn-sm !px-2 -ml-2">
+        <div className="flex gap-2 mt-3">
+          <label className="flex-1 min-w-0">
+            <span className="sr-only">What did you have?</span>
+            <input
+              disabled={pending}
+              value={description}
+              onChange={e => { setDescription(e.target.value); if (error.startsWith('Say what')) setError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (!estimating) estimate(); } }}
+              placeholder="What did you have? e.g. pad thai"
+              className="input w-full"
+            />
+          </label>
+          <button type="button" onClick={estimate} disabled={estimating || pending} className="btn-secondary shrink-0">
             {estimating ? <span className="spinner spinner-sm" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
-            {estimating ? 'Estimating…' : 'Estimate from the name'}
+            {estimating ? 'Estimating…' : 'Estimate'}
           </button>
-          {estimatedExact && exact && <span className="text-xs text-muted">Estimated, shown as ≈ {exact} kcal</span>}
         </div>
+        {estimatedExact && exact && <p className="text-xs text-muted mt-1.5">Estimated, shown as ≈ {exact} kcal</p>}
         {(error || externalError) && <p className="text-sm text-error mt-2" role="alert">{error || externalError}</p>}
       </form>
     </Sheet>
