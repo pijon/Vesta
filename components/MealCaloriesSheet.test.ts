@@ -32,6 +32,13 @@ it('blocks duplicate save and all dismissal routes during commit, then allows no
 it('ignores late estimates after a manual edit or meal identity change',async()=>{
  let finish!:(n:number)=>void;ai.estimate.mockImplementation(()=>new Promise<number>(r=>{finish=r;}));const save=vi.fn();
  const props={meal,onSave:save,onSkip:()=>{},onClose:()=>{}};
- await act(async()=>root.render(React.createElement(MealCaloriesSheet,props)));await click('Estimate from the name');await enter('321');await act(async()=>finish(900));expect(document.querySelector('input')!.value).toBe('321');expect(save).not.toHaveBeenCalled();
- await click('Estimate from the name');await act(async()=>root.render(React.createElement(MealCaloriesSheet,{...props,meal:{...meal,id:'new'}})));await act(async()=>finish(850));expect(document.querySelector('input')!.value).toBe('');
+ await act(async()=>root.render(React.createElement(MealCaloriesSheet,props)));await click('Estimate');await enter('321');await act(async()=>finish(900));expect(document.querySelector('input')!.value).toBe('321');expect(save).not.toHaveBeenCalled();
+ await click('Estimate');await act(async()=>root.render(React.createElement(MealCaloriesSheet,{...props,meal:{...meal,id:'new'}})));await act(async()=>finish(850));expect(document.querySelector('input')!.value).toBe('');
+});
+it('estimates from what the person says they had, not a placeholder name',async()=>{
+ ai.estimate.mockResolvedValue(700);
+ await act(async()=>root.render(React.createElement(MealCaloriesSheet,{meal:{...meal,name:'Takeaway',quick:{kind:'in'}},onSave:vi.fn(),onSkip:()=>{},onClose:()=>{}})));
+ const what=document.querySelectorAll('input')[1];expect(what.value).toBe('Takeaway');
+ await act(async()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(what,'pad thai');what.dispatchEvent(new Event('input',{bubbles:true}));});
+ await click('Estimate');expect(ai.estimate).toHaveBeenCalledWith('pad thai','in','dinner');expect(document.querySelector('input')!.value).toBe('700');
 });
