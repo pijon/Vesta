@@ -256,7 +256,7 @@ ${items.map((item, i) => `${i + 1}. ${scrubPII(item.name)} (${Math.round(item.ca
 
 /** Calories in one typical portion of a meal known only by name, for planning. Null when the model can't say. */
 export const estimateMealCalories = async (name: string, kind: QuickMealKind, slot: MealSlot): Promise<number | null> => {
-  const where = kind === 'out' ? 'eaten at a restaurant or takeaway' : kind === 'ready' ? 'bought ready-made' : 'cooked at home';
+  const where = kind === 'out' ? 'eaten at a restaurant' : kind === 'in' ? 'bought as a takeaway or delivery and eaten at home' : kind === 'ready' ? 'bought ready-made' : 'cooked at home';
   const response = await generateWithFallback({
     model: GEMINI_FAST_MODEL,
     contents: `Estimate the calories in one typical adult portion of this ${slot === 'snack' ? 'snack' : slot}, ${where}: "${scrubPII(name)}".

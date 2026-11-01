@@ -2,7 +2,7 @@ import { withoutHeadings } from './recipeSections';
 import {
   Apple, Banana, Bean, Beef, Beer, CakeSlice, Candy, Carrot, Cherry, Citrus, Coffee, Cookie, CookingPot,
   Croissant, CupSoda, Donut, Drumstick, EggFried, Fish, GlassWater, Grape, Ham, Hamburger, IceCreamCone,
-  LeafyGreen, Martini, Milk, Nut, Package, Pizza, Popcorn, Salad, Sandwich, Shrimp, Soup, Store, Wheat, Wine,
+  LeafyGreen, Martini, Milk, Nut, Package, Pizza, Popcorn, Salad, ShoppingBag, Sandwich, Shrimp, Soup, Store, Wheat, Wine,
   type LucideIcon,
 } from 'lucide-react';
 import { QuickMealKind, Recipe } from '../types';
@@ -83,6 +83,7 @@ export const foodIconFor = (meal: Partial<Pick<Recipe, 'name' | 'ingredients'>>)
 export const QUICK_MEAL_KINDS: Record<QuickMealKind, { label: string; Icon: LucideIcon; tint: string }> = {
   home: { label: 'Home cooked', Icon: CookingPot, tint: 'bg-calories-bg text-calories-text' },
   out: { label: 'Eating out', Icon: Store, tint: 'bg-workout-bg text-workout-text' },
+  in: { label: 'Takeaway', Icon: ShoppingBag, tint: 'bg-fasting-bg text-fasting-text' },
   ready: { label: 'Ready-made', Icon: Package, tint: 'bg-water-bg text-water-text' },
 };
 

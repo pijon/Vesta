@@ -1,17 +1,14 @@
 import { mealNutrition } from '../utils/recipeNutrition';
 import React, { useId, useMemo, useState } from 'react';
-import { ArrowLeft, Heart, Plus, Search, Sparkles, Store, UsersRound } from 'lucide-react';
-import { MealSlot, Recipe } from '../types';
+import { ArrowLeft, Heart, Plus, Search, Sparkles, UsersRound } from 'lucide-react';
+import { MealSlot, QuickMealKind, Recipe } from '../types';
 import { Sheet } from './Sheet';
-import { mealVisualFor } from '../utils/mealVisual';
-import { QUICK_MEAL_DESCRIPTION, eatingOutDishMeal, slotFor, mealKcalLabel, slotLabel, usualQuickMeals } from '../utils/planUtils';
+import { QUICK_MEAL_KINDS, mealVisualFor } from '../utils/mealVisual';
+import { QUICK_MEAL_DESCRIPTION, eatingOutBudgetMeal, slotFor, mealKcalLabel, slotLabel, usualQuickMeals } from '../utils/planUtils';
 import { useDevMode } from '../contexts/DevModeContext';
-import { QuickMealForm } from './QuickMealForm';
-import { EatingOutBudgetForm } from './EatingOutBudgetForm';
-import { EatingOutDishList } from './EatingOutDishList';
+import { QUICK_MEAL_PRESETS, QuickMealForm } from './QuickMealForm';
 import { usePrewarmed } from '../utils/prewarm';
-import { eatingOutDishesData, quickMealHistoryData } from '../services/pageData';
-import { suggestDishes } from '../utils/eatingOutHistory';
+import { quickMealHistoryData } from '../services/pageData';
 import { suggestSideDishes } from '../services/geminiService';
 
 export type AddMode = 'add' | 'swap' | 'side';
@@ -43,6 +40,14 @@ interface PlannerAddSheetProps {
 
 const PAGE = 40;
 
+/** Eating out or a takeaway, planned in one tap: no name, just a budget of what the day has left (else a regular meal). */
+const PLACEHOLDER_KINDS: { kind: Extract<QuickMealKind, 'out' | 'in'>; hint: string }[] = [
+  { kind: 'out', hint: 'Plan it now, decide where later' },
+  { kind: 'in', hint: 'Bought in, eaten at home' },
+];
+const placeholderBudget = (slot: MealSlot, caloriesLeft: number | undefined) =>
+  caloriesLeft !== undefined && caloriesLeft >= 100 ? Math.min(2000, Math.floor(caloriesLeft / 50) * 50) : QUICK_MEAL_PRESETS[slot][1];
+
 /** Pick a recipe for one slot: leftovers first, then the library with search and quick filters. */
 export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
   mode, slot, title, caloriesLeft, isFastDay, recipes, familyRecipes, leftovers, inFamily,
@@ -62,9 +67,6 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
   /** Name for the quick-meal form; null shows the recipe list */
   const [quickDraft, setQuickDraft] = useState<string | null>(null);
   const quickFormId = useId();
-  /** Setting a budget for eating out with the place undecided */
-  const [budgeting, setBudgeting] = useState(false);
-  const pastDishes = usePrewarmed(eatingOutDishesData) ?? [];
   const quickHistory = usePrewarmed(quickMealHistoryData);
   const quickMeals = useDevMode().isFeatureEnabled('quickMeals');
 
@@ -171,37 +173,6 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
     ? `With ${mainMealName}`
     : caloriesLeft === undefined ? 'Calorie fit unavailable until all planned nutrition is known' : `${isFastDay ? 'Fast day · ' : ''}${caloriesLeft >= 0 ? `${caloriesLeft} kcal left` : `${-caloriesLeft} kcal over`}`;
 
-  if (budgeting) {
-    return (
-      <Sheet
-        title={title}
-        subtitle={subtitle}
-        onClose={onClose}
-        footer={
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setBudgeting(false)} className="btn-secondary"><ArrowLeft size={16} aria-hidden="true" /> Back</button>
-            <button type="submit" form={quickFormId} className="btn-primary flex-1">
-              {mode === 'swap' ? 'Swap in' : 'Add to plan'}
-            </button>
-          </div>
-        }
-      >
-        <EatingOutBudgetForm id={quickFormId} slot={slot} caloriesLeft={caloriesLeft} onSubmit={meal => onPick(meal)} />
-        {pastDishes.length > 0 && (
-          <section aria-labelledby="usual-orders-heading" className="mt-6">
-            <h3 id="usual-orders-heading" className="text-sm font-semibold text-muted">Or plan a dish you've had before</h3>
-            <p className="text-xs text-muted mb-1">It stays open until you log what you really had.</p>
-            <EatingOutDishList
-              dishes={suggestDishes(pastDishes, { budget: caloriesLeft > 0 ? caloriesLeft : undefined })}
-              budget={caloriesLeft > 0 ? caloriesLeft : undefined}
-              onPick={d => onPick(eatingOutDishMeal(slot, d))}
-            />
-          </section>
-        )}
-      </Sheet>
-    );
-  }
-
   if (quickDraft !== null) {
     return (
       <Sheet
@@ -261,20 +232,24 @@ export const PlannerAddSheet: React.FC<PlannerAddSheetProps> = ({
           </button>
         )}
 
-        {quickMeals && mode !== 'side' && !term && (
-          <button
-            onClick={() => setBudgeting(true)}
-            className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-          >
-            <span className="size-12 rounded-full flex items-center justify-center shrink-0 bg-workout-bg text-workout-text" aria-hidden="true">
-              <Store size={22} strokeWidth={2.25} />
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className="font-semibold leading-snug">Eating out, place not decided</span>
-              <span className="block text-xs text-muted mt-0.5">Set a calorie budget now, pick the place later</span>
-            </span>
-          </button>
-        )}
+        {quickMeals && mode !== 'side' && !term && PLACEHOLDER_KINDS.map(({ kind, hint }) => {
+          const { label, Icon, tint } = QUICK_MEAL_KINDS[kind];
+          return (
+            <button
+              key={kind}
+              onClick={() => onPick(eatingOutBudgetMeal(slot, placeholderBudget(slot, caloriesLeft), true, kind))}
+              className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-[14px] text-left hover:bg-surface-sunken transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            >
+              <span className={`size-12 rounded-full flex items-center justify-center shrink-0 ${tint}`} aria-hidden="true">
+                <Icon size={22} strokeWidth={2.25} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="font-semibold leading-snug">{label}</span>
+                <span className="block text-xs text-muted mt-0.5">{hint}</span>
+              </span>
+            </button>
+          );
+        })}
 
         {quickMeals && usual.length > 0 && (
           <section aria-labelledby="usual-heading">

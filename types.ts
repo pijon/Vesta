@@ -47,8 +47,8 @@ export interface Recipe {
   quick?: QuickMealInfo;
 }
 
-/** What a quick meal is: cooked at home (can have shopping items), eaten out, or ready-made */
-export type QuickMealKind = 'home' | 'out' | 'ready';
+/** What a quick meal is: cooked at home (can have shopping items), eaten out, takeaway eaten at home, or ready-made */
+export type QuickMealKind = 'home' | 'out' | 'in' | 'ready';
 
 export interface QuickMealInfo {
   /** Undefined on quick meals planned before kinds existed */

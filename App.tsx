@@ -1003,7 +1003,7 @@ const TrackerApp: React.FC<TrackerAppProps> = ({ uid, setup, onSetupChange, setu
                         ? <TrackToday {...trackProps} />
                         : <PlanToday uid={uid} todayPlan={todayPlan} tomorrowPlan={tomorrowPlan} onPlanChange={showTodayPlan} refreshData={refreshData} onNavigate={handleNavigate} />)}
                     {tracking && renderView(AppView.ANALYTICS, <TrackAnalytics {...trackProps} />)}
-                    {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} experience={experience} onRequestPlannedIntake={tracking ? handleRequestPlannedIntake : undefined} />)}
+                    {renderView(AppView.PLANNER, <Planner stats={userStats} onPlanChanged={refreshData} experience={experience} onRequestPlannedIntake={tracking ? handleRequestPlannedIntake : undefined} todayLoggedKcal={tracking && dailyLog.date === todayDate ? (dailyLog.items || []).reduce((sum, item) => sum + item.calories, 0) : undefined} />)}
                     {renderView(AppView.RECIPES, <RecipeLibrary experience={experience} />)}
                     {renderView(AppView.SHOPPING, <ShoppingList />)}
                     {renderView(AppView.FAMILY, <FamilyView myAvatar={userStats.avatar} onSaveAvatar={avatar => tracking ? handleSaveStats({ ...userStats, avatar }) : onSavePlanningAvatar(avatar)} />)}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Recipe } from '../types';
 import {
-  addDays, grams, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, isRememberableDish, withLiveBudgets, isBudgetMeal, roundBudget, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
+  addDays, grams, creditedBurn, dayCalories, decideEatingOut, eatingOutBudgetMeal, eatingOutDishMeal, isRememberableDish, withLiveBudgets, isBudgetMeal, roundBudget, todayCalories, dayMealsWithoutKcal, dayTarget, mealCalories, mealKcalLabel, mealKcalSpoken,
   mealKey, mealProtein, planMeal, usualQuickMeals, planRecipe, plannableSlotFor, proteinTarget, QUICK_MEAL_DESCRIPTION, slotFor,
   weekDates, weekStart, rangeStart, isoWeek,
 } from './planUtils';
@@ -207,6 +207,19 @@ describe('live eating-out budgets', () => {
     const lunch = decideEatingOut(out('lunch', 600), 'Burrito', 700, { budgeted: 600 });
     const plan = day([lunch, out('dinner', 900)], [mealKey(lunch)]);
     expect(kcals(withLiveBudgets(plan, { loggedKcal: 700 }))[1]).toBe(800);
+  });
+
+  it("counts today's log plus the meals still to eat, so a budget planned now fits what's left", () => {
+    const lunch = planMeal(recipe({ calories: 541 }), 'lunch');
+    const plan = day([lunch, out('dinner', 1800)], [mealKey(lunch)]);
+    // Lunch logged as planned, plus a 300 kcal snack: the dinner budget gives up the snack
+    expect(todayCalories(withLiveBudgets(plan, { loggedKcal: 841 }), 841)).toBe(2341);
+    // A meal planned but not eaten yet counts at its planned figure
+    expect(todayCalories(day([lunch]), 300)).toBe(841);
+  });
+
+  it('takeaway placeholders are budgets too, named for what they are', () => {
+    expect(eatingOutBudgetMeal('dinner', 700, true, 'in')).toMatchObject({ name: 'Takeaway', calories: 700, quick: { kind: 'in', budget: true, autoBudget: true } });
   });
 
   it("doesn't raise a budget when less was eaten than planned", () => {
